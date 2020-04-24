@@ -1,0 +1,181 @@
+#title {
+    text-align: center;
+}
+
+h1 {
+    white-space: nowrap;
+}
+
+#header {
+    margin-left: 2%;
+}
+
+#statdiv {
+    white-space: nowrap;
+    margin-bottom: 2pt;
+}
+
+#errspan {
+    margin-left: 1em;
+}
+
+.connected {
+    color: green;
+}
+
+.disconnected {
+    background-color: red;
+    font-weight: bold;
+}
+
+.userform {
+    display: inline
+}
+
+.userform-invisible {
+    display: none;
+}
+
+.disconnect-invisible {
+    display: none;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+}
+
+.noerror {
+    display: none;
+}
+
+#main {
+    display: flex;
+}
+
+#users {
+    width: 5%;
+    margin-left: 2%;
+    border: 1px solid;
+}
+
+#anonymous-users {
+    white-space: nowrap;
+}
+
+#chatbox {
+    width: 100%;
+}
+
+#chat {
+    display: flex;
+    width: 20%;
+    margin-left: 0.3em;
+    border: 1px solid;
+    height: 85vh;
+}
+
+#inputform {
+    display: flex;
+}
+
+#box {
+    height: 95%;
+    overflow: auto;
+}
+
+.message, message-me {
+    margin: 0 0.5em 0 0.5em;
+}
+
+.message-user {
+    font-weight: bold;
+}
+
+.message-content {
+    line-height: 1.5;
+    margin-left: 1em;
+}
+
+.message-me-asterisk {
+    margin-right: 0.5em;
+}
+
+.message-me-user {
+    font-weight: bold;
+    margin-right: 0.5em;
+}
+
+.message-me-content {
+}
+
+#input {
+    width: 100%;
+    border: none;
+    resize: none;
+    overflow-y: hidden;
+}
+
+#input:focus {
+    outline: none;
+}
+
+#inputbutton {
+    background-color: white;
+    border: none;
+    margin-right: 0.2em;
+    font-size: 1.5em;
+}
+
+#inputbutton:focus {
+    outline: none;
+}
+
+#resizer {
+    width: 8px;
+    margin-left: -8px;
+    z-index: 1000;
+}
+
+#resizer:hover {
+    cursor: ew-resize;
+}
+
+#peers {
+    margin-left: 1%;
+    margin-right: 1%;
+    white-space: nowrap;
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.peer {
+    display: flex;
+    flex-direction: column;
+    margin-right: 5px;
+    margin-left: 5px;
+    margin-bottom: 10px;
+    max-height: 50%;
+}
+
+.media {
+    height: 400px;
+    margin: auto;
+    min-width: 4em;
+}
+
+.label {
+    text-align: center;
+    height: 2em;
+    margin-top: 5px;
+}
+
+#inputform {
+    width: 100%;
+}
+
+#input {
+    width: 85%;
+    border: 1px solid;
+}

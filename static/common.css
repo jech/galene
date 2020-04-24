@@ -1,0 +1,15 @@
+body {
+    font: 14px "Lato", Arial, sans-serif;
+}
+
+h1 {
+    font-size: 160%;
+}
+
+.signature {
+    border-top: solid;
+    margin-top: 2em;
+    padding-top: 0em;
+    border-width: thin;
+    clear: both;
+}

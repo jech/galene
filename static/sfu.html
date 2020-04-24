@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SFU</title>
+    <link rel="stylesheet" type="text/css" href="/common.css"/>
+    <link rel="stylesheet" type="text/css" href="/sfu.css"/>
+    <link rel="author" href="https://www.irif.fr/~jch/"/>
+  </head>
+
+  <body>
+    <h1 id="title">SFU</h1>
+
+    <div id="header">
+      <div id="statdiv">
+        <span id="statspan"></span>
+        <form id="userform" class="userform">
+          <label for="username">Username:</label>
+          <input id="username" type="text" name="username"
+                 autocomplete="username"/>
+          <label for="password">Password:</label>
+          <input id="password" type="password" name="password"
+                 autocomplete="current-password"/>
+          <input id="connectbutton" type="submit" value="Connect" disabled/>
+        </form>
+        <input id="disconnectbutton" class="disconnect-invisible"
+               type="submit" value="Disconnect"/>
+        <span id="errspan"></span>
+      </div>
+
+      <div id="optionsdiv">
+        <label for="presenterbox">Present:</label>
+        <input id="presenterbox" type="checkbox"/>
+        <label for="sharebox">Share screen:</label>
+        <input id="sharebox" type="checkbox"/>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="users"></div>
+      <div id="chat">
+        <div id="chatbox">
+          <div id="box"></div>
+          <form id="inputform">
+            <textarea id="input"></textarea>
+            <input id="inputbutton" type="submit" value="&#10148;"/>
+          </form>
+        </div>
+        <div id="resizer">
+        </div>
+      </div>
+
+      <div id="peers"></div>
+    </div>
+
+      <script src="/sfu.js" defer></script>
+  </body>
+</html>
