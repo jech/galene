@@ -460,9 +460,9 @@ func rtcpListener(g *group, c *downConnection, s *webrtc.RTPSender) {
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.PictureLossIndication:
-				err := sendPli(g, s.Track(), c.remote)
+				err := sendPLI(c.remote, p.MediaSSRC)
 				if err != nil {
-					log.Printf("sendPli: %v", err)
+					log.Printf("sendPLI: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				bitrate := uint32(math.MaxInt32)
@@ -549,22 +549,10 @@ func updateBitrate(g *group, up *upConnection) (uint32, uint32) {
 	return audio, video
 }
 
-func sendPli(g *group, local *webrtc.Track, up *upConnection) error {
-	var track *webrtc.Track
-
-	for _, p := range up.pairs {
-		if p.local == local {
-			track = p.remote
-			break
-		}
-	}
-
-	if track == nil {
-		return errors.New("attempted to send PLI for unknown track")
-	}
-
+func sendPLI(up *upConnection, ssrc uint32) error {
+	// we use equal SSRC values on both sides
 	return up.pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.PictureLossIndication{MediaSSRC: track.SSRC()},
+		&rtcp.PictureLossIndication{MediaSSRC: ssrc},
 	})
 }
 
