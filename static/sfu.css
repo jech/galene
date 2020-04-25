@@ -171,6 +171,10 @@ h1 {
     margin-top: 5px;
 }
 
+.label-fallback {
+    opacity: 0.5;
+}
+
 #inputform {
     width: 100%;
 }

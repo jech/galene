@@ -233,12 +233,21 @@ function delMedia(id) {
     mediadiv.removeChild(peer);
 }
 
-function setLabel(id) {
+function setLabel(id, fallback) {
     let label = document.getElementById('label-' + id);
     if(!label)
         return;
     let l = down[id] ? down[id].label : null;
-    label.textContent = l ? l : '';
+    if(l) {
+        label.textContent = l;
+        label.classList.remove('label-fallback');
+    } else if(fallback) {
+        label.textContent = fallback;
+        label.classList.add('label-fallback');
+    } else {
+        label.textContent = '';
+        label.classList.remove('label-fallback');
+    }
 }
 
 function serverConnect() {
@@ -428,6 +437,20 @@ async function setMaxBitrate(id, audio, video) {
                 delete(e.maxBitrate);
             await s.setParameters(p);
         }
+    }
+
+    if((audio && audio < 128000) || (video && video < 256000)) {
+        let l = '';
+        if(audio)
+            l = `${Math.round(audio/1000)}kbps`
+        if(video) {
+            if(l)
+                l = l + ' + ';
+            l = l + `${Math.round(video/1000)}kbps`
+        }
+        setLabel(id, l)
+    } else {
+        setLabel(id);
     }
 }
 
