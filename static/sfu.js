@@ -323,9 +323,6 @@ function serverConnect() {
             case 'ice':
                 gotICE(m.id, m.candidate);
                 break;
-            case 'maxbitrate':
-                setMaxBitrate(m.id, m.audiorate, m.videorate);
-                break;
             case 'label':
                 gotLabel(m.id, m.value);
                 break;
@@ -448,49 +445,6 @@ async function gotICE(id, candidate) {
         await conn.pc.addIceCandidate(candidate).catch(console.warn);
     else
         conn.iceCandidates.push(candidate)
-}
-
-let maxaudiorate, maxvideorate;
-
-async function setMaxBitrate(id, audio, video) {
-    let conn = up[id];
-    if(!conn)
-        throw new Error("Setting bitrate of unknown id");
-
-    let senders = conn.pc.getSenders();
-    for(let i = 0; i < senders.length; i++) {
-        let s = senders[i];
-        if(!s.track)
-            return;
-        let p = s.getParameters();
-        let bitrate;
-        if(s.track.kind == 'audio')
-            bitrate = audio;
-        else if(s.track.kind == 'video')
-            bitrate = video;
-        for(let j = 0; j < p.encodings.length; j++) {
-            let e = p.encodings[j];
-            if(bitrate)
-                e.maxBitrate = bitrate;
-            else
-                delete(e.maxBitrate);
-            await s.setParameters(p);
-        }
-    }
-
-    if((audio && audio < 128000) || (video && video < 256000)) {
-        let l = '';
-        if(audio)
-            l = `${Math.round(audio/1000)}kbps`
-        if(video) {
-            if(l)
-                l = l + ' + ';
-            l = l + `${Math.round(video/1000)}kbps`
-        }
-        setLabel(id, l)
-    } else {
-        setLabel(id);
-    }
 }
 
 async function addIceCandidates(conn) {

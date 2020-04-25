@@ -19,23 +19,31 @@ import (
 
 type trackPair struct {
 	remote, local *webrtc.Track
+	maxBitrate    uint64
 }
 
 type upConnection struct {
-	id              string
-	label           string
-	pc              *webrtc.PeerConnection
-	maxAudioBitrate uint32
-	maxVideoBitrate uint32
-	trackCount      int
-	pairs           []trackPair
+	id         string
+	label      string
+	pc         *webrtc.PeerConnection
+	trackCount int
+	pairs      []trackPair
+}
+
+type timeStampedBitrate struct {
+	bitrate   uint64
+	timestamp uint64
+}
+type downTrack struct {
+	ssrc       uint32
+	maxBitrate *timeStampedBitrate
 }
 
 type downConnection struct {
-	id         string
-	pc         *webrtc.PeerConnection
-	remote     *upConnection
-	maxBitrate uint32
+	id     string
+	pc     *webrtc.PeerConnection
+	remote *upConnection
+	tracks []downTrack
 }
 
 type client struct {
