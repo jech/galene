@@ -261,6 +261,18 @@ func (c *client) write(m clientMessage) error {
 	}
 }
 
+func (c *client) error(err error) error {
+	switch e := err.(type) {
+	case userError:
+		return c.write(clientMessage{
+			Type: "error",
+			Message: "The server said: " + string(e),
+		})
+	default:
+		return err
+	}
+}
+
 type clientDeadError int
 
 func (err clientDeadError) Error() string {
