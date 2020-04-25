@@ -108,11 +108,23 @@ type closeMessage struct {
 
 func startClient(conn *websocket.Conn) (err error) {
 	var m clientMessage
+
+	err = conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+	if err != nil {
+		conn.Close()
+		return
+	}
 	err = conn.ReadJSON(&m)
 	if err != nil {
 		conn.Close()
 		return
 	}
+	err = conn.SetReadDeadline(time.Time{})
+	if err != nil {
+		conn.Close()
+		return
+	}
+
 	if m.Type != "handshake" {
 		conn.Close()
 		return
