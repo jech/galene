@@ -95,6 +95,7 @@ function setConnected(connected) {
         userform.classList.add('userform');
         userform.classList.remove('userform-invisible');
         disconnectbutton.classList.add('disconnect-invisible');
+        permissions={};
     }
 }
 
