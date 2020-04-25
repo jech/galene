@@ -8,8 +8,8 @@
 document.getElementById('groupform').onsubmit = function(e) {
     e.preventDefault();
     let group = document.getElementById('group').value.trim();
-
-    location.href = '/group/' + group;
+    if(group !== '')
+        location.href = '/group/' + group;
 }
 
 async function listPublicGroups() {
