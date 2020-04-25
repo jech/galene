@@ -196,7 +196,7 @@ func addClient(name string, client *client, user, pass string) (*group, []userid
 	var users []userid
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if !perms.Admin && g.description.MaxClients > 0 {
+	if !perms.Op && g.description.MaxClients > 0 {
 		if len(g.clients) >= g.description.MaxClients {
 			return nil, nil, userError("too many users")
 		}
@@ -322,7 +322,7 @@ type groupDescription struct {
 	Public         bool        `json:"public,omitempty"`
 	MaxClients     int         `json:"max-clients,omitempty"`
 	AllowAnonymous bool        `json:"allow-anonymous,omitempty"`
-	Admin          []groupUser `json:"admin,omitempty"`
+	Op             []groupUser `json:"op,omitempty"`
 	Presenter      []groupUser `json:"presenter,omitempty"`
 	Other          []groupUser `json:"other,omitempty"`
 }
@@ -370,7 +370,7 @@ func getDescription(name string) (*groupDescription, error) {
 }
 
 type userPermission struct {
-	Admin   bool `json:"admin,omitempty"`
+	Op      bool `json:"op,omitempty"`
 	Present bool `json:"present,omitempty"`
 }
 
@@ -379,9 +379,9 @@ func getPermission(desc *groupDescription, user, pass string) (userPermission, e
 	if !desc.AllowAnonymous && user == "" {
 		return p, userError("anonymous users not allowed in this group, please choose a username")
 	}
-	if found, good := matchUser(user, pass, desc.Admin); found {
+	if found, good := matchUser(user, pass, desc.Op); found {
 		if good {
-			p.Admin = true
+			p.Op = true
 			p.Present = true
 			return p, nil
 		}
@@ -414,9 +414,9 @@ func setPermission(g *group, id string, perm string) error {
 
 	switch perm {
 	case "op":
-		c.permissions.Admin = true
+		c.permissions.Op = true
 	case "unop":
-		c.permissions.Admin = false
+		c.permissions.Op = false
 	case "present":
 		c.permissions.Present = true
 	case "unpresent":

@@ -794,7 +794,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 			cc.write(m)
 		}
 	case "op", "unop", "present", "unpresent":
-		if !c.permissions.Admin {
+		if !c.permissions.Op {
 			c.error(userError("not authorised"))
 			return nil
 		}
@@ -803,7 +803,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 			return c.error(err)
 		}
 	case "kick":
-		if !c.permissions.Admin {
+		if !c.permissions.Op {
 			c.error(userError("not authorised"))
 			return nil
 		}

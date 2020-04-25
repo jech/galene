@@ -83,6 +83,7 @@ function setConnected(connected) {
         userform.classList.add('userform-invisible');
         userform.classList.remove('userform');
         disconnectbutton.classList.remove('disconnect-invisible');
+        displayUsername();
     } else {
         let userpass = getUserPass();
         document.getElementById('username').value =
@@ -96,6 +97,7 @@ function setConnected(connected) {
         userform.classList.remove('userform-invisible');
         disconnectbutton.classList.add('disconnect-invisible');
         permissions={};
+        clearUsername(false);
     }
 }
 
@@ -518,10 +520,29 @@ function gotUser(id, name, del) {
         addUser(id, name);
 }
 
+function displayUsername() {
+    let userpass = getUserPass();
+    let text = '';
+    if(userpass && userpass.username)
+        text = 'as ' + userpass.username;
+    if(permissions.op && permissions.present)
+        text = text + ' (op, presenter)';
+    else if(permissions.op)
+        text = text + ' (op)';
+    else if(permissions.present)
+        text = text + ' (presenter)';
+    document.getElementById('userspan').textContent = text;
+}
+
+function clearUsername() {
+    document.getElementById('userspan').textContent = '';
+}
+
 function gotPermissions(perm) {
     permissions = perm;
     document.getElementById('presenterbox').disabled = !perm.present;
     document.getElementById('sharebox').disabled = !perm.present;
+    displayUsername();
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\+~#=?]+[-a-zA-Z0-9@:%/_\+~#=]/g;
@@ -647,8 +668,8 @@ function handleInput() {
             case '/kick':
             case '/present':
             case '/unpresent':
-                if(!permissions.admin) {
-                    displayError("You're not an administrator");
+                if(!permissions.op) {
+                    displayError("You're not an operator");
                     return;
                 }
                 let id;
