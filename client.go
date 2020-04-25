@@ -94,7 +94,7 @@ type clientMessage struct {
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
 	Message     string                     `json:"message,omitempty"`
-	Me          *bool                      `json:"me,omitempty"`
+	Me          bool                       `json:"me,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
