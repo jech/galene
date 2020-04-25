@@ -89,6 +89,7 @@ type clientMessage struct {
 	Id          string                     `json:"id,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
+	Permissions userPermission             `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
 	Message     string                     `json:"message,omitempty"`
@@ -149,7 +150,7 @@ func startClient(conn *websocket.Conn) (err error) {
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
 
-	g, users, err := addClient(m.Group, c)
+	g, users, err := addClient(m.Group, c, m.Username, m.Password)
 	if err != nil {
 		return
 	}
@@ -262,7 +263,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		clients := c.group.getClients(c)
 		for _, cc := range clients {
 			cc.action(addTrackAction{id, local, u, done})
-			if(done && u.label != "") {
+			if done && u.label != "" {
 				cc.action(addLabelAction{id, u.label})
 			}
 		}
@@ -389,7 +390,7 @@ func delDownConn(c *client, id string) {
 		log.Printf("Deleting unknown connection")
 		return
 	}
-	conn := c.down[id];
+	conn := c.down[id]
 	if conn == nil {
 		log.Printf("Deleting unknown connection")
 		return
@@ -667,6 +668,11 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 
 	g := c.group
 
+	c.write(clientMessage{
+		Type:        "permissions",
+		Permissions: c.permissions,
+	})
+
 	for _, cc := range g.getClients(c) {
 		cc.action(pushTracksAction{c})
 	}
@@ -721,7 +727,7 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 				for _, u := range c.up {
 					var done bool
 					for i, p := range u.pairs {
-						done = i >= u.streamCount - 1
+						done = i >= u.streamCount-1
 						a.c.action(addTrackAction{
 							u.id, p.local, u,
 							done,
@@ -747,6 +753,9 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 func handleClientMessage(c *client, m clientMessage) error {
 	switch m.Type {
 	case "offer":
+		if !c.permissions.Present {
+			return userError("not authorized")
+		}
 		if m.Offer == nil {
 			return protocolError("null offer")
 		}

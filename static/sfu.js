@@ -279,8 +279,10 @@ function serverConnect() {
         socket.onclose = function(e) {
             setConnected(false);
             document.getElementById('presenterbox').checked = false;
+            document.getElementById('presenterbox').disabled = true;
             setLocalMedia();
             document.getElementById('sharebox').checked = false;
+            document.getElementById('sharebox').disabled = true;
             setShareMedia();
             reject(new Error('websocket close ' + e.code + ' ' + e.reason));
         };
@@ -304,6 +306,9 @@ function serverConnect() {
                 break;
             case 'label':
                 gotLabel(m.id, m.value);
+                break;
+            case 'permissions':
+                gotPermissions(m.permissions);
                 break;
             case 'user':
                 gotUser(m.id, m.username, m.del);
@@ -481,6 +486,11 @@ function gotUser(id, name, del) {
         delUser(id, name);
     else
         addUser(id, name);
+}
+
+function gotPermissions(permissions) {
+    document.getElementById('presenterbox').disabled = !permissions.present;
+    document.getElementById('sharebox').disabled = !permissions.present;
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\+~#=?]+[-a-zA-Z0-9@:%/_\+~#=]/g;

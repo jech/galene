@@ -22,6 +22,7 @@ import (
 var httpAddr string
 var staticRoot string
 var dataDir string
+var groupsDir string
 var iceFilename string
 
 func main() {
@@ -30,6 +31,8 @@ func main() {
 		"web server root `directory`")
 	flag.StringVar(&dataDir, "data", "./data/",
 		"data `directory`")
+	flag.StringVar(&groupsDir, "groups", "./groups/",
+		"group description `directory`")
 	flag.Parse()
 	iceFilename = filepath.Join(staticRoot, "ice-servers.json")
 

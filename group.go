@@ -6,7 +6,10 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/pion/webrtc/v2"
@@ -34,20 +37,21 @@ type downConnection struct {
 }
 
 type client struct {
-	group      *group
-	id         string
-	username   string
-	done       chan struct{}
-	writeCh    chan interface{}
-	writerDone chan struct{}
-	actionCh   chan interface{}
-	down       map[string]*downConnection
-	up         map[string]*upConnection
+	group       *group
+	id          string
+	username    string
+	permissions userPermission
+	done        chan struct{}
+	writeCh     chan interface{}
+	writerDone  chan struct{}
+	actionCh    chan interface{}
+	down        map[string]*downConnection
+	up          map[string]*upConnection
 }
 
 type group struct {
-	name   string
-	public bool
+	name        string
+	description *groupDescription
 
 	mu      sync.Mutex
 	clients []*client
@@ -102,8 +106,13 @@ func addGroup(name string) (*group, error) {
 	g := groups.groups[name]
 
 	if g == nil {
+		desc, err := getDescription(name)
+		if err != nil {
+			return nil, err
+		}
 		g = &group{
-			name: name,
+			name:        name,
+			description: desc,
 		}
 		groups.groups[name] = g
 	}
@@ -130,11 +139,17 @@ type userid struct {
 	username string
 }
 
-func addClient(name string, client *client) (*group, []userid, error) {
+func addClient(name string, client *client, user, pass string) (*group, []userid, error) {
 	g, err := addGroup(name)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	perms, err := getPermission(g.description, user, pass)
+	if err != nil {
+		return nil, nil, err
+	}
+	client.permissions = perms
 
 	var users []userid
 	g.mu.Lock()
@@ -182,8 +197,8 @@ func (g *group) Range(f func(c *client) bool) {
 	defer g.mu.Unlock()
 	for _, c := range g.clients {
 		ok := f(c)
-		if(!ok){
-			break;
+		if !ok {
+			break
 		}
 	}
 }
@@ -218,6 +233,83 @@ func (c *client) action(m interface{}) error {
 	}
 }
 
+type groupUser struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
+func matchUser(user, pass string, users []groupUser) (bool, bool) {
+	for _, u := range users {
+		if (u.Username == "" || u.Username == user) {
+			return true, (u.Password == "" || u.Password == pass)
+		}
+	}
+	return false, false
+}
+
+type groupDescription struct {
+	Public         bool        `json:"public,omitempty"`
+	AllowAnonymous bool        `json:"allow-anonymous,omitempty"`
+	Admin          []groupUser `json:"admin,omitempty"`
+	Presenter      []groupUser `json:"presenter,omitempty"`
+	Other          []groupUser `json:"other,omitempty"`
+}
+
+func getDescription(name string) (*groupDescription, error) {
+	r, err := os.Open(filepath.Join(groupsDir, name+".json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = userError("group does not exist")
+		} else if os.IsPermission(err) {
+			err = userError("unauthorised")
+		}
+		return nil, err
+	}
+	defer r.Close()
+
+	var desc groupDescription
+	d := json.NewDecoder(r)
+	err = d.Decode(&desc)
+	if err != nil {
+		return nil, err
+	}
+	return &desc, nil
+}
+
+type userPermission struct {
+	Admin bool `json:"admin,omitempty"`
+	Present bool `json:"present,omitempty"`
+}
+
+func getPermission(desc *groupDescription, user, pass string) (userPermission, error) {
+	var p userPermission
+	if !desc.AllowAnonymous && user == "" {
+		return p, userError("anonymous users not allowed in this group")
+	}
+	if found, good := matchUser(user, pass, desc.Admin); found {
+		if good {
+			p.Admin = true
+			p.Present = true
+			return p, nil
+		}
+		return p, userError("not authorized")
+	}
+	if found, good := matchUser(user, pass, desc.Presenter); found {
+		if good {
+			p.Present = true
+			return p, nil
+		}
+		return p, userError("not authorized")
+	}
+	if found, good := matchUser(user, pass, desc.Other); found {
+		if good {
+			return p, nil
+		}
+		return p, userError("not authorized")
+	}
+	return p, userError("not authorized")
+}
+
 type publicGroup struct {
 	Name        string `json:"name"`
 	ClientCount int    `json:"clientCount"`
@@ -228,7 +320,7 @@ func getPublicGroups() []publicGroup {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 	for _, g := range groups.groups {
-		if g.public {
+		if g.description.Public {
 			gs = append(gs, publicGroup{
 				Name:        g.name,
 				ClientCount: len(g.clients),
