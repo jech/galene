@@ -205,6 +205,16 @@ func getUpConn(c *client, id string) *upConnection {
 	return conn
 }
 
+func getUpConns(c *client) []string {
+	c.group.mu.Lock()
+	defer c.group.mu.Unlock()
+	up := make([]string, 0, len(c.up))
+	for id := range c.up {
+		up = append(up, id)
+	}
+	return up
+}
+
 func addUpConn(c *client, id string) (*upConnection, error) {
 	pc, err := groups.api.NewPeerConnection(iceConfiguration())
 	if err != nil {
@@ -740,11 +750,21 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 
 					}
 				}
-			case sendPermissionsAction:
+			case permissionsChangedAction:
 				c.write(clientMessage{
 					Type:        "permissions",
 					Permissions: c.permissions,
 				})
+				if(!c.permissions.Present) {
+					ids := getUpConns(c)
+					for _, id := range ids {
+						c.write(clientMessage{
+							Type: "abort",
+							Id: id,
+						})
+						delUpConn(c, id)
+					}
+				}
 			case kickAction:
 				return userError("you have been kicked")
 			default:

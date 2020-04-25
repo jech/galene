@@ -84,7 +84,7 @@ type pushTracksAction struct {
 	c *client
 }
 
-type sendPermissionsAction struct{}
+type permissionsChangedAction struct{}
 
 type kickAction struct{}
 
@@ -424,7 +424,7 @@ func setPermission(g *group, id string, perm string) error {
 	default:
 		return userError("unknown permission")
 	}
-	return c.action(sendPermissionsAction{})
+	return c.action(permissionsChangedAction{})
 }
 
 func kickClient(g *group, id string) error {
