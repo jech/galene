@@ -12,6 +12,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -150,6 +151,11 @@ func startClient(conn *websocket.Conn) (err error) {
 
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
+
+	if strings.ContainsRune(m.Username, ' ') {
+		err = userError("don't put spaces in your username")
+		return
+	}
 
 	g, users, err := addClient(m.Group, c, m.Username, m.Password)
 	if err != nil {
