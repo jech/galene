@@ -57,6 +57,7 @@ h1 {
     width: 5%;
     margin-left: 2%;
     border: 1px solid;
+    overflow-x: hidden;
 }
 
 #anonymous-users {
