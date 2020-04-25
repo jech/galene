@@ -146,19 +146,22 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	} else if g.dead || time.Since(g.description.loadTime) > 5*time.Second {
 		changed, err := descriptionChanged(name, g.description)
 		if err != nil {
-			g.dead = true
-			if !g.description.Public {
-				delGroupUnlocked(name)
+			if !os.IsNotExist(err) {
+				log.Printf("Reading group %v: %v", name, err)
 			}
+			g.dead = true
+			delGroupUnlocked(name)
 			return nil, err
 		}
 		if changed {
 			desc, err := getDescription(name)
 			if err != nil {
-				g.dead = true
-				if !g.description.Public {
-					delGroupUnlocked(name)
+				if !os.IsNotExist(err) {
+					log.Printf("Reading group %v: %v",
+						name, err)
 				}
+				g.dead = true
+				delGroupUnlocked(name)
 				return nil, err
 			}
 			g.dead = false
@@ -518,6 +521,9 @@ func readPublicGroups() {
 		name := fi.Name()[:len(fi.Name())-5]
 		desc, err := getDescription(name)
 		if err != nil {
+			if !os.IsNotExist(err) {
+				log.Printf("Reading group %v: %v", name, err)
+			}
 			continue
 		}
 		if desc.Public {
