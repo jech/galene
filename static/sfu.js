@@ -843,9 +843,11 @@ document.getElementById('disconnectbutton').onclick = function(e) {
 
 function start() {
     group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));
-    let title = document.getElementById('title');
-    if(group !== '')
-        title.textContent = group.charAt(0).toUpperCase() + group.slice(1);
+    let title = group.charAt(0).toUpperCase() + group.slice(1);
+    if(group !== '') {
+        document.title = title;
+        document.getElementById('title').textContent = title
+    }
 
     myid = randomid();
 
