@@ -174,6 +174,10 @@ async function setShareMedia() {
         c.stream = stream;
         stream.getTracks().forEach(t => {
             c.pc.addTrack(t, stream);
+            t.onended = e => {
+                document.getElementById('sharebox').checked = false;
+                setShareMedia();
+            }
         });
         await setMedia(shareMediaId);
     }
