@@ -311,6 +311,9 @@ function serverConnect() {
             case 'chat':
                 addToChatbox(m.id, m.username, m.value, m.me);
                 break;
+            case 'error':
+                displayError(m.message);
+                break;
             default:
                 console.warn('Unexpected server message', m.type);
                 return;
@@ -772,7 +775,6 @@ document.getElementById('userform').onsubmit = async function(e) {
 document.getElementById('disconnectbutton').onclick = function(e) {
     socket.close();
 }
-
 
 function start() {
     group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));

@@ -54,7 +54,13 @@ func (err protocolError) Error() string {
 	return string(err)
 }
 
-func errorToWSCloseMessage(err error) []byte {
+type userError string
+
+func (err userError) Error() string {
+	return string(err)
+}
+
+func errorToWSCloseMessage(err error) (string, []byte) {
 	var code int
 	var text string
 	switch e := err.(type) {
@@ -63,10 +69,13 @@ func errorToWSCloseMessage(err error) []byte {
 	case protocolError:
 		code = websocket.CloseProtocolError
 		text = string(e)
+	case userError:
+		code = websocket.CloseNormalClosure
+		text = string(e)
 	default:
 		code = websocket.CloseInternalServerErr
 	}
-	return websocket.FormatCloseMessage(code, text)
+	return "The server said: " + text, websocket.FormatCloseMessage(code, text)
 }
 
 func isWSNormalError(err error) bool {
@@ -76,19 +85,20 @@ func isWSNormalError(err error) bool {
 }
 
 type clientMessage struct {
-	Type      string                     `json:"type"`
-	Id        string                     `json:"id,omitempty"`
-	Username  string                     `json:"username,omitempty"`
-	Password  string                     `json:"password,omitempty"`
-	Group     string                     `json:"group,omitempty"`
-	Value     string                     `json:"value,omitempty"`
-	Me        *bool                      `json:"me,omitempty"`
-	Offer     *webrtc.SessionDescription `json:"offer,omitempty"`
-	Answer    *webrtc.SessionDescription `json:"answer,omitempty"`
-	Candidate *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
-	Del       bool                       `json:"del,omitempty"`
-	AudioRate int                        `json:"audiorate,omitempty"`
-	VideoRate int                        `json:"audiorate,omitempty"`
+	Type        string                     `json:"type"`
+	Id          string                     `json:"id,omitempty"`
+	Username    string                     `json:"username,omitempty"`
+	Password    string                     `json:"password,omitempty"`
+	Group       string                     `json:"group,omitempty"`
+	Value       string                     `json:"value,omitempty"`
+	Message     string                     `json:"message,omitempty"`
+	Me          *bool                      `json:"me,omitempty"`
+	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
+	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
+	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
+	Del         bool                       `json:"del,omitempty"`
+	AudioRate   int                        `json:"audiorate,omitempty"`
+	VideoRate   int                        `json:"audiorate,omitempty"`
 }
 
 type closeMessage struct {
@@ -120,10 +130,15 @@ func startClient(conn *websocket.Conn) (err error) {
 		if isWSNormalError(err) {
 			err = nil
 		} else {
+			m, e := errorToWSCloseMessage(err)
+			if m != "" {
+				c.write(clientMessage{
+					Type:    "error",
+					Message: m,
+				})
+			}
 			select {
-			case c.writeCh <- closeMessage{
-				errorToWSCloseMessage(err),
-			}:
+			case c.writeCh <- closeMessage{e}:
 			case <-c.writerDone:
 			}
 		}
