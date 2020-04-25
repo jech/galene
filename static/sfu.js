@@ -338,6 +338,14 @@ function serverConnect() {
             case 'chat':
                 addToChatbox(m.id, m.username, m.value, m.me);
                 break;
+            case 'ping':
+                send({
+                    type: 'pong',
+                });
+                break;
+            case 'pong':
+                /* nothing */
+                break;
             case 'error':
                 displayError(m.value);
                 break;

@@ -707,8 +707,12 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 		}
 	}
 
+	readTime := time.Now()
+
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+	slowTicker := time.NewTicker(10 * time.Second)
+	defer slowTicker.Stop()
 
 	for {
 		select {
@@ -718,6 +722,7 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 			}
 			switch m := m.(type) {
 			case clientMessage:
+				readTime = time.Now()
 				err := handleClientMessage(c, m)
 				if err != nil {
 					return err
@@ -793,6 +798,18 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 			}
 		case <-ticker.C:
 			sendRateUpdate(c)
+		case <-slowTicker.C:
+			if time.Since(readTime) > 90*time.Second {
+				return errors.New("client is dead")
+			}
+			if time.Since(readTime) > 60*time.Second {
+				err := c.write(clientMessage{
+					Type: "ping",
+				})
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 }
@@ -856,6 +873,12 @@ func handleClientMessage(c *client, m clientMessage) error {
 		if err != nil {
 			return c.error(err)
 		}
+	case "pong":
+		// nothing
+	case "ping":
+		c.write(clientMessage{
+			Type: "pong",
+		})
 	default:
 		log.Printf("unexpected message: %v", m.Type)
 		return protocolError("unexpected message")
