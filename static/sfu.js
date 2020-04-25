@@ -283,6 +283,7 @@ function serverConnect() {
         };
         socket.onopen = function(e) {
             resetUsers();
+            resetChat();
             setConnected(true);
             let up = getUserPass();
             send({
@@ -648,6 +649,11 @@ function addToChatbox(peerId, nick, message, me){
     return message;
 }
 
+function resetChat() {
+    lastMessage = {};
+    document.getElementById('box').textContent = '';
+}
+
 function handleInput() {
     let username = getUsername();
     let input = document.getElementById('input');
@@ -729,6 +735,7 @@ function handleInput() {
     addToChatbox(myid, username, message, me);
     send({
         type: 'chat',
+        id: myid,
         username: username,
         value: message,
         me: me,

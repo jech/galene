@@ -51,6 +51,13 @@ type client struct {
 	up          map[string]*upConnection
 }
 
+type chatHistoryEntry struct {
+	id    string
+	user  string
+	value string
+	me    bool
+}
+
 type group struct {
 	name        string
 	dead        bool
@@ -58,6 +65,7 @@ type group struct {
 
 	mu      sync.Mutex
 	clients []*client
+	history []chatHistoryEntry
 }
 
 type delPCAction struct {
@@ -257,6 +265,30 @@ func (g *group) Range(f func(c *client) bool) {
 			break
 		}
 	}
+}
+
+const maxChatHistory = 20
+
+func (g *group) addToChatHistory(id, user, value string, me bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if len(g.history) >= maxChatHistory {
+		copy(g.history, g.history[1:])
+		g.history = g.history[:len(g.history)-1]
+	}
+	g.history = append(g.history,
+		chatHistoryEntry{id: id, user: user, value: value, me: me},
+	)
+}
+
+func (g *group) getChatHistory() []chatHistoryEntry {
+	g.mu.Lock()
+	g.mu.Unlock()
+
+	h := make([]chatHistoryEntry, len(g.history))
+	copy(h, g.history)
+	return h
 }
 
 type writerDeadError int

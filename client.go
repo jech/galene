@@ -127,7 +127,7 @@ func startClient(conn *websocket.Conn) (err error) {
 
 	defer close(c.done)
 
-	c.writeCh = make(chan interface{}, 1)
+	c.writeCh = make(chan interface{}, 25)
 	defer func() {
 		if isWSNormalError(err) {
 			err = nil
@@ -693,6 +693,20 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 		cc.action(pushTracksAction{c})
 	}
 
+	h := c.group.getChatHistory()
+	for _, m := range h {
+		err := c.write(clientMessage{
+			Type:     "chat",
+			Id:       m.id,
+			Username: m.user,
+			Value:    m.value,
+			Me:       m.me,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -819,6 +833,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 			log.Printf("ICE: %v", err)
 		}
 	case "chat":
+		c.group.addToChatHistory(m.Id, m.Username, m.Value, m.Me)
 		clients := c.group.getClients(c)
 		for _, cc := range clients {
 			cc.write(m)
