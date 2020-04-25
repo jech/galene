@@ -308,7 +308,11 @@ type groupUser struct {
 
 func matchUser(user, pass string, users []groupUser) (bool, bool) {
 	for _, u := range users {
-		if u.Username == "" || u.Username == user {
+		if u.Username == "" {
+			if u.Password == "" || u.Password == pass {
+				return true, true
+			}
+		} else if u.Username == user {
 			return true, (u.Password == "" || u.Password == pass)
 		}
 	}
