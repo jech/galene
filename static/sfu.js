@@ -650,11 +650,6 @@ function addToChatbox(peerId, nick, message, me){
 
 function handleInput() {
     let username = getUsername();
-    if(!username) {
-        displayError("Sorry, you're anonymous, you cannot chat");
-        return;
-    }
-
     let input = document.getElementById('input');
     let data = input.value;
     input.value = '';
@@ -721,6 +716,11 @@ function handleInput() {
     } else {
         message = data;
         me = false;
+    }
+
+    if(!username) {
+        displayError("Sorry, you're anonymous, you cannot chat");
+        return;
     }
 
     addToChatbox(myid, username, message, me);
