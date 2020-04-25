@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/pion/webrtc/v2"
 )
@@ -51,6 +52,7 @@ type client struct {
 
 type group struct {
 	name        string
+	dead        bool
 	description *groupDescription
 
 	mu      sync.Mutex
@@ -104,7 +106,6 @@ func addGroup(name string) (*group, error) {
 	}
 
 	g := groups.groups[name]
-
 	if g == nil {
 		desc, err := getDescription(name)
 		if err != nil {
@@ -115,6 +116,29 @@ func addGroup(name string) (*group, error) {
 			description: desc,
 		}
 		groups.groups[name] = g
+	} else if g.dead || time.Since(g.description.loadTime) > 5*time.Second {
+		changed, err := descriptionChanged(name, g.description)
+		if err != nil {
+			g.dead = true
+			if !g.description.Public {
+				delGroupUnlocked(name)
+			}
+			return nil, err
+		}
+		if changed {
+			desc, err := getDescription(name)
+			if err != nil {
+				g.dead = true
+				if !g.description.Public {
+					delGroupUnlocked(name)
+				}
+				return nil, err
+			}
+			g.dead = false
+			g.description = desc
+		} else {
+			g.description.loadTime = time.Now()
+		}
 	}
 
 	return g, nil
@@ -175,7 +199,7 @@ func delClient(c *client) {
 			g.clients =
 				append(g.clients[:i], g.clients[i+1:]...)
 			c.group = nil
-			if len(g.clients) == 0 {
+			if len(g.clients) == 0 && !g.description.Public {
 				delGroupUnlocked(g.name)
 			}
 			return
@@ -253,6 +277,9 @@ func matchUser(user, pass string, users []groupUser) (bool, bool) {
 }
 
 type groupDescription struct {
+	loadTime       time.Time   `json:"-"`
+	modTime        time.Time   `json:"-"`
+	fileSize       int64       `json:"-"`
 	Public         bool        `json:"public,omitempty"`
 	MaxClients     int         `json:"max-clients,omitempty"`
 	AllowAnonymous bool        `json:"allow-anonymous,omitempty"`
@@ -261,29 +288,50 @@ type groupDescription struct {
 	Other          []groupUser `json:"other,omitempty"`
 }
 
+func descriptionChanged(name string, old *groupDescription) (bool, error) {
+	fi, err := os.Stat(filepath.Join(groupsDir, name+".json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = userError("group does not exist")
+		}
+		return false, err
+	}
+	if fi.Size() != old.fileSize || fi.ModTime() != old.modTime {
+		return true, err
+	}
+	return false, err
+}
+
 func getDescription(name string) (*groupDescription, error) {
 	r, err := os.Open(filepath.Join(groupsDir, name+".json"))
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = userError("group does not exist")
-		} else if os.IsPermission(err) {
-			err = userError("unauthorised")
 		}
 		return nil, err
 	}
 	defer r.Close()
 
 	var desc groupDescription
+
+	fi, err := r.Stat()
+	if err != nil {
+		return nil, err
+	}
+	desc.fileSize = fi.Size()
+	desc.modTime = fi.ModTime()
+
 	d := json.NewDecoder(r)
 	err = d.Decode(&desc)
 	if err != nil {
 		return nil, err
 	}
+	desc.loadTime = time.Now()
 	return &desc, nil
 }
 
 type userPermission struct {
-	Admin bool `json:"admin,omitempty"`
+	Admin   bool `json:"admin,omitempty"`
 	Present bool `json:"present,omitempty"`
 }
 
