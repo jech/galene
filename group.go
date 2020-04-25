@@ -97,10 +97,17 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	if groups.groups == nil {
 		groups.groups = make(map[string]*group)
 		m := webrtc.MediaEngine{}
-		m.RegisterCodec(webrtc.NewRTPVP8Codec(
-			webrtc.DefaultPayloadTypeVP8, 90000))
+		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
+			webrtc.DefaultPayloadTypeVP8, 90000,
+			[]webrtc.RTCPFeedback{
+				webrtc.RTCPFeedback{"goog-remb", ""},
+				webrtc.RTCPFeedback{"nack", "pli"},
+			},
+			"",
+		))
 		m.RegisterCodec(webrtc.NewRTPOpusCodec(
-			webrtc.DefaultPayloadTypeOpus, 48000))
+			webrtc.DefaultPayloadTypeOpus, 48000,
+		))
 		groups.api = webrtc.NewAPI(
 			webrtc.WithMediaEngine(m),
 		)
