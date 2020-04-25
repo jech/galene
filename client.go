@@ -285,7 +285,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			remote: remote,
 			local:  local,
 		})
-		done := len(u.pairs) >= u.streamCount
+		done := len(u.pairs) >= u.trackCount
 		c.group.mu.Unlock()
 
 		clients := c.group.getClients(c)
@@ -610,7 +610,7 @@ func gotOffer(c *client, offer webrtc.SessionDescription, id string) error {
 		log.Printf("Couldn't parse SDP: %v", err)
 		n = 2
 	}
-	up.streamCount = n
+	up.trackCount = n
 	err = up.pc.SetRemoteDescription(offer)
 	if err != nil {
 		return err
@@ -762,7 +762,7 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 				for _, u := range c.up {
 					var done bool
 					for i, p := range u.pairs {
-						done = i >= u.streamCount-1
+						done = i >= u.trackCount-1
 						a.c.action(addTrackAction{
 							u.id, p.local, u,
 							done,

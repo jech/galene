@@ -27,7 +27,7 @@ type upConnection struct {
 	pc              *webrtc.PeerConnection
 	maxAudioBitrate uint32
 	maxVideoBitrate uint32
-	streamCount     int
+	trackCount      int
 	pairs           []trackPair
 }
 
