@@ -64,7 +64,7 @@ type group struct {
 	description *groupDescription
 
 	mu      sync.Mutex
-	clients []*client
+	clients map[string]*client
 	history []chatHistoryEntry
 }
 
@@ -138,6 +138,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 		g = &group{
 			name:        name,
 			description: desc,
+			clients:     make(map[string]*client),
 		}
 		groups.groups[name] = g
 	} else if desc != nil {
@@ -201,18 +202,23 @@ func addClient(name string, client *client, user, pass string) (*group, []userid
 	}
 	client.permissions = perms
 
-	var users []userid
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
 	if !perms.Op && g.description.MaxClients > 0 {
 		if len(g.clients) >= g.description.MaxClients {
 			return nil, nil, userError("too many users")
 		}
 	}
+	if g.clients[client.id] != nil {
+		return nil, nil, protocolError("duplicate client id")
+	}
+
+	var users []userid
 	for _, c := range g.clients {
 		users = append(users, userid{c.id, c.username})
 	}
-	g.clients = append(g.clients, client)
+	g.clients[client.id] = client
 	return g, users, nil
 }
 
@@ -220,19 +226,16 @@ func delClient(c *client) {
 	c.group.mu.Lock()
 	defer c.group.mu.Unlock()
 	g := c.group
-	for i, cc := range g.clients {
-		if cc == c {
-			g.clients =
-				append(g.clients[:i], g.clients[i+1:]...)
-			c.group = nil
-			if len(g.clients) == 0 && !g.description.Public {
-				delGroupUnlocked(g.name)
-			}
-			return
-		}
+
+	if g.clients[c.id] != c {
+		log.Printf("Deleting unknown client")
+		return
 	}
-	log.Printf("Deleting unknown client")
-	c.group = nil
+	delete(g.clients, c.id)
+
+	if len(g.clients) == 0 && !g.description.Public {
+		delGroupUnlocked(g.name)
+	}
 }
 
 func (g *group) getClients(except *client) []*client {
