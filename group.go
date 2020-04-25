@@ -154,6 +154,11 @@ func addClient(name string, client *client, user, pass string) (*group, []userid
 	var users []userid
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if !perms.Admin && g.description.MaxClients > 0 {
+		if len(g.clients) >= g.description.MaxClients {
+			return nil, nil, userError("too many users")
+		}
+	}
 	for _, c := range g.clients {
 		users = append(users, userid{c.id, c.username})
 	}
@@ -249,6 +254,7 @@ func matchUser(user, pass string, users []groupUser) (bool, bool) {
 
 type groupDescription struct {
 	Public         bool        `json:"public,omitempty"`
+	MaxClients     int         `json:"max-clients,omitempty"`
 	AllowAnonymous bool        `json:"allow-anonymous,omitempty"`
 	Admin          []groupUser `json:"admin,omitempty"`
 	Presenter      []groupUser `json:"presenter,omitempty"`
