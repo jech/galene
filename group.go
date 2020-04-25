@@ -352,7 +352,7 @@ type userPermission struct {
 func getPermission(desc *groupDescription, user, pass string) (userPermission, error) {
 	var p userPermission
 	if !desc.AllowAnonymous && user == "" {
-		return p, userError("anonymous users not allowed in this group")
+		return p, userError("anonymous users not allowed in this group, please choose a username")
 	}
 	if found, good := matchUser(user, pass, desc.Admin); found {
 		if good {
