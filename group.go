@@ -278,7 +278,7 @@ func (c *client) error(err error) error {
 	switch e := err.(type) {
 	case userError:
 		return c.write(clientMessage{
-			Type: "error",
+			Type:    "error",
 			Message: "The server said: " + string(e),
 		})
 	default:
