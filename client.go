@@ -740,6 +740,13 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 
 					}
 				}
+			case sendPermissionsAction:
+				c.write(clientMessage{
+					Type:        "permissions",
+					Permissions: c.permissions,
+				})
+			case kickAction:
+				return userError("you have been kicked")
 			default:
 				log.Printf("unexpected action %T", a)
 				return errors.New("unexpected action")
@@ -754,7 +761,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 	switch m.Type {
 	case "offer":
 		if !c.permissions.Present {
-			return userError("not authorized")
+			return userError("not authorised")
 		}
 		if m.Offer == nil {
 			return protocolError("null offer")
@@ -785,6 +792,24 @@ func handleClientMessage(c *client, m clientMessage) error {
 		clients := c.group.getClients(c)
 		for _, cc := range clients {
 			cc.write(m)
+		}
+	case "op", "unop", "present", "unpresent":
+		if !c.permissions.Admin {
+			c.error(userError("not authorised"))
+			return nil
+		}
+		err := setPermission(c.group, m.Id, m.Type)
+		if err != nil {
+			return c.error(err)
+		}
+	case "kick":
+		if !c.permissions.Admin {
+			c.error(userError("not authorised"))
+			return nil
+		}
+		err := kickClient(c.group, m.Id)
+		if err != nil {
+			return c.error(err)
 		}
 	default:
 		log.Printf("unexpected message: %v", m.Type)

@@ -10,8 +10,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sync"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pion/webrtc/v2"
@@ -84,6 +84,10 @@ type pushTracksAction struct {
 	c *client
 }
 
+type sendPermissionsAction struct{}
+
+type kickAction struct{}
+
 var groups struct {
 	mu     sync.Mutex
 	groups map[string]*group
@@ -117,7 +121,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 
 	g := groups.groups[name]
 	if g == nil {
-		if(desc == nil) {
+		if desc == nil {
 			desc, err = getDescription(name)
 			if err != nil {
 				return nil, err
@@ -235,6 +239,15 @@ func (g *group) getClients(except *client) []*client {
 	return clients
 }
 
+func (g *group) getClientUnlocked(id string) *client {
+	for _, c := range g.clients {
+		if c.id == id {
+			return c
+		}
+	}
+	return nil
+}
+
 func (g *group) Range(f func(c *client) bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -295,7 +308,7 @@ type groupUser struct {
 
 func matchUser(user, pass string, users []groupUser) (bool, bool) {
 	for _, u := range users {
-		if (u.Username == "" || u.Username == user) {
+		if u.Username == "" || u.Username == user {
 			return true, (u.Password == "" || u.Password == pass)
 		}
 	}
@@ -372,22 +385,58 @@ func getPermission(desc *groupDescription, user, pass string) (userPermission, e
 			p.Present = true
 			return p, nil
 		}
-		return p, userError("not authorized")
+		return p, userError("not authorised")
 	}
 	if found, good := matchUser(user, pass, desc.Presenter); found {
 		if good {
 			p.Present = true
 			return p, nil
 		}
-		return p, userError("not authorized")
+		return p, userError("not authorised")
 	}
 	if found, good := matchUser(user, pass, desc.Other); found {
 		if good {
 			return p, nil
 		}
-		return p, userError("not authorized")
+		return p, userError("not authorised")
 	}
-	return p, userError("not authorized")
+	return p, userError("not authorised")
+}
+
+func setPermission(g *group, id string, perm string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	c := g.getClientUnlocked(id)
+	if c == nil {
+		return userError("no such user")
+	}
+
+	switch perm {
+	case "op":
+		c.permissions.Admin = true
+	case "unop":
+		c.permissions.Admin = false
+	case "present":
+		c.permissions.Present = true
+	case "unpresent":
+		c.permissions.Present = false
+	default:
+		return userError("unknown permission")
+	}
+	return c.action(sendPermissionsAction{})
+}
+
+func kickClient(g *group, id string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	c := g.getClientUnlocked(id)
+	if c == nil {
+		return userError("no such user")
+	}
+
+	return c.action(kickAction{})
 }
 
 type publicGroup struct {
@@ -427,7 +476,7 @@ func readPublicGroups() {
 		if !strings.HasSuffix(fi.Name(), ".json") {
 			continue
 		}
-		name := fi.Name()[:len(fi.Name()) - 5]
+		name := fi.Name()[:len(fi.Name())-5]
 		desc, err := getDescription(name)
 		if err != nil {
 			continue

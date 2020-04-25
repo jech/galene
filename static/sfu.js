@@ -15,6 +15,8 @@ let up = {}, down = {};
 
 let iceServers = [];
 
+let permissions = {};
+
 function toHex(array) {
     let a = new Uint8Array(array);
     let s = '';
@@ -515,9 +517,10 @@ function gotUser(id, name, del) {
         addUser(id, name);
 }
 
-function gotPermissions(permissions) {
-    document.getElementById('presenterbox').disabled = !permissions.present;
-    document.getElementById('sharebox').disabled = !permissions.present;
+function gotPermissions(perm) {
+    permissions = perm;
+    document.getElementById('presenterbox').disabled = !perm.present;
+    document.getElementById('sharebox').disabled = !perm.present;
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\+~#=?]+[-a-zA-Z0-9@:%/_\+~#=]/g;
@@ -634,14 +637,39 @@ function handleInput() {
             }
 
             switch(cmd) {
-            case '/nick':
-                setNick(rest);
-                storeNick(rest);
-                return;
             case '/me':
                 message = rest;
                 me = true;
                 break;
+            case '/op':
+            case '/unop':
+            case '/kick':
+            case '/present':
+            case '/unpresent':
+                if(!permissions.admin) {
+                    displayError("You're not an administrator");
+                    return;
+                }
+                let id;
+                if(id in users) {
+                    id = rest;
+                } else {
+                    for(let i in users) {
+                        if(users[i] === rest) {
+                            id = i;
+                            break;
+                        }
+                    }
+                }
+                if(!id) {
+                    displayError('Unknown user ' + rest);
+                    return;
+                }
+                send({
+                    type: cmd.slice(1),
+                    id: id,
+                });
+                return;
             default:
                 displayError('Uknown command ' + cmd);
                 return;
