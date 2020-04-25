@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"strings"
 	"time"
 
 	"github.com/pion/webrtc/v2"
@@ -89,7 +90,7 @@ var groups struct {
 	api    *webrtc.API
 }
 
-func addGroup(name string) (*group, error) {
+func addGroup(name string, desc *groupDescription) (*group, error) {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -105,17 +106,23 @@ func addGroup(name string) (*group, error) {
 		)
 	}
 
+	var err error
+
 	g := groups.groups[name]
 	if g == nil {
-		desc, err := getDescription(name)
-		if err != nil {
-			return nil, err
+		if(desc == nil) {
+			desc, err = getDescription(name)
+			if err != nil {
+				return nil, err
+			}
 		}
 		g = &group{
 			name:        name,
 			description: desc,
 		}
 		groups.groups[name] = g
+	} else if desc != nil {
+		g.description = desc
 	} else if g.dead || time.Since(g.description.loadTime) > 5*time.Second {
 		changed, err := descriptionChanged(name, g.description)
 		if err != nil {
@@ -164,7 +171,7 @@ type userid struct {
 }
 
 func addClient(name string, client *client, user, pass string) (*group, []userid, error) {
-	g, err := addGroup(name)
+	g, err := addGroup(name, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -382,4 +389,32 @@ func getPublicGroups() []publicGroup {
 		}
 	}
 	return gs
+}
+
+func readPublicGroups() {
+	dir, err := os.Open(groupsDir)
+	if err != nil {
+		return
+	}
+	defer dir.Close()
+
+	fis, err := dir.Readdir(-1)
+	if err != nil {
+		log.Printf("readPublicGroups: %v", err)
+		return
+	}
+
+	for _, fi := range fis {
+		if !strings.HasSuffix(fi.Name(), ".json") {
+			continue
+		}
+		name := fi.Name()[:len(fi.Name()) - 5]
+		desc, err := getDescription(name)
+		if err != nil {
+			continue
+		}
+		if desc.Public {
+			addGroup(name, desc)
+		}
+	}
 }

@@ -45,6 +45,8 @@ func main() {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/public-groups.json", publicHandler)
 
+	go readPublicGroups()
+
 	go func() {
 		server := &http.Server{
 			Addr:         httpAddr,
