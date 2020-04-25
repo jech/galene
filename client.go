@@ -99,7 +99,7 @@ type clientMessage struct {
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
 	Del         bool                       `json:"del,omitempty"`
 	AudioRate   int                        `json:"audiorate,omitempty"`
-	VideoRate   int                        `json:"audiorate,omitempty"`
+	VideoRate   int                        `json:"videorate,omitempty"`
 }
 
 type closeMessage struct {
