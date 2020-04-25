@@ -761,7 +761,11 @@ func handleClientMessage(c *client, m clientMessage) error {
 	switch m.Type {
 	case "offer":
 		if !c.permissions.Present {
-			return userError("not authorised")
+			c.write(clientMessage{
+				Type: "abort",
+				Id:   m.Id,
+			})
+			return c.error(userError("not authorised"))
 		}
 		if m.Offer == nil {
 			return protocolError("null offer")

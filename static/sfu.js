@@ -316,6 +316,9 @@ function serverConnect() {
             case 'close':
                 gotClose(m.id);
                 break;
+            case 'abort':
+                gotAbort(m.id);
+                break;
             case 'ice':
                 gotICE(m.id, m.candidate);
                 break;
@@ -406,6 +409,24 @@ function gotClose(id) {
     delete(down[id]);
     c.close();
     delMedia(id);
+}
+
+function gotAbort(id) {
+    let c = up[id];
+    if(!c)
+        throw new Error('unknown up stream in abort');
+    if(id === localMediaId) {
+        document.getElementById('presenterbox').checked = false;
+        setLocalMedia();
+    } else if(id === shareMediaId) {
+        document.getElementById('sharebox').checked = false;
+        setShareMedia();
+    } else {
+        console.error('Strange stream in abort');
+        delMedia(id);
+        c.pc.close();
+        delete(up[id]);
+    }
 }
 
 async function gotICE(id, candidate) {
