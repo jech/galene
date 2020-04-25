@@ -111,10 +111,7 @@ func addGroup(name string) (*group, error) {
 	return g, nil
 }
 
-func delGroup(name string) bool {
-	groups.mu.Lock()
-	defer groups.mu.Unlock()
-
+func delGroupUnlocked(name string) bool {
 	g := groups.groups[name]
 	if g == nil {
 		return true
@@ -158,6 +155,9 @@ func delClient(c *client) {
 			g.clients =
 				append(g.clients[:i], g.clients[i+1:]...)
 			c.group = nil
+			if len(g.clients) == 0 {
+				delGroupUnlocked(g.name)
+			}
 			return
 		}
 	}
