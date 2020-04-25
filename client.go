@@ -110,10 +110,11 @@ func startClient(conn *websocket.Conn) (err error) {
 	var m clientMessage
 	err = conn.ReadJSON(&m)
 	if err != nil {
+		conn.Close()
 		return
 	}
 	if m.Type != "handshake" {
-		err = protocolError("expected handshake")
+		conn.Close()
 		return
 	}
 
@@ -755,12 +756,12 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 					Type:        "permissions",
 					Permissions: c.permissions,
 				})
-				if(!c.permissions.Present) {
+				if !c.permissions.Present {
 					ids := getUpConns(c)
 					for _, id := range ids {
 						c.write(clientMessage{
 							Type: "abort",
-							Id: id,
+							Id:   id,
 						})
 						delUpConn(c, id)
 					}
