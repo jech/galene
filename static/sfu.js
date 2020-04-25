@@ -679,6 +679,9 @@ function handleInput() {
                 message = rest;
                 me = true;
                 break;
+            case '/leave':
+                socket.close();
+                return;
             case '/op':
             case '/unop':
             case '/kick':
