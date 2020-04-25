@@ -338,7 +338,7 @@ function serverConnect() {
                 addToChatbox(m.id, m.username, m.value, m.me);
                 break;
             case 'error':
-                displayError(m.message);
+                displayError(m.value);
                 break;
             default:
                 console.warn('Unexpected server message', m.type);

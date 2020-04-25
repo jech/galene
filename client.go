@@ -93,7 +93,6 @@ type clientMessage struct {
 	Permissions userPermission             `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
-	Message     string                     `json:"message,omitempty"`
 	Me          bool                       `json:"me,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
@@ -136,8 +135,8 @@ func startClient(conn *websocket.Conn) (err error) {
 			m, e := errorToWSCloseMessage(err)
 			if m != "" {
 				c.write(clientMessage{
-					Type:    "error",
-					Message: m,
+					Type:  "error",
+					Value: m,
 				})
 			}
 			select {
