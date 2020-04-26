@@ -50,15 +50,18 @@ Connection.prototype.setInterval = function(f, t) {
     this.timers.push(setInterval(f, t));
 }
 
-Connection.prototype.close = function() {
+Connection.prototype.close = function(sendit) {
     while(this.timers.length > 0)
         clearInterval(this.timers.pop());
 
     this.pc.close();
-    send({
-        type: 'close',
-        id: this.id,
-    });
+
+    if(sendit) {
+        send({
+            type: 'close',
+            id: this.id,
+        });
+    }
 }
 
 function setUserPass(username, password) {
@@ -192,7 +195,7 @@ async function setLocalMedia() {
 
     if(!document.getElementById('presenterbox').checked) {
         if(localMediaId) {
-            up[localMediaId].close();
+            up[localMediaId].close(true);
             delete(up[localMediaId]);
             delMedia(localMediaId)
             localMediaId = null;
@@ -235,7 +238,7 @@ async function setShareMedia() {
 
     if(!document.getElementById('sharebox').checked) {
         if(shareMediaId) {
-            up[shareMediaId].close();
+            up[shareMediaId].close(true);
             delete(up[shareMediaId]);
             delMedia(shareMediaId)
             shareMediaId = null;
@@ -498,7 +501,7 @@ function gotClose(id) {
     if(!c)
         throw new Error('unknown down stream');
     delete(down[id]);
-    c.close();
+    c.close(false);
     delMedia(id);
 }
 
