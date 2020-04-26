@@ -87,6 +87,7 @@ function setConnected(connected) {
     let userform = document.getElementById('userform');
     let diconnect = document.getElementById('disconnectbutton');
     if(connected) {
+        clearError();
         statspan.textContent = 'Connected';
         statspan.classList.remove('disconnected');
         statspan.classList.add('connected');
