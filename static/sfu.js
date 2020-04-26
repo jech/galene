@@ -391,6 +391,12 @@ function serverConnect() {
             document.getElementById('sharebox').checked = false;
             document.getElementById('sharebox').disabled = true;
             setShareMedia();
+            for(let id in down) {
+                let c = down[id];
+                delete(down[id]);
+                c.close(false);
+                delMedia(id);
+            }
             reject(new Error('websocket close ' + e.code + ' ' + e.reason));
         };
         socket.onmessage = function(e) {
