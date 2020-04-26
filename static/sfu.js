@@ -41,9 +41,19 @@ function Connection(id, pc) {
     this.pc = pc;
     this.stream = null;
     this.iceCandidates = [];
+    this.timers = [];
+    this.audioStats = {};
+    this.videoStats = {};
+}
+
+Connection.prototype.setInterval = function(f, t) {
+    this.timers.push(setInterval(f, t));
 }
 
 Connection.prototype.close = function() {
+    while(this.timers.length > 0)
+        clearInterval(this.timers.pop());
+
     this.pc.close();
     send({
         type: 'close',
@@ -111,6 +121,68 @@ document.getElementById('sharebox').onchange = function(e) {
     setShareMedia();
 }
 
+async function updateStats(conn, sender) {
+    let stats;
+    if(!sender.track)
+        return;
+
+    if(sender.track.kind === 'audio')
+        stats = conn.audioStats;
+    else if(sender.track.kind === 'video')
+        stats = conn.videoStats;
+    else
+        return;
+
+    let report;
+    try {
+        report = await sender.getStats();
+    } catch(e) {
+        delete(stats.rate);
+        delete(stats.timestamp);
+        delete(stats.bytesSent);
+        return
+    }
+
+    for(let r of report.values()) {
+        if(r.type !== 'outbound-rtp')
+            continue;
+
+        if(stats.timestamp) {
+            stats.rate =
+                ((r.bytesSent - stats.bytesSent) -
+                 (r.timestamp - stats.timestamp)) * 8;
+        } else {
+            delete(stats.rate);
+        }
+        stats.timestamp = r.timestamp;
+        stats.bytesSent = r.bytesSent;
+        return;
+    }
+}
+
+function displayStats(id) {
+    let conn = up[id];
+    if(!conn.audioStats.rate && !conn.videoStats.rate) {
+        setLabel(id);
+        return;
+    }
+
+    let a = conn.audioStats.rate;
+    let v = conn.videoStats.rate;
+
+    let text = '';
+    if(a)
+        text = text + Math.round(a / 1000) + 'kbps';
+    if(a && v)
+        text = text + ' + ';
+    if(v)
+        text = text + Math.round(v / 1000) + 'kbps';
+    if(text)
+        setLabel(id, text);
+    else
+        setLabel(id);
+}
+
 let localMediaId = null;
 
 async function setLocalMedia() {
@@ -142,8 +214,14 @@ async function setLocalMedia() {
         let c = up[localMediaId];
         c.stream = stream;
         stream.getTracks().forEach(t => {
-            c.pc.addTrack(t, stream);
+            let sender = c.pc.addTrack(t, stream);
+            c.setInterval(() => {
+                updateStats(c, sender);
+            }, 2000);
         });
+        c.setInterval(() => {
+            displayStats(localMediaId);
+        }, 2500);
         await setMedia(localMediaId);
     }
 }
@@ -178,12 +256,18 @@ async function setShareMedia() {
         let c = up[shareMediaId];
         c.stream = stream;
         stream.getTracks().forEach(t => {
-            c.pc.addTrack(t, stream);
+            let sender = c.pc.addTrack(t, stream);
             t.onended = e => {
                 document.getElementById('sharebox').checked = false;
                 setShareMedia();
             }
+            c.setInterval(() => {
+                updateStats(c, sender);
+            }, 2000);
         });
+        c.setInterval(() => {
+            displayStats(shareMediaId);
+        }, 2500);
         await setMedia(shareMediaId);
     }
 }
