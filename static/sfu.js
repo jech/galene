@@ -344,7 +344,7 @@ function serverConnect() {
                 /* nothing */
                 break;
             case 'error':
-                displayError(m.value);
+                displayError('The server said: ' + m.value);
                 break;
             default:
                 console.warn('Unexpected server message', m.type);

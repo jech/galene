@@ -75,7 +75,7 @@ func errorToWSCloseMessage(err error) (string, []byte) {
 	default:
 		code = websocket.CloseInternalServerErr
 	}
-	return "The server said: " + text, websocket.FormatCloseMessage(code, text)
+	return text, websocket.FormatCloseMessage(code, text)
 }
 
 func isWSNormalError(err error) bool {
