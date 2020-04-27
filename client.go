@@ -558,7 +558,7 @@ func updateUpBitrate(g *group, up *upConnection) {
 						continue
 					}
 
-					if now - ms > 5000 {
+					if now-ms > 5000 {
 						continue
 					}
 
@@ -587,7 +587,7 @@ func sendREMB(pc *webrtc.PeerConnection, ssrc uint32, bitrate uint64) error {
 	return pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.ReceiverEstimatedMaximumBitrate{
 			Bitrate: bitrate,
-			SSRCs: []uint32{ssrc},
+			SSRCs:   []uint32{ssrc},
 		},
 	})
 }

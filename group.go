@@ -117,13 +117,13 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	if groups.groups == nil {
 		groups.groups = make(map[string]*group)
 		s := webrtc.SettingEngine{}
-		s.SetTrickle(true);
+		s.SetTrickle(true)
 		m := webrtc.MediaEngine{}
 		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
 			webrtc.DefaultPayloadTypeVP8, 90000,
 			[]webrtc.RTCPFeedback{
-				webrtc.RTCPFeedback{"goog-remb", ""},
-				webrtc.RTCPFeedback{"nack", "pli"},
+				{"goog-remb", ""},
+				{"nack", "pli"},
 			},
 			"",
 		))
