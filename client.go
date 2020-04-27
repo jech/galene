@@ -18,6 +18,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/rtcp"
+	"github.com/pion/rtp"
 	"github.com/pion/sdp"
 	"github.com/pion/webrtc/v2"
 )
@@ -296,6 +297,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 
 		go func() {
 			buf := make([]byte, 1500)
+			var packet rtp.Packet
 			for {
 				i, err := remote.Read(buf)
 				if err != nil {
@@ -305,7 +307,13 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 					break
 				}
 
-				_, err = local.Write(buf[:i])
+				err = packet.Unmarshal(buf[:i])
+				if err != nil {
+					log.Printf("%v", err)
+					continue
+				}
+
+				err = local.WriteRTP(&packet)
 				if err != nil && err != io.ErrClosedPipe {
 					log.Printf("%v", err)
 				}
