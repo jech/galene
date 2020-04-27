@@ -116,6 +116,8 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 
 	if groups.groups == nil {
 		groups.groups = make(map[string]*group)
+		s := webrtc.SettingEngine{}
+		s.SetTrickle(true);
 		m := webrtc.MediaEngine{}
 		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
 			webrtc.DefaultPayloadTypeVP8, 90000,
@@ -129,6 +131,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 			webrtc.DefaultPayloadTypeOpus, 48000,
 		))
 		groups.api = webrtc.NewAPI(
+			webrtc.WithSettingEngine(s),
 			webrtc.WithMediaEngine(m),
 		)
 	}
