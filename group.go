@@ -15,11 +15,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"sfu/packetlist"
+
 	"github.com/pion/webrtc/v2"
 )
 
 type upTrack struct {
 	track      *webrtc.Track
+	list       *packetlist.List
 	maxBitrate uint64
 
 	mu    sync.Mutex
@@ -172,6 +175,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 			webrtc.DefaultPayloadTypeVP8, 90000,
 			[]webrtc.RTCPFeedback{
 				{"goog-remb", ""},
+				{"nack", ""},
 				{"nack", "pli"},
 			},
 			"",

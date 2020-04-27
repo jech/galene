@@ -16,6 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"sfu/packetlist"
+
 	"github.com/gorilla/websocket"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
@@ -269,8 +271,10 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			c.mu.Unlock()
 			return
 		}
+		list := packetlist.New(32)
 		track := &upTrack{
 			track:      remote,
+			list:       list,
 			maxBitrate: ^uint64(0),
 		}
 		u.tracks = append(u.tracks, track)
@@ -286,7 +290,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		}
 
 		go func() {
-			buf := make([]byte, 1500)
+			buf := make([]byte, packetlist.BufSize)
 			var packet rtp.Packet
 			var local []*downTrack
 			var localTime time.Time
@@ -310,6 +314,8 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 					log.Printf("%v", err)
 					continue
 				}
+
+				list.Store(packet.SequenceNumber, buf[:i])
 
 				for _, l := range local {
 					if l.muted() {
@@ -523,6 +529,8 @@ func rtcpListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RT
 					uint64(ms),
 				)
 			case *rtcp.ReceiverReport:
+			case *rtcp.TransportLayerNack:
+				sendRecovery(p, track)
 			default:
 				log.Printf("RTCP: %T", p)
 			}
@@ -590,6 +598,25 @@ func sendREMB(pc *webrtc.PeerConnection, ssrc uint32, bitrate uint64) error {
 			SSRCs:   []uint32{ssrc},
 		},
 	})
+}
+
+func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
+	var packet rtp.Packet
+	for _, nack := range p.Nacks {
+		for _, seqno := range nack.PacketList() {
+			raw := track.remote.list.Get(seqno)
+			if raw != nil {
+				err := packet.Unmarshal(raw)
+				if err != nil {
+					continue
+				}
+				err = track.track.WriteRTP(&packet)
+				if err != nil {
+					log.Printf("%v", err)
+				}
+			}
+		}
+	}
 }
 
 func countMediaStreams(data string) (int, error) {
