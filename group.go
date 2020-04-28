@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/webrtc/v2"
@@ -63,10 +64,27 @@ type timeStampedBitrate struct {
 	bitrate   uint64
 	timestamp uint64
 }
+
 type downTrack struct {
 	track      *webrtc.Track
 	remote     *upTrack
+	isMuted    uint32
 	maxBitrate *timeStampedBitrate
+}
+
+func (t *downTrack) muted() bool {
+	return atomic.LoadUint32(&t.isMuted) != 0
+}
+
+func (t *downTrack) setMuted(muted bool) {
+	if t.muted() == muted {
+		return
+	}
+	m := uint32(0)
+	if muted {
+		m = 1
+	}
+	atomic.StoreUint32(&t.isMuted, m)
 }
 
 type downConnection struct {

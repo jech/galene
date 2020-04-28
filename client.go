@@ -305,6 +305,9 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 
 				local := track.getLocal()
 				for _, l := range local {
+					if l.muted() {
+						continue
+					}
 					err := l.track.WriteRTP(&packet)
 					if err != nil {
 						log.Printf("%v", err)
@@ -463,8 +466,11 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 		return nil, nil, err
 	}
 
-	track := &downTrack{local, remoteTrack, new(timeStampedBitrate)}
-
+	track := &downTrack{
+		track:      local,
+		remote:     remoteTrack,
+		maxBitrate: new(timeStampedBitrate),
+	}
 	conn.tracks = append(conn.tracks, track)
 	remoteTrack.addLocal(track)
 
@@ -479,8 +485,7 @@ func msSinceEpoch() uint64 {
 	return uint64(time.Since(epoch) / time.Millisecond)
 }
 
-func rtcpListener(g *group, c *downConnection, s *webrtc.RTPSender,
-	bitrate *timeStampedBitrate) {
+func rtcpListener(g *group, c *downConnection, s *webrtc.RTPSender, bitrate *timeStampedBitrate) {
 	for {
 		ps, err := s.ReadRTCP()
 		if err != nil {
@@ -539,20 +544,25 @@ func trackKinds(down *downConnection) (audio bool, video bool) {
 }
 
 func updateUpBitrate(up *upConnection) {
-	for _, t := range up.tracks {
-		t.maxBitrate = ^uint64(0)
-	}
-
 	now := msSinceEpoch()
 
 	for _, track := range up.tracks {
+		track.maxBitrate = ^uint64(0)
 		local := track.getLocal()
 		for _, l := range local {
 			ms := atomic.LoadUint64(&l.maxBitrate.timestamp)
 			bitrate := atomic.LoadUint64(&l.maxBitrate.bitrate)
-			if now-ms > 5000 || bitrate == 0 {
+			if now < ms || now > ms + 5000 || bitrate == 0 {
+				l.setMuted(false)
 				continue
 			}
+			if bitrate < 9600 ||
+				(l.track.Kind() == webrtc.RTPCodecTypeVideo &&
+					bitrate < 128000) {
+				l.setMuted(true)
+				continue
+			}
+			l.setMuted(false)
 			if track.maxBitrate > bitrate {
 				track.maxBitrate = bitrate
 			}
@@ -917,13 +927,11 @@ func sendRateUpdate(c *client) {
 		updateUpBitrate(u)
 		for _, t := range u.tracks {
 			bitrate := t.maxBitrate
-			if bitrate != ^uint64(0) {
-				if bitrate < 6000 {
-					bitrate = 6000
-				}
-				rembs = append(rembs,
-					remb{u.pc, t.track.SSRC(), bitrate})
+			if bitrate == ^uint64(0) {
+				continue
 			}
+			rembs = append(rembs,
+				remb{u.pc, t.track.SSRC(), bitrate})
 		}
 	}
 	c.mu.Unlock()
