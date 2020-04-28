@@ -17,9 +17,38 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-type trackPair struct {
-	remote, local *webrtc.Track
-	maxBitrate    uint64
+type upTrack struct {
+	track      *webrtc.Track
+	maxBitrate uint64
+
+	mu    sync.Mutex
+	local []*downTrack
+}
+
+func (up *upTrack) addLocal(local *downTrack) {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	up.local = append(up.local, local)
+}
+
+func (up *upTrack) delLocal(local *downTrack) bool {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	for i, l := range up.local {
+		if l == local {
+			up.local = append(up.local[:i], up.local[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func (up *upTrack) getLocal() []*downTrack {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	local := make([]*downTrack, len(up.local))
+	copy(local, up.local)
+	return local
 }
 
 type upConnection struct {
@@ -27,7 +56,7 @@ type upConnection struct {
 	label      string
 	pc         *webrtc.PeerConnection
 	trackCount int
-	pairs      []trackPair
+	tracks     []*upTrack
 }
 
 type timeStampedBitrate struct {
@@ -35,7 +64,8 @@ type timeStampedBitrate struct {
 	timestamp uint64
 }
 type downTrack struct {
-	ssrc       uint32
+	track      *webrtc.Track
+	remote     *upTrack
 	maxBitrate *timeStampedBitrate
 }
 
@@ -43,7 +73,7 @@ type downConnection struct {
 	id     string
 	pc     *webrtc.PeerConnection
 	remote *upConnection
-	tracks []downTrack
+	tracks []*downTrack
 }
 
 type client struct {
@@ -55,8 +85,10 @@ type client struct {
 	writeCh     chan interface{}
 	writerDone  chan struct{}
 	actionCh    chan interface{}
-	down        map[string]*downConnection
-	up          map[string]*upConnection
+
+	mu   sync.Mutex
+	down map[string]*downConnection
+	up   map[string]*upConnection
 }
 
 type chatHistoryEntry struct {
@@ -76,13 +108,12 @@ type group struct {
 	history []chatHistoryEntry
 }
 
-type delPCAction struct {
+type delConnAction struct {
 	id string
 }
 
 type addTrackAction struct {
-	id     string
-	track  *webrtc.Track
+	track  *upTrack
 	remote *upConnection
 	done   bool
 }
