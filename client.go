@@ -316,7 +316,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 						continue
 					}
 					err := l.track.WriteRTP(&packet)
-					if err != nil {
+					if err != nil && err != io.ErrClosedPipe {
 						log.Printf("%v", err)
 					}
 				}
