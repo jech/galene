@@ -288,7 +288,15 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		go func() {
 			buf := make([]byte, 1500)
 			var packet rtp.Packet
+			var local []*downTrack
+			var localTime time.Time
 			for {
+				now := time.Now()
+				if now.Sub(localTime) > time.Second/2 {
+					local = track.getLocal()
+					localTime = now
+				}
+
 				i, err := remote.Read(buf)
 				if err != nil {
 					if err != io.EOF {
@@ -303,7 +311,6 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 					continue
 				}
 
-				local := track.getLocal()
 				for _, l := range local {
 					if l.muted() {
 						continue
