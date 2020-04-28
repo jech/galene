@@ -511,7 +511,7 @@ func rtcpListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RT
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.PictureLossIndication:
-				err := sendPLI(conn.remote.pc, p.MediaSSRC)
+				err := conn.remote.sendPLI(track.remote)
 				if err != nil {
 					log.Printf("sendPLI: %v", err)
 				}
@@ -583,6 +583,16 @@ func updateUpBitrate(up *upConnection) {
 			}
 		}
 	}
+}
+
+func (up *upConnection) sendPLI(track *upTrack) error {
+	last := atomic.LoadUint64(&track.lastPLI)
+	now := msSinceEpoch()
+	if now >= last && now - last < 200 {
+		return nil
+	}
+	atomic.StoreUint64(&track.lastPLI, now)
+	return sendPLI(up.pc, track.track.SSRC())
 }
 
 func sendPLI(pc *webrtc.PeerConnection, ssrc uint32) error {

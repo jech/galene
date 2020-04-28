@@ -24,6 +24,7 @@ type upTrack struct {
 	track      *webrtc.Track
 	list       *packetlist.List
 	maxBitrate uint64
+	lastPLI    uint64
 
 	mu    sync.Mutex
 	local []*downTrack
