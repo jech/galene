@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"sfu/packetlist"
+	"sfu/packetwindow"
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/rtcp"
@@ -259,6 +260,20 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		return nil, err
 	}
 
+	conn := &upConnection{id: id, pc: pc}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.up == nil {
+		c.up = make(map[string]*upConnection)
+	}
+	if c.up[id] != nil {
+		conn.pc.Close()
+		return nil, errors.New("Adding duplicate connection")
+	}
+	c.up[id] = conn
+
 	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		sendICE(c, id, candidate)
 	})
@@ -294,6 +309,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			var packet rtp.Packet
 			var local []*downTrack
 			var localTime time.Time
+			window := packetwindow.New()
 			for {
 				now := time.Now()
 				if now.Sub(localTime) > time.Second/2 {
@@ -315,6 +331,17 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 					continue
 				}
 
+				window.Set(packet.SequenceNumber)
+				if packet.SequenceNumber-window.First() > 24 {
+					first, bitmap := window.Get17()
+					if bitmap != ^uint16(0) {
+						err := conn.sendNACK(track, first, ^bitmap)
+						if err != nil {
+							log.Printf("%v", err)
+						}
+					}
+				}
+
 				list.Store(packet.SequenceNumber, buf[:i])
 
 				for _, l := range local {
@@ -330,19 +357,6 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		}()
 	})
 
-	conn := &upConnection{id: id, pc: pc}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.up == nil {
-		c.up = make(map[string]*upConnection)
-	}
-	if c.up[id] != nil {
-		conn.pc.Close()
-		return nil, errors.New("Adding duplicate connection")
-	}
-	c.up[id] = conn
 	return conn, nil
 }
 
@@ -567,7 +581,7 @@ func updateUpBitrate(up *upConnection) {
 		for _, l := range local {
 			ms := atomic.LoadUint64(&l.maxBitrate.timestamp)
 			bitrate := atomic.LoadUint64(&l.maxBitrate.bitrate)
-			if now < ms || now > ms + 5000 || bitrate == 0 {
+			if now < ms || now > ms+5000 || bitrate == 0 {
 				l.setMuted(false)
 				continue
 			}
@@ -588,7 +602,7 @@ func updateUpBitrate(up *upConnection) {
 func (up *upConnection) sendPLI(track *upTrack) error {
 	last := atomic.LoadUint64(&track.lastPLI)
 	now := msSinceEpoch()
-	if now >= last && now - last < 200 {
+	if now >= last && now-last < 200 {
 		return nil
 	}
 	atomic.StoreUint64(&track.lastPLI, now)
@@ -608,6 +622,25 @@ func sendREMB(pc *webrtc.PeerConnection, ssrc uint32, bitrate uint64) error {
 			SSRCs:   []uint32{ssrc},
 		},
 	})
+}
+
+func (up *upConnection) sendNACK(track *upTrack, first uint16, bitmap uint16) error {
+	return sendNACK(up.pc, track.track.SSRC(), first, bitmap)
+}
+
+func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint16) error {
+	packet := rtcp.Packet(
+		&rtcp.TransportLayerNack{
+			MediaSSRC: ssrc,
+			Nacks: []rtcp.NackPair{
+				rtcp.NackPair{
+					first,
+					rtcp.PacketBitmap(bitmap),
+				},
+			},
+		},
+	)
+	return pc.WriteRTCP([]rtcp.Packet{packet})
 }
 
 func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
