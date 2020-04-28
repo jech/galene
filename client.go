@@ -481,7 +481,7 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 	conn.tracks = append(conn.tracks, track)
 	remoteTrack.addLocal(track)
 
-	go rtcpListener(c.group, conn, s, track.maxBitrate)
+	go rtcpListener(c.group, conn, track, s)
 
 	return conn, s, nil
 }
@@ -492,7 +492,7 @@ func msSinceEpoch() uint64 {
 	return uint64(time.Since(epoch) / time.Millisecond)
 }
 
-func rtcpListener(g *group, c *downConnection, s *webrtc.RTPSender, bitrate *timeStampedBitrate) {
+func rtcpListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
 	for {
 		ps, err := s.ReadRTCP()
 		if err != nil {
@@ -505,7 +505,7 @@ func rtcpListener(g *group, c *downConnection, s *webrtc.RTPSender, bitrate *tim
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.PictureLossIndication:
-				err := sendPLI(c.remote.pc, p.MediaSSRC)
+				err := sendPLI(conn.remote.pc, p.MediaSSRC)
 				if err != nil {
 					log.Printf("sendPLI: %v", err)
 				}
@@ -515,11 +515,11 @@ func rtcpListener(g *group, c *downConnection, s *webrtc.RTPSender, bitrate *tim
 				// data between the two writes.  This shouldn't
 				// matter, we'll recover at the next sample.
 				atomic.StoreUint64(
-					&bitrate.bitrate,
+					&track.maxBitrate.bitrate,
 					p.Bitrate,
 				)
 				atomic.StoreUint64(
-					&bitrate.timestamp,
+					&track.maxBitrate.timestamp,
 					uint64(ms),
 				)
 			case *rtcp.ReceiverReport:
