@@ -286,10 +286,9 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			c.mu.Unlock()
 			return
 		}
-		list := packetlist.New(32)
 		track := &upTrack{
 			track:      remote,
-			list:       list,
+			list:       packetlist.New(32),
 			maxBitrate: ^uint64(0),
 		}
 		u.tracks = append(u.tracks, track)
@@ -304,60 +303,62 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			}
 		}
 
-		go func() {
-			buf := make([]byte, packetlist.BufSize)
-			var packet rtp.Packet
-			var local []*downTrack
-			var localTime time.Time
-			window := packetwindow.New()
-			for {
-				now := time.Now()
-				if now.Sub(localTime) > time.Second/2 {
-					local = track.getLocal()
-					localTime = now
-				}
-
-				i, err := remote.Read(buf)
-				if err != nil {
-					if err != io.EOF {
-						log.Printf("%v", err)
-					}
-					break
-				}
-
-				err = packet.Unmarshal(buf[:i])
-				if err != nil {
-					log.Printf("%v", err)
-					continue
-				}
-
-				window.Set(packet.SequenceNumber)
-				if packet.SequenceNumber-window.First() > 24 {
-					first, bitmap := window.Get17()
-					if bitmap != ^uint16(0) {
-						err := conn.sendNACK(track, first, ^bitmap)
-						if err != nil {
-							log.Printf("%v", err)
-						}
-					}
-				}
-
-				list.Store(packet.SequenceNumber, buf[:i])
-
-				for _, l := range local {
-					if l.muted() {
-						continue
-					}
-					err := l.track.WriteRTP(&packet)
-					if err != nil && err != io.ErrClosedPipe {
-						log.Printf("%v", err)
-					}
-				}
-			}
-		}()
+		go upLoop(conn, track)
 	})
 
 	return conn, nil
+}
+
+func upLoop(conn *upConnection, track *upTrack) {
+	buf := make([]byte, packetlist.BufSize)
+	var packet rtp.Packet
+	var local []*downTrack
+	var localTime time.Time
+	window := packetwindow.New()
+	for {
+		now := time.Now()
+		if now.Sub(localTime) > time.Second/2 {
+			local = track.getLocal()
+			localTime = now
+		}
+
+		i, err := track.track.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("%v", err)
+			}
+			break
+		}
+
+		err = packet.Unmarshal(buf[:i])
+		if err != nil {
+			log.Printf("%v", err)
+			continue
+		}
+
+		window.Set(packet.SequenceNumber)
+		if packet.SequenceNumber-window.First() > 24 {
+			first, bitmap := window.Get17()
+			if bitmap != ^uint16(0) {
+				err := conn.sendNACK(track, first, ^bitmap)
+				if err != nil {
+					log.Printf("%v", err)
+				}
+			}
+		}
+
+		track.list.Store(packet.SequenceNumber, buf[:i])
+
+		for _, l := range local {
+			if l.muted() {
+				continue
+			}
+			err := l.track.WriteRTP(&packet)
+			if err != nil && err != io.ErrClosedPipe {
+				log.Printf("%v", err)
+			}
+		}
+	}
 }
 
 func delUpConn(c *client, id string) {
