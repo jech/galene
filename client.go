@@ -538,28 +538,6 @@ func trackKinds(down *downConnection) (audio bool, video bool) {
 	return
 }
 
-func splitBitrate(bitrate uint32, audio, video bool) (uint32, uint32) {
-	if audio && !video {
-		return bitrate, 0
-	}
-	if !audio && video {
-		return 0, bitrate
-	}
-
-	if bitrate < 6000 {
-		return 6000, 0
-	}
-
-	if bitrate < 12000 {
-		return bitrate, 0
-	}
-	audioRate := 8000 + (bitrate-8000)/4
-	if audioRate > 96000 {
-		audioRate = 96000
-	}
-	return audioRate, bitrate - audioRate
-}
-
 func updateUpBitrate(up *upConnection) {
 	for _, t := range up.tracks {
 		t.maxBitrate = ^uint64(0)
