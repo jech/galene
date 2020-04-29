@@ -289,7 +289,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		}
 		track := &upTrack{
 			track:      remote,
-			cache:      packetcache.New(32),
+			cache:      packetcache.New(96),
 			maxBitrate: ^uint64(0),
 		}
 		u.tracks = append(u.tracks, track)
