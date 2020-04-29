@@ -15,14 +15,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"sfu/packetlist"
+	"sfu/packetcache"
 
 	"github.com/pion/webrtc/v2"
 )
 
 type upTrack struct {
 	track      *webrtc.Track
-	list       *packetlist.List
+	cache      *packetcache.Cache
 	maxBitrate uint64
 	lastPLI    uint64
 

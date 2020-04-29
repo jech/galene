@@ -16,8 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"sfu/packetlist"
-	"sfu/packetwindow"
+	"sfu/packetcache"
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/rtcp"
@@ -288,7 +287,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		}
 		track := &upTrack{
 			track:      remote,
-			list:       packetlist.New(32),
+			cache:      packetcache.New(32),
 			maxBitrate: ^uint64(0),
 		}
 		u.tracks = append(u.tracks, track)
@@ -310,11 +309,10 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 }
 
 func upLoop(conn *upConnection, track *upTrack) {
-	buf := make([]byte, packetlist.BufSize)
+	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	var local []*downTrack
 	var localTime time.Time
-	window := packetwindow.New()
 	for {
 		now := time.Now()
 		if now.Sub(localTime) > time.Second/2 {
@@ -336,9 +334,9 @@ func upLoop(conn *upConnection, track *upTrack) {
 			continue
 		}
 
-		window.Set(packet.SequenceNumber)
-		if packet.SequenceNumber-window.First() > 24 {
-			first, bitmap := window.Get17()
+		first := track.cache.Store(packet.SequenceNumber, buf[:i])
+		if packet.SequenceNumber-first > 24 {
+			first, bitmap := track.cache.BitmapGet()
 			if bitmap != ^uint16(0) {
 				err := conn.sendNACK(track, first, ^bitmap)
 				if err != nil {
@@ -346,8 +344,6 @@ func upLoop(conn *upConnection, track *upTrack) {
 				}
 			}
 		}
-
-		track.list.Store(packet.SequenceNumber, buf[:i])
 
 		for _, l := range local {
 			if l.muted() {
@@ -648,7 +644,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 	var packet rtp.Packet
 	for _, nack := range p.Nacks {
 		for _, seqno := range nack.PacketList() {
-			raw := track.remote.list.Get(seqno)
+			raw := track.remote.cache.Get(seqno)
 			if raw != nil {
 				err := packet.Unmarshal(raw)
 				if err != nil {
