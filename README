@@ -1,0 +1,40 @@
+Build the server binary:
+
+    CGO_ENABLED=0 go build -ldflags='-s -w'
+
+Create a server certificate:
+
+    openssl req -newkey rsa:2048 -nodes -keyout data/key.pem -x509 -days 365 -out data/cert.pem
+
+Set the server administrator's username and password (optional):
+
+    echo 'god:topsecret' > data/passwd
+
+Configure the list of STUN and TURN servers (optional):
+
+    vi static/ice-servers.json
+
+Setup a group
+
+    mkdir groups
+    vi groups/public.json
+
+    {
+      "allow-anonymous":true,
+      "public":true,
+      "op":[{"username":"jch","password":"1234"}],
+      "presenter":[{}],
+      "max-users":100
+    }
+
+Copy the necessary files to your server:
+
+    rsync -a sfu static data groups server.example.org:/home/sfu/
+
+Run the server binary:
+
+    ssh server.example.org
+    cd /home/sfu/
+    nohup ./sfu &
+
+-- Juliusz Chroboczek <https://www.irif.fr/~jch/>
