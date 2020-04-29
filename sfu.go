@@ -6,13 +6,19 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
+	"html"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -44,6 +50,7 @@ func main() {
 		})
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/public-groups.json", publicHandler)
+	http.HandleFunc("/stats", statsHandler)
 
 	go readPublicGroups()
 
@@ -94,6 +101,102 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 	e := json.NewEncoder(w)
 	e.Encode(g)
 	return
+}
+
+func getPassword() (string, string, error) {
+	f, err := os.Open(filepath.Join(dataDir, "passwd"))
+	if err != nil {
+		return "", "", err
+	}
+	defer f.Close()
+
+	r := bufio.NewReader(f)
+
+	s, err := r.ReadString('\n')
+	if err != nil {
+		return "", "", err
+	}
+
+	l := strings.SplitN(strings.TrimSpace(s), ":", 2)
+	if len(l) != 2 {
+		return "", "", errors.New("couldn't parse passwords")
+	}
+
+	return l[0], l[1], nil
+}
+
+func statsHandler(w http.ResponseWriter, r *http.Request) {
+	bail := func() {
+		w.Header().Set("www-authenticate", "basic realm=\"stats\"")
+		http.Error(w, "Haha!", http.StatusUnauthorized)
+	}
+
+	u, p, err := getPassword()
+	if err != nil {
+		log.Printf("Passwd: %v", err)
+		bail()
+		return
+	}
+
+	username, password, ok := r.BasicAuth()
+	if !ok || username != u || password != p {
+		bail()
+		return
+	}
+
+	w.Header().Set("content-type", "text/html; charset=utf-8")
+	w.Header().Set("cache-control", "no-cache")
+	if r.Method == "HEAD" {
+		return
+	}
+
+	stats := getGroupStats()
+
+	fmt.Fprintf(w, "<!DOCTYPE html>\n<html><head>\n")
+	fmt.Fprintf(w, "<title>Stats</title>\n")
+	fmt.Fprintf(w, "<head><body>\n")
+
+	printBitrate := func(w io.Writer, rate uint64) error {
+		var err error
+		if rate != 0 && rate != ^uint64(0) {
+			_, err = fmt.Fprintf(w, "%v", rate)
+		}
+		return err
+	}
+
+	printTrack := func(w io.Writer, t trackStats) {
+		fmt.Fprintf(w, "<tr><td></td><td></td><td></td>")
+		fmt.Fprintf(w, "<td>")
+		printBitrate(w, t.bitrate)
+		fmt.Fprintf(w, "</td>")
+		fmt.Fprintf(w, "<td>%d%%</td></tr>\n",
+			t.loss,
+		)
+	}
+
+	for _, gs := range stats {
+		fmt.Fprintf(w, "<p>%v</p>\n", html.EscapeString(gs.name))
+		fmt.Fprintf(w, "<table>")
+		for _, cs := range gs.clients {
+			fmt.Fprintf(w, "<tr><td>%v</td></tr>\n", cs.id)
+			for _, up := range cs.up {
+				fmt.Fprintf(w, "<tr><td></td><td>Up</td><td>%v</td></tr>\n",
+					up.id)
+				for _, t := range up.tracks {
+					printTrack(w, t)
+				}
+			}
+			for _, up := range cs.down {
+				fmt.Fprintf(w, "<tr><td></td><td>Down</td><td> %v</td></tr>\n",
+					up.id)
+				for _, t := range up.tracks {
+					printTrack(w, t)
+				}
+			}
+		}
+		fmt.Fprintf(w, "</table>\n")
+	}
+	fmt.Fprintf(w, "</body></html>\n")
 }
 
 var upgrader websocket.Upgrader

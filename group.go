@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -239,6 +240,24 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	}
 
 	return g, nil
+}
+
+func getGroupNames() []string {
+	groups.mu.Lock()
+	defer groups.mu.Unlock()
+
+	names := make([]string, 0, len(groups.groups))
+	for name := range groups.groups {
+		names = append(names, name)
+	}
+	return names
+}
+
+func getGroup(name string) *group {
+	groups.mu.Lock()
+	defer groups.mu.Unlock()
+
+	return groups.groups[name]
 }
 
 func delGroupUnlocked(name string) bool {
@@ -597,4 +616,98 @@ func readPublicGroups() {
 			addGroup(name, desc)
 		}
 	}
+}
+
+type groupStats struct {
+	name    string
+	clients []clientStats
+}
+
+type clientStats struct {
+	id       string
+	up, down []connStats
+}
+
+type connStats struct {
+	id     string
+	tracks []trackStats
+}
+
+type trackStats struct {
+	bitrate uint64
+	loss    uint8
+}
+
+func getGroupStats() []groupStats {
+	names := getGroupNames()
+
+	gs := make([]groupStats, 0, len(names))
+	for _, name := range names {
+		g := getGroup(name)
+		if g == nil {
+			continue
+		}
+		clients := g.getClients(nil)
+		stats := groupStats{
+			name:    name,
+			clients: make([]clientStats, 0, len(clients)),
+		}
+		for _, c := range clients {
+			cs := getClientStats(c)
+			stats.clients = append(stats.clients, cs)
+		}
+		sort.Slice(stats.clients, func(i, j int) bool {
+			return stats.clients[i].id < stats.clients[j].id
+		})
+		gs = append(gs, stats)
+	}
+	sort.Slice(gs, func(i, j int) bool {
+		return gs[i].name < gs[j].name
+	})
+
+	return gs
+}
+
+func getClientStats(c *client) clientStats {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	cs := clientStats{
+		id: c.id,
+	}
+
+	for _, up := range c.up {
+		conns := connStats{id: up.id}
+		for _, t := range up.tracks {
+			expected, lost, _ := t.cache.GetStats(false)
+			if expected == 0 {
+				expected = 1
+			}
+			conns.tracks = append(conns.tracks, trackStats{
+				bitrate: atomic.LoadUint64(&t.maxBitrate),
+				loss:    uint8(lost * 100 / expected),
+			})
+		}
+		cs.up = append(cs.up, conns)
+	}
+	sort.Slice(cs.up, func(i, j int) bool {
+		return cs.up[i].id < cs.up[j].id
+	})
+
+	for _, down := range c.down {
+		conns := connStats{id: down.id}
+		for _, t := range down.tracks {
+			loss := atomic.LoadUint32(&t.loss)
+			conns.tracks = append(conns.tracks, trackStats{
+				bitrate: atomic.LoadUint64(&t.maxBitrate.bitrate),
+				loss: uint8((loss * 100) / 256),
+			})
+		}
+		cs.down = append(cs.down, conns)
+	}
+	sort.Slice(cs.down, func(i, j int) bool {
+		return cs.down[i].id < cs.down[j].id
+	})
+
+	return cs
 }
