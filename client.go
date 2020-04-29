@@ -662,15 +662,33 @@ func updateUpBitrate(up *upConnection) {
 		for _, l := range local {
 			ms := atomic.LoadUint64(&l.maxBitrate.timestamp)
 			bitrate := atomic.LoadUint64(&l.maxBitrate.bitrate)
+			loss := atomic.LoadUint32(&l.loss)
 			if now < ms || now > ms+5000 || bitrate == 0 {
+				// no rate information
 				l.setMuted(false)
 				continue
 			}
-			if bitrate < 9600 ||
-				(l.track.Kind() == webrtc.RTPCodecTypeVideo &&
-					bitrate < 128000) {
-				l.setMuted(true)
-				continue
+
+			isvideo := l.track.Kind() == webrtc.RTPCodecTypeVideo
+			minrate1 := uint64(9600)
+			minrate2 := uint64(19200)
+			if isvideo {
+				minrate1 = 256000
+				minrate2 = 512000
+			}
+			if bitrate < minrate2 {
+				if loss <= 13 {
+					// less than 10% loss, go ahead
+					bitrate = minrate2
+				} else if loss <= 64 || !isvideo {
+					if bitrate < minrate1 {
+						bitrate = minrate1
+					}
+				} else {
+					// video track with dramatic loss
+					l.setMuted(true)
+					continue
+				}
 			}
 			l.setMuted(false)
 			if track.maxBitrate > bitrate {
