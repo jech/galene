@@ -13,10 +13,18 @@ type entry struct {
 }
 
 type Cache struct {
-	mu      sync.Mutex
-	first   uint16 // the first seqno
-	bitmap  uint32
-	tail    int // the next entry to be rewritten
+	mu sync.Mutex
+	//stats
+	last      uint16
+	cycle     uint16
+	lastValid bool
+	expected  uint32
+	lost      uint32
+	// bitmap
+	first  uint16
+	bitmap uint32
+	// packet cache
+	tail    int
 	entries []entry
 }
 
@@ -26,9 +34,21 @@ func New(capacity int) *Cache {
 	}
 }
 
+func seqnoInvalid(seqno, reference uint16) bool {
+	if ((seqno - reference) & 0x8000) == 0 {
+		return false
+	}
+
+	if reference - seqno > 0x100 {
+		return true
+	}
+
+	return false
+}
+
 // Set a bit in the bitmap, shifting first if necessary.
 func (cache *Cache) set(seqno uint16) {
-	if cache.bitmap == 0 {
+	if cache.bitmap == 0 || seqnoInvalid(seqno, cache.first) {
 		cache.first = seqno
 		cache.bitmap = 1
 		return
@@ -64,6 +84,25 @@ func (cache *Cache) set(seqno uint16) {
 func (cache *Cache) Store(seqno uint16, buf []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+
+	if !cache.lastValid || seqnoInvalid(seqno, cache.last) {
+		cache.last = seqno
+		cache.lastValid = true
+		cache.expected++
+	} else {
+		if ((cache.last - seqno) & 0x8000) != 0 {
+			cache.expected += uint32(seqno - cache.last)
+			cache.lost += uint32(seqno - cache.last - 1)
+			if seqno < cache.last {
+				cache.cycle++
+			}
+			cache.last = seqno
+		} else {
+			if cache.lost > 0 {
+				cache.lost--
+			}
+		}
+	}
 
 	cache.set(seqno)
 
@@ -101,4 +140,19 @@ func (cache *Cache) BitmapGet() (uint16, uint16) {
 	cache.bitmap >>= 17
 	cache.first += 17
 	return first, bitmap
+}
+
+func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	expected := cache.expected
+	lost := cache.lost
+	eseqno := uint32(cache.cycle)<<16 | uint32(cache.last)
+
+	if reset {
+		cache.expected = 0
+		cache.lost = 0
+	}
+	return expected, lost, eseqno
 }

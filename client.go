@@ -277,6 +277,8 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		sendICE(c, id, candidate)
 	})
 
+	go rtcpUpSender(c, conn)
+
 	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
 		c.mu.Lock()
 		u, ok := c.up[id]
@@ -303,6 +305,8 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		}
 
 		go upLoop(conn, track)
+
+		go rtcpUpListener(conn, track, receiver)
 	})
 
 	return conn, nil
@@ -353,6 +357,78 @@ func upLoop(conn *upConnection, track *upTrack) {
 			if err != nil && err != io.ErrClosedPipe {
 				log.Printf("%v", err)
 			}
+		}
+	}
+}
+
+func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
+	for {
+		ps, err := r.ReadRTCP()
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("ReadRTCP: %v", err)
+			}
+			return
+		}
+
+		for _, p := range ps {
+			switch p := p.(type) {
+			case *rtcp.SenderReport:
+				atomic.StoreUint32(&track.lastSenderReport,
+					uint32(p.NTPTime>>16))
+			case *rtcp.SourceDescription:
+			default:
+				log.Printf("RTCP: %T", p)
+			}
+		}
+	}
+}
+
+func sendRR(c *client, conn *upConnection) error {
+	c.mu.Lock()
+	if len(conn.tracks) == 0 {
+		c.mu.Unlock()
+		return nil
+	}
+
+	ssrc := conn.tracks[0].track.SSRC()
+
+	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
+	for _, t := range conn.tracks {
+		expected, lost, eseqno := t.cache.GetStats(true)
+		if expected == 0 {
+			expected = 1
+		}
+		if lost >= expected {
+			lost = expected - 1
+		}
+		reports = append(reports, rtcp.ReceptionReport{
+			SSRC:               t.track.SSRC(),
+			LastSenderReport:   atomic.LoadUint32(&t.lastSenderReport),
+			FractionLost:       uint8((lost * 256) / expected),
+			TotalLost:          lost,
+			LastSequenceNumber: eseqno,
+		})
+	}
+	c.mu.Unlock()
+
+	return conn.pc.WriteRTCP([]rtcp.Packet{
+		&rtcp.ReceiverReport{
+			SSRC:    ssrc,
+			Reports: reports,
+		},
+	})
+}
+
+func rtcpUpSender(c *client, conn *upConnection) {
+	for {
+		time.Sleep(time.Second)
+		err := sendRR(c, conn)
+		if err != nil {
+			if err == io.EOF || err == io.ErrClosedPipe {
+				return
+			}
+			log.Printf("WriteRTCP: %v", err)
 		}
 	}
 }
@@ -498,7 +574,7 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 	conn.tracks = append(conn.tracks, track)
 	remoteTrack.addLocal(track)
 
-	go rtcpListener(c.group, conn, track, s)
+	go rtcpDownListener(c.group, conn, track, s)
 
 	return conn, s, nil
 }
@@ -509,7 +585,7 @@ func msSinceEpoch() uint64 {
 	return uint64(time.Since(epoch) / time.Millisecond)
 }
 
-func rtcpListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
+func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
 	for {
 		ps, err := s.ReadRTCP()
 		if err != nil {

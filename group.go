@@ -21,10 +21,11 @@ import (
 )
 
 type upTrack struct {
-	track      *webrtc.Track
-	cache      *packetcache.Cache
-	maxBitrate uint64
-	lastPLI    uint64
+	track            *webrtc.Track
+	cache            *packetcache.Cache
+	maxBitrate       uint64
+	lastPLI          uint64
+	lastSenderReport uint32
 
 	mu    sync.Mutex
 	local []*downTrack
