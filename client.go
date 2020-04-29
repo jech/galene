@@ -598,6 +598,9 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.PictureLossIndication:
+				if track.muted() {
+					continue
+				}
 				err := conn.remote.sendPLI(track.remote)
 				if err != nil {
 					log.Printf("sendPLI: %v", err)
@@ -625,6 +628,9 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					}
 				}
 			case *rtcp.TransportLayerNack:
+				if track.muted() {
+					continue
+				}
 				sendRecovery(p, track)
 			default:
 				log.Printf("RTCP: %T", p)
