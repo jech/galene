@@ -75,6 +75,7 @@ type downTrack struct {
 	remote     *upTrack
 	isMuted    uint32
 	maxBitrate *timeStampedBitrate
+	loss       uint32
 }
 
 func (t *downTrack) muted() bool {

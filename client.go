@@ -616,6 +616,14 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					uint64(ms),
 				)
 			case *rtcp.ReceiverReport:
+				for _, r := range p.Reports {
+					if r.SSRC == track.track.SSRC() {
+						atomic.StoreUint32(
+							&track.loss,
+							uint32(r.FractionLost),
+						)
+					}
+				}
 			case *rtcp.TransportLayerNack:
 				sendRecovery(p, track)
 			default:
