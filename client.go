@@ -377,8 +377,6 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 				atomic.StoreUint32(&track.lastSenderReport,
 					uint32(p.NTPTime>>16))
 			case *rtcp.SourceDescription:
-			default:
-				log.Printf("RTCP: %T", p)
 			}
 		}
 	}
@@ -632,8 +630,6 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					continue
 				}
 				sendRecovery(p, track)
-			default:
-				log.Printf("RTCP: %T", p)
 			}
 		}
 	}
