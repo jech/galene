@@ -579,12 +579,6 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 	return conn, s, nil
 }
 
-var epoch = time.Now()
-
-func msSinceEpoch() uint64 {
-	return uint64(time.Since(epoch) / time.Millisecond)
-}
-
 func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
 	for {
 		ps, err := s.ReadRTCP()
@@ -603,18 +597,7 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					log.Printf("sendPLI: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				ms := msSinceEpoch()
-				// this is racy -- a reader might read the
-				// data between the two writes.  This shouldn't
-				// matter, we'll recover at the next sample.
-				atomic.StoreUint64(
-					&track.maxBitrate.bitrate,
-					p.Bitrate,
-				)
-				atomic.StoreUint64(
-					&track.maxBitrate.timestamp,
-					uint64(ms),
-				)
+				track.maxBitrate.Set(p.Bitrate, msSinceEpoch())
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == track.track.SSRC() {
@@ -658,10 +641,8 @@ func updateUpBitrate(up *upConnection) {
 		track.maxBitrate = ^uint64(0)
 		local := track.getLocal()
 		for _, l := range local {
-			ms := atomic.LoadUint64(&l.maxBitrate.timestamp)
-			bitrate := atomic.LoadUint64(&l.maxBitrate.bitrate)
-			loss := atomic.LoadUint32(&l.loss)
-			if now < ms || now > ms+5000 || bitrate == 0 {
+			bitrate := l.maxBitrate.Get(now)
+			if bitrate == ^uint64(0) {
 				continue
 			}
 
@@ -673,6 +654,7 @@ func updateUpBitrate(up *upConnection) {
 				minrate2 = 512000
 			}
 			if bitrate < minrate2 {
+				loss := atomic.LoadUint32(&l.loss)
 				if loss <= 13 {
 					// less than 10% loss, go ahead
 					bitrate = minrate2

@@ -68,9 +68,31 @@ type upConnection struct {
 	tracks     []*upTrack
 }
 
+func msSinceEpoch() uint64 {
+	return uint64(time.Since(epoch) / time.Millisecond)
+}
+
+var epoch = time.Now()
+
 type timeStampedBitrate struct {
 	bitrate   uint64
 	timestamp uint64
+}
+
+func (tb *timeStampedBitrate) Set(bitrate, timestamp uint64) {
+	// this is racy -- a reader might read the
+	// data between the two writes.  This shouldn't
+	// matter, we'll recover at the next sample.
+	atomic.StoreUint64(&tb.bitrate,	bitrate)
+	atomic.StoreUint64(&tb.timestamp, timestamp)
+}
+
+func (tb *timeStampedBitrate) Get(now uint64) uint64 {
+	ts := atomic.LoadUint64(&tb.timestamp)
+	if now < ts || now > ts + 1000 {
+		return ^uint64(0)
+	}
+	return atomic.LoadUint64(&tb.bitrate)
 }
 
 type downTrack struct {
@@ -695,7 +717,7 @@ func getClientStats(c *client) clientStats {
 			loss := atomic.LoadUint32(&t.loss)
 			conns.tracks = append(conns.tracks, trackStats{
 				bitrate:    uint64(t.rate.Estimate()) * 8,
-				maxBitrate: atomic.LoadUint64(&t.maxBitrate.bitrate),
+				maxBitrate: t.maxBitrate.Get(msSinceEpoch()),
 				loss:       uint8((loss * 100) / 256),
 			})
 		}
