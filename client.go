@@ -608,7 +608,11 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					}
 				}
 			case *rtcp.TransportLayerNack:
-				sendRecovery(p, track)
+				maxBitrate := track.maxBitrate.Get(msSinceEpoch())
+				bitrate := track.rate.Estimate()
+				if uint64(bitrate) < maxBitrate {
+					sendRecovery(p, track)
+				}
 			}
 		}
 	}
@@ -720,17 +724,19 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 	for _, nack := range p.Nacks {
 		for _, seqno := range nack.PacketList() {
 			raw := track.remote.cache.Get(seqno)
-			if raw != nil {
-				err := packet.Unmarshal(raw)
-				if err != nil {
-					continue
-				}
-				err = track.track.WriteRTP(&packet)
-				if err != nil {
-					log.Printf("%v", err)
-				}
-				track.rate.Add(uint32(len(raw)))
+			if raw == nil {
+				continue
 			}
+			err := packet.Unmarshal(raw)
+			if err != nil {
+				continue
+			}
+			err = track.track.WriteRTP(&packet)
+			if err != nil {
+				log.Printf("%v", err)
+				continue
+			}
+			track.rate.Add(uint32(len(raw)))
 		}
 	}
 }
