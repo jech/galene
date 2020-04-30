@@ -435,6 +435,9 @@ function serverConnect() {
             case 'chat':
                 addToChatbox(m.id, m.username, m.value, m.me);
                 break;
+            case 'clearchat':
+                resetChat();
+                break;
             case 'ping':
                 send({
                     type: 'pong',
@@ -749,6 +752,15 @@ function handleInput() {
                 break;
             case '/leave':
                 socket.close();
+                return;
+            case '/clear':
+                if(!permissions.op) {
+                    displayError("You're not an operator");
+                    return;
+                }
+                send({
+                    type: 'clearchat',
+                });
                 return;
             case '/op':
             case '/unop':

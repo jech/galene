@@ -361,6 +361,12 @@ func (g *group) Range(f func(c *client) bool) {
 
 const maxChatHistory = 20
 
+func (g *group) clearChatHistory() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.history = nil
+}
+
 func (g *group) addToChatHistory(id, user, value string, me bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()

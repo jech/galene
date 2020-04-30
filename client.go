@@ -1061,6 +1061,13 @@ func handleClientMessage(c *client, m clientMessage) error {
 		for _, cc := range clients {
 			cc.write(m)
 		}
+	case "clearchat":
+		c.group.clearChatHistory()
+		m := clientMessage{Type: "clearchat"}
+		clients := c.group.getClients(nil)
+		for _, cc := range clients {
+			cc.write(m)
+		}
 	case "op", "unop", "present", "unpresent":
 		if !c.permissions.Op {
 			c.error(userError("not authorised"))
