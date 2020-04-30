@@ -144,26 +144,18 @@ h1 {
 
 #peers {
     margin-left: 1%;
-    margin-right: 1%;
-    white-space: nowrap;
-    display: flex;
-    flex-wrap: wrap;
-    margin-bottom: 4px;
+    display: grid;
+    grid-template-columns: 1fr;
+    column-gap: 0.5%;
+    align-content: start;
 }
 
 .peer {
-    display: flex;
-    flex-direction: column;
-    margin-right: 5px;
-    margin-left: 5px;
-    margin-bottom: 10px;
-    max-height: 50%;
+    margin-top: auto;
 }
 
 .media {
-    height: 400px;
-    margin: auto;
-    min-width: 4em;
+    width: 100%;
 }
 
 .label {

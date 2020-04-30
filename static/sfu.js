@@ -325,6 +325,8 @@ function setMedia(id) {
 
     media.srcObject = c.stream;
     setLabel(id);
+
+    resizePeers();
 }
 
 function delMedia(id) {
@@ -334,6 +336,8 @@ function delMedia(id) {
 
     media.srcObject = null;
     mediadiv.removeChild(peer);
+
+    resizePeers();
 }
 
 function setLabel(id, fallback) {
@@ -351,6 +355,13 @@ function setLabel(id, fallback) {
         label.textContent = '';
         label.classList.remove('label-fallback');
     }
+}
+
+function resizePeers() {
+    let count = Object.keys(up).length + Object.keys(down).length;
+    let columns = Math.ceil(Math.sqrt(count));
+    document.getElementById('peers').style['grid-template-columns'] =
+        `repeat(${columns}, 1fr)`;
 }
 
 function serverConnect() {
