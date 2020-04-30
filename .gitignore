@@ -1,0 +1,5 @@
+*~
+data/*.pem
+sfu
+passwd
+groups/*.json
