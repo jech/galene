@@ -353,9 +353,6 @@ func upLoop(conn *upConnection, track *upTrack) {
 		}
 
 		for _, l := range local {
-			if l.muted() {
-				continue
-			}
 			err := l.track.WriteRTP(&packet)
 			if err != nil && err != io.ErrClosedPipe {
 				log.Printf("%v", err)
@@ -601,9 +598,6 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.PictureLossIndication:
-				if track.muted() {
-					continue
-				}
 				err := conn.remote.sendPLI(track.remote)
 				if err != nil {
 					log.Printf("sendPLI: %v", err)
@@ -631,9 +625,6 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					}
 				}
 			case *rtcp.TransportLayerNack:
-				if track.muted() {
-					continue
-				}
 				sendRecovery(p, track)
 			}
 		}
@@ -671,8 +662,6 @@ func updateUpBitrate(up *upConnection) {
 			bitrate := atomic.LoadUint64(&l.maxBitrate.bitrate)
 			loss := atomic.LoadUint32(&l.loss)
 			if now < ms || now > ms+5000 || bitrate == 0 {
-				// no rate information
-				l.setMuted(false)
 				continue
 			}
 
@@ -687,17 +676,12 @@ func updateUpBitrate(up *upConnection) {
 				if loss <= 13 {
 					// less than 10% loss, go ahead
 					bitrate = minrate2
-				} else if loss <= 64 || !isvideo {
+				} else if loss <= 64 {
 					if bitrate < minrate1 {
 						bitrate = minrate1
 					}
-				} else {
-					// video track with dramatic loss
-					l.setMuted(true)
-					continue
 				}
 			}
-			l.setMuted(false)
 			if track.maxBitrate > bitrate {
 				track.maxBitrate = bitrate
 			}

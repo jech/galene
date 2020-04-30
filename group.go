@@ -76,25 +76,9 @@ type timeStampedBitrate struct {
 type downTrack struct {
 	track      *webrtc.Track
 	remote     *upTrack
-	isMuted    uint32
 	maxBitrate *timeStampedBitrate
 	rate       *estimator.Estimator
 	loss       uint32
-}
-
-func (t *downTrack) muted() bool {
-	return atomic.LoadUint32(&t.isMuted) != 0
-}
-
-func (t *downTrack) setMuted(muted bool) {
-	if t.muted() == muted {
-		return
-	}
-	m := uint32(0)
-	if muted {
-		m = 1
-	}
-	atomic.StoreUint32(&t.isMuted, m)
 }
 
 type downConnection struct {
