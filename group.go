@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"sfu/estimator"
 	"sfu/packetcache"
 
 	"github.com/pion/webrtc/v2"
@@ -23,6 +24,7 @@ import (
 
 type upTrack struct {
 	track            *webrtc.Track
+	rate             *estimator.Estimator
 	cache            *packetcache.Cache
 	maxBitrate       uint64
 	lastPLI          uint64
@@ -76,6 +78,7 @@ type downTrack struct {
 	remote     *upTrack
 	isMuted    uint32
 	maxBitrate *timeStampedBitrate
+	rate       *estimator.Estimator
 	loss       uint32
 }
 
@@ -706,7 +709,7 @@ func getClientStats(c *client) clientStats {
 			loss := atomic.LoadUint32(&t.loss)
 			conns.tracks = append(conns.tracks, trackStats{
 				bitrate: atomic.LoadUint64(&t.maxBitrate.bitrate),
-				loss: uint8((loss * 100) / 256),
+				loss:    uint8((loss * 100) / 256),
 			})
 		}
 		cs.down = append(cs.down, conns)

@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"sfu/estimator"
 	"sfu/packetcache"
 
 	"github.com/gorilla/websocket"
@@ -290,6 +291,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		track := &upTrack{
 			track:      remote,
 			cache:      packetcache.New(96),
+			rate:       estimator.New(time.Second),
 			maxBitrate: ^uint64(0),
 		}
 		u.tracks = append(u.tracks, track)
@@ -324,21 +326,22 @@ func upLoop(conn *upConnection, track *upTrack) {
 			localTime = now
 		}
 
-		i, err := track.track.Read(buf)
+		bytes, err := track.track.Read(buf)
 		if err != nil {
 			if err != io.EOF {
 				log.Printf("%v", err)
 			}
 			break
 		}
+		track.rate.Add(uint32(bytes))
 
-		err = packet.Unmarshal(buf[:i])
+		err = packet.Unmarshal(buf[:bytes])
 		if err != nil {
 			log.Printf("%v", err)
 			continue
 		}
 
-		first := track.cache.Store(packet.SequenceNumber, buf[:i])
+		first := track.cache.Store(packet.SequenceNumber, buf[:bytes])
 		if packet.SequenceNumber-first > 24 {
 			first, bitmap := track.cache.BitmapGet()
 			if bitmap != ^uint16(0) {
@@ -357,6 +360,7 @@ func upLoop(conn *upConnection, track *upTrack) {
 			if err != nil && err != io.ErrClosedPipe {
 				log.Printf("%v", err)
 			}
+			l.rate.Add(uint32(bytes))
 		}
 	}
 }
@@ -568,6 +572,7 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 		track:      local,
 		remote:     remoteTrack,
 		maxBitrate: new(timeStampedBitrate),
+		rate:       estimator.New(time.Second),
 	}
 	conn.tracks = append(conn.tracks, track)
 	remoteTrack.addLocal(track)
@@ -758,6 +763,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 				if err != nil {
 					log.Printf("%v", err)
 				}
+				track.rate.Add(uint32(len(raw)))
 			}
 		}
 	}
