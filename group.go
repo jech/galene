@@ -643,8 +643,9 @@ type connStats struct {
 }
 
 type trackStats struct {
-	bitrate uint64
-	loss    uint8
+	bitrate    uint64
+	maxBitrate uint64
+	loss       uint8
 }
 
 func getGroupStats() []groupStats {
@@ -693,8 +694,9 @@ func getClientStats(c *client) clientStats {
 				expected = 1
 			}
 			conns.tracks = append(conns.tracks, trackStats{
-				bitrate: atomic.LoadUint64(&t.maxBitrate),
-				loss:    uint8(lost * 100 / expected),
+				bitrate:    uint64(t.rate.Estimate()) * 8,
+				maxBitrate: atomic.LoadUint64(&t.maxBitrate),
+				loss:       uint8(lost * 100 / expected),
 			})
 		}
 		cs.up = append(cs.up, conns)
@@ -708,8 +710,9 @@ func getClientStats(c *client) clientStats {
 		for _, t := range down.tracks {
 			loss := atomic.LoadUint32(&t.loss)
 			conns.tracks = append(conns.tracks, trackStats{
-				bitrate: atomic.LoadUint64(&t.maxBitrate.bitrate),
-				loss:    uint8((loss * 100) / 256),
+				bitrate:    uint64(t.rate.Estimate()) * 8,
+				maxBitrate: atomic.LoadUint64(&t.maxBitrate.bitrate),
+				loss:       uint8((loss * 100) / 256),
 			})
 		}
 		cs.down = append(cs.down, conns)

@@ -156,9 +156,11 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "<title>Stats</title>\n")
 	fmt.Fprintf(w, "<head><body>\n")
 
-	printBitrate := func(w io.Writer, rate uint64) error {
+	printBitrate := func(w io.Writer, rate, maxRate uint64) error {
 		var err error
-		if rate != 0 && rate != ^uint64(0) {
+		if maxRate != 0 && maxRate != ^uint64(0) {
+			_, err = fmt.Fprintf(w, "%v/%v", rate, maxRate)
+		} else {
 			_, err = fmt.Fprintf(w, "%v", rate)
 		}
 		return err
@@ -167,7 +169,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 	printTrack := func(w io.Writer, t trackStats) {
 		fmt.Fprintf(w, "<tr><td></td><td></td><td></td>")
 		fmt.Fprintf(w, "<td>")
-		printBitrate(w, t.bitrate)
+		printBitrate(w, t.bitrate, t.maxBitrate)
 		fmt.Fprintf(w, "</td>")
 		fmt.Fprintf(w, "<td>%d%%</td></tr>\n",
 			t.loss,
