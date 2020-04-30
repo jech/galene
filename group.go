@@ -599,6 +599,9 @@ func getPublicGroups() []publicGroup {
 			})
 		}
 	}
+	sort.Slice(gs, func(i, j int) bool {
+		return gs[i].Name < gs[j].Name
+	})
 	return gs
 }
 
