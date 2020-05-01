@@ -217,6 +217,8 @@ async function setLocalMedia() {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch(e) {
             console.error(e);
+            document.getElementById('presenterbox').checked = false;
+            await setLocalMedia();
             return;
         }
         localMediaId = await newUpStream();
@@ -259,6 +261,8 @@ async function setShareMedia() {
             stream = await navigator.mediaDevices.getDisplayMedia({});
         } catch(e) {
             console.error(e);
+            document.getElementById('sharebox').checked = false;
+            await setShareMedia();
             return;
         }
         shareMediaId = await newUpStream();
