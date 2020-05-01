@@ -114,6 +114,15 @@ func (cache *Cache) Store(seqno uint16, buf []byte) uint16 {
 	return cache.first
 }
 
+func (cache *Cache) Expect(n int) {
+	if n <= 0 {
+		return
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	cache.expected += uint32(n)
+}
+
 func (cache *Cache) Get(seqno uint16) []byte {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()

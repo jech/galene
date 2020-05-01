@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math/bits"
 	"os"
 	"strings"
 	"sync"
@@ -701,7 +702,11 @@ func sendREMB(pc *webrtc.PeerConnection, ssrc uint32, bitrate uint64) error {
 }
 
 func (up *upConnection) sendNACK(track *upTrack, first uint16, bitmap uint16) error {
-	return sendNACK(up.pc, track.track.SSRC(), first, bitmap)
+	err := sendNACK(up.pc, track.track.SSRC(), first, bitmap)
+	if err == nil {
+		track.cache.Expect(1 + bits.OnesCount16(bitmap))
+	}
+	return err
 }
 
 func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint16) error {
