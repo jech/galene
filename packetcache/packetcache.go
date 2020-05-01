@@ -20,6 +20,7 @@ type Cache struct {
 	lastValid bool
 	expected  uint32
 	lost      uint32
+	totalLost uint32
 	// bitmap
 	first  uint16
 	bitmap uint32
@@ -151,17 +152,19 @@ func (cache *Cache) BitmapGet() (uint16, uint16) {
 	return first, bitmap
 }
 
-func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32) {
+func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32, uint32) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
 	expected := cache.expected
 	lost := cache.lost
+	totalLost := cache.totalLost + cache.lost
 	eseqno := uint32(cache.cycle)<<16 | uint32(cache.last)
 
 	if reset {
 		cache.expected = 0
+		cache.totalLost += cache.lost
 		cache.lost = 0
 	}
-	return expected, lost, eseqno
+	return expected, lost, totalLost, eseqno
 }

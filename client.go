@@ -395,7 +395,7 @@ func sendRR(c *client, conn *upConnection) error {
 
 	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
-		expected, lost, eseqno := t.cache.GetStats(true)
+		expected, lost, totalLost, eseqno := t.cache.GetStats(true)
 		if expected == 0 {
 			expected = 1
 		}
@@ -406,7 +406,7 @@ func sendRR(c *client, conn *upConnection) error {
 			SSRC:               t.track.SSRC(),
 			LastSenderReport:   atomic.LoadUint32(&t.lastSenderReport),
 			FractionLost:       uint8((lost * 256) / expected),
-			TotalLost:          lost,
+			TotalLost:          totalLost,
 			LastSequenceNumber: eseqno,
 		})
 	}
