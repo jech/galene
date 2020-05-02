@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"sfu/estimator"
+	"sfu/mono"
 	"sfu/packetcache"
 
 	"github.com/pion/webrtc/v2"
@@ -68,28 +69,22 @@ type upConnection struct {
 	tracks     []*upTrack
 }
 
-func msSinceEpoch() uint64 {
-	return uint64(time.Since(epoch) / time.Millisecond)
-}
-
-var epoch = time.Now()
-
 type timeStampedBitrate struct {
-	bitrate   uint64
-	timestamp uint64
+	bitrate      uint64
+	microseconds uint64
 }
 
-func (tb *timeStampedBitrate) Set(bitrate, timestamp uint64) {
+func (tb *timeStampedBitrate) Set(bitrate, us uint64) {
 	// this is racy -- a reader might read the
 	// data between the two writes.  This shouldn't
 	// matter, we'll recover at the next sample.
-	atomic.StoreUint64(&tb.bitrate,	bitrate)
-	atomic.StoreUint64(&tb.timestamp, timestamp)
+	atomic.StoreUint64(&tb.bitrate, bitrate)
+	atomic.StoreUint64(&tb.microseconds, us)
 }
 
 func (tb *timeStampedBitrate) Get(now uint64) uint64 {
-	ts := atomic.LoadUint64(&tb.timestamp)
-	if now < ts || now > ts + 1000 {
+	ts := atomic.LoadUint64(&tb.microseconds)
+	if now < ts || now > ts+4000000 {
 		return ^uint64(0)
 	}
 	return atomic.LoadUint64(&tb.bitrate)
@@ -720,7 +715,7 @@ func getClientStats(c *client) clientStats {
 			loss := atomic.LoadUint32(&t.loss)
 			conns.tracks = append(conns.tracks, trackStats{
 				bitrate:    uint64(t.rate.Estimate()) * 8,
-				maxBitrate: t.maxBitrate.Get(msSinceEpoch()),
+				maxBitrate: t.maxBitrate.Get(mono.Microseconds()),
 				loss:       uint8((loss * 100) / 256),
 			})
 		}

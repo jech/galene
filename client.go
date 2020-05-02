@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"sfu/estimator"
+	"sfu/mono"
 	"sfu/packetcache"
 
 	"github.com/gorilla/websocket"
@@ -319,10 +320,10 @@ func upLoop(conn *upConnection, track *upTrack) {
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	var local []*downTrack
-	var localTime time.Time
+	var localTime uint64
 	for {
-		now := time.Now()
-		if now.Sub(localTime) > time.Second/2 {
+		now := mono.Microseconds()
+		if now < localTime || now > localTime + 500000 {
 			local = track.getLocal()
 			localTime = now
 		}
@@ -598,7 +599,9 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					log.Printf("sendPLI: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				track.maxBitrate.Set(p.Bitrate, msSinceEpoch())
+				track.maxBitrate.Set(p.Bitrate,
+					mono.Microseconds(),
+				)
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == track.track.SSRC() {
@@ -609,7 +612,9 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					}
 				}
 			case *rtcp.TransportLayerNack:
-				maxBitrate := track.maxBitrate.Get(msSinceEpoch())
+				maxBitrate := track.maxBitrate.Get(
+					mono.Microseconds(),
+				)
 				bitrate := track.rate.Estimate()
 				if uint64(bitrate) < maxBitrate {
 					sendRecovery(p, track)
@@ -640,7 +645,7 @@ func trackKinds(down *downConnection) (audio bool, video bool) {
 }
 
 func updateUpBitrate(up *upConnection) {
-	now := msSinceEpoch()
+	now := mono.Microseconds()
 
 	for _, track := range up.tracks {
 		track.maxBitrate = ^uint64(0)
@@ -678,8 +683,8 @@ func updateUpBitrate(up *upConnection) {
 
 func (up *upConnection) sendPLI(track *upTrack) error {
 	last := atomic.LoadUint64(&track.lastPLI)
-	now := msSinceEpoch()
-	if now >= last && now-last < 200 {
+	now := mono.Microseconds()
+	if now >= last && now-last < 200000 {
 		return nil
 	}
 	atomic.StoreUint64(&track.lastPLI, now)
