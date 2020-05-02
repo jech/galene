@@ -164,6 +164,10 @@ type pushTracksAction struct {
 	c *client
 }
 
+type connectionFailedAction struct {
+	id string
+}
+
 type permissionsChangedAction struct{}
 
 type kickAction struct{}

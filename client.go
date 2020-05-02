@@ -281,6 +281,12 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		sendICE(c, id, candidate)
 	})
 
+	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
+		if state == webrtc.ICEConnectionStateFailed {
+			c.action(connectionFailedAction{id: id})
+		}
+	})
+
 	go rtcpUpSender(c, conn)
 
 	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
@@ -445,19 +451,17 @@ func rtcpUpSender(c *client, conn *upConnection) {
 	}
 }
 
-func delUpConn(c *client, id string) {
+func delUpConn(c *client, id string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.up == nil {
-		log.Printf("Deleting unknown connection")
-		return
+		return false
 	}
 
 	conn := c.up[id]
 	if conn == nil {
-		log.Printf("Deleting unknown connection")
-		return
+		return false
 	}
 
 	type clientId struct {
@@ -483,6 +487,7 @@ func delUpConn(c *client, id string) {
 
 	conn.pc.Close()
 	delete(c.up, id)
+	return true
 }
 
 func getDownConn(c *client, id string) *downConnection {
@@ -513,6 +518,12 @@ func addDownConn(c *client, id string, remote *upConnection) (*downConnection, e
 		log.Printf("Got track on downstream connection")
 	})
 
+	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
+		if state == webrtc.ICEConnectionStateFailed {
+			c.action(connectionFailedAction{id: id})
+		}
+	})
+
 	if c.down == nil {
 		c.down = make(map[string]*downConnection)
 	}
@@ -528,18 +539,16 @@ func addDownConn(c *client, id string, remote *upConnection) (*downConnection, e
 	return conn, nil
 }
 
-func delDownConn(c *client, id string) {
+func delDownConn(c *client, id string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.down == nil {
-		log.Printf("Deleting unknown connection")
-		return
+		return false
 	}
 	conn := c.down[id]
 	if conn == nil {
-		log.Printf("Deleting unknown connection")
-		return
+		return false
 	}
 
 	for _, track := range conn.tracks {
@@ -551,6 +560,7 @@ func delDownConn(c *client, id string) {
 	}
 	conn.pc.Close()
 	delete(c.down, id)
+	return true
 }
 
 func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConnection) (*downConnection, *webrtc.RTPSender, error) {
@@ -956,11 +966,13 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 					}
 				}
 			case delConnAction:
-				c.write(clientMessage{
-					Type: "close",
-					Id:   a.id,
-				})
-				delDownConn(c, a.id)
+				found := delDownConn(c, a.id)
+				if found {
+					c.write(clientMessage{
+						Type: "close",
+						Id:   a.id,
+					})
+				}
 			case addLabelAction:
 				c.write(clientMessage{
 					Type:  "label",
@@ -983,6 +995,21 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 
 					}
 				}
+			case connectionFailedAction:
+				found := delUpConn(c, a.id)
+				if found {
+					c.write(clientMessage{
+						Type:  "error",
+						Value: "connection failed",
+					})
+					c.write(clientMessage{
+						Type: "abort",
+						Id:   a.id,
+					})
+					continue
+				}
+				// What should we do if a downstream
+				// connection fails?  Renegotiate?
 			case permissionsChangedAction:
 				c.write(clientMessage{
 					Type:        "permissions",
@@ -1048,7 +1075,10 @@ func handleClientMessage(c *client, m clientMessage) error {
 			return err
 		}
 	case "close":
-		delUpConn(c, m.Id)
+		found := delUpConn(c, m.Id)
+		if !found {
+			log.Printf("Deleting unknown up connection %v", m.Id)
+		}
 	case "ice":
 		if m.Candidate == nil {
 			return protocolError("null candidate")
