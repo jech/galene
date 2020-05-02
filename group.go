@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"sfu/estimator"
+	"sfu/jitter"
 	"sfu/mono"
 	"sfu/packetcache"
 
@@ -24,12 +25,14 @@ import (
 )
 
 type upTrack struct {
-	track            *webrtc.Track
-	rate             *estimator.Estimator
-	cache            *packetcache.Cache
-	maxBitrate       uint64
-	lastPLI          uint64
-	lastSenderReport uint32
+	track                *webrtc.Track
+	rate                 *estimator.Estimator
+	cache                *packetcache.Cache
+	jitter               *jitter.Estimator
+	maxBitrate           uint64
+	lastPLI              uint64
+	lastSenderReport     uint32
+	lastSenderReportTime uint32
 
 	mu    sync.Mutex
 	local []*downTrack
@@ -96,6 +99,7 @@ type downTrack struct {
 	maxBitrate *timeStampedBitrate
 	rate       *estimator.Estimator
 	loss       uint32
+	jitter     uint32
 }
 
 type downConnection struct {

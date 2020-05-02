@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"sfu/estimator"
+	"sfu/jitter"
 	"sfu/mono"
 	"sfu/packetcache"
 
@@ -294,6 +295,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			track:      remote,
 			cache:      packetcache.New(96),
 			rate:       estimator.New(time.Second),
+			jitter:     jitter.New(remote.Codec().ClockRate),
 			maxBitrate: ^uint64(0),
 		}
 		u.tracks = append(u.tracks, track)
@@ -323,7 +325,7 @@ func upLoop(conn *upConnection, track *upTrack) {
 	var localTime uint64
 	for {
 		now := mono.Microseconds()
-		if now < localTime || now > localTime + 500000 {
+		if now < localTime || now > localTime+500000 {
 			local = track.getLocal()
 			localTime = now
 		}
@@ -342,6 +344,8 @@ func upLoop(conn *upConnection, track *upTrack) {
 			log.Printf("%v", err)
 			continue
 		}
+
+		track.jitter.Accumulate(packet.Timestamp)
 
 		first := track.cache.Store(packet.SequenceNumber, buf[:bytes])
 		if packet.SequenceNumber-first > 24 {
@@ -379,6 +383,8 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 			case *rtcp.SenderReport:
 				atomic.StoreUint32(&track.lastSenderReport,
 					uint32(p.NTPTime>>16))
+				atomic.StoreUint32(&track.lastSenderReportTime,
+					uint32(mono.Now(0x10000)))
 			case *rtcp.SourceDescription:
 			}
 		}
@@ -392,7 +398,7 @@ func sendRR(c *client, conn *upConnection) error {
 		return nil
 	}
 
-	ssrc := conn.tracks[0].track.SSRC()
+	now := uint32(mono.Now(0x10000))
 
 	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
@@ -403,19 +409,24 @@ func sendRR(c *client, conn *upConnection) error {
 		if lost >= expected {
 			lost = expected - 1
 		}
+		lastSR := atomic.LoadUint32(&t.lastSenderReport)
+		delay := now - atomic.LoadUint32(&t.lastSenderReportTime)
+
 		reports = append(reports, rtcp.ReceptionReport{
 			SSRC:               t.track.SSRC(),
-			LastSenderReport:   atomic.LoadUint32(&t.lastSenderReport),
 			FractionLost:       uint8((lost * 256) / expected),
 			TotalLost:          totalLost,
 			LastSequenceNumber: eseqno,
+			Jitter:             t.jitter.Jitter(),
+			LastSenderReport:   lastSR,
+			Delay:              delay,
 		})
 	}
 	c.mu.Unlock()
 
 	return conn.pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.ReceiverReport{
-			SSRC:    ssrc,
+			SSRC:    1,
 			Reports: reports,
 		},
 	})
@@ -609,6 +620,9 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 							&track.loss,
 							uint32(r.FractionLost),
 						)
+						atomic.StoreUint32(
+							&track.jitter,
+							r.Jitter)
 					}
 				}
 			case *rtcp.TransportLayerNack:
