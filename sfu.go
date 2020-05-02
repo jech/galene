@@ -171,9 +171,15 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "<td>")
 		printBitrate(w, t.bitrate, t.maxBitrate)
 		fmt.Fprintf(w, "</td>")
-		fmt.Fprintf(w, "<td>%d%%</td></tr>\n",
+		fmt.Fprintf(w, "<td>%d%%</td>",
 			t.loss,
 		)
+		if t.jitter > 0 {
+			fmt.Fprintf(w, "<td>%v</td>", t.jitter)
+		} else {
+			fmt.Fprintf(w, "<td></td>")
+		}
+		fmt.Fprintf(w, "</tr>")
 	}
 
 	for _, gs := range stats {
