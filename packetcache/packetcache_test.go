@@ -109,9 +109,12 @@ func TestBitmapGet(t *testing.T) {
 
 	pos := uint16(42)
 	for cache.bitmap != 0 {
-		first, bitmap := cache.BitmapGet()
+		found, first, bitmap := cache.BitmapGet()
 		if first < pos || first >= pos+64 {
 			t.Errorf("First is %v, pos is %v", first, pos)
+		}
+		if !found {
+			t.Fatalf("Didn't find any 0 bits")
 		}
 		value >>= (first - pos)
 		pos = first
@@ -120,11 +123,14 @@ func TestBitmapGet(t *testing.T) {
 		}
 		value >>= 1
 		pos += 1
-		if bitmap != uint16(value&0xFFFF) {
-			t.Errorf("Got %b, expected %b", bitmap, (value & 0xFFFF))
+		for bitmap != 0 {
+			if uint8(bitmap & 1) == uint8(value & 1) {
+				t.Errorf("Bitmap mismatch")
+			}
+			bitmap >>= 1
+			value >>= 1
+			pos += 1
 		}
-		value >>= 16
-		pos += 16
 	}
 	if value != 0 {
 		t.Errorf("Value is %v", value)
@@ -143,9 +149,13 @@ func TestBitmapPacket(t *testing.T) {
 		}
 	}
 
-	first, bitmap := cache.BitmapGet()
+	found, first, bitmap := cache.BitmapGet()
 
-	p := rtcp.NackPair{first, rtcp.PacketBitmap(^bitmap)}
+	if !found {
+		t.Fatalf("Didn't find any 0 bits")
+	}
+
+	p := rtcp.NackPair{first, rtcp.PacketBitmap(bitmap)}
 	pl := p.PacketList()
 
 	for _, s := range pl {

@@ -59,16 +59,6 @@ func (cache *Cache) set(seqno uint16) {
 		return
 	}
 
-	if seqno == cache.first {
-		cache.bitmap >>= 1
-		cache.first += 1
-		for (cache.bitmap & 1) == 1 {
-			cache.bitmap >>= 1
-			cache.first += 1
-		}
-		return
-	}
-
 	if seqno-cache.first < 32 {
 		cache.bitmap |= (1 << uint16(seqno-cache.first))
 		return
@@ -140,16 +130,28 @@ func (cache *Cache) Get(seqno uint16) []byte {
 	return nil
 }
 
-// Shift 17 bits out of the bitmap, return first index and remaining 16.
-func (cache *Cache) BitmapGet() (uint16, uint16) {
+// Shift 17 bits out of the bitmap.  Return a boolean indicating if any
+// were 0, the index of the first 0 bit, and a bitmap indicating any
+// 0 bits after the first one.
+func (cache *Cache) BitmapGet() (bool, uint16, uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
 	first := cache.first
-	bitmap := uint16((cache.bitmap >> 1) & 0xFFFF)
+	bitmap := (^cache.bitmap) & 0x1FFFF
 	cache.bitmap >>= 17
 	cache.first += 17
-	return first, bitmap
+
+	if bitmap == 0 {
+		return false, first, 0
+	}
+
+	for bitmap & 1 == 0 {
+		bitmap >>= 1
+		first++
+	}
+
+	return true, first, uint16(bitmap >> 1)
 }
 
 func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32, uint32) {

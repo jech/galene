@@ -349,9 +349,9 @@ func upLoop(conn *upConnection, track *upTrack) {
 
 		first := track.cache.Store(packet.SequenceNumber, buf[:bytes])
 		if packet.SequenceNumber-first > 24 {
-			first, bitmap := track.cache.BitmapGet()
-			if bitmap != ^uint16(0) {
-				err := conn.sendNACK(track, first, ^bitmap)
+			found, first, bitmap := track.cache.BitmapGet()
+			if found {
+				err := conn.sendNACK(track, first, bitmap)
 				if err != nil {
 					log.Printf("%v", err)
 				}
