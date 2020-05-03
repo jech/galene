@@ -721,22 +721,12 @@ func updateUpBitrate(up *upConnection) {
 			}
 
 			isvideo := l.track.Kind() == webrtc.RTPCodecTypeVideo
-			minrate1 := uint64(9600)
-			minrate2 := uint64(19200)
+			minrate := uint64(9600)
 			if isvideo {
-				minrate1 = 256000
-				minrate2 = 512000
+				minrate = 384000
 			}
-			if bitrate < minrate2 {
-				loss := atomic.LoadUint32(&l.loss)
-				if loss <= 13 {
-					// less than 10% loss, go ahead
-					bitrate = minrate2
-				} else if loss <= 64 {
-					if bitrate < minrate1 {
-						bitrate = minrate1
-					}
-				}
+			if bitrate < minrate {
+				bitrate = minrate
 			}
 			if track.maxBitrate > bitrate {
 				track.maxBitrate = bitrate
