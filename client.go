@@ -556,7 +556,6 @@ func delDownConn(c *client, id string) bool {
 		if !found {
 			log.Printf("Couldn't find remote track")
 		}
-		track.remote = nil
 	}
 	conn.pc.Close()
 	delete(c.down, id)
