@@ -4,6 +4,7 @@ Build the server binary:
 
 Create a server certificate:
 
+    mkdir data
     openssl req -newkey rsa:2048 -nodes -keyout data/key.pem -x509 -days 365 -out data/cert.pem
 
 Set the server administrator's username and password (optional):
@@ -14,7 +15,7 @@ Configure the list of STUN and TURN servers (optional):
 
     vi static/ice-servers.json
 
-Setup a group
+Set up a group
 
     mkdir groups
     vi groups/public.json
