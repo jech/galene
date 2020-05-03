@@ -589,10 +589,12 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 	}
 
 	track := &downTrack{
-		track:      local,
-		remote:     remoteTrack,
-		maxBitrate: new(timeStampedBitrate),
-		rate:       estimator.New(time.Second),
+		track:          local,
+		remote:         remoteTrack,
+		maxLossBitrate: new(bitrate),
+		maxREMBBitrate: new(bitrate),
+		stats:          new(receiverStats),
+		rate:           estimator.New(time.Second),
 	}
 	conn.tracks = append(conn.tracks, track)
 	remoteTrack.addLocal(track)
@@ -600,6 +602,41 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 	go rtcpDownListener(c.group, conn, track, s)
 
 	return conn, s, nil
+}
+
+const (
+	minLossRate  = 9600
+	initLossRate = 512 * 1000
+	maxLossRate  = 1 << 30
+)
+
+func (track *downTrack) updateRate(loss uint8, now uint64) {
+	rate := track.maxLossBitrate.Get(now)
+	if rate > maxLossRate {
+		// no recent feedback, reset
+		rate = initLossRate
+	}
+	if loss < 5 {
+		// if our actual rate is low, then we're not probing the
+		// bottleneck
+		actual := 8 * uint64(track.rate.Estimate())
+		if actual >= (rate*7)/8 {
+			// loss < 0.02, multiply by 1.05
+			rate = rate * 269 / 256
+			if rate > maxLossRate {
+				rate = maxLossRate
+			}
+		}
+	} else if loss > 25 {
+		// loss > 0.1, multiply by (1 - loss/2)
+		rate = rate * (512 - uint64(loss)) / 512
+		if rate < minLossRate {
+			rate = minLossRate
+		}
+	}
+
+	// update unconditionally, to set the timestamp
+	track.maxLossBitrate.Set(rate, now)
 }
 
 func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
@@ -620,23 +657,26 @@ func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrt
 					log.Printf("sendPLI: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				track.maxBitrate.Set(p.Bitrate,
-					mono.Microseconds(),
+				track.maxREMBBitrate.Set(
+					p.Bitrate, mono.Microseconds(),
 				)
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == track.track.SSRC() {
-						atomic.StoreUint32(
-							&track.loss,
-							uint32(r.FractionLost),
+						now := mono.Microseconds()
+						track.stats.Set(
+							r.FractionLost,
+							r.Jitter,
+							now,
 						)
-						atomic.StoreUint32(
-							&track.jitter,
-							r.Jitter)
+						track.updateRate(
+							r.FractionLost,
+							now,
+						)
 					}
 				}
 			case *rtcp.TransportLayerNack:
-				maxBitrate := track.maxBitrate.Get(
+				maxBitrate := track.GetMaxBitrate(
 					mono.Microseconds(),
 				)
 				bitrate := track.rate.Estimate()
@@ -675,7 +715,7 @@ func updateUpBitrate(up *upConnection) {
 		track.maxBitrate = ^uint64(0)
 		local := track.getLocal()
 		for _, l := range local {
-			bitrate := l.maxBitrate.Get(now)
+			bitrate := l.GetMaxBitrate(now)
 			if bitrate == ^uint64(0) {
 				continue
 			}

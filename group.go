@@ -72,34 +72,63 @@ type upConnection struct {
 	tracks     []*upTrack
 }
 
-type timeStampedBitrate struct {
+type bitrate struct {
 	bitrate      uint64
 	microseconds uint64
 }
 
-func (tb *timeStampedBitrate) Set(bitrate, us uint64) {
+func (br *bitrate) Set(bitrate uint64, now uint64) {
 	// this is racy -- a reader might read the
 	// data between the two writes.  This shouldn't
 	// matter, we'll recover at the next sample.
-	atomic.StoreUint64(&tb.bitrate, bitrate)
-	atomic.StoreUint64(&tb.microseconds, us)
+	atomic.StoreUint64(&br.bitrate, bitrate)
+	atomic.StoreUint64(&br.microseconds, now)
 }
 
-func (tb *timeStampedBitrate) Get(now uint64) uint64 {
-	ts := atomic.LoadUint64(&tb.microseconds)
+func (br *bitrate) Get(now uint64) uint64 {
+	ts := atomic.LoadUint64(&br.microseconds)
 	if now < ts || now > ts+4000000 {
 		return ^uint64(0)
 	}
-	return atomic.LoadUint64(&tb.bitrate)
+	return atomic.LoadUint64(&br.bitrate)
+}
+
+type receiverStats struct {
+	loss         uint32
+	jitter       uint32
+	microseconds uint64
+}
+
+func (s *receiverStats) Set(loss uint8, jitter uint32, now uint64) {
+	atomic.StoreUint32(&s.loss, uint32(loss))
+	atomic.StoreUint32(&s.jitter, jitter)
+	atomic.StoreUint64(&s.microseconds, now)
+}
+
+func (s *receiverStats) Get(now uint64) (uint8, uint32) {
+	ts := atomic.LoadUint64(&s.microseconds)
+	if now < ts || now > ts+4000000 {
+		return 0, 0
+	}
+	return uint8(atomic.LoadUint32(&s.loss)), atomic.LoadUint32(&s.jitter)
 }
 
 type downTrack struct {
-	track      *webrtc.Track
-	remote     *upTrack
-	maxBitrate *timeStampedBitrate
-	rate       *estimator.Estimator
-	loss       uint32
-	jitter     uint32
+	track          *webrtc.Track
+	remote         *upTrack
+	maxLossBitrate *bitrate
+	maxREMBBitrate *bitrate
+	rate           *estimator.Estimator
+	stats          *receiverStats
+}
+
+func (down *downTrack) GetMaxBitrate(now uint64) uint64 {
+	br1 := down.maxLossBitrate.Get(now)
+	br2 := down.maxREMBBitrate.Get(now)
+	if br1 < br2 {
+		return br1
+	}
+	return br2
 }
 
 type downConnection struct {
@@ -725,15 +754,14 @@ func getClientStats(c *client) clientStats {
 	for _, down := range c.down {
 		conns := connStats{id: down.id}
 		for _, t := range down.tracks {
-			loss := atomic.LoadUint32(&t.loss)
-			jitter := time.Duration(atomic.LoadUint32(&t.jitter)) *
-				time.Second /
+			loss, jitter := t.stats.Get(mono.Microseconds())
+			j := time.Duration(jitter) * time.Second /
 				time.Duration(t.track.Codec().ClockRate)
 			conns.tracks = append(conns.tracks, trackStats{
 				bitrate:    uint64(t.rate.Estimate()) * 8,
-				maxBitrate: t.maxBitrate.Get(mono.Microseconds()),
-				loss:       uint8((loss * 100) / 256),
-				jitter:     jitter,
+				maxBitrate: t.GetMaxBitrate(mono.Microseconds()),
+				loss:       uint8(uint32(loss) * 100 / 256),
+				jitter:     j,
 			})
 		}
 		cs.down = append(cs.down, conns)
