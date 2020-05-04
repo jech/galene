@@ -123,12 +123,12 @@ function setConnected(connected) {
 
 document.getElementById('presenterbox').onchange = function(e) {
     e.preventDefault();
-    setLocalMedia();
+    setLocalMedia(this.checked);
 }
 
 document.getElementById('sharebox').onchange = function(e) {
     e.preventDefault();
-    setShareMedia();
+    setShareMedia(this.checked);
 }
 
 async function updateStats(conn, sender) {
@@ -195,11 +195,11 @@ function displayStats(id) {
 
 let localMediaId = null;
 
-async function setLocalMedia() {
+async function setLocalMedia(setup) {
     if(!getUserPass())
         return;
 
-    if(!document.getElementById('presenterbox').checked) {
+    if(!setup) {
         if(localMediaId) {
             up[localMediaId].close(true);
             delete(up[localMediaId]);
@@ -218,7 +218,7 @@ async function setLocalMedia() {
         } catch(e) {
             console.error(e);
             document.getElementById('presenterbox').checked = false;
-            await setLocalMedia();
+            await setLocalMedia(false);
             return;
         }
         localMediaId = await newUpStream();
@@ -240,11 +240,11 @@ async function setLocalMedia() {
 
 let shareMediaId = null;
 
-async function setShareMedia() {
+async function setShareMedia(setup) {
     if(!getUserPass())
         return;
 
-    if(!document.getElementById('sharebox').checked) {
+    if(!setup) {
         if(shareMediaId) {
             up[shareMediaId].close(true);
             delete(up[shareMediaId]);
@@ -262,7 +262,7 @@ async function setShareMedia() {
         } catch(e) {
             console.error(e);
             document.getElementById('sharebox').checked = false;
-            await setShareMedia();
+            await setShareMedia(false);
             return;
         }
         shareMediaId = await newUpStream();
@@ -273,7 +273,7 @@ async function setShareMedia() {
             let sender = c.pc.addTrack(t, stream);
             t.onended = e => {
                 document.getElementById('sharebox').checked = false;
-                setShareMedia();
+                setShareMedia(false);
             }
             c.setInterval(() => {
                 updateStats(c, sender);
@@ -408,10 +408,10 @@ function serverConnect() {
             setConnected(false);
             document.getElementById('presenterbox').checked = false;
             document.getElementById('presenterbox').disabled = true;
-            setLocalMedia();
+            setLocalMedia(false);
             document.getElementById('sharebox').checked = false;
             document.getElementById('sharebox').disabled = true;
-            setShareMedia();
+            setShareMedia(false);
             for(let id in down) {
                 let c = down[id];
                 delete(down[id]);
@@ -541,10 +541,10 @@ function gotAbort(id) {
         throw new Error('unknown up stream in abort');
     if(id === localMediaId) {
         document.getElementById('presenterbox').checked = false;
-        setLocalMedia();
+        setLocalMedia(false);
     } else if(id === shareMediaId) {
         document.getElementById('sharebox').checked = false;
-        setShareMedia();
+        setShareMedia(false);
     } else {
         console.error('Strange stream in abort');
         delMedia(id);
@@ -967,8 +967,8 @@ async function getIceServers() {
 
 async function doConnect() {
     await serverConnect();
-    await setLocalMedia();
-    await setShareMedia();
+    await setLocalMedia(document.getElementById('presenterbox').checked);
+    await setShareMedia(document.getElementById('sharebox').checked);
 }
 
 document.getElementById('userform').onsubmit = async function(e) {
