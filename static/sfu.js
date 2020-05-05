@@ -126,6 +126,16 @@ document.getElementById('presenterbox').onchange = function(e) {
     setLocalMedia(this.checked);
 }
 
+document.getElementById('audioselect').onchange = function(e) {
+    e.preventDefault();
+    setLocalMedia(document.getElementById('presenterbox').checked);
+}
+
+document.getElementById('videoselect').onchange = function(e) {
+    e.preventDefault();
+    setLocalMedia(document.getElementById('presenterbox').checked);
+}
+
 document.getElementById('sharebox').onchange = function(e) {
     e.preventDefault();
     setShareMedia(this.checked);
@@ -193,6 +203,71 @@ function displayStats(id) {
         setLabel(id);
 }
 
+function mapMediaOption(value) {
+    console.assert(typeof(value) === 'string');
+    switch(value) {
+    case 'default':
+        return true;
+    case 'off':
+        return false;
+    default:
+        return value;
+    }
+}
+
+function addSelectOption(select, label, value) {
+    if(!value)
+        value = label;
+    for(let i = 0; i < select.children.length; i++) {
+        if(select.children[i].value === value) {
+            return;
+        }
+    }
+
+    let option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    select.appendChild(option);
+}
+
+// media names might not be available before we call getDisplayMedia.  So
+// we call this lazily.
+let mediaChoicesDone = false;
+
+async function setMediaChoices() {
+    if(mediaChoicesDone)
+        return;
+
+    let devices = [];
+    try {
+        devices = await navigator.mediaDevices.enumerateDevices();
+    } catch(e) {
+        console.error(e);
+        return;
+    }
+
+    let cn = 1, mn = 1;
+
+    devices.forEach(d => {
+        let label = d.label;
+        if(d.kind === 'videoinput') {
+            if(!label)
+                label = `Camera ${cn}`;
+            addSelectOption(document.getElementById('videoselect'),
+                            label, d.deviceId);
+            cn++;
+        } else if(d.kind === 'audioinput') {
+            if(!label)
+                label = `Microphone ${mn}`;
+            addSelectOption(document.getElementById('audioselect'),
+                            label, d.deviceId);
+            mn++;
+        }
+    });
+
+    mediaChoicesDone = true;
+}
+
 let localMediaId = null;
 
 async function setLocalMedia(setup) {
@@ -209,32 +284,39 @@ async function setLocalMedia(setup) {
         return;
     }
 
-    if(!localMediaId) {
-        let constraints = {audio: true, video: true};
-        let stream = null;
-        try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-        } catch(e) {
-            console.error(e);
-            document.getElementById('presenterbox').checked = false;
-            await setLocalMedia(false);
-            return;
-        }
-        localMediaId = await newUpStream();
+    let audio = mapMediaOption(document.getElementById('audioselect').value);
+    let video = mapMediaOption(document.getElementById('videoselect').value);
 
-        let c = up[localMediaId];
-        c.stream = stream;
-        stream.getTracks().forEach(t => {
-            let sender = c.pc.addTrack(t, stream);
-            c.setInterval(() => {
-                updateStats(c, sender);
-            }, 2000);
-        });
-        c.setInterval(() => {
-            displayStats(localMediaId);
-        }, 2500);
-        await setMedia(localMediaId);
+    setLocalMedia(false);
+    if(!audio && !video)
+        return;
+
+    let constraints = {audio: audio, video: video};
+    let stream = null;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch(e) {
+        console.error(e);
+        document.getElementById('presenterbox').checked = false;
+        await setLocalMedia(false);
+        return;
     }
+
+    setMediaChoices();
+
+    localMediaId = await newUpStream();
+    let c = up[localMediaId];
+    c.stream = stream;
+    stream.getTracks().forEach(t => {
+        let sender = c.pc.addTrack(t, stream);
+        c.setInterval(() => {
+            updateStats(c, sender);
+        }, 2000);
+    });
+    c.setInterval(() => {
+        displayStats(localMediaId);
+    }, 2500);
+    await setMedia(localMediaId);
 }
 
 let shareMediaId = null;

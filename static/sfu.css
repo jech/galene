@@ -49,6 +49,22 @@ h1 {
     display: none;
 }
 
+#optionsdiv {
+    margin-bottom: 4px;
+}
+
+#videoselect {
+    width: 8em;
+    text-align-last: center;
+    margin-right: 0.4em;
+}
+
+#audioselect {
+    width: 8em;
+    text-align-last: center;
+    margin-right: 0.4em;
+}
+
 #main {
     display: flex;
 }
@@ -111,6 +127,7 @@ h1 {
 }
 
 #input {
+    margin-left: 0.5em;
     width: 100%;
     border: none;
     resize: none;
