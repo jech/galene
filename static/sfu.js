@@ -211,7 +211,6 @@ async function setLocalMedia(setup) {
 
     if(!localMediaId) {
         let constraints = {audio: true, video: true};
-        let opts = {video: true, audio: true};
         let stream = null;
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -254,8 +253,6 @@ async function setShareMedia(setup) {
         return;
     }
     if(!shareMediaId) {
-        let constraints = {audio: true, video: true};
-        let opts = {video: true, audio: true};
         let stream = null;
         try {
             stream = await navigator.mediaDevices.getDisplayMedia({});
