@@ -598,7 +598,7 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 	conn.tracks = append(conn.tracks, track)
 	remoteTrack.addLocal(track)
 
-	go rtcpDownListener(c.group, conn, track, s)
+	go rtcpDownListener(conn, track, s)
 
 	return conn, s, nil
 }
@@ -638,7 +638,7 @@ func (track *downTrack) updateRate(loss uint8, now uint64) {
 	track.maxLossBitrate.Set(rate, now)
 }
 
-func rtcpDownListener(g *group, conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
+func rtcpDownListener(conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
 	for {
 		ps, err := s.ReadRTCP()
 		if err != nil {
