@@ -77,6 +77,8 @@ type bitrate struct {
 	microseconds uint64
 }
 
+const receiverReportTimeout = 8000000
+
 func (br *bitrate) Set(bitrate uint64, now uint64) {
 	// this is racy -- a reader might read the
 	// data between the two writes.  This shouldn't
@@ -87,7 +89,7 @@ func (br *bitrate) Set(bitrate uint64, now uint64) {
 
 func (br *bitrate) Get(now uint64) uint64 {
 	ts := atomic.LoadUint64(&br.microseconds)
-	if now < ts || now > ts+4000000 {
+	if now < ts || now > ts+receiverReportTimeout {
 		return ^uint64(0)
 	}
 	return atomic.LoadUint64(&br.bitrate)
@@ -107,7 +109,7 @@ func (s *receiverStats) Set(loss uint8, jitter uint32, now uint64) {
 
 func (s *receiverStats) Get(now uint64) (uint8, uint32) {
 	ts := atomic.LoadUint64(&s.microseconds)
-	if now < ts || now > ts+4000000 {
+	if now < ts || now > ts+receiverReportTimeout {
 		return 0, 0
 	}
 	return uint8(atomic.LoadUint32(&s.loss)), atomic.LoadUint32(&s.jitter)
