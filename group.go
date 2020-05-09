@@ -162,10 +162,16 @@ type chatHistoryEntry struct {
 	me    bool
 }
 
+const (
+	minVideoRate = 38400
+	minAudioRate = 9600
+)
+
 type group struct {
 	name        string
 	dead        bool
 	description *groupDescription
+	videoCount  uint32
 
 	mu      sync.Mutex
 	clients map[string]*client

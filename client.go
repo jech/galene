@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math"
 	"math/bits"
 	"os"
 	"strings"
@@ -306,6 +307,9 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		}
 		u.tracks = append(u.tracks, track)
 		done := len(u.tracks) >= u.trackCount
+		if remote.Kind() == webrtc.RTPCodecTypeVideo {
+			atomic.AddUint32(&c.group.videoCount, 1)
+		}
 		c.mu.Unlock()
 
 		clients := c.group.getClients(c)
@@ -462,6 +466,17 @@ func delUpConn(c *client, id string) bool {
 	conn := c.up[id]
 	if conn == nil {
 		return false
+	}
+
+	for _, track := range conn.tracks {
+		if track.track.Kind() == webrtc.RTPCodecTypeVideo {
+			count := atomic.AddUint32(&c.group.videoCount,
+				^uint32(0))
+			if count == ^uint32(0) {
+				log.Printf("Negative track count!")
+				atomic.StoreUint32(&c.group.videoCount, 0)
+			}
+		}
 	}
 
 	type clientId struct {
@@ -707,30 +722,35 @@ func trackKinds(down *downConnection) (audio bool, video bool) {
 	return
 }
 
-func updateUpBitrate(up *upConnection) {
+func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
 	now := mono.Microseconds()
 
 	for _, track := range up.tracks {
-		track.maxBitrate = ^uint64(0)
+		isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
+		minrate := uint64(minAudioRate)
+		rate := ^uint64(0)
+		if isvideo {
+			minrate = minVideoRate
+			rate = maxVideoRate
+			if rate < minrate {
+				rate = minrate
+			}
+		}
 		local := track.getLocal()
 		for _, l := range local {
 			bitrate := l.GetMaxBitrate(now)
 			if bitrate == ^uint64(0) {
 				continue
 			}
-
-			isvideo := l.track.Kind() == webrtc.RTPCodecTypeVideo
-			minrate := uint64(9600)
-			if isvideo {
-				minrate = 384000
+			if bitrate <= minrate {
+				rate = minrate
+				break
 			}
-			if bitrate < minrate {
-				bitrate = minrate
-			}
-			if track.maxBitrate > bitrate {
-				track.maxBitrate = bitrate
+			if rate > bitrate {
+				rate = bitrate
 			}
 		}
+		track.maxBitrate = rate
 	}
 }
 
@@ -1168,9 +1188,18 @@ func sendRateUpdate(c *client) {
 	}
 	rembs := make([]remb, 0)
 
+	maxVideoRate := ^uint64(0)
+	count := atomic.LoadUint32(&c.group.videoCount)
+	if count >= 3 {
+		maxVideoRate = uint64(2000000 / math.Sqrt(float64(count)))
+		if maxVideoRate < minVideoRate {
+			maxVideoRate = minVideoRate
+		}
+	}
+
 	c.mu.Lock()
 	for _, u := range c.up {
-		updateUpBitrate(u)
+		updateUpBitrate(u, maxVideoRate)
 		for _, t := range u.tracks {
 			bitrate := t.maxBitrate
 			if bitrate == ^uint64(0) {
