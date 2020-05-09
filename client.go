@@ -755,6 +755,9 @@ func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
 }
 
 func (up *upConnection) sendPLI(track *upTrack) error {
+	if !track.hasRtcpFb("nack", "pli") {
+		return nil
+	}
 	last := atomic.LoadUint64(&track.lastPLI)
 	now := mono.Microseconds()
 	if now >= last && now-last < 200000 {
@@ -780,6 +783,9 @@ func sendREMB(pc *webrtc.PeerConnection, ssrc uint32, bitrate uint64) error {
 }
 
 func (up *upConnection) sendNACK(track *upTrack, first uint16, bitmap uint16) error {
+	if !track.hasRtcpFb("nack", "") {
+		return nil
+	}
 	err := sendNACK(up.pc, track.track.SSRC(), first, bitmap)
 	if err == nil {
 		track.cache.Expect(1 + bits.OnesCount16(bitmap))
@@ -1201,6 +1207,9 @@ func sendRateUpdate(c *client) {
 	for _, u := range c.up {
 		updateUpBitrate(u, maxVideoRate)
 		for _, t := range u.tracks {
+			if !t.hasRtcpFb("goog-remb", "") {
+				continue
+			}
 			bitrate := t.maxBitrate
 			if bitrate == ^uint64(0) {
 				continue

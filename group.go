@@ -64,6 +64,15 @@ func (up *upTrack) getLocal() []*downTrack {
 	return local
 }
 
+func (up *upTrack) hasRtcpFb(tpe, parameter string) bool {
+	for _, fb := range up.track.Codec().RTCPFeedback {
+		if fb.Type == tpe && fb.Parameter == parameter {
+			return true
+		}
+	}
+	return false
+}
+
 type upConnection struct {
 	id         string
 	label      string
