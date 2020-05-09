@@ -105,6 +105,7 @@ type clientMessage struct {
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
 	Del         bool                       `json:"del,omitempty"`
+	Request     []string                   `json:"request,omitempty"`
 }
 
 type closeMessage struct {
@@ -934,21 +935,48 @@ func gotICE(c *client, candidate *webrtc.ICECandidateInit, id string) error {
 	return pc.AddICECandidate(*candidate)
 }
 
+func (c *client) setRequested(audio, video bool) error {
+	if audio == c.requestedAudio && video == c.requestedVideo {
+		return nil
+	}
+
+	if c.down != nil {
+		for id := range c.down {
+			c.write(clientMessage{
+				Type: "close",
+				Id:   id,
+			})
+			delDownConn(c, id)
+		}
+	}
+
+	c.requestedAudio = audio
+	c.requestedVideo = video
+
+	for _, cc := range c.group.getClients(c) {
+		cc.action(pushTracksAction{c})
+	}
+
+	return nil
+}
+
+func (c *client) requested(kind webrtc.RTPCodecType) bool {
+	switch kind {
+	case webrtc.RTPCodecTypeAudio:
+		return c.requestedAudio
+	case webrtc.RTPCodecTypeVideo:
+		return c.requestedVideo
+	default:
+		return false
+	}
+}
+
 func clientLoop(c *client, conn *websocket.Conn) error {
 	read := make(chan interface{}, 1)
 	go clientReader(conn, read, c.done)
 
 	defer func() {
-		if c.down != nil {
-			for id := range c.down {
-				c.write(clientMessage{
-					Type: "close",
-					Id:   id,
-				})
-				delDownConn(c, id)
-			}
-		}
-
+		c.setRequested(false, false)
 		if c.up != nil {
 			for id := range c.up {
 				delUpConn(c, id)
@@ -956,16 +984,10 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 		}
 	}()
 
-	g := c.group
-
 	c.write(clientMessage{
 		Type:        "permissions",
 		Permissions: c.permissions,
 	})
-
-	for _, cc := range g.getClients(c) {
-		cc.action(pushTracksAction{c})
-	}
 
 	h := c.group.getChatHistory()
 	for _, m := range h {
@@ -1007,14 +1029,19 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 		case a := <-c.actionCh:
 			switch a := a.(type) {
 			case addTrackAction:
-				down, _, err :=
-					addDownTrack(
+				var down *downConnection
+				var err error
+				if c.requested(a.track.track.Kind()) {
+					down, _, err = addDownTrack(
 						c, a.remote.id, a.track,
 						a.remote)
-				if err != nil {
-					return err
+					if err != nil {
+						return err
+					}
+				} else {
+					down = getDownConn(c, a.remote.id)
 				}
-				if a.done {
+				if a.done && down != nil {
 					err = negotiate(c, a.remote.id, down.pc)
 					if err != nil {
 						return err
@@ -1106,6 +1133,19 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 
 func handleClientMessage(c *client, m clientMessage) error {
 	switch m.Type {
+	case "request":
+		var audio, video bool
+		for _, s := range m.Request {
+			switch(s) {
+			case "audio": audio = true
+			case "video": video = true
+			default: log.Printf("Unknown request %v", s)
+			}
+		}
+		err := c.setRequested(audio, video)
+		if err != nil {
+			return err
+		}
 	case "offer":
 		if !c.permissions.Present {
 			c.write(clientMessage{

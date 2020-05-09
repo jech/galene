@@ -141,6 +141,11 @@ document.getElementById('sharebox').onchange = function(e) {
     setShareMedia(this.checked);
 }
 
+document.getElementById('requestbox').onchange = function(e) {
+    e.preventDefault();
+    sendRequest(this.checked);
+}
+
 async function updateStats(conn, sender) {
     let stats;
     if(!sender.track)
@@ -481,6 +486,7 @@ function serverConnect() {
                 username: up.username,
                 password: up.password,
             });
+            sendRequest(document.getElementById('requestbox').checked);
             resolve();
         };
         socket.onclose = function(e) {
@@ -548,6 +554,13 @@ function serverConnect() {
                 return;
             }
         };
+    });
+}
+
+function sendRequest(video) {
+    send({
+        type: 'request',
+        request: video ? ['audio', 'video'] : ['audio'],
     });
 }
 

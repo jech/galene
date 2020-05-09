@@ -150,14 +150,16 @@ type downConnection struct {
 }
 
 type client struct {
-	group       *group
-	id          string
-	username    string
-	permissions userPermission
-	done        chan struct{}
-	writeCh     chan interface{}
-	writerDone  chan struct{}
-	actionCh    chan interface{}
+	group          *group
+	id             string
+	username       string
+	permissions    userPermission
+	requestedAudio bool
+	requestedVideo bool
+	done           chan struct{}
+	writeCh        chan interface{}
+	writerDone     chan struct{}
+	actionCh       chan interface{}
 
 	mu   sync.Mutex
 	down map[string]*downConnection
