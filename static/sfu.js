@@ -872,7 +872,7 @@ function handleInput() {
             case '/unop':
             case '/kick':
             case '/present':
-            case '/unpresent':
+            case '/unpresent': {
                 if(!permissions.op) {
                     displayError("You're not an operator");
                     return;
@@ -897,6 +897,7 @@ function handleInput() {
                     id: id,
                 });
                 return;
+            }
             default:
                 displayError('Uknown command ' + cmd);
                 return;
