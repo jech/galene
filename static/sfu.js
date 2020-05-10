@@ -691,7 +691,7 @@ function addUser(id, name) {
 function delUser(id, name) {
     if(!name)
         name = null;
-    if(!id in users)
+    if(!(id in users))
         throw new Error('Unknown user id');
     if(users[id] !== name)
         throw new Error('Inconsistent user name');
