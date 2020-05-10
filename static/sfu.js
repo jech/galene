@@ -48,7 +48,7 @@ function Connection(id, pc) {
 
 Connection.prototype.setInterval = function(f, t) {
     this.timers.push(setInterval(f, t));
-}
+};
 
 Connection.prototype.close = function(sendit) {
     while(this.timers.length > 0)
@@ -68,7 +68,7 @@ Connection.prototype.close = function(sendit) {
             id: this.id,
         });
     }
-}
+};
 
 function setUserPass(username, password) {
     window.sessionStorage.setItem(
@@ -124,27 +124,27 @@ function setConnected(connected) {
 document.getElementById('presenterbox').onchange = function(e) {
     e.preventDefault();
     setLocalMedia(this.checked);
-}
+};
 
 document.getElementById('audioselect').onchange = function(e) {
     e.preventDefault();
     setLocalMedia(document.getElementById('presenterbox').checked);
-}
+};
 
 document.getElementById('videoselect').onchange = function(e) {
     e.preventDefault();
     setLocalMedia(document.getElementById('presenterbox').checked);
-}
+};
 
 document.getElementById('sharebox').onchange = function(e) {
     e.preventDefault();
     setShareMedia(this.checked);
-}
+};
 
 document.getElementById('requestbox').onchange = function(e) {
     e.preventDefault();
     sendRequest(this.checked);
-}
+};
 
 async function updateStats(conn, sender) {
     let stats;
@@ -165,7 +165,7 @@ async function updateStats(conn, sender) {
         delete(stats.rate);
         delete(stats.timestamp);
         delete(stats.bytesSent);
-        return
+        return;
     }
 
     for(let r of report.values()) {
@@ -283,7 +283,7 @@ async function setLocalMedia(setup) {
         if(localMediaId) {
             up[localMediaId].close(true);
             delete(up[localMediaId]);
-            delMedia(localMediaId)
+            delMedia(localMediaId);
             localMediaId = null;
         }
         return;
@@ -358,7 +358,7 @@ async function setShareMedia(setup) {
             t.onended = e => {
                 document.getElementById('sharebox').checked = false;
                 setShareMedia(false);
-            }
+            };
             c.setInterval(() => {
                 updateStats(c, sender);
             }, 2000);
@@ -408,7 +408,7 @@ function setMedia(id) {
         label = document.createElement('div');
         label.id = 'label-' + id;
         label.classList.add('label');
-        div.appendChild(label)
+        div.appendChild(label);
     }
 
     media.srcObject = c.stream;
@@ -580,19 +580,19 @@ async function gotOffer(id, offer) {
                   id: id,
                   candidate: e.candidate,
                  });
-        }
+        };
 
         c.pc.ontrack = function(e) {
             c.stream = e.streams[0];
             setMedia(id);
-        }
+        };
     }
 
     await c.pc.setRemoteDescription(offer);
     await addIceCandidates(c);
     let answer = await c.pc.createAnswer();
     if(!answer)
-        throw new Error("Didn't create answer")
+        throw new Error("Didn't create answer");
     await c.pc.setLocalDescription(answer);
     send({
         type: 'answer',
@@ -654,11 +654,11 @@ async function gotICE(id, candidate) {
     if(conn.pc.remoteDescription)
         await conn.pc.addIceCandidate(candidate).catch(console.warn);
     else
-        conn.iceCandidates.push(candidate)
+        conn.iceCandidates.push(candidate);
 }
 
 async function addIceCandidates(conn) {
-    let promises = []
+    let promises = [];
     conn.iceCandidates.forEach(c => {
         promises.push(conn.pc.addIceCandidate(c).catch(console.warn));
     });
@@ -669,7 +669,7 @@ async function addIceCandidates(conn) {
 function send(m) {
     if(!m)
         throw(new Error('Sending null message'));
-    return socket.send(JSON.stringify(m))
+    return socket.send(JSON.stringify(m));
 }
 
 let users = {};
@@ -933,7 +933,7 @@ document.getElementById('input').onkeypress = function(e) {
         e.preventDefault();
         handleInput();
     }
-}
+};
 
 function chatResizer(e) {
     e.preventDefault();
@@ -978,7 +978,7 @@ async function newUpStream() {
         iceServers: iceServers,
     });
     if(!pc)
-        throw new Error("Couldn't create peer connection")
+        throw new Error("Couldn't create peer connection");
     up[id] = new Connection(id, pc);
 
     pc.onnegotiationneeded = e => negotiate(id);
@@ -990,7 +990,7 @@ async function newUpStream() {
              id: id,
              candidate: e.candidate,
              });
-    }
+    };
 
     pc.ontrack = console.error;
 
@@ -1069,18 +1069,18 @@ document.getElementById('userform').onsubmit = async function(e) {
     let password = document.getElementById('password').value;
     setUserPass(username, password);
     await doConnect();
-}
+};
 
 document.getElementById('disconnectbutton').onclick = function(e) {
     socket.close();
-}
+};
 
 function start() {
     group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));
     let title = group.charAt(0).toUpperCase() + group.slice(1);
     if(group !== '') {
         document.title = title;
-        document.getElementById('title').textContent = title
+        document.getElementById('title').textContent = title;
     }
 
     myid = randomid();
