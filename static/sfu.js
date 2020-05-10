@@ -682,7 +682,6 @@ function addUser(id, name) {
     users[id] = name;
 
     let div = document.getElementById('users');
-    let anon = document.getElementById('anonymous-users');
     let user = document.createElement('div');
     user.id = 'user-' + id;
     user.textContent = name ? name : '(anon)';

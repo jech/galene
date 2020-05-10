@@ -76,10 +76,6 @@ h1 {
     overflow-x: hidden;
 }
 
-#anonymous-users {
-    white-space: nowrap;
-}
-
 #chatbox {
     width: 100%;
 }
