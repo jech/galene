@@ -74,6 +74,7 @@ h1 {
     margin-left: 2%;
     border: 1px solid;
     overflow-x: hidden;
+    min-width: 5em;
 }
 
 #chatbox {
