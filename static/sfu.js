@@ -19,7 +19,6 @@ let permissions = {};
 
 function toHex(array) {
     let a = new Uint8Array(array);
-    let s = '';
     function hex(x) {
         let h = x.toString(16);
         if(h.length < 2)
@@ -94,7 +93,6 @@ function getUsername() {
 function setConnected(connected) {
     let statspan = document.getElementById('statspan');
     let userform = document.getElementById('userform');
-    let diconnect = document.getElementById('disconnectbutton');
     if(connected) {
         clearError();
         statspan.textContent = 'Connected';
