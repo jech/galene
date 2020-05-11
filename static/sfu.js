@@ -809,8 +809,8 @@ function addToChatbox(peerId, nick, message, me){
         delete(lastMessage.peerId);
     }
 
-    document.getElementById('box').appendChild(container);
-
+    let box = document.getElementById('box');
+    box.appendChild(container);
     if(box.scrollHeight > box.clientHeight) {
         box.scrollTop = box.scrollHeight - box.clientHeight;
     }
