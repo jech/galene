@@ -497,9 +497,11 @@ func delUpConn(c *client, id string) bool {
 		cc.mu.Unlock()
 	}
 
-	for _, cid := range cids {
-		cid.client.action(delConnAction{cid.id})
-	}
+	go func(cids []clientId) {
+		for _, cid := range cids {
+			cid.client.action(delConnAction{cid.id})
+		}
+	}(cids)
 
 	conn.pc.Close()
 	delete(c.up, id)
@@ -953,9 +955,12 @@ func (c *client) setRequested(audio, video bool) error {
 	c.requestedAudio = audio
 	c.requestedVideo = video
 
-	for _, cc := range c.group.getClients(c) {
-		cc.action(pushTracksAction{c})
-	}
+	go func() {
+		clients := c.group.getClients(c)
+		for _, cc := range clients {
+			cc.action(pushTracksAction{c})
+		}
+	}()
 
 	return nil
 }
@@ -968,6 +973,17 @@ func (c *client) requested(kind webrtc.RTPCodecType) bool {
 		return c.requestedVideo
 	default:
 		return false
+	}
+}
+
+func pushTracks(c *client, conn *upConnection, tracks []*upTrack, done bool, label string) {
+	for i, t := range tracks {
+		c.action(addTrackAction{t, conn, done && i == len(tracks)-1})
+	}
+
+	if done && label != "" {
+		c.action(addLabelAction{conn.id, conn.label})
+
 	}
 }
 
@@ -1063,19 +1079,13 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 				})
 			case pushTracksAction:
 				for _, u := range c.up {
-					var done bool
-					for i, t := range u.tracks {
-						done = i >= u.trackCount-1
-						a.c.action(addTrackAction{
-							t, u, done,
-						})
-					}
-					if done && u.label != "" {
-						a.c.action(addLabelAction{
-							u.id, u.label,
-						})
-
-					}
+					tracks := make([]*upTrack, len(u.tracks))
+					copy(tracks, u.tracks)
+					go pushTracks(
+						a.c, u, tracks,
+						len(tracks) >= u.trackCount-1,
+						u.label,
+					)
 				}
 			case connectionFailedAction:
 				found := delUpConn(c, a.id)
