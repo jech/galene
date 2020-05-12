@@ -172,7 +172,7 @@ async function updateStats(conn, sender) {
 
         if(stats.timestamp) {
             stats.rate =
-                ((r.bytesSent - stats.bytesSent) -
+                ((r.bytesSent - stats.bytesSent) * 1000 /
                  (r.timestamp - stats.timestamp)) * 8;
         } else {
             delete(stats.rate);
