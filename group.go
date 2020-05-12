@@ -442,7 +442,7 @@ func (g *group) addToChatHistory(id, user, value string, me bool) {
 
 func (g *group) getChatHistory() []chatHistoryEntry {
 	g.mu.Lock()
-	g.mu.Unlock()
+	defer g.mu.Unlock()
 
 	h := make([]chatHistoryEntry, len(g.history))
 	copy(h, g.history)
