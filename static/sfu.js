@@ -93,6 +93,7 @@ function getUsername() {
 function setConnected(connected) {
     let statspan = document.getElementById('statspan');
     let userform = document.getElementById('userform');
+    let disconnectbutton = document.getElementById('disconnectbutton');
     if(connected) {
         clearError();
         statspan.textContent = 'Connected';
