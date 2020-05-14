@@ -174,7 +174,7 @@ type chatHistoryEntry struct {
 }
 
 const (
-	minVideoRate = 384000
+	minVideoRate = 200000
 	minAudioRate = 9600
 )
 
