@@ -26,6 +26,7 @@ import (
 
 type upTrack struct {
 	track                *webrtc.Track
+	label                string
 	rate                 *estimator.Estimator
 	cache                *packetcache.Cache
 	jitter               *jitter.Estimator
@@ -74,11 +75,27 @@ func (up *upTrack) hasRtcpFb(tpe, parameter string) bool {
 }
 
 type upConnection struct {
-	id         string
-	label      string
-	pc         *webrtc.PeerConnection
-	trackCount int
-	tracks     []*upTrack
+	id     string
+	label  string
+	pc     *webrtc.PeerConnection
+	tracks []*upTrack
+	labels map[string]string
+}
+
+func (up *upConnection) complete() bool {
+	for id, _ := range up.labels {
+		found := false
+		for _, t := range up.tracks {
+			if t.track.ID() == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 type bitrate struct {
@@ -150,16 +167,15 @@ type downConnection struct {
 }
 
 type client struct {
-	group          *group
-	id             string
-	username       string
-	permissions    userPermission
-	requestedAudio bool
-	requestedVideo bool
-	done           chan struct{}
-	writeCh        chan interface{}
-	writerDone     chan struct{}
-	actionCh       chan interface{}
+	group       *group
+	id          string
+	username    string
+	permissions userPermission
+	requested   []string
+	done        chan struct{}
+	writeCh     chan interface{}
+	writerDone  chan struct{}
+	actionCh    chan interface{}
 
 	mu   sync.Mutex
 	down map[string]*downConnection

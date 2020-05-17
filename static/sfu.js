@@ -39,6 +39,7 @@ function Connection(id, pc) {
     this.label = null;
     this.pc = pc;
     this.stream = null;
+    this.labels = {};
     this.iceCandidates = [];
     this.timers = [];
     this.audioStats = {};
@@ -140,9 +141,9 @@ document.getElementById('sharebox').onchange = function(e) {
     setShareMedia(this.checked);
 };
 
-document.getElementById('requestbox').onchange = function(e) {
+document.getElementById('requestselect').onchange = function(e) {
     e.preventDefault();
-    sendRequest(this.checked);
+    sendRequest(this.value);
 };
 
 async function updateStats(conn, sender) {
@@ -312,6 +313,7 @@ async function setLocalMedia(setup) {
     let c = up[localMediaId];
     c.stream = stream;
     stream.getTracks().forEach(t => {
+        c.labels[t.id] = t.kind
         let sender = c.pc.addTrack(t, stream);
         c.setInterval(() => {
             updateStats(c, sender);
@@ -358,6 +360,7 @@ async function setShareMedia(setup) {
                 document.getElementById('sharebox').checked = false;
                 setShareMedia(false);
             };
+            c.labels[t.id] = 'screenshare';
             c.setInterval(() => {
                 updateStats(c, sender);
             }, 2000);
@@ -485,7 +488,7 @@ function serverConnect() {
                 username: up.username,
                 password: up.password,
             });
-            sendRequest(document.getElementById('requestbox').checked);
+            sendRequest(document.getElementById('requestselect').value);
             resolve();
         };
         socket.onclose = function(e) {
@@ -508,7 +511,7 @@ function serverConnect() {
             let m = JSON.parse(e.data);
             switch(m.type) {
             case 'offer':
-                gotOffer(m.id, m.offer);
+                gotOffer(m.id, m.labels, m.offer);
                 break;
             case 'answer':
                 gotAnswer(m.id, m.answer);
@@ -556,14 +559,30 @@ function serverConnect() {
     });
 }
 
-function sendRequest(video) {
+function sendRequest(value) {
+    let request = [];
+    switch(value) {
+    case 'audio':
+        request = ['audio'];
+        break;
+    case 'screenshare':
+        request = ['audio', 'screenshare'];
+        break;
+    case 'everything':
+        request = ['audio', 'screenshare', 'video'];
+        break;
+    default:
+        console.error(`Uknown value ${value} in sendRequest`);
+        break;
+    }
+
     send({
         type: 'request',
-        request: video ? ['audio', 'video'] : ['audio'],
+        request: request,
     });
 }
 
-async function gotOffer(id, offer) {
+async function gotOffer(id, labels, offer) {
     let c = down[id];
     if(!c) {
         let pc = new RTCPeerConnection({
@@ -586,6 +605,8 @@ async function gotOffer(id, offer) {
             setMedia(id);
         };
     }
+
+    c.labels = labels;
 
     await c.pc.setRemoteDescription(offer);
     await addIceCandidates(c);
@@ -1007,6 +1028,7 @@ async function negotiate(id) {
     send({
         type: 'offer',
         id: id,
+        labels: c.labels,
         offer: offer,
     });
 }

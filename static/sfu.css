@@ -65,6 +65,11 @@ h1 {
     margin-right: 0.4em;
 }
 
+#requestselect {
+    width: 8em;
+    text-align-last: center;
+}
+
 #main {
     display: flex;
 }
