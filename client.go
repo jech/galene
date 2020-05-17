@@ -91,6 +91,53 @@ func isWSNormalError(err error) bool {
 		websocket.CloseGoingAway)
 }
 
+type rateMap map[string]uint32
+
+func (v *rateMap) UnmarshalJSON(b []byte) error {
+	var m map[string]interface{}
+
+	err := json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+
+	n := make(map[string]uint32, len(m))
+	for k, w := range m {
+		switch w := w.(type) {
+		case bool:
+			if w {
+				n[k] = ^uint32(0)
+			} else {
+				n[k] = 0
+			}
+		case float64:
+			if w < 0 || w >= float64(^uint32(0)) {
+				return errors.New("overflow")
+			}
+			n[k] = uint32(w)
+		default:
+			return errors.New("unexpected type in JSON map")
+		}
+	}
+	*v = n
+	return nil
+}
+
+func (v rateMap) MarshalJSON() ([]byte, error) {
+	m := make(map[string]interface{}, len(v))
+	for k, w := range v {
+		switch w {
+		case 0:
+			m[k] = false
+		case ^uint32(0):
+			m[k] = true
+		default:
+			m[k] = w
+		}
+	}
+	return json.Marshal(m)
+}
+
 type clientMessage struct {
 	Type        string                     `json:"type"`
 	Id          string                     `json:"id,omitempty"`
@@ -105,7 +152,7 @@ type clientMessage struct {
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
 	Labels      map[string]string          `json:"labels,omitempty"`
 	Del         bool                       `json:"del,omitempty"`
-	Request     []string                   `json:"request,omitempty"`
+	Request     rateMap                    `json:"request,omitempty"`
 }
 
 type closeMessage struct {
@@ -927,7 +974,7 @@ func gotICE(c *client, candidate *webrtc.ICECandidateInit, id string) error {
 	return pc.AddICECandidate(*candidate)
 }
 
-func (c *client) setRequested(requested []string) error {
+func (c *client) setRequested(requested map[string]uint32) error {
 	if c.down != nil {
 		for id := range c.down {
 			c.write(clientMessage{
@@ -951,12 +998,7 @@ func (c *client) setRequested(requested []string) error {
 }
 
 func (c *client) isRequested(label string) bool {
-	for _, r := range c.requested {
-		if label == r {
-			return true
-		}
-	}
-	return false
+	return c.requested[label] != 0
 }
 
 func addDownConnTracks(c *client, remote *upConnection, tracks []*upTrack) (*downConnection, error) {
@@ -1002,7 +1044,7 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 	go clientReader(conn, read, c.done)
 
 	defer func() {
-		c.setRequested([]string{})
+		c.setRequested(map[string]uint32{})
 		if c.up != nil {
 			for id := range c.up {
 				delUpConn(c, id)

@@ -171,7 +171,7 @@ type client struct {
 	id          string
 	username    string
 	permissions userPermission
-	requested   []string
+	requested   map[string]uint32
 	done        chan struct{}
 	writeCh     chan interface{}
 	writerDone  chan struct{}

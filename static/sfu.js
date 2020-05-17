@@ -563,13 +563,13 @@ function sendRequest(value) {
     let request = [];
     switch(value) {
     case 'audio':
-        request = ['audio'];
+        request = {audio: true};
         break;
     case 'screenshare':
-        request = ['audio', 'screenshare'];
+        request = {audio: true, screenshare: true};
         break;
     case 'everything':
-        request = ['audio', 'screenshare', 'video'];
+        request = {audio: true, screenshare: true, video: true};
         break;
     default:
         console.error(`Uknown value ${value} in sendRequest`);
