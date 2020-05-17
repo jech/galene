@@ -315,10 +315,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 
 		clients := c.group.getClients(c)
 		for _, cc := range clients {
-			cc.action(addTrackAction{track, u, done})
-			if done && u.label != "" {
-				cc.action(addLabelAction{id, u.label})
-			}
+			pushTracks(cc, u, []*upTrack{track}, done, u.label)
 		}
 
 		go upLoop(conn, track)
