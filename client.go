@@ -308,15 +308,21 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			maxBitrate: ^uint64(0),
 		}
 		u.tracks = append(u.tracks, track)
-		done := u.complete()
+		var tracks []*upTrack
+		if u.complete() {
+			tracks = make([]*upTrack, len(u.tracks))
+			copy(tracks, u.tracks)
+		}
 		if remote.Kind() == webrtc.RTPCodecTypeVideo {
 			atomic.AddUint32(&c.group.videoCount, 1)
 		}
 		c.mu.Unlock()
 
-		clients := c.group.getClients(c)
-		for _, cc := range clients {
-			pushTracks(cc, u, []*upTrack{track}, done, u.label)
+		if tracks != nil {
+			clients := c.group.getClients(c)
+			for _, cc := range clients {
+				pushConn(cc, u, tracks, u.label)
+			}
 		}
 
 		go upLoop(conn, track)
@@ -578,16 +584,7 @@ func delDownConn(c *client, id string) bool {
 	return true
 }
 
-func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConnection) (*downConnection, *webrtc.RTPSender, error) {
-	conn := getDownConn(c, id)
-	if conn == nil {
-		var err error
-		conn, err = addDownConn(c, id, remoteConn)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
+func addDownTrack(c *client, conn *downConnection, remoteTrack *upTrack, remoteConn *upConnection) (*webrtc.RTPSender, error) {
 	local, err := conn.pc.NewTrack(
 		remoteTrack.track.PayloadType(),
 		remoteTrack.track.SSRC(),
@@ -595,12 +592,12 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 		remoteTrack.track.Label(),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	s, err := conn.pc.AddTrack(local)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	track := &downTrack{
@@ -616,7 +613,7 @@ func addDownTrack(c *client, id string, remoteTrack *upTrack, remoteConn *upConn
 
 	go rtcpDownListener(conn, track, s)
 
-	return conn, s, nil
+	return s, nil
 }
 
 const (
@@ -831,7 +828,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 	}
 }
 
-func negotiate(c *client, id string, down *downConnection) error {
+func negotiate(c *client, down *downConnection) error {
 	offer, err := down.pc.CreateOffer(nil)
 	if err != nil {
 		return err
@@ -849,7 +846,7 @@ func negotiate(c *client, id string, down *downConnection) error {
 
 	return c.write(clientMessage{
 		Type:   "offer",
-		Id:     id,
+		Id:     down.id,
 		Offer:  &offer,
 		Labels: labels,
 	})
@@ -946,7 +943,7 @@ func (c *client) setRequested(requested []string) error {
 	go func() {
 		clients := c.group.getClients(c)
 		for _, cc := range clients {
-			cc.action(pushTracksAction{c})
+			cc.action(pushConnsAction{c})
 		}
 	}()
 
@@ -962,14 +959,41 @@ func (c *client) isRequested(label string) bool {
 	return false
 }
 
-func pushTracks(c *client, conn *upConnection, tracks []*upTrack, done bool, label string) {
-	for i, t := range tracks {
-		c.action(addTrackAction{t, conn, done && i == len(tracks)-1})
+func addDownConnTracks(c *client, remote *upConnection, tracks []*upTrack) (*downConnection, error) {
+	requested := false
+	for _, t := range tracks {
+		if c.isRequested(t.label) {
+			requested = true
+			break
+		}
+	}
+	if !requested {
+		return nil, nil
 	}
 
-	if done && label != "" {
-		c.action(addLabelAction{conn.id, conn.label})
+	down, err := addDownConn(c, remote.id, remote)
+	if err != nil {
+		return nil, err
+	}
 
+	for _, t := range tracks {
+		if !c.isRequested(t.label) {
+			continue
+		}
+		_, err = addDownTrack(c, down, t, remote)
+		if err != nil {
+			delDownConn(c, down.id)
+			return nil, err
+		}
+	}
+
+	return down, nil
+}
+
+func pushConn(c *client, conn *upConnection, tracks []*upTrack, label string) {
+	c.action(addConnAction{conn, tracks})
+	if label != "" {
+		c.action(addLabelAction{conn.id, conn.label})
 	}
 }
 
@@ -1030,21 +1054,15 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 			}
 		case a := <-c.actionCh:
 			switch a := a.(type) {
-			case addTrackAction:
-				var down *downConnection
-				var err error
-				if c.isRequested(a.track.label) {
-					down, _, err = addDownTrack(
-						c, a.remote.id, a.track,
-						a.remote)
-					if err != nil {
-						return err
-					}
-				} else {
-					down = getDownConn(c, a.remote.id)
+			case addConnAction:
+				down, err := addDownConnTracks(
+					c, a.conn, a.tracks,
+				)
+				if err != nil {
+					return err
 				}
-				if a.done && down != nil {
-					err = negotiate(c, a.remote.id, down)
+				if down != nil {
+					err = negotiate(c, down)
 					if err != nil {
 						return err
 					}
@@ -1063,15 +1081,11 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 					Id:    a.id,
 					Value: a.label,
 				})
-			case pushTracksAction:
+			case pushConnsAction:
 				for _, u := range c.up {
 					tracks := make([]*upTrack, len(u.tracks))
 					copy(tracks, u.tracks)
-					go pushTracks(
-						a.c, u, tracks,
-						u.complete(),
-						u.label,
-					)
+					go pushConn(a.c, u, tracks, u.label)
 				}
 			case connectionFailedAction:
 				found := delUpConn(c, a.id)

@@ -209,10 +209,9 @@ type delConnAction struct {
 	id string
 }
 
-type addTrackAction struct {
-	track  *upTrack
-	remote *upConnection
-	done   bool
+type addConnAction struct {
+	conn   *upConnection
+	tracks []*upTrack
 }
 
 type addLabelAction struct {
@@ -224,7 +223,7 @@ type getUpAction struct {
 	ch chan<- string
 }
 
-type pushTracksAction struct {
+type pushConnsAction struct {
 	c *client
 }
 
