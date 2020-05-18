@@ -888,6 +888,16 @@ function handleInput() {
                     type: 'clearchat',
                 });
                 return;
+            case '/lock':
+            case '/unlock':
+                if(!permissions.op) {
+                    displayError("You're not an operator");
+                    return;
+                }
+                send({
+                    type: cmd === '/lock' ? 'lock' : 'unlock',
+                });
+                return;
             case '/op':
             case '/unop':
             case '/kick':

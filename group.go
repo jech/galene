@@ -199,6 +199,7 @@ type group struct {
 	dead        bool
 	description *groupDescription
 	videoCount  uint32
+	locked      uint32
 
 	mu      sync.Mutex
 	clients map[string]*client
@@ -365,6 +366,10 @@ func addClient(name string, client *client, user, pass string) (*group, []userid
 		return nil, nil, err
 	}
 	client.permissions = perms
+
+	if !perms.Op && atomic.LoadUint32(&g.locked) != 0 {
+		return nil, nil, userError("group is locked")
+	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
