@@ -8,8 +8,9 @@ const BufSize = 1500
 
 type entry struct {
 	seqno  uint16
-	length int
+	length uint16
 	buf    [BufSize]byte
+	pad    [32 - (BufSize+4)%32]byte // avoid false sharing
 }
 
 type Cache struct {
@@ -40,7 +41,7 @@ func seqnoInvalid(seqno, reference uint16) bool {
 		return false
 	}
 
-	if reference - seqno > 0x100 {
+	if reference-seqno > 0x100 {
 		return true
 	}
 
@@ -99,7 +100,7 @@ func (cache *Cache) Store(seqno uint16, buf []byte) uint16 {
 
 	cache.entries[cache.tail].seqno = seqno
 	copy(cache.entries[cache.tail].buf[:], buf)
-	cache.entries[cache.tail].length = len(buf)
+	cache.entries[cache.tail].length = uint16(len(buf))
 	cache.tail = (cache.tail + 1) % len(cache.entries)
 
 	return cache.first
@@ -146,7 +147,7 @@ func (cache *Cache) BitmapGet() (bool, uint16, uint16) {
 		return false, first, 0
 	}
 
-	for bitmap & 1 == 0 {
+	for bitmap&1 == 0 {
 		bitmap >>= 1
 		first++
 	}

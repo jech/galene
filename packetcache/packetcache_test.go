@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/rand"
 	"testing"
+	"unsafe"
 
 	"github.com/pion/rtcp"
 )
@@ -50,6 +51,16 @@ func TestCacheOverflow(t *testing.T) {
 			if len(buf) != 1 || buf[0] != uint8(i) {
 				t.Errorf("Expected [%v], got %v", i, buf)
 			}
+		}
+	}
+}
+
+func TestCacheAlignment(t *testing.T) {
+	cache := New(16)
+	for i := range cache.entries {
+		p := unsafe.Pointer(&cache.entries[i])
+		if uintptr(p) % 32 != 0 {
+			t.Errorf("%v: alignment %v", i, uintptr(p) % 32)
 		}
 	}
 }
