@@ -23,13 +23,20 @@ func TestCache(t *testing.T) {
 	cache.Store(13, buf1)
 	cache.Store(17, buf2)
 
-	if bytes.Compare(cache.Get(13), buf1) != 0 {
+	buf := make([]byte, BufSize)
+
+	l := cache.Get(13, buf)
+	if bytes.Compare(buf[:l], buf1) != 0 {
 		t.Errorf("Couldn't get 13")
 	}
-	if bytes.Compare(cache.Get(17), buf2) != 0 {
+
+	l = cache.Get(17, buf)
+	if bytes.Compare(buf[:l], buf2) != 0 {
 		t.Errorf("Couldn't get 17")
 	}
-	if cache.Get(42) != nil {
+
+	l = cache.Get(42, buf)
+	if l != 0 {
 		t.Errorf("Creation ex nihilo")
 	}
 }
@@ -42,14 +49,15 @@ func TestCacheOverflow(t *testing.T) {
 	}
 
 	for i := 0; i < 32; i++ {
-		buf := cache.Get(uint16(i))
+		buf := make([]byte, BufSize)
+		l := cache.Get(uint16(i), buf)
 		if i < 16 {
-			if buf != nil {
+			if l > 0 {
 				t.Errorf("Creation ex nihilo: %v", i)
 			}
 		} else {
-			if len(buf) != 1 || buf[0] != uint8(i) {
-				t.Errorf("Expected [%v], got %v", i, buf)
+			if l != 1 || buf[0] != uint8(i) {
+				t.Errorf("Expected [%v], got %v", i, buf[:l])
 			}
 		}
 	}

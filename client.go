@@ -855,13 +855,14 @@ func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint1
 
 func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 	var packet rtp.Packet
+	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
 		for _, seqno := range nack.PacketList() {
-			raw := track.remote.cache.Get(seqno)
-			if raw == nil {
+			l := track.remote.cache.Get(seqno, buf)
+			if l == 0 {
 				continue
 			}
-			err := packet.Unmarshal(raw)
+			err := packet.Unmarshal(buf[:l])
 			if err != nil {
 				continue
 			}
@@ -870,7 +871,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 				log.Printf("%v", err)
 				continue
 			}
-			track.rate.Add(uint32(len(raw)))
+			track.rate.Add(uint32(l))
 		}
 	}
 }

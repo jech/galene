@@ -115,7 +115,7 @@ func (cache *Cache) Expect(n int) {
 	cache.expected += uint32(n)
 }
 
-func (cache *Cache) Get(seqno uint16) []byte {
+func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -124,11 +124,12 @@ func (cache *Cache) Get(seqno uint16) []byte {
 			cache.entries[i].seqno != seqno {
 			continue
 		}
-		buf := make([]byte, cache.entries[i].length)
-		copy(buf, cache.entries[i].buf[:])
-		return buf
+		return uint16(copy(
+			result[:cache.entries[i].length],
+			cache.entries[i].buf[:]),
+		)
 	}
-	return nil
+	return 0
 }
 
 // Shift 17 bits out of the bitmap.  Return a boolean indicating if any
