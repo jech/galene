@@ -702,11 +702,14 @@ func addDownTrack(c *client, conn *downConnection, remoteTrack *upTrack, remoteC
 		rate:           estimator.New(time.Second),
 	}
 	conn.tracks = append(conn.tracks, track)
-	remoteTrack.addLocal(track)
 
 	go rtcpDownListener(conn, track, s)
 
 	return s, nil
+}
+
+func activateDownTrack(conn *downConnection, track *downTrack) {
+	track.remote.addLocal(track)
 }
 
 const (
@@ -1002,6 +1005,10 @@ func gotAnswer(c *client, id string, answer webrtc.SessionDescription) error {
 	err := conn.pc.SetRemoteDescription(answer)
 	if err != nil {
 		return err
+	}
+
+	for _, t := range conn.tracks {
+		activateDownTrack(conn, t)
 	}
 	return nil
 }
