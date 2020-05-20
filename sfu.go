@@ -18,6 +18,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 	"syscall"
 	"time"
@@ -32,6 +34,8 @@ var groupsDir string
 var iceFilename string
 
 func main() {
+	var cpuprofile, memprofile, mutexprofile string
+
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&staticRoot, "static", "./static/",
 		"web server root `directory`")
@@ -39,7 +43,52 @@ func main() {
 		"data `directory`")
 	flag.StringVar(&groupsDir, "groups", "./groups/",
 		"group description `directory`")
+	flag.StringVar(&cpuprofile, "cpuprofile", "",
+		"store CPU profile in `file`")
+	flag.StringVar(&memprofile, "memprofile", "",
+		"store memory profile in `file`")
+	flag.StringVar(&mutexprofile, "mutexprofile", "",
+		"store mutex profile in `file`")
 	flag.Parse()
+
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			log.Printf("Create(cpuprofile): %v", err)
+			return
+		}
+		pprof.StartCPUProfile(f)
+		defer func() {
+			pprof.StopCPUProfile()
+			f.Close()
+		}()
+	}
+
+	if memprofile != "" {
+		defer func() {
+			f, err := os.Create(memprofile)
+			if err != nil {
+				log.Printf("Create(memprofile): %v", err)
+				return
+			}
+			pprof.WriteHeapProfile(f)
+			f.Close()
+		}()
+	}
+
+	if mutexprofile != "" {
+		runtime.SetMutexProfileFraction(1)
+		defer func() {
+			f, err := os.Create(mutexprofile)
+			if err != nil {
+				log.Printf("Create(mutexprofile): %v", err)
+				return
+			}
+			pprof.Lookup("mutex").WriteTo(f, 0)
+			f.Close()
+		}()
+	}
+
 	iceFilename = filepath.Join(staticRoot, "ice-servers.json")
 
 	http.Handle("/", mungeHandler{http.FileServer(http.Dir(staticRoot))})
