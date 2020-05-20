@@ -241,6 +241,8 @@ func (s *receiverStats) Get(now uint64) (uint8, uint32) {
 	return uint8(atomic.LoadUint32(&s.loss)), atomic.LoadUint32(&s.jitter)
 }
 
+var ErrKeyframeNeeded = errors.New("keyframe needed")
+
 type downTrack interface {
 	WriteRTP(packat *rtp.Packet) error
 	Accumulate(bytes uint32)

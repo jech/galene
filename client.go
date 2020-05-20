@@ -471,11 +471,14 @@ func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
 
 	local := make([]downTrack, 0)
 
+	firSent := false
+
 	for {
 		select {
 		case action := <-track.localCh:
 			if action.add {
 				local = append(local, action.track)
+				firSent = false
 			} else {
 				found := false
 				for i, t := range local {
@@ -505,15 +508,33 @@ func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
 				continue
 			}
 
+			kfNeeded := false
+
 			for _, l := range local {
 				err := l.WriteRTP(&packet)
 				if err != nil {
-					if err != io.ErrClosedPipe {
+					if err == ErrKeyframeNeeded {
+						kfNeeded = true
+					} else if err != io.ErrClosedPipe {
 						log.Printf("WriteRTP: %v", err)
 					}
 					continue
 				}
 				l.Accumulate(uint32(bytes))
+			}
+
+			if kfNeeded {
+				err := conn.sendFIR(track, !firSent)
+				if err == ErrUnsupportedFeedback {
+					err := conn.sendPLI(track)
+					if err != nil &&
+						err != ErrUnsupportedFeedback {
+						log.Printf("sendPLI: %v", err)
+					}
+				} else if err != nil {
+					log.Printf("sendFIR: %v", err)
+				}
+				firSent = true
 			}
 		}
 	}
