@@ -26,11 +26,14 @@ type Cache struct {
 	first  uint16
 	bitmap uint32
 	// packet cache
-	tail    int
+	tail    uint16
 	entries []entry
 }
 
 func New(capacity int) *Cache {
+	if capacity > int(^uint16(0)) {
+		return nil
+	}
 	return &Cache{
 		entries: make([]entry, capacity),
 	}
@@ -73,7 +76,7 @@ func (cache *Cache) set(seqno uint16) {
 }
 
 // Store a packet, setting bitmap at the same time
-func (cache *Cache) Store(seqno uint16, buf []byte) uint16 {
+func (cache *Cache) Store(seqno uint16, buf []byte) (uint16, uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -98,12 +101,13 @@ func (cache *Cache) Store(seqno uint16, buf []byte) uint16 {
 
 	cache.set(seqno)
 
-	cache.entries[cache.tail].seqno = seqno
-	copy(cache.entries[cache.tail].buf[:], buf)
-	cache.entries[cache.tail].length = uint16(len(buf))
-	cache.tail = (cache.tail + 1) % len(cache.entries)
+	i := cache.tail
+	cache.entries[i].seqno = seqno
+	copy(cache.entries[i].buf[:], buf)
+	cache.entries[i].length = uint16(len(buf))
+	cache.tail = (i + 1) % uint16(len(cache.entries))
 
-	return cache.first
+	return cache.first, i
 }
 
 func (cache *Cache) Expect(n int) {
@@ -130,6 +134,19 @@ func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 		)
 	}
 	return 0
+}
+
+func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if cache.entries[index].seqno != seqno {
+		return 0
+	}
+	return uint16(copy(
+		result[:cache.entries[index].length],
+		cache.entries[index].buf[:]),
+	)
 }
 
 // Shift 17 bits out of the bitmap.  Return a boolean indicating if any

@@ -409,7 +409,7 @@ func upLoop(conn *upConnection, track *upTrack) {
 
 		track.jitter.Accumulate(packet.Timestamp)
 
-		first := track.cache.Store(packet.SequenceNumber, buf[:bytes])
+		first, _ := track.cache.Store(packet.SequenceNumber, buf[:bytes])
 		if packet.SequenceNumber-first > 24 {
 			found, first, bitmap := track.cache.BitmapGet()
 			if found {

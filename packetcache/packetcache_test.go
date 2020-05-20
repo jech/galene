@@ -20,8 +20,8 @@ func TestCache(t *testing.T) {
 	buf1 := randomBuf()
 	buf2 := randomBuf()
 	cache := New(16)
-	cache.Store(13, buf1)
-	cache.Store(17, buf2)
+	_, i1 := cache.Store(13, buf1)
+	_, i2 := cache.Store(17, buf2)
 
 	buf := make([]byte, BufSize)
 
@@ -29,15 +29,33 @@ func TestCache(t *testing.T) {
 	if bytes.Compare(buf[:l], buf1) != 0 {
 		t.Errorf("Couldn't get 13")
 	}
+	l = cache.GetAt(13, i1, buf)
+	if bytes.Compare(buf[:l], buf1) != 0 {
+		t.Errorf("Couldn't get 13 at %v", i1)
+	}
 
 	l = cache.Get(17, buf)
 	if bytes.Compare(buf[:l], buf2) != 0 {
 		t.Errorf("Couldn't get 17")
 	}
+	l = cache.GetAt(17, i2, buf)
+	if bytes.Compare(buf[:l], buf2) != 0 {
+		t.Errorf("Couldn't get 17 at %v", i2)
+	}
 
 	l = cache.Get(42, buf)
 	if l != 0 {
 		t.Errorf("Creation ex nihilo")
+	}
+
+	l = cache.GetAt(17, i1, buf)
+	if l != 0 {
+		t.Errorf("Got 17 at %v", i1)
+	}
+
+	l = cache.GetAt(42, i2, buf)
+	if l != 0 {
+		t.Errorf("Got 42 at %v", i2)
 	}
 }
 
@@ -82,7 +100,7 @@ func TestBitmap(t *testing.T) {
 	var first uint16
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			first = cache.Store(uint16(42 + i), packet)
+			first, _ = cache.Store(uint16(42 + i), packet)
 		}
 	}
 
@@ -104,7 +122,7 @@ func TestBitmapWrap(t *testing.T) {
 	var first uint16
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			first = cache.Store(uint16(42 + i), packet)
+			first, _ = cache.Store(uint16(42 + i), packet)
 		}
 	}
 
