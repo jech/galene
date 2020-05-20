@@ -908,6 +908,41 @@ func sendPLI(pc *webrtc.PeerConnection, ssrc uint32) error {
 	})
 }
 
+func (up *upConnection) sendFIR(track *upTrack, increment bool) error {
+	// we need to reliably increment the seqno, even if we are going
+	// to drop the packet due to rate limiting.
+	var seqno uint8
+	if increment {
+		seqno = uint8(atomic.AddUint32(&track.firSeqno, 1) & 0xFF)
+	} else {
+		seqno = uint8(atomic.LoadUint32(&track.firSeqno) & 0xFF)
+	}
+
+	if !track.hasRtcpFb("ccm", "fir") {
+		return ErrUnsupportedFeedback
+	}
+	last := atomic.LoadUint64(&track.lastFIR)
+	now := mono.Microseconds()
+	if now >= last && now-last < 200000 {
+		return ErrRateLimited
+	}
+	atomic.StoreUint64(&track.lastFIR, now)
+	return sendFIR(up.pc, track.track.SSRC(), seqno)
+}
+
+func sendFIR(pc *webrtc.PeerConnection, ssrc uint32, seqno uint8) error {
+	return pc.WriteRTCP([]rtcp.Packet{
+		&rtcp.FullIntraRequest{
+			FIR: []rtcp.FIREntry{
+				rtcp.FIREntry{
+					SSRC:           ssrc,
+					SequenceNumber: seqno,
+				},
+			},
+		},
+	})
+}
+
 func sendREMB(pc *webrtc.PeerConnection, ssrc uint32, bitrate uint64) error {
 	return pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.ReceiverEstimatedMaximumBitrate{

@@ -31,6 +31,8 @@ type upTrack struct {
 	jitter               *jitter.Estimator
 	maxBitrate           uint64
 	lastPLI              uint64
+	lastFIR              uint64
+	firSeqno             uint32
 	lastSenderReport     uint32
 	lastSenderReportTime uint32
 

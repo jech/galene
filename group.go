@@ -112,6 +112,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 				{"goog-remb", ""},
 				{"nack", ""},
 				{"nack", "pli"},
+				{"ccm", "fir"},
 			},
 			"",
 		))
