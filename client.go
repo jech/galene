@@ -353,6 +353,8 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
 			maxBitrate: ^uint64(0),
+			localCh:    make(chan struct{}, 2),
+			writerDone: make(chan struct{}),
 		}
 		u.tracks = append(u.tracks, track)
 		var tracks []*upTrack
@@ -432,41 +434,40 @@ func readLoop(conn *upConnection, track *upTrack) {
 }
 
 func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
-	var localTime uint64
-	var local []*downTrack
+	defer close(track.writerDone)
 
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 
+	local := track.getLocal()
+
 	for {
-		now := mono.Microseconds()
-		if now < localTime || now > localTime+500000 {
+		select {
+		case <-track.localCh:
 			local = track.getLocal()
-			localTime = now
-		}
-
-		pi, ok := <-ch
-		if !ok {
-			return
-		}
-
-		bytes := track.cache.GetAt(pi.seqno, pi.index, buf)
-		if bytes == 0 {
-			continue
-		}
-
-		err := packet.Unmarshal(buf[:bytes])
-		if err != nil {
-			log.Printf("%v", err)
-			continue
-		}
-
-		for _, l := range local {
-			err := l.track.WriteRTP(&packet)
-			if err != nil && err != io.ErrClosedPipe {
-				log.Printf("%v", err)
+		case pi, ok := <-ch:
+			if !ok {
+				return
 			}
-			l.rate.Add(uint32(bytes))
+
+			bytes := track.cache.GetAt(pi.seqno, pi.index, buf)
+			if bytes == 0 {
+				continue
+			}
+
+			err := packet.Unmarshal(buf[:bytes])
+			if err != nil {
+				log.Printf("%v", err)
+				continue
+			}
+
+			for _, l := range local {
+				err := l.track.WriteRTP(&packet)
+				if err != nil && err != io.ErrClosedPipe {
+					log.Printf("%v", err)
+				}
+				l.rate.Add(uint32(bytes))
+			}
 		}
 	}
 }
@@ -637,7 +638,11 @@ func addDownConn(c *client, id string, remote *upConnection) (*downConnection, e
 	if c.down == nil {
 		c.down = make(map[string]*downConnection)
 	}
-	conn := &downConnection{id: id, pc: pc, remote: remote}
+	conn := &downConnection{
+		id:     id,
+		pc:     pc,
+		remote: remote,
+	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()

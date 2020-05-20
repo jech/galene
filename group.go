@@ -35,25 +35,39 @@ type upTrack struct {
 	lastSenderReport     uint32
 	lastSenderReportTime uint32
 
+	localCh    chan struct{} // signals that local has changed
+	writerDone chan struct{} // closed when the loop dies
+
 	mu    sync.Mutex
 	local []*downTrack
 }
 
+func (up *upTrack) notifyLocal() {
+	var s struct{}
+	select {
+	case up.localCh <- s:
+	case <-up.writerDone:
+	}
+}
+
 func (up *upTrack) addLocal(local *downTrack) {
 	up.mu.Lock()
-	defer up.mu.Unlock()
 	up.local = append(up.local, local)
+	up.mu.Unlock()
+	up.notifyLocal()
 }
 
 func (up *upTrack) delLocal(local *downTrack) bool {
 	up.mu.Lock()
-	defer up.mu.Unlock()
 	for i, l := range up.local {
 		if l == local {
 			up.local = append(up.local[:i], up.local[i+1:]...)
+			up.mu.Unlock()
+			up.notifyLocal()
 			return true
 		}
 	}
+	up.mu.Unlock()
 	return false
 }
 
