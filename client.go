@@ -808,7 +808,7 @@ func rtcpDownListener(conn *downConnection, track *downTrack, s *webrtc.RTPSende
 					mono.Microseconds(),
 				)
 				bitrate := track.rate.Estimate()
-				if uint64(bitrate) < maxBitrate {
+				if uint64(bitrate)*7/8 < maxBitrate {
 					sendRecovery(p, track)
 				}
 			}
