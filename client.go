@@ -346,9 +346,28 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			c.mu.Unlock()
 			return
 		}
+
+		mid := getUpMid(pc, remote)
+		if mid == "" {
+			log.Printf("Couldn't get track's mid")
+			c.mu.Unlock()
+			return
+		}
+
+		label, ok := u.labels[mid]
+		if !ok {
+			log.Printf("Couldn't get track's label")
+			isvideo := remote.Kind() == webrtc.RTPCodecTypeVideo
+			if isvideo {
+				label = "video"
+			} else {
+				label = "audio"
+			}
+		}
+
 		track := &upTrack{
 			track:      remote,
-			label:      u.labels[remote.ID()],
+			label:      label,
 			cache:      packetcache.New(96),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
@@ -957,8 +976,20 @@ func negotiate(c *client, down *downConnection) error {
 	}
 
 	labels := make(map[string]string)
-	for _, t := range down.tracks {
-		labels[t.track.ID()] = t.remote.label
+	for _, t := range down.pc.GetTransceivers() {
+		var track *webrtc.Track
+		if t.Sender() != nil {
+			track = t.Sender().Track()
+		}
+		if track == nil {
+			continue
+		}
+
+		for _, tr := range down.tracks {
+			if tr.track == track {
+				labels[t.Mid()] = tr.remote.label
+			}
+		}
 	}
 
 	return c.write(clientMessage{

@@ -96,11 +96,21 @@ type upConnection struct {
 	labels map[string]string
 }
 
+func getUpMid(pc *webrtc.PeerConnection, track *webrtc.Track) string {
+	for _, t := range pc.GetTransceivers() {
+		if t.Receiver() != nil && t.Receiver().Track() == track {
+			return t.Mid()
+		}
+	}
+	return ""
+}
+
 func (up *upConnection) complete() bool {
-	for id, _ := range up.labels {
+	for mid, _ := range up.labels {
 		found := false
 		for _, t := range up.tracks {
-			if t.track.ID() == id {
+			m := getUpMid(up.pc, t.track)
+			if m == mid {
 				found = true
 				break
 			}

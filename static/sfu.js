@@ -41,6 +41,7 @@ function Connection(id, pc) {
     this.pc = pc;
     this.stream = null;
     this.labels = {};
+    this.labelsByMid = {};
     this.iceCandidates = [];
     this.timers = [];
     this.audioStats = {};
@@ -647,12 +648,18 @@ async function gotOffer(id, labels, offer) {
         };
 
         c.pc.ontrack = function(e) {
+            let label = e.transceiver && c.labelsByMid[e.transceiver.mid];
+            if(label) {
+                c.labels[e.track.id] = label;
+            } else {
+                console.error("Couldn't find label for track");
+            }
             c.stream = e.streams[0];
             setMedia(id);
         };
     }
 
-    c.labels = labels;
+    c.labelsByMid = labels;
 
     await c.pc.setRemoteDescription(offer);
     await addIceCandidates(c);
@@ -1066,10 +1073,22 @@ async function negotiate(id) {
     if(!offer)
         throw(new Error("Didn't create offer"));
     await c.pc.setLocalDescription(offer);
+
+    // mids are not known until this point
+    c.pc.getTransceivers().forEach(t => {
+        if(t.sender && t.sender.track) {
+            let label = c.labels[t.sender.track.id];
+            if(label)
+                c.labelsByMid[t.mid] = label;
+            else
+                console.error("Couldn't find label for track");
+        }
+    });
+
     send({
         type: 'offer',
         id: id,
-        labels: c.labels,
+        labels: c.labelsByMid,
         offer: offer,
     });
 }
