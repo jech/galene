@@ -463,8 +463,11 @@ func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
 
 			for _, l := range local {
 				err := l.track.WriteRTP(&packet)
-				if err != nil && err != io.ErrClosedPipe {
-					log.Printf("%v", err)
+				if err != nil {
+					if err != io.ErrClosedPipe {
+						log.Printf("WriteRTP: %v", err)
+					}
+					continue
 				}
 				l.rate.Add(uint32(bytes))
 			}
@@ -917,7 +920,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 			}
 			err = track.track.WriteRTP(&packet)
 			if err != nil {
-				log.Printf("%v", err)
+				log.Printf("WriteRTP: %v", err)
 				continue
 			}
 			track.rate.Add(uint32(l))
