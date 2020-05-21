@@ -388,12 +388,14 @@ type packetIndex struct {
 }
 
 func readLoop(conn *upConnection, track *upTrack) {
+	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
 	ch := make(chan packetIndex, 32)
 	defer close(ch)
 	go writeLoop(conn, track, ch)
 
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
+	drop := 0
 	for {
 		bytes, err := track.track.Read(buf)
 		if err != nil {
@@ -424,11 +426,26 @@ func readLoop(conn *upConnection, track *upTrack) {
 			}
 		}
 
+		if drop > 0 {
+			if packet.Marker {
+				// last packet in frame
+				drop = 0
+			} else {
+				drop--
+			}
+			continue
+		}
+
 		select {
 		case ch <- packetIndex{packet.SequenceNumber, index}:
 		default:
-			// The writer is congested.  Drop the packet, and
-			// leave it to NACK recovery if possible.
+			if isvideo {
+				// the writer is congested.  Drop until
+				// the end of the frame.
+				if isvideo && !packet.Marker {
+					drop = 7
+				}
+			}
 		}
 	}
 }
