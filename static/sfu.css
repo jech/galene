@@ -32,11 +32,7 @@ h1 {
     display: inline
 }
 
-.userform-invisible {
-    display: none;
-}
-
-.disconnect-invisible {
+.invisible {
     display: none;
 }
 
@@ -53,6 +49,12 @@ h1 {
     margin-bottom: 4px;
 }
 
+#presentbutton, #unpresentbutton {
+    width: 8em;
+    white-space: nowrap;
+    margin-right: 0.4em;
+}
+
 #videoselect {
     width: 8em;
     text-align-last: center;
@@ -62,6 +64,15 @@ h1 {
 #audioselect {
     width: 8em;
     text-align-last: center;
+    margin-right: 0.4em;
+}
+
+#sharebutton, #unsharebutton {
+    width: 8em;
+    white-space: nowrap;
+}
+
+#unsharebutton {
     margin-right: 0.4em;
 }
 

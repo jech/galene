@@ -23,29 +23,31 @@
                  autocomplete="current-password"/>
           <input id="connectbutton" type="submit" value="Connect" disabled/>
         </form>
-        <input id="disconnectbutton" class="disconnect-invisible"
+        <input id="disconnectbutton" class="invisible"
                type="submit" value="Disconnect"/>
         <span id="errspan"></span>
       </div>
 
       <div id="optionsdiv">
-        <label for="presenterbox">Present:</label>
-        <input id="presenterbox" type="checkbox" disabled/>
+        <button id="presentbutton" class="invisible">Present</button>
+        <button id="unpresentbutton" class="invisible">Stop presenting</button>
 
-        <label for="videoselect">Camera:</label>
-        <select id="videoselect">
-          <option>default</option>
-          <option>off</option>
-        </select>
+        <span id="mediaoptions">
+          <label for="videoselect">Camera:</label>
+          <select id="videoselect">
+            <option>default</option>
+            <option>off</option>
+          </select>
 
-        <label for="audioselect">Microphone:</label>
-        <select id="audioselect">
-          <option>default</option>
-          <option>off</option>
-        </select>
+          <label for="audioselect">Microphone:</label>
+          <select id="audioselect">
+            <option>default</option>
+            <option>off</option>
+          </select>
+        </span>
 
-        <label for="sharebox">Share screen:</label>
-        <input id="sharebox" type="checkbox" disabled/>
+        <button id="sharebutton" class="invisible">Share screen</button>
+        <button id="unsharebutton" class="invisible">Stop sharing</button>
 
         <label for="requestselect">Receive:</label>
         <select id="requestselect">

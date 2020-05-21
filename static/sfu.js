@@ -36,6 +36,7 @@ function randomid() {
 
 function Connection(id, pc) {
     this.id = id;
+    this.kind = null;
     this.label = null;
     this.pc = pc;
     this.stream = null;
@@ -100,9 +101,9 @@ function setConnected(connected) {
         statspan.textContent = 'Connected';
         statspan.classList.remove('disconnected');
         statspan.classList.add('connected');
-        userform.classList.add('userform-invisible');
+        userform.classList.add('invisible');
         userform.classList.remove('userform');
-        disconnectbutton.classList.remove('disconnect-invisible');
+        disconnectbutton.classList.remove('invisible');
         displayUsername();
     } else {
         let userpass = getUserPass();
@@ -114,32 +115,74 @@ function setConnected(connected) {
         statspan.classList.remove('connected');
         statspan.classList.add('disconnected');
         userform.classList.add('userform');
-        userform.classList.remove('userform-invisible');
-        disconnectbutton.classList.add('disconnect-invisible');
+        userform.classList.remove('invisible');
+        disconnectbutton.classList.add('invisible');
         permissions={};
         clearUsername(false);
     }
 }
 
-document.getElementById('presenterbox').onchange = function(e) {
+document.getElementById('presentbutton').onclick = function(e) {
     e.preventDefault();
-    setLocalMedia(this.checked);
+    addLocalMedia();
 };
+
+document.getElementById('unpresentbutton').onclick = function(e) {
+    e.preventDefault();
+    delUpMediaKind('local');
+};
+
+function changePresentation() {
+    let found = false;
+    for(let id in up) {
+        if(up[id].kind === 'local')
+            found = true;
+    }
+    delUpMediaKind('local');
+    if(found)
+        addLocalMedia();
+}
+
+function setVisibility(id, visible) {
+    let elt = document.getElementById(id);
+    if(visible)
+        elt.classList.remove('invisible');
+    else
+        elt.classList.add('invisible');
+}
+
+function setButtonsVisibility() {
+    let local = findUpMedia('local');
+    let share = findUpMedia('screenshare')
+    // don't allow multiple presentations
+    setVisibility('presentbutton', permissions.present && !local);
+    setVisibility('unpresentbutton', local);
+    // allow multiple shared documents
+    setVisibility('sharebutton', permissions.present);
+    setVisibility('unsharebutton', share);
+
+    setVisibility('mediaoptions', permissions.present);
+}
 
 document.getElementById('audioselect').onchange = function(e) {
     e.preventDefault();
-    setLocalMedia(document.getElementById('presenterbox').checked);
+    changePresentation();
 };
 
 document.getElementById('videoselect').onchange = function(e) {
     e.preventDefault();
-    setLocalMedia(document.getElementById('presenterbox').checked);
+    changePresentation();
 };
 
-document.getElementById('sharebox').onchange = function(e) {
+document.getElementById('sharebutton').onclick = function(e) {
     e.preventDefault();
-    setShareMedia(this.checked);
+    addShareMedia();
 };
+
+document.getElementById('unsharebutton').onclick = function(e) {
+    e.preventDefault();
+    delUpMediaKind('screenshare');
+}
 
 document.getElementById('requestselect').onchange = function(e) {
     e.preventDefault();
@@ -273,26 +316,13 @@ async function setMediaChoices() {
     mediaChoicesDone = true;
 }
 
-let localMediaId = null;
-
-async function setLocalMedia(setup) {
+async function addLocalMedia() {
     if(!getUserPass())
         return;
-
-    if(!setup) {
-        if(localMediaId) {
-            up[localMediaId].close(true);
-            delete(up[localMediaId]);
-            delMedia(localMediaId);
-            localMediaId = null;
-        }
-        return;
-    }
 
     let audio = mapMediaOption(document.getElementById('audioselect').value);
     let video = mapMediaOption(document.getElementById('videoselect').value);
 
-    setLocalMedia(false);
     if(!audio && !video)
         return;
 
@@ -302,15 +332,14 @@ async function setLocalMedia(setup) {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch(e) {
         console.error(e);
-        document.getElementById('presenterbox').checked = false;
-        await setLocalMedia(false);
         return;
     }
 
     setMediaChoices();
 
-    localMediaId = await newUpStream();
-    let c = up[localMediaId];
+    let id = await newUpStream();
+    let c = up[id];
+    c.kind = 'local';
     c.stream = stream;
     stream.getTracks().forEach(t => {
         c.labels[t.id] = t.kind
@@ -320,56 +349,77 @@ async function setLocalMedia(setup) {
         }, 2000);
     });
     c.setInterval(() => {
-        displayStats(localMediaId);
+        displayStats(id);
     }, 2500);
-    await setMedia(localMediaId);
+    await setMedia(id);
+    setButtonsVisibility()
 }
 
-let shareMediaId = null;
-
-async function setShareMedia(setup) {
+async function addShareMedia(setup) {
     if(!getUserPass())
         return;
 
-    if(!setup) {
-        if(shareMediaId) {
-            up[shareMediaId].close(true);
-            delete(up[shareMediaId]);
-            delMedia(shareMediaId)
-            shareMediaId = null;
-        }
+    let stream = null;
+    try {
+        stream = await navigator.mediaDevices.getDisplayMedia({});
+    } catch(e) {
+        console.error(e);
         return;
     }
-    if(!shareMediaId) {
-        let stream = null;
-        try {
-            stream = await navigator.mediaDevices.getDisplayMedia({});
-        } catch(e) {
-            console.error(e);
-            document.getElementById('sharebox').checked = false;
-            await setShareMedia(false);
-            return;
-        }
-        shareMediaId = await newUpStream();
 
-        let c = up[shareMediaId];
-        c.stream = stream;
-        stream.getTracks().forEach(t => {
-            let sender = c.pc.addTrack(t, stream);
-            t.onended = e => {
-                document.getElementById('sharebox').checked = false;
-                setShareMedia(false);
-            };
-            c.labels[t.id] = 'screenshare';
-            c.setInterval(() => {
-                updateStats(c, sender);
-            }, 2000);
-        });
+    let id = await newUpStream();
+    let c = up[id];
+    c.kind = 'screenshare';
+    c.stream = stream;
+    stream.getTracks().forEach(t => {
+        let sender = c.pc.addTrack(t, stream);
+        t.onended = e => {
+            delUpMedia(id);
+        };
+        c.labels[t.id] = 'screenshare';
         c.setInterval(() => {
-            displayStats(shareMediaId);
-        }, 2500);
-        await setMedia(shareMediaId);
+            updateStats(c, sender);
+        }, 2000);
+    });
+    c.setInterval(() => {
+        displayStats(id);
+    }, 2500);
+    await setMedia(id);
+    setButtonsVisibility()
+}
+
+function delUpMedia(id) {
+    let c = up[id];
+    if(!c) {
+        console.error("Deleting unknown up media");
+        return;
     }
+    c.close(true);
+    delMedia(id);
+    delete(up[id]);
+
+    setButtonsVisibility()
+}
+
+function delUpMediaKind(kind) {
+    for(let id in up) {
+        let c = up[id];
+        if(c.kind != kind)
+            continue
+        c.close(true);
+        delMedia(id);
+        delete(up[id]);
+    }
+
+    setButtonsVisibility()
+}
+
+function findUpMedia(kind) {
+    for(let id in up) {
+        if(up[id].kind === kind)
+            return true;
+    }
+    return false;
 }
 
 function setMedia(id) {
@@ -493,12 +543,8 @@ function serverConnect() {
         };
         socket.onclose = function(e) {
             setConnected(false);
-            document.getElementById('presenterbox').checked = false;
-            document.getElementById('presenterbox').disabled = true;
-            setLocalMedia(false);
-            document.getElementById('sharebox').checked = false;
-            document.getElementById('sharebox').disabled = true;
-            setShareMedia(false);
+            delUpMediaKind('local');
+            delUpMediaKind('screenshare');
             for(let id in down) {
                 let c = down[id];
                 delete(down[id]);
@@ -648,21 +694,7 @@ function gotClose(id) {
 }
 
 function gotAbort(id) {
-    let c = up[id];
-    if(!c)
-        throw new Error('unknown up stream in abort');
-    if(id === localMediaId) {
-        document.getElementById('presenterbox').checked = false;
-        setLocalMedia(false);
-    } else if(id === shareMediaId) {
-        document.getElementById('sharebox').checked = false;
-        setShareMedia(false);
-    } else {
-        console.error('Strange stream in abort');
-        delMedia(id);
-        c.pc.close();
-        delete(up[id]);
-    }
+    delUpMedia(id);
 }
 
 async function gotICE(id, candidate) {
@@ -753,9 +785,8 @@ function clearUsername() {
 
 function gotPermissions(perm) {
     permissions = perm;
-    document.getElementById('presenterbox').disabled = !perm.present;
-    document.getElementById('sharebox').disabled = !perm.present;
     displayUsername();
+    setButtonsVisibility();
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#=?]+[-a-zA-Z0-9@:%/_\\+~#=]/g;
@@ -1088,18 +1119,12 @@ async function getIceServers() {
     iceServers = servers;
 }
 
-async function doConnect() {
-    await serverConnect();
-    await setLocalMedia(document.getElementById('presenterbox').checked);
-    await setShareMedia(document.getElementById('sharebox').checked);
-}
-
 document.getElementById('userform').onsubmit = async function(e) {
     e.preventDefault();
     let username = document.getElementById('username').value.trim();
     let password = document.getElementById('password').value;
     setUserPass(username, password);
-    await doConnect();
+    await serverConnect();
 };
 
 document.getElementById('disconnectbutton').onclick = function(e) {
@@ -1121,7 +1146,7 @@ function start() {
     }).then(c => {
         let userpass = getUserPass();
         if(userpass)
-            doConnect();
+            return serverConnect();
     });
 }
 
