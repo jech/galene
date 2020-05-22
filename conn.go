@@ -16,6 +16,10 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+type connection interface {
+	getPC() *webrtc.PeerConnection
+}
+
 type upTrack struct {
 	track                *webrtc.Track
 	label                string
@@ -93,6 +97,10 @@ type upConnection struct {
 	tracks        []*upTrack
 	labels        map[string]string
 	iceCandidates []*webrtc.ICECandidateInit
+}
+
+func (up *upConnection) getPC() *webrtc.PeerConnection {
+	return up.pc
 }
 
 func getUpMid(pc *webrtc.PeerConnection, track *webrtc.Track) string {
@@ -188,4 +196,8 @@ type downConnection struct {
 	remote        *upConnection
 	tracks        []*downTrack
 	iceCandidates []*webrtc.ICECandidateInit
+}
+
+func (down *downConnection) getPC() *webrtc.PeerConnection {
+	return down.pc
 }

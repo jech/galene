@@ -654,6 +654,18 @@ func getDownConn(c *client, id string) *downConnection {
 	return conn
 }
 
+func getConn(c *client, id string) connection {
+	up := getUpConn(c, id)
+	if up != nil {
+		return up
+	}
+	down := getDownConn(c, id)
+	if down != nil {
+		return down
+	}
+	return nil
+}
+
 func addDownConn(c *client, id string, remote *upConnection) (*downConnection, error) {
 	pc, err := groups.api.NewPeerConnection(iceConfiguration())
 	if err != nil {
@@ -1065,18 +1077,11 @@ func gotAnswer(c *client, id string, answer webrtc.SessionDescription) error {
 }
 
 func gotICE(c *client, candidate *webrtc.ICECandidateInit, id string) error {
-	var pc *webrtc.PeerConnection
-	down := getDownConn(c, id)
-	if down != nil {
-		pc = down.pc
-	} else {
-		up := getUpConn(c, id)
-		if up == nil {
-			return errors.New("unknown id in ICE")
-		}
-		pc = up.pc
+	conn := getConn(c, id)
+	if conn == nil {
+		return errors.New("unknown id in ICE")
 	}
-	return pc.AddICECandidate(*candidate)
+	return conn.getPC().AddICECandidate(*candidate)
 }
 
 func (c *client) setRequested(requested map[string]uint32) error {
