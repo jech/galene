@@ -320,7 +320,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 	if c.up == nil {
 		c.up = make(map[string]*upConnection)
 	}
-	if c.up[id] != nil {
+	if c.up[id] != nil || (c.down != nil && c.down[id] != nil) {
 		conn.pc.Close()
 		return nil, errors.New("Adding duplicate connection")
 	}
@@ -697,7 +697,7 @@ func addDownConn(c *client, id string, remote *upConnection) (*downConnection, e
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.down[id] != nil {
+	if c.down[id] != nil || (c.up != nil && c.up[id] != nil) {
 		conn.pc.Close()
 		return nil, errors.New("Adding duplicate connection")
 	}
