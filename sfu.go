@@ -31,6 +31,7 @@ var httpAddr string
 var staticRoot string
 var dataDir string
 var groupsDir string
+var recordingsDir string
 var iceFilename string
 
 func main() {
@@ -43,6 +44,8 @@ func main() {
 		"data `directory`")
 	flag.StringVar(&groupsDir, "groups", "./groups/",
 		"group description `directory`")
+	flag.StringVar(&recordingsDir, "recordings", "./recordings/",
+		"recordings `directory`")
 	flag.StringVar(&cpuprofile, "cpuprofile", "",
 		"store CPU profile in `file`")
 	flag.StringVar(&memprofile, "memprofile", "",
