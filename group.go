@@ -52,6 +52,12 @@ func (up *upTrack) notifyLocal() {
 
 func (up *upTrack) addLocal(local *downTrack) {
 	up.mu.Lock()
+	for _, t := range up.local {
+		if t == local {
+			up.mu.Unlock()
+			return
+		}
+	}
 	up.local = append(up.local, local)
 	up.mu.Unlock()
 	up.notifyLocal()
