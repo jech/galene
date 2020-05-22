@@ -654,7 +654,7 @@ func getDownConn(c *client, id string) *downConnection {
 	return conn
 }
 
-func getConn(c *client, id string) connection {
+func getConn(c *client, id string) iceConnection {
 	up := getUpConn(c, id)
 	if up != nil {
 		return up
@@ -1053,6 +1053,11 @@ func gotOffer(c *client, id string, offer webrtc.SessionDescription, labels map[
 
 	up.labels = labels
 
+	err = up.flushICECandidates()
+	if err != nil {
+		log.Printf("ICE: %v", err)
+	}
+
 	return c.write(clientMessage{
 		Type:   "answer",
 		Id:     id,
@@ -1061,17 +1066,22 @@ func gotOffer(c *client, id string, offer webrtc.SessionDescription, labels map[
 }
 
 func gotAnswer(c *client, id string, answer webrtc.SessionDescription) error {
-	conn := getDownConn(c, id)
-	if conn == nil {
+	down := getDownConn(c, id)
+	if down == nil {
 		return protocolError("unknown id in answer")
 	}
-	err := conn.pc.SetRemoteDescription(answer)
+	err := down.pc.SetRemoteDescription(answer)
 	if err != nil {
 		return err
 	}
 
-	for _, t := range conn.tracks {
-		activateDownTrack(conn, t)
+	err = down.flushICECandidates()
+	if err != nil {
+		log.Printf("ICE: %v", err)
+	}
+
+	for _, t := range down.tracks {
+		activateDownTrack(down, t)
 	}
 	return nil
 }
@@ -1081,7 +1091,7 @@ func gotICE(c *client, candidate *webrtc.ICECandidateInit, id string) error {
 	if conn == nil {
 		return errors.New("unknown id in ICE")
 	}
-	return conn.getPC().AddICECandidate(*candidate)
+	return conn.addICECandidate(candidate)
 }
 
 func (c *client) setRequested(requested map[string]uint32) error {

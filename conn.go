@@ -6,6 +6,7 @@
 package main
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -16,8 +17,9 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-type connection interface {
-	getPC() *webrtc.PeerConnection
+type iceConnection interface {
+	addICECandidate(candidate *webrtc.ICECandidateInit) error
+	flushICECandidates() error
 }
 
 type upTrack struct {
@@ -30,6 +32,7 @@ type upTrack struct {
 	lastPLI              uint64
 	lastSenderReport     uint32
 	lastSenderReportTime uint32
+	iceCandidates        []*webrtc.ICECandidateInit
 
 	localCh    chan struct{} // signals that local has changed
 	writerDone chan struct{} // closed when the loop dies
@@ -101,6 +104,35 @@ type upConnection struct {
 
 func (up *upConnection) getPC() *webrtc.PeerConnection {
 	return up.pc
+}
+
+func (up *upConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
+	if up.pc.RemoteDescription() != nil {
+		return up.pc.AddICECandidate(*candidate)
+	}
+	up.iceCandidates = append(up.iceCandidates, candidate)
+	return nil
+}
+
+func flushICECandidates(pc *webrtc.PeerConnection, candidates []*webrtc.ICECandidateInit) error {
+	if pc.RemoteDescription() == nil {
+		return errors.New("flushICECandidates called in bad state")
+	}
+
+	var err error
+	for _, candidate := range candidates {
+		err2 := pc.AddICECandidate(*candidate)
+		if err == nil {
+			err = err2
+		}
+	}
+	return err
+}
+
+func (up *upConnection) flushICECandidates() error {
+	err := flushICECandidates(up.pc, up.iceCandidates)
+	up.iceCandidates = nil
+	return err
 }
 
 func getUpMid(pc *webrtc.PeerConnection, track *webrtc.Track) string {
@@ -200,4 +232,18 @@ type downConnection struct {
 
 func (down *downConnection) getPC() *webrtc.PeerConnection {
 	return down.pc
+}
+
+func (down *downConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
+	if down.pc.RemoteDescription() != nil {
+		return down.pc.AddICECandidate(*candidate)
+	}
+	down.iceCandidates = append(down.iceCandidates, candidate)
+	return nil
+}
+
+func (down *downConnection) flushICECandidates() error {
+	err := flushICECandidates(down.pc, down.iceCandidates)
+	down.iceCandidates = nil
+	return err
 }
