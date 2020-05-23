@@ -612,28 +612,12 @@ func delUpConn(c *client, id string) bool {
 		}
 	}
 
-	type clientId struct {
-		client *client
-		id     string
-	}
-	cids := make([]clientId, 0)
-
-	clients := c.group.getClients(c)
-	for _, cc := range clients {
-		cc.mu.Lock()
-		for _, otherconn := range cc.down {
-			if otherconn.remote == conn {
-				cids = append(cids, clientId{cc, otherconn.id})
-			}
+	local := conn.getLocal()
+	go func() {
+		for _, l := range local {
+			l.Close()
 		}
-		cc.mu.Unlock()
-	}
-
-	go func(cids []clientId) {
-		for _, cid := range cids {
-			cid.client.action(delConnAction{cid.id})
-		}
-	}(cids)
+	}()
 
 	conn.pc.Close()
 	delete(c.up, id)
@@ -691,17 +675,21 @@ func addDownConn(c *client, id string, remote *upConnection) (*downConnection, e
 	}
 	conn := &downConnection{
 		id:     id,
+		client: c,
 		pc:     pc,
 		remote: remote,
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	if c.down[id] != nil || (c.up != nil && c.up[id] != nil) {
 		conn.pc.Close()
 		return nil, errors.New("Adding duplicate connection")
 	}
 	c.down[id] = conn
+
+	remote.addLocal(conn)
 	return conn, nil
 }
 
@@ -717,6 +705,7 @@ func delDownConn(c *client, id string) bool {
 		return false
 	}
 
+	conn.remote.delLocal(conn)
 	for _, track := range conn.tracks {
 		found := track.remote.delLocal(track)
 		if !found {

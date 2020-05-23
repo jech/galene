@@ -100,10 +100,45 @@ type upConnection struct {
 	tracks        []*upTrack
 	labels        map[string]string
 	iceCandidates []*webrtc.ICECandidateInit
+
+	mu    sync.Mutex
+	local []*downConnection
 }
 
 func (up *upConnection) getPC() *webrtc.PeerConnection {
 	return up.pc
+}
+
+func (up *upConnection) addLocal(local *downConnection) {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	for _, t := range up.local {
+		if t == local {
+			up.mu.Unlock()
+			return
+		}
+	}
+	up.local = append(up.local, local)
+}
+
+func (up *upConnection) delLocal(local *downConnection) bool {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	for i, l := range up.local {
+		if l == local {
+			up.local = append(up.local[:i], up.local[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func (up *upConnection) getLocal() []*downConnection {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	local := make([]*downConnection, len(up.local))
+	copy(local, up.local)
+	return local
 }
 
 func (up *upConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
@@ -224,10 +259,15 @@ func (down *downTrack) GetMaxBitrate(now uint64) uint64 {
 
 type downConnection struct {
 	id            string
+	client        *client
 	pc            *webrtc.PeerConnection
 	remote        *upConnection
 	tracks        []*downTrack
 	iceCandidates []*webrtc.ICECandidateInit
+}
+
+func (down *downConnection) Close() error {
+	return down.client.action(delConnAction{down.id})
 }
 
 func (down *downConnection) getPC() *webrtc.PeerConnection {
