@@ -344,7 +344,7 @@ func (c *client) error(err error) error {
 	case userError:
 		return c.write(clientMessage{
 			Type:  "error",
-			Value: "The server said: " + string(e),
+			Value: string(e),
 		})
 	default:
 		return err

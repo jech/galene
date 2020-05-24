@@ -1215,7 +1215,16 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 				if down != nil {
 					err = negotiate(c, down)
 					if err != nil {
-						return err
+						log.Printf("Negotiate: %v", err)
+						delDownConn(c, down.id)
+						err = failConnection(
+							c, down.id,
+							"negotiation failed",
+						)
+						if err != nil {
+							return err
+						}
+						continue
 					}
 				}
 			case delConnAction:
@@ -1241,14 +1250,11 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 			case connectionFailedAction:
 				found := delUpConn(c, a.id)
 				if found {
-					c.write(clientMessage{
-						Type:  "error",
-						Value: "connection failed",
-					})
-					c.write(clientMessage{
-						Type: "abort",
-						Id:   a.id,
-					})
+					err := failConnection(c, a.id,
+						"ICE said: connection failed")
+					if err != nil {
+						return err
+					}
 					continue
 				}
 				// What should we do if a downstream
@@ -1261,11 +1267,13 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 				if !c.permissions.Present {
 					ids := getUpConns(c)
 					for _, id := range ids {
-						c.write(clientMessage{
-							Type: "abort",
-							Id:   id,
-						})
-						delUpConn(c, id)
+						found := delUpConn(c, id)
+						if found {
+							failConnection(
+								c, id,
+								"permission denied",
+							)
+						}
 					}
 				}
 			case kickAction:
@@ -1292,6 +1300,25 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 	}
 }
 
+func failConnection(c *client, id string, message string) error {
+	if id != "" {
+		err := c.write(clientMessage{
+			Type: "abort",
+			Id:   id,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if message != "" {
+		err := c.error(userError(message))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func handleClientMessage(c *client, m clientMessage) error {
 	switch m.Type {
 	case "request":
@@ -1312,7 +1339,8 @@ func handleClientMessage(c *client, m clientMessage) error {
 		}
 		err := gotOffer(c, m.Id, *m.Offer, m.Labels)
 		if err != nil {
-			return err
+			log.Printf("gotOffer: %v", err)
+			return failConnection(c, m.Id, "negotiation failed")
 		}
 	case "answer":
 		if m.Answer == nil {
