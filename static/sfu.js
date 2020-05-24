@@ -652,7 +652,7 @@ async function gotOffer(id, labels, offer) {
             if(label) {
                 c.labels[e.track.id] = label;
             } else {
-                console.error("Couldn't find label for track");
+                console.warn("Couldn't find label for track");
             }
             c.stream = e.streams[0];
             setMedia(id);
@@ -1075,15 +1075,21 @@ async function negotiate(id) {
     await c.pc.setLocalDescription(offer);
 
     // mids are not known until this point
-    c.pc.getTransceivers().forEach(t => {
-        if(t.sender && t.sender.track) {
-            let label = c.labels[t.sender.track.id];
-            if(label)
-                c.labelsByMid[t.mid] = label;
-            else
-                console.error("Couldn't find label for track");
-        }
-    });
+    if(typeof(c.pc.getTransceivers) === 'function') {
+        c.pc.getTransceivers().forEach(t => {
+            if(t.sender && t.sender.track) {
+                let label = c.labels[t.sender.track.id];
+                if(label)
+                    c.labelsByMid[t.mid] = label;
+                else
+                    console.warn("Couldn't find label for track");
+            }
+        });
+    } else {
+        console.warn('getTransceivers undefined');
+        displayWarning('getTransceivers undefined, please upgrade your browser');
+        // let the server deal with the mess
+    }
 
     send({
         type: 'offer',
