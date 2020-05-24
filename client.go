@@ -330,12 +330,6 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		sendICE(c, id, candidate)
 	})
 
-	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
-		if state == webrtc.ICEConnectionStateFailed {
-			c.action(connectionFailedAction{id: id})
-		}
-	})
-
 	go rtcpUpSender(c, conn)
 
 	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
@@ -662,12 +656,6 @@ func addDownConn(c *client, id string, remote *upConnection) (*downConnection, e
 
 	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
 		log.Printf("Got track on downstream connection")
-	})
-
-	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
-		if state == webrtc.ICEConnectionStateFailed {
-			c.action(connectionFailedAction{id: id})
-		}
 	})
 
 	if c.down == nil {
