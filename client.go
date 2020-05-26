@@ -618,7 +618,7 @@ func delUpConn(c *client, id string) bool {
 	return true
 }
 
-func getDownConn(c *client, id string) *downConnection {
+func getDownConn(c *client, id string) *rtpDownConnection {
 	if c.down == nil {
 		return nil
 	}
@@ -644,7 +644,7 @@ func getConn(c *client, id string) iceConnection {
 	return nil
 }
 
-func addDownConn(c *client, id string, remote *upConnection) (*downConnection, error) {
+func addDownConn(c *client, id string, remote *upConnection) (*rtpDownConnection, error) {
 	pc, err := groups.api.NewPeerConnection(iceConfiguration())
 	if err != nil {
 		return nil, err
@@ -659,9 +659,9 @@ func addDownConn(c *client, id string, remote *upConnection) (*downConnection, e
 	})
 
 	if c.down == nil {
-		c.down = make(map[string]*downConnection)
+		c.down = make(map[string]*rtpDownConnection)
 	}
-	conn := &downConnection{
+	conn := &rtpDownConnection{
 		id:     id,
 		client: c,
 		pc:     pc,
@@ -705,7 +705,7 @@ func delDownConn(c *client, id string) bool {
 	return true
 }
 
-func addDownTrack(c *client, conn *downConnection, remoteTrack *upTrack, remoteConn *upConnection) (*webrtc.RTPSender, error) {
+func addDownTrack(c *client, conn *rtpDownConnection, remoteTrack *upTrack, remoteConn *upConnection) (*webrtc.RTPSender, error) {
 	local, err := conn.pc.NewTrack(
 		remoteTrack.track.PayloadType(),
 		remoteTrack.track.SSRC(),
@@ -721,7 +721,7 @@ func addDownTrack(c *client, conn *downConnection, remoteTrack *upTrack, remoteC
 		return nil, err
 	}
 
-	track := &downTrack{
+	track := &rtpDownTrack{
 		track:          local,
 		remote:         remoteTrack,
 		maxLossBitrate: new(bitrate),
@@ -742,7 +742,7 @@ const (
 	maxLossRate  = 1 << 30
 )
 
-func (track *downTrack) updateRate(loss uint8, now uint64) {
+func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 	rate := track.maxLossBitrate.Get(now)
 	if rate > maxLossRate {
 		// no recent feedback, reset
@@ -771,7 +771,7 @@ func (track *downTrack) updateRate(loss uint8, now uint64) {
 	track.maxLossBitrate.Set(rate, now)
 }
 
-func rtcpDownListener(conn *downConnection, track *downTrack, s *webrtc.RTPSender) {
+func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RTPSender) {
 	for {
 		ps, err := s.ReadRTCP()
 		if err != nil {
@@ -820,7 +820,7 @@ func rtcpDownListener(conn *downConnection, track *downTrack, s *webrtc.RTPSende
 	}
 }
 
-func trackKinds(down *downConnection) (audio bool, video bool) {
+func trackKinds(down *rtpDownConnection) (audio bool, video bool) {
 	if down.pc == nil {
 		return
 	}
@@ -926,7 +926,7 @@ func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint1
 	return pc.WriteRTCP([]rtcp.Packet{packet})
 }
 
-func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
+func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
 	var packet rtp.Packet
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
@@ -949,7 +949,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *downTrack) {
 	}
 }
 
-func negotiate(c *client, down *downConnection) error {
+func negotiate(c *client, down *rtpDownConnection) error {
 	offer, err := down.pc.CreateOffer(nil)
 	if err != nil {
 		return err
@@ -1094,7 +1094,7 @@ func (c *client) isRequested(label string) bool {
 	return c.requested[label] != 0
 }
 
-func addDownConnTracks(c *client, remote *upConnection, tracks []*upTrack) (*downConnection, error) {
+func addDownConnTracks(c *client, remote *upConnection, tracks []*upTrack) (*rtpDownConnection, error) {
 	requested := false
 	for _, t := range tracks {
 		if c.isRequested(t.label) {

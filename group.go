@@ -33,7 +33,7 @@ type client struct {
 	actionCh    chan interface{}
 
 	mu   sync.Mutex
-	down map[string]*downConnection
+	down map[string]*rtpDownConnection
 	up   map[string]*upConnection
 }
 

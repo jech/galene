@@ -33,7 +33,7 @@ type upTrack struct {
 	writerDone chan struct{} // closed when the loop dies
 
 	mu    sync.Mutex
-	local []*downTrack
+	local []downTrack
 }
 
 func (up *upTrack) notifyLocal() {
@@ -44,7 +44,7 @@ func (up *upTrack) notifyLocal() {
 	}
 }
 
-func (up *upTrack) addLocal(local *downTrack) {
+func (up *upTrack) addLocal(local downTrack) {
 	up.mu.Lock()
 	for _, t := range up.local {
 		if t == local {
@@ -57,7 +57,7 @@ func (up *upTrack) addLocal(local *downTrack) {
 	up.notifyLocal()
 }
 
-func (up *upTrack) delLocal(local *downTrack) bool {
+func (up *upTrack) delLocal(local downTrack) bool {
 	up.mu.Lock()
 	for i, l := range up.local {
 		if l == local {
@@ -71,10 +71,10 @@ func (up *upTrack) delLocal(local *downTrack) bool {
 	return false
 }
 
-func (up *upTrack) getLocal() []*downTrack {
+func (up *upTrack) getLocal() []downTrack {
 	up.mu.Lock()
 	defer up.mu.Unlock()
-	local := make([]*downTrack, len(up.local))
+	local := make([]downTrack, len(up.local))
 	copy(local, up.local)
 	return local
 }
@@ -102,14 +102,10 @@ type upConnection struct {
 	iceCandidates []*webrtc.ICECandidateInit
 
 	mu    sync.Mutex
-	local []*downConnection
+	local []downConnection
 }
 
-func (up *upConnection) getPC() *webrtc.PeerConnection {
-	return up.pc
-}
-
-func (up *upConnection) addLocal(local *downConnection) {
+func (up *upConnection) addLocal(local downConnection) {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	for _, t := range up.local {
@@ -121,7 +117,7 @@ func (up *upConnection) addLocal(local *downConnection) {
 	up.local = append(up.local, local)
 }
 
-func (up *upConnection) delLocal(local *downConnection) bool {
+func (up *upConnection) delLocal(local downConnection) bool {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	for i, l := range up.local {
@@ -133,10 +129,10 @@ func (up *upConnection) delLocal(local *downConnection) bool {
 	return false
 }
 
-func (up *upConnection) getLocal() []*downConnection {
+func (up *upConnection) getLocal() []downConnection {
 	up.mu.Lock()
 	defer up.mu.Unlock()
-	local := make([]*downConnection, len(up.local))
+	local := make([]downConnection, len(up.local))
 	copy(local, up.local)
 	return local
 }
@@ -239,7 +235,13 @@ func (s *receiverStats) Get(now uint64) (uint8, uint32) {
 	return uint8(atomic.LoadUint32(&s.loss)), atomic.LoadUint32(&s.jitter)
 }
 
-type downTrack struct {
+type downTrack interface {
+	WriteRTP(packat *rtp.Packet) error
+	Accumulate(bytes uint32)
+	GetMaxBitrate(now uint64) uint64
+}
+
+type rtpDownTrack struct {
 	track          *webrtc.Track
 	remote         *upTrack
 	maxLossBitrate *bitrate
@@ -248,15 +250,15 @@ type downTrack struct {
 	stats          *receiverStats
 }
 
-func (down *downTrack) WriteRTP(packet *rtp.Packet) error {
+func (down *rtpDownTrack) WriteRTP(packet *rtp.Packet) error {
 	return down.track.WriteRTP(packet)
 }
 
-func (down *downTrack) Accumulate(bytes uint32) {
+func (down *rtpDownTrack) Accumulate(bytes uint32) {
 	down.rate.Add(bytes)
 }
 
-func (down *downTrack) GetMaxBitrate(now uint64) uint64 {
+func (down *rtpDownTrack) GetMaxBitrate(now uint64) uint64 {
 	br1 := down.maxLossBitrate.Get(now)
 	br2 := down.maxREMBBitrate.Get(now)
 	if br1 < br2 {
@@ -265,24 +267,24 @@ func (down *downTrack) GetMaxBitrate(now uint64) uint64 {
 	return br2
 }
 
-type downConnection struct {
+type downConnection interface {
+	Close() error
+}
+
+type rtpDownConnection struct {
 	id            string
 	client        *client
 	pc            *webrtc.PeerConnection
 	remote        *upConnection
-	tracks        []*downTrack
+	tracks        []*rtpDownTrack
 	iceCandidates []*webrtc.ICECandidateInit
 }
 
-func (down *downConnection) Close() error {
+func (down *rtpDownConnection) Close() error {
 	return down.client.action(delConnAction{down.id})
 }
 
-func (down *downConnection) getPC() *webrtc.PeerConnection {
-	return down.pc
-}
-
-func (down *downConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
+func (down *rtpDownConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
 	if down.pc.RemoteDescription() != nil {
 		return down.pc.AddICECandidate(*candidate)
 	}
@@ -290,7 +292,7 @@ func (down *downConnection) addICECandidate(candidate *webrtc.ICECandidateInit) 
 	return nil
 }
 
-func (down *downConnection) flushICECandidates() error {
+func (down *rtpDownConnection) flushICECandidates() error {
 	err := flushICECandidates(down.pc, down.iceCandidates)
 	down.iceCandidates = nil
 	return err
