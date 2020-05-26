@@ -736,10 +736,6 @@ func addDownTrack(c *client, conn *downConnection, remoteTrack *upTrack, remoteC
 	return s, nil
 }
 
-func activateDownTrack(conn *downConnection, track *downTrack) {
-	track.remote.addLocal(track)
-}
-
 const (
 	minLossRate  = 9600
 	initLossRate = 512 * 1000
@@ -1058,7 +1054,7 @@ func gotAnswer(c *client, id string, answer webrtc.SessionDescription) error {
 	}
 
 	for _, t := range down.tracks {
-		activateDownTrack(down, t)
+		t.remote.addLocal(t)
 	}
 	return nil
 }
