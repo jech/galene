@@ -366,7 +366,7 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
 			maxBitrate: ^uint64(0),
-			localCh:    make(chan struct{}, 2),
+			localCh:    make(chan localTrackAction, 2),
 			writerDone: make(chan struct{}),
 		}
 		u.tracks = append(u.tracks, track)
@@ -380,16 +380,16 @@ func addUpConn(c *client, id string) (*upConnection, error) {
 		}
 		c.mu.Unlock()
 
+		go readLoop(conn, track)
+
+		go rtcpUpListener(conn, track, receiver)
+
 		if tracks != nil {
 			clients := c.group.getClients(c)
 			for _, cc := range clients {
 				pushConn(cc, u, tracks, u.label)
 			}
 		}
-
-		go readLoop(conn, track)
-
-		go rtcpUpListener(conn, track, receiver)
 	})
 
 	return conn, nil
@@ -469,12 +469,26 @@ func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 
-	local := track.getLocal()
+	local := make([]downTrack, 0)
 
 	for {
 		select {
-		case <-track.localCh:
-			local = track.getLocal()
+		case action := <-track.localCh:
+			if action.add {
+				local = append(local, action.track)
+			} else {
+				found := false
+				for i, t := range local {
+					if t == action.track {
+						local = append(local[:i], local[i+1:]...)
+						found = true
+						break
+					}
+				}
+				if !found {
+					log.Printf("Deleting unknown track!")
+				}
+			}
 		case pi, ok := <-ch:
 			if !ok {
 				return
