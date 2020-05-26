@@ -14,6 +14,7 @@ import (
 	"sfu/jitter"
 	"sfu/packetcache"
 
+	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -245,6 +246,14 @@ type downTrack struct {
 	maxREMBBitrate *bitrate
 	rate           *estimator.Estimator
 	stats          *receiverStats
+}
+
+func (down *downTrack) WriteRTP(packet *rtp.Packet) error {
+	return down.track.WriteRTP(packet)
+}
+
+func (down *downTrack) Accumulate(bytes uint32) {
+	down.rate.Add(bytes)
 }
 
 func (down *downTrack) GetMaxBitrate(now uint64) uint64 {

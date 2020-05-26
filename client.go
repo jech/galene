@@ -492,14 +492,14 @@ func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
 			}
 
 			for _, l := range local {
-				err := l.track.WriteRTP(&packet)
+				err := l.WriteRTP(&packet)
 				if err != nil {
 					if err != io.ErrClosedPipe {
 						log.Printf("WriteRTP: %v", err)
 					}
 					continue
 				}
-				l.rate.Add(uint32(bytes))
+				l.Accumulate(uint32(bytes))
 			}
 		}
 	}
