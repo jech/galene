@@ -17,11 +17,6 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-type iceConnection interface {
-	addICECandidate(candidate *webrtc.ICECandidateInit) error
-	flushICECandidates() error
-}
-
 type upTrack struct {
 	track                *webrtc.Track
 	label                string
@@ -32,7 +27,6 @@ type upTrack struct {
 	lastPLI              uint64
 	lastSenderReport     uint32
 	lastSenderReportTime uint32
-	iceCandidates        []*webrtc.ICECandidateInit
 
 	localCh    chan struct{} // signals that local has changed
 	writerDone chan struct{} // closed when the loop dies
@@ -91,6 +85,11 @@ func (up *upTrack) hasRtcpFb(tpe, parameter string) bool {
 		}
 	}
 	return false
+}
+
+type iceConnection interface {
+	addICECandidate(candidate *webrtc.ICECandidateInit) error
+	flushICECandidates() error
 }
 
 type upConnection struct {
