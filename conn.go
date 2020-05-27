@@ -281,7 +281,7 @@ type downConnection interface {
 
 type rtpDownConnection struct {
 	id            string
-	client        *client
+	client        *webClient
 	pc            *webrtc.PeerConnection
 	remote        *upConnection
 	tracks        []*rtpDownTrack

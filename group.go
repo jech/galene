@@ -21,22 +21,6 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-type client struct {
-	group       *group
-	id          string
-	username    string
-	permissions userPermission
-	requested   map[string]uint32
-	done        chan struct{}
-	writeCh     chan interface{}
-	writerDone  chan struct{}
-	actionCh    chan interface{}
-
-	mu   sync.Mutex
-	down map[string]*rtpDownConnection
-	up   map[string]*upConnection
-}
-
 type chatHistoryEntry struct {
 	id    string
 	user  string
@@ -57,7 +41,7 @@ type group struct {
 	locked      uint32
 
 	mu      sync.Mutex
-	clients map[string]*client
+	clients map[string]*webClient
 	history []chatHistoryEntry
 }
 
@@ -80,7 +64,7 @@ type getUpAction struct {
 }
 
 type pushConnsAction struct {
-	c *client
+	c *webClient
 }
 
 type connectionFailedAction struct {
@@ -138,7 +122,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 		g = &group{
 			name:        name,
 			description: desc,
-			clients:     make(map[string]*client),
+			clients:     make(map[string]*webClient),
 		}
 		groups.groups[name] = g
 	} else if desc != nil {
@@ -211,7 +195,7 @@ type userid struct {
 	username string
 }
 
-func addClient(name string, client *client, user, pass string) (*group, []userid, error) {
+func addClient(name string, client *webClient, user, pass string) (*group, []userid, error) {
 	g, err := addGroup(name, nil)
 	if err != nil {
 		return nil, nil, err
@@ -247,7 +231,7 @@ func addClient(name string, client *client, user, pass string) (*group, []userid
 	return g, users, nil
 }
 
-func delClient(c *client) {
+func delClient(c *webClient) {
 	c.group.mu.Lock()
 	defer c.group.mu.Unlock()
 	g := c.group
@@ -259,10 +243,10 @@ func delClient(c *client) {
 	delete(g.clients, c.id)
 }
 
-func (g *group) getClients(except *client) []*client {
+func (g *group) getClients(except *webClient) []*webClient {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	clients := make([]*client, 0, len(g.clients))
+	clients := make([]*webClient, 0, len(g.clients))
 	for _, c := range g.clients {
 		if c != except {
 			clients = append(clients, c)
@@ -271,7 +255,7 @@ func (g *group) getClients(except *client) []*client {
 	return clients
 }
 
-func (g *group) getClientUnlocked(id string) *client {
+func (g *group) getClientUnlocked(id string) *webClient {
 	for _, c := range g.clients {
 		if c.id == id {
 			return c
@@ -280,7 +264,7 @@ func (g *group) getClientUnlocked(id string) *client {
 	return nil
 }
 
-func (g *group) Range(f func(c *client) bool) {
+func (g *group) Range(f func(c *webClient) bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for _, c := range g.clients {
@@ -327,7 +311,7 @@ func (err writerDeadError) Error() string {
 	return "client writer died"
 }
 
-func (c *client) write(m clientMessage) error {
+func (c *webClient) write(m clientMessage) error {
 	select {
 	case c.writeCh <- m:
 		return nil
@@ -336,7 +320,7 @@ func (c *client) write(m clientMessage) error {
 	}
 }
 
-func (c *client) error(err error) error {
+func (c *webClient) error(err error) error {
 	switch e := err.(type) {
 	case userError:
 		return c.write(clientMessage{
@@ -354,7 +338,7 @@ func (err clientDeadError) Error() string {
 	return "client dead"
 }
 
-func (c *client) action(m interface{}) error {
+func (c *webClient) action(m interface{}) error {
 	select {
 	case c.actionCh <- m:
 		return nil
@@ -611,7 +595,7 @@ func getGroupStats() []groupStats {
 	return gs
 }
 
-func getClientStats(c *client) clientStats {
+func getClientStats(c *webClient) clientStats {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

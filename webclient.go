@@ -91,6 +91,22 @@ func isWSNormalError(err error) bool {
 		websocket.CloseGoingAway)
 }
 
+type webClient struct {
+	group       *group
+	id          string
+	username    string
+	permissions userPermission
+	requested   map[string]uint32
+	done        chan struct{}
+	writeCh     chan interface{}
+	writerDone  chan struct{}
+	actionCh    chan interface{}
+
+	mu   sync.Mutex
+	down map[string]*rtpDownConnection
+	up   map[string]*upConnection
+}
+
 type rateMap map[string]uint32
 
 func (v *rateMap) UnmarshalJSON(b []byte) error {
@@ -183,7 +199,7 @@ func startClient(conn *websocket.Conn) (err error) {
 		return
 	}
 
-	c := &client{
+	c := &webClient{
 		id:       m.Id,
 		username: m.Username,
 		actionCh: make(chan interface{}, 10),
@@ -262,7 +278,7 @@ func startClient(conn *websocket.Conn) (err error) {
 	return clientLoop(c, conn)
 }
 
-func getUpConn(c *client, id string) *upConnection {
+func getUpConn(c *webClient, id string) *upConnection {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -276,7 +292,7 @@ func getUpConn(c *client, id string) *upConnection {
 	return conn
 }
 
-func getUpConns(c *client) []string {
+func getUpConns(c *webClient) []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	up := make([]string, 0, len(c.up))
@@ -286,7 +302,7 @@ func getUpConns(c *client) []string {
 	return up
 }
 
-func addUpConn(c *client, id string) (*upConnection, error) {
+func addUpConn(c *webClient, id string) (*upConnection, error) {
 	pc, err := groups.api.NewPeerConnection(iceConfiguration())
 	if err != nil {
 		return nil, err
@@ -563,7 +579,7 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 	}
 }
 
-func sendRR(c *client, conn *upConnection) error {
+func sendRR(c *webClient, conn *upConnection) error {
 	c.mu.Lock()
 	if len(conn.tracks) == 0 {
 		c.mu.Unlock()
@@ -604,7 +620,7 @@ func sendRR(c *client, conn *upConnection) error {
 	})
 }
 
-func rtcpUpSender(c *client, conn *upConnection) {
+func rtcpUpSender(c *webClient, conn *upConnection) {
 	for {
 		time.Sleep(time.Second)
 		err := sendRR(c, conn)
@@ -617,7 +633,7 @@ func rtcpUpSender(c *client, conn *upConnection) {
 	}
 }
 
-func delUpConn(c *client, id string) bool {
+func delUpConn(c *webClient, id string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -653,7 +669,7 @@ func delUpConn(c *client, id string) bool {
 	return true
 }
 
-func getDownConn(c *client, id string) *rtpDownConnection {
+func getDownConn(c *webClient, id string) *rtpDownConnection {
 	if c.down == nil {
 		return nil
 	}
@@ -667,7 +683,7 @@ func getDownConn(c *client, id string) *rtpDownConnection {
 	return conn
 }
 
-func getConn(c *client, id string) iceConnection {
+func getConn(c *webClient, id string) iceConnection {
 	up := getUpConn(c, id)
 	if up != nil {
 		return up
@@ -679,7 +695,7 @@ func getConn(c *client, id string) iceConnection {
 	return nil
 }
 
-func addDownConn(c *client, id string, remote *upConnection) (*rtpDownConnection, error) {
+func addDownConn(c *webClient, id string, remote *upConnection) (*rtpDownConnection, error) {
 	pc, err := groups.api.NewPeerConnection(iceConfiguration())
 	if err != nil {
 		return nil, err
@@ -716,7 +732,7 @@ func addDownConn(c *client, id string, remote *upConnection) (*rtpDownConnection
 	return conn, nil
 }
 
-func delDownConn(c *client, id string) bool {
+func delDownConn(c *webClient, id string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -740,7 +756,7 @@ func delDownConn(c *client, id string) bool {
 	return true
 }
 
-func addDownTrack(c *client, conn *rtpDownConnection, remoteTrack *upTrack, remoteConn *upConnection) (*webrtc.RTPSender, error) {
+func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack *upTrack, remoteConn *upConnection) (*webrtc.RTPSender, error) {
 	local, err := conn.pc.NewTrack(
 		remoteTrack.track.PayloadType(),
 		remoteTrack.track.SSRC(),
@@ -1058,7 +1074,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
 	}
 }
 
-func negotiate(c *client, down *rtpDownConnection) error {
+func negotiate(c *webClient, down *rtpDownConnection) error {
 	offer, err := down.pc.CreateOffer(nil)
 	if err != nil {
 		return err
@@ -1094,7 +1110,7 @@ func negotiate(c *client, down *rtpDownConnection) error {
 	})
 }
 
-func sendICE(c *client, id string, candidate *webrtc.ICECandidate) error {
+func sendICE(c *webClient, id string, candidate *webrtc.ICECandidate) error {
 	if candidate == nil {
 		return nil
 	}
@@ -1106,7 +1122,7 @@ func sendICE(c *client, id string, candidate *webrtc.ICECandidate) error {
 	})
 }
 
-func gotOffer(c *client, id string, offer webrtc.SessionDescription, labels map[string]string) error {
+func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, labels map[string]string) error {
 	var err error
 	up, ok := c.up[id]
 	if !ok {
@@ -1147,7 +1163,7 @@ func gotOffer(c *client, id string, offer webrtc.SessionDescription, labels map[
 	})
 }
 
-func gotAnswer(c *client, id string, answer webrtc.SessionDescription) error {
+func gotAnswer(c *webClient, id string, answer webrtc.SessionDescription) error {
 	down := getDownConn(c, id)
 	if down == nil {
 		return protocolError("unknown id in answer")
@@ -1168,7 +1184,7 @@ func gotAnswer(c *client, id string, answer webrtc.SessionDescription) error {
 	return nil
 }
 
-func gotICE(c *client, candidate *webrtc.ICECandidateInit, id string) error {
+func gotICE(c *webClient, candidate *webrtc.ICECandidateInit, id string) error {
 	conn := getConn(c, id)
 	if conn == nil {
 		return errors.New("unknown id in ICE")
@@ -1176,7 +1192,7 @@ func gotICE(c *client, candidate *webrtc.ICECandidateInit, id string) error {
 	return conn.addICECandidate(candidate)
 }
 
-func (c *client) setRequested(requested map[string]uint32) error {
+func (c *webClient) setRequested(requested map[string]uint32) error {
 	if c.down != nil {
 		for id := range c.down {
 			c.write(clientMessage{
@@ -1199,11 +1215,11 @@ func (c *client) setRequested(requested map[string]uint32) error {
 	return nil
 }
 
-func (c *client) isRequested(label string) bool {
+func (c *webClient) isRequested(label string) bool {
 	return c.requested[label] != 0
 }
 
-func addDownConnTracks(c *client, remote *upConnection, tracks []*upTrack) (*rtpDownConnection, error) {
+func addDownConnTracks(c *webClient, remote *upConnection, tracks []*upTrack) (*rtpDownConnection, error) {
 	requested := false
 	for _, t := range tracks {
 		if c.isRequested(t.label) {
@@ -1234,14 +1250,14 @@ func addDownConnTracks(c *client, remote *upConnection, tracks []*upTrack) (*rtp
 	return down, nil
 }
 
-func pushConn(c *client, conn *upConnection, tracks []*upTrack, label string) {
+func pushConn(c *webClient, conn *upConnection, tracks []*upTrack, label string) {
 	c.action(addConnAction{conn, tracks})
 	if label != "" {
 		c.action(addLabelAction{conn.id, conn.label})
 	}
 }
 
-func clientLoop(c *client, conn *websocket.Conn) error {
+func clientLoop(c *webClient, conn *websocket.Conn) error {
 	read := make(chan interface{}, 1)
 	go clientReader(conn, read, c.done)
 
@@ -1393,7 +1409,7 @@ func clientLoop(c *client, conn *websocket.Conn) error {
 	}
 }
 
-func failConnection(c *client, id string, message string) error {
+func failConnection(c *webClient, id string, message string) error {
 	if id != "" {
 		err := c.write(clientMessage{
 			Type: "abort",
@@ -1412,7 +1428,7 @@ func failConnection(c *client, id string, message string) error {
 	return nil
 }
 
-func handleClientMessage(c *client, m clientMessage) error {
+func handleClientMessage(c *webClient, m clientMessage) error {
 	switch m.Type {
 	case "request":
 		err := c.setRequested(m.Request)
@@ -1507,7 +1523,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 	return nil
 }
 
-func sendRateUpdate(c *client) {
+func sendRateUpdate(c *webClient) {
 	type remb struct {
 		pc      *webrtc.PeerConnection
 		ssrc    uint32
