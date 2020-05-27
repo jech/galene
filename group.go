@@ -256,10 +256,6 @@ func delClient(c *client) {
 		return
 	}
 	delete(g.clients, c.id)
-
-	if len(g.clients) == 0 && !g.description.Public {
-		delGroupUnlocked(g.name)
-	}
 }
 
 func (g *group) getClients(except *client) []*client {
