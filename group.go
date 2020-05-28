@@ -21,6 +21,13 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+type client interface {
+	getGroup() *group
+	getId() string
+	getUsername() string
+	pushConn(conn *upConnection, tracks []*upTrack, label string) error
+}
+
 type chatHistoryEntry struct {
 	id    string
 	user  string
@@ -41,7 +48,7 @@ type group struct {
 	locked      uint32
 
 	mu      sync.Mutex
-	clients map[string]*webClient
+	clients map[string]client
 	history []chatHistoryEntry
 }
 
@@ -64,7 +71,7 @@ type getUpAction struct {
 }
 
 type pushConnsAction struct {
-	c *webClient
+	c client
 }
 
 type connectionFailedAction struct {
@@ -122,7 +129,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 		g = &group{
 			name:        name,
 			description: desc,
-			clients:     make(map[string]*webClient),
+			clients:     make(map[string]client),
 		}
 		groups.groups[name] = g
 	} else if desc != nil {
@@ -195,7 +202,7 @@ type userid struct {
 	username string
 }
 
-func addClient(name string, client *webClient, user, pass string) (*group, []userid, error) {
+func addClient(name string, client client, user, pass string) (*group, []userid, error) {
 	g, err := addGroup(name, nil)
 	if err != nil {
 		return nil, nil, err
@@ -205,7 +212,10 @@ func addClient(name string, client *webClient, user, pass string) (*group, []use
 	if err != nil {
 		return nil, nil, err
 	}
-	client.permissions = perms
+	c, ok := client.(*webClient)
+	if ok {
+		c.permissions = perms
+	}
 
 	if !perms.Op && atomic.LoadUint32(&g.locked) != 0 {
 		return nil, nil, userError("group is locked")
@@ -219,34 +229,34 @@ func addClient(name string, client *webClient, user, pass string) (*group, []use
 			return nil, nil, userError("too many users")
 		}
 	}
-	if g.clients[client.id] != nil {
+	if g.clients[client.getId()] != nil {
 		return nil, nil, protocolError("duplicate client id")
 	}
 
 	var users []userid
 	for _, c := range g.clients {
-		users = append(users, userid{c.id, c.username})
+		users = append(users, userid{c.getId(), c.getUsername()})
 	}
-	g.clients[client.id] = client
+	g.clients[client.getId()] = client
 	return g, users, nil
 }
 
-func delClient(c *webClient) {
-	c.group.mu.Lock()
-	defer c.group.mu.Unlock()
-	g := c.group
+func delClient(c client) {
+	g := c.getGroup()
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
-	if g.clients[c.id] != c {
+	if g.clients[c.getId()] != c {
 		log.Printf("Deleting unknown client")
 		return
 	}
-	delete(g.clients, c.id)
+	delete(g.clients, c.getId())
 }
 
-func (g *group) getClients(except *webClient) []*webClient {
+func (g *group) getClients(except client) []client {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	clients := make([]*webClient, 0, len(g.clients))
+	clients := make([]client, 0, len(g.clients))
 	for _, c := range g.clients {
 		if c != except {
 			clients = append(clients, c)
@@ -255,16 +265,16 @@ func (g *group) getClients(except *webClient) []*webClient {
 	return clients
 }
 
-func (g *group) getClientUnlocked(id string) *webClient {
-	for _, c := range g.clients {
-		if c.id == id {
+func (g *group) getClientUnlocked(id string) client {
+	for idd, c := range g.clients {
+		if idd == id {
 			return c
 		}
 	}
 	return nil
 }
 
-func (g *group) Range(f func(c *webClient) bool) {
+func (g *group) Range(f func(c client) bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for _, c := range g.clients {
@@ -311,40 +321,10 @@ func (err writerDeadError) Error() string {
 	return "client writer died"
 }
 
-func (c *webClient) write(m clientMessage) error {
-	select {
-	case c.writeCh <- m:
-		return nil
-	case <-c.writerDone:
-		return writerDeadError(0)
-	}
-}
-
-func (c *webClient) error(err error) error {
-	switch e := err.(type) {
-	case userError:
-		return c.write(clientMessage{
-			Type:  "error",
-			Value: string(e),
-		})
-	default:
-		return err
-	}
-}
-
 type clientDeadError int
 
 func (err clientDeadError) Error() string {
 	return "client dead"
-}
-
-func (c *webClient) action(m interface{}) error {
-	select {
-	case c.actionCh <- m:
-		return nil
-	case <-c.done:
-		return clientDeadError(0)
-	}
 }
 
 type groupUser struct {
@@ -453,42 +433,6 @@ func getPermission(desc *groupDescription, user, pass string) (userPermission, e
 	return p, userError("not authorised")
 }
 
-func setPermission(g *group, id string, perm string) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	c := g.getClientUnlocked(id)
-	if c == nil {
-		return userError("no such user")
-	}
-
-	switch perm {
-	case "op":
-		c.permissions.Op = true
-	case "unop":
-		c.permissions.Op = false
-	case "present":
-		c.permissions.Present = true
-	case "unpresent":
-		c.permissions.Present = false
-	default:
-		return userError("unknown permission")
-	}
-	return c.action(permissionsChangedAction{})
-}
-
-func kickClient(g *group, id string) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	c := g.getClientUnlocked(id)
-	if c == nil {
-		return userError("no such user")
-	}
-
-	return c.action(kickAction{})
-}
-
 type publicGroup struct {
 	Name        string `json:"name"`
 	ClientCount int    `json:"clientCount"`
@@ -580,8 +524,11 @@ func getGroupStats() []groupStats {
 			clients: make([]clientStats, 0, len(clients)),
 		}
 		for _, c := range clients {
-			cs := getClientStats(c)
-			stats.clients = append(stats.clients, cs)
+			c, ok := c.(*webClient)
+			if ok {
+				cs := getClientStats(c)
+				stats.clients = append(stats.clients, cs)
+			}
 		}
 		sort.Slice(stats.clients, func(i, j int) bool {
 			return stats.clients[i].id < stats.clients[j].id

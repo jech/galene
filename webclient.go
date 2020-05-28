@@ -107,6 +107,18 @@ type webClient struct {
 	up   map[string]*upConnection
 }
 
+func (c *webClient) getGroup() *group {
+	return c.group
+}
+
+func (c *webClient) getId() string {
+	return c.id
+}
+
+func (c *webClient) getUsername() string {
+	return c.username
+}
+
 type rateMap map[string]uint32
 
 func (v *rateMap) UnmarshalJSON(b []byte) error {
@@ -259,7 +271,10 @@ func startClient(conn *websocket.Conn) (err error) {
 		Username: c.username,
 	}
 	for _, c := range clients {
-		c.write(u)
+		c, ok := c.(*webClient)
+		if ok {
+			c.write(u)
+		}
 	}
 
 	defer func() {
@@ -271,7 +286,10 @@ func startClient(conn *websocket.Conn) (err error) {
 			Del:      true,
 		}
 		for _, c := range clients {
-			c.write(u)
+			c, ok := c.(*webClient)
+			if ok {
+				c.write(u)
+			}
 		}
 	}()
 
@@ -403,7 +421,7 @@ func addUpConn(c *webClient, id string) (*upConnection, error) {
 		if tracks != nil {
 			clients := c.group.getClients(c)
 			for _, cc := range clients {
-				pushConn(cc, u, tracks, u.label)
+				cc.pushConn(u, tracks, u.label)
 			}
 		}
 	})
@@ -1208,7 +1226,10 @@ func (c *webClient) setRequested(requested map[string]uint32) error {
 	go func() {
 		clients := c.group.getClients(c)
 		for _, cc := range clients {
-			cc.action(pushConnsAction{c})
+			ccc, ok := cc.(*webClient)
+			if ok {
+				ccc.action(pushConnsAction{c})
+			}
 		}
 	}()
 
@@ -1250,11 +1271,18 @@ func addDownConnTracks(c *webClient, remote *upConnection, tracks []*upTrack) (*
 	return down, nil
 }
 
-func pushConn(c *webClient, conn *upConnection, tracks []*upTrack, label string) {
-	c.action(addConnAction{conn, tracks})
-	if label != "" {
-		c.action(addLabelAction{conn.id, conn.label})
+func (c *webClient) pushConn(conn *upConnection, tracks []*upTrack, label string) error {
+	err := c.action(addConnAction{conn, tracks})
+	if err != nil {
+		return err
 	}
+	if label != "" {
+		err := c.action(addLabelAction{conn.id, conn.label})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func clientLoop(c *webClient, conn *websocket.Conn) error {
@@ -1354,7 +1382,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 				for _, u := range c.up {
 					tracks := make([]*upTrack, len(u.tracks))
 					copy(tracks, u.tracks)
-					go pushConn(a.c, u, tracks, u.label)
+					go a.c.pushConn(u, tracks, u.label)
 				}
 			case connectionFailedAction:
 				found := delUpConn(c, a.id)
@@ -1428,6 +1456,52 @@ func failConnection(c *webClient, id string, message string) error {
 	return nil
 }
 
+func setPermissions(g *group, id string, perm string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	client := g.getClientUnlocked(id)
+	if client == nil {
+		return userError("no such user")
+	}
+
+	c, ok := client.(*webClient)
+	if !ok {
+		return userError("this is not a real user")
+	}
+
+	switch perm {
+	case "op":
+		c.permissions.Op = true
+	case "unop":
+		c.permissions.Op = false
+	case "present":
+		c.permissions.Present = true
+	case "unpresent":
+		c.permissions.Present = false
+	default:
+		return userError("unknown permission")
+	}
+	return c.action(permissionsChangedAction{})
+}
+
+func kickClient(g *group, id string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	client := g.getClientUnlocked(id)
+	if client == nil {
+		return userError("no such user")
+	}
+
+	c, ok := client.(*webClient)
+	if !ok {
+		return userError("this is not a real user")
+	}
+
+	return c.action(kickAction{})
+}
+
 func handleClientMessage(c *webClient, m clientMessage) error {
 	switch m.Type {
 	case "request":
@@ -1476,20 +1550,26 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		c.group.addToChatHistory(m.Id, m.Username, m.Value, m.Me)
 		clients := c.group.getClients(c)
 		for _, cc := range clients {
-			cc.write(m)
+			cc, ok := cc.(*webClient)
+			if ok {
+				cc.write(m)
+			}
 		}
 	case "clearchat":
 		c.group.clearChatHistory()
 		m := clientMessage{Type: "clearchat"}
 		clients := c.group.getClients(nil)
 		for _, cc := range clients {
-			cc.write(m)
+			cc, ok := cc.(*webClient)
+			if ok {
+				cc.write(m)
+			}
 		}
 	case "op", "unop", "present", "unpresent":
 		if !c.permissions.Op {
 			return c.error(userError("not authorised"))
 		}
-		err := setPermission(c.group, m.Id, m.Type)
+		err := setPermissions(c.group, m.Id, m.Type)
 		if err != nil {
 			return c.error(err)
 		}
@@ -1617,5 +1697,35 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 			log.Printf("clientWiter: unexpected message %T", m)
 			return
 		}
+	}
+}
+
+func (c *webClient) action(m interface{}) error {
+	select {
+	case c.actionCh <- m:
+		return nil
+	case <-c.done:
+		return clientDeadError(0)
+	}
+}
+
+func (c *webClient) write(m clientMessage) error {
+	select {
+	case c.writeCh <- m:
+		return nil
+	case <-c.writerDone:
+		return writerDeadError(0)
+	}
+}
+
+func (c *webClient) error(err error) error {
+	switch e := err.(type) {
+	case userError:
+		return c.write(clientMessage{
+			Type:  "error",
+			Value: string(e),
+		})
+	default:
+		return err
 	}
 }
