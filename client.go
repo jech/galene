@@ -1376,8 +1376,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 		}
 	case "op", "unop", "present", "unpresent":
 		if !c.permissions.Op {
-			c.error(userError("not authorised"))
-			return nil
+			return c.error(userError("not authorised"))
 		}
 		err := setPermission(c.group, m.Id, m.Type)
 		if err != nil {
@@ -1385,8 +1384,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 		}
 	case "lock", "unlock":
 		if !c.permissions.Op {
-			c.error(userError("not authorised"))
-			return nil
+			return c.error(userError("not authorised"))
 		}
 		var locked uint32
 		if m.Type == "lock" {
@@ -1395,8 +1393,7 @@ func handleClientMessage(c *client, m clientMessage) error {
 		atomic.StoreUint32(&c.group.locked, locked)
 	case "kick":
 		if !c.permissions.Op {
-			c.error(userError("not authorised"))
-			return nil
+			return c.error(userError("not authorised"))
 		}
 		err := kickClient(c.group, m.Id)
 		if err != nil {
