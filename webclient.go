@@ -1223,17 +1223,18 @@ func (c *webClient) setRequested(requested map[string]uint32) error {
 
 	c.requested = requested
 
-	go func() {
-		clients := c.group.getClients(c)
-		for _, cc := range clients {
-			ccc, ok := cc.(*webClient)
-			if ok {
-				ccc.action(pushConnsAction{c})
-			}
-		}
-	}()
-
+	go pushConns(c)
 	return nil
+}
+
+func pushConns(c client) {
+	clients := c.getGroup().getClients(c)
+	for _, cc := range clients {
+		ccc, ok := cc.(*webClient)
+		if ok {
+			ccc.action(pushConnsAction{c})
+		}
+	}
 }
 
 func (c *webClient) isRequested(label string) bool {
@@ -1473,8 +1474,12 @@ func setPermissions(g *group, id string, perm string) error {
 	switch perm {
 	case "op":
 		c.permissions.Op = true
+		if g.description.AllowRecording {
+			c.permissions.Record = true
+		}
 	case "unop":
 		c.permissions.Op = false
+		c.permissions.Record = false
 	case "present":
 		c.permissions.Present = true
 	case "unpresent":
@@ -1582,6 +1587,37 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			locked = 1
 		}
 		atomic.StoreUint32(&c.group.locked, locked)
+	case "record":
+		if !c.permissions.Record {
+			return c.error(userError("not authorised"))
+		}
+		for _, cc := range c.group.getClients(c) {
+			_, ok := cc.(*diskClient)
+			if ok {
+				return c.error(userError("already recording"))
+			}
+		}
+		disk := &diskClient{
+			group: c.group,
+			id:    "recording",
+		}
+		_, _, err := addClient(c.group.name, disk, "", "")
+		if err != nil {
+			disk.Close()
+			return c.error(err)
+		}
+		go pushConns(disk)
+	case "unrecord":
+		if !c.permissions.Record {
+			return c.error(userError("not authorised"))
+		}
+		for _, cc := range c.group.getClients(c) {
+			disk, ok := cc.(*diskClient)
+			if ok {
+				disk.Close()
+				delClient(disk)
+			}
+		}
 	case "kick":
 		if !c.permissions.Op {
 			return c.error(userError("not authorised"))

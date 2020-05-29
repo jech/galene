@@ -352,6 +352,7 @@ type groupDescription struct {
 	Public         bool        `json:"public,omitempty"`
 	MaxClients     int         `json:"max-clients,omitempty"`
 	AllowAnonymous bool        `json:"allow-anonymous,omitempty"`
+	AllowRecording bool        `json:"allow-recording,omitempty"`
 	Op             []groupUser `json:"op,omitempty"`
 	Presenter      []groupUser `json:"presenter,omitempty"`
 	Other          []groupUser `json:"other,omitempty"`
@@ -402,6 +403,7 @@ func getDescription(name string) (*groupDescription, error) {
 type userPermission struct {
 	Op      bool `json:"op,omitempty"`
 	Present bool `json:"present,omitempty"`
+	Record  bool `json:"record,omitempty"`
 }
 
 func getPermission(desc *groupDescription, user, pass string) (userPermission, error) {
@@ -413,6 +415,9 @@ func getPermission(desc *groupDescription, user, pass string) (userPermission, e
 		if good {
 			p.Op = true
 			p.Present = true
+			if desc.AllowRecording {
+				p.Record = true
+			}
 			return p, nil
 		}
 		return p, userError("not authorised")

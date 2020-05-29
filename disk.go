@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/at-wat/ebml-go/webm"
@@ -15,8 +16,10 @@ import (
 )
 
 type diskClient struct {
-	group  *group
-	id     string
+	group *group
+	id    string
+
+	mu     sync.Mutex
 	down   []*diskConn
 	closed bool
 }
@@ -34,6 +37,9 @@ func (client *diskClient) getUsername() string {
 }
 
 func (client *diskClient) Close() error {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+
 	for _, down := range client.down {
 		down.Close()
 	}
@@ -43,6 +49,9 @@ func (client *diskClient) Close() error {
 }
 
 func (client *diskClient) pushConn(conn *upConnection, tracks []*upTrack, label string) error {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+
 	if client.closed {
 		return errors.New("disk client is closed")
 	}
@@ -65,14 +74,17 @@ func (client *diskClient) pushConn(conn *upConnection, tracks []*upTrack, label 
 var _ client = &diskClient{}
 
 type diskConn struct {
-	directory     string
-	label         string
+	directory string
+	label     string
+
+	mu            sync.Mutex
 	file          *os.File
 	remote        *upConnection
 	tracks        []*diskTrack
 	width, height uint32
 }
 
+// called locked
 func (conn *diskConn) reopen() error {
 	for _, t := range conn.tracks {
 		if t.writer != nil {
@@ -94,11 +106,18 @@ func (conn *diskConn) reopen() error {
 func (conn *diskConn) Close() error {
 	conn.remote.delLocal(conn)
 
+	conn.mu.Lock()
+	tracks := make([]*diskTrack, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
 		if t.writer != nil {
 			t.writer.Close()
 			t.writer = nil
 		}
+		tracks = append(tracks, t)
+	}
+	conn.mu.Unlock()
+
+	for _, t := range tracks {
 		t.remote.delLocal(t)
 	}
 	return nil
@@ -131,11 +150,12 @@ func openDiskFile(directory, label string) (*os.File, error) {
 }
 
 type diskTrack struct {
-	remote    *upTrack
+	remote *upTrack
+	conn   *diskConn
+
 	writer    webm.BlockWriteCloser
 	builder   *samplebuilder.SampleBuilder
 	timestamp uint32
-	conn      *diskConn
 }
 
 func newDiskConn(directory, label string, up *upConnection, remoteTracks []*upTrack) (*diskConn, error) {
@@ -174,7 +194,6 @@ func newDiskConn(directory, label string, up *upConnection, remoteTracks []*upTr
 		}
 	}
 
-
 	up.addLocal(&conn)
 
 	return &conn, nil
@@ -194,6 +213,10 @@ func clonePacket(packet *rtp.Packet) *rtp.Packet {
 }
 
 func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
+	// since we call initWriter, we take the connection lock for simplicity.
+	t.conn.mu.Lock()
+	defer t.conn.mu.Unlock()
+
 	if t.builder == nil {
 		return nil
 	}
@@ -243,6 +266,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 	}
 }
 
+// called locked
 func (t *diskTrack) initWriter(data []byte) error {
 	switch t.remote.track.Codec().Name {
 	case webrtc.VP8:
@@ -262,6 +286,7 @@ func (t *diskTrack) initWriter(data []byte) error {
 	return nil
 }
 
+// called locked
 func (conn *diskConn) initWriter(width, height uint32) error {
 	if conn.file != nil && width == conn.width && height == conn.height {
 		return nil

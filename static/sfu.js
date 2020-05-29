@@ -933,7 +933,17 @@ function handleInput() {
                     return;
                 }
                 send({
-                    type: cmd === '/lock' ? 'lock' : 'unlock',
+                    type: cmd.slice(1),
+                });
+                return;
+            case '/record':
+            case '/unrecord':
+                if(!permissions.record) {
+                    displayError("You're not allowed to record");
+                    return;
+                }
+                send({
+                    type: cmd.slice(1),
                 });
                 return;
             case '/op':
