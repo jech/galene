@@ -886,14 +886,17 @@ func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
 	}
 }
 
+var ErrUnsupportedFeedback = errors.New("unsupported feedback type")
+var ErrRateLimited = errors.New("rate limited")
+
 func (up *upConnection) sendPLI(track *upTrack) error {
 	if !track.hasRtcpFb("nack", "pli") {
-		return nil
+		return ErrUnsupportedFeedback
 	}
 	last := atomic.LoadUint64(&track.lastPLI)
 	now := mono.Microseconds()
 	if now >= last && now-last < 200000 {
-		return nil
+		return ErrRateLimited
 	}
 	atomic.StoreUint64(&track.lastPLI, now)
 	return sendPLI(up.pc, track.track.SSRC())
