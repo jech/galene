@@ -260,7 +260,7 @@ function mapMediaOption(value) {
     case 'off':
         return false;
     default:
-        return value;
+        return {deviceId: value};
     }
 }
 
