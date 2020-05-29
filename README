@@ -54,10 +54,11 @@ fields, all of which are optional.
    definitions (see below) and specifies the users allowed to connect
    respectively with operator privileges, with presenter privileges, and
    as passive listeners;
- - `public`: if set to true, then the group is visible on the landing page;
+ - `public`: if true, then the group is visible on the landing page;
  - `max-clients`: the maximum number of clients that may join the group at
    a time;
- - `allow-anonymous`: if set to true, then users may connect with an empty
+ - `allow-recording`: if true, then recording is allowed in this group;
+ - `allow-anonymous`: if true, then users may connect with an empty
    username; this is not recommended, since anonymous users are not
    allowed to participate in the chat.
    
@@ -100,6 +101,8 @@ privileges:
  - `/lock`: prevents any new users from connecting to the group unless
    they have operator privileges;
  - `/unlock`: reverts the effect of `/lock`;
+ - `/record`: start recording;
+ - `/unrecord`: stop recording;
  - `/op user`: gives operator privileges to a user;
  - `/unop user`: takes away operator privileges;
  - `/present user`: gives presenter privileges to a user;
