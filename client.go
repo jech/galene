@@ -807,6 +807,9 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 }
 
 func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RTPSender) {
+	var gotFir bool
+	lastFirSeqno := uint8(0)
+
 	for {
 		ps, err := s.ReadRTCP()
 		if err != nil {
@@ -822,6 +825,39 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				err := conn.remote.sendPLI(track.remote)
 				if err != nil {
 					log.Printf("sendPLI: %v", err)
+				}
+			case *rtcp.FullIntraRequest:
+				found := false
+				var seqno uint8
+				for _, entry := range p.FIR {
+					if entry.SSRC == track.track.SSRC() {
+						found = true
+						seqno = entry.SequenceNumber
+						break
+					}
+				}
+				if !found {
+					log.Printf("Misdirected FIR")
+					continue
+				}
+
+				increment := true
+				if gotFir {
+					increment = seqno != lastFirSeqno
+				}
+				gotFir = true
+				lastFirSeqno = seqno
+
+				err := conn.remote.sendFIR(
+					track.remote, increment,
+				)
+				if err == ErrUnsupportedFeedback {
+					err := conn.remote.sendPLI(track.remote)
+					if err != nil {
+						log.Printf("sendPLI: %v", err)
+					}
+				} else if err != nil {
+					log.Printf("sendFIR: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				track.maxREMBBitrate.Set(
