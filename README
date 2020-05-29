@@ -1,3 +1,5 @@
+# Installation
+
 Build the server binary:
 
     CGO_ENABLED=0 go build -ldflags='-s -w'
@@ -21,7 +23,6 @@ Set up a group
     vi groups/public.json
 
     {
-      "allow-anonymous":true,
       "public":true,
       "op":[{"username":"jch","password":"1234"}],
       "presenter":[{}],
@@ -38,4 +39,72 @@ Run the server binary:
     cd /home/sfu/
     nohup ./sfu &
 
--- Juliusz Chroboczek <https://www.irif.fr/~jch/>
+
+# Group definitions
+
+Groups are defined by files in the directory defined by the `-groups`
+command-line option, one per group.  The group definition file does not
+contain the name of the group -- that makes it possible to set up a new
+group just by copying a template file.
+
+The group definition file contains a JSON directory with the following
+fields, all of which are optional.
+
+ - `op`, `presenter`, `other`: each of these is an array of user
+   definitions (see below) and specifies the users allowed to connect
+   respectively with operator privileges, with presenter privileges, and
+   as passive listeners;
+ - `public`: if set to true, then the group is visible on the landing page;
+ - `max-clients`: the maximum number of clients that may join the group at
+   a time;
+ - `allow-anonymous`: if set to true, then users may connect with an empty
+   username; this is not recommended, since anonymous users are not
+   allowed to participate in the chat.
+   
+A user definition is a dictionary with the following fields:
+
+ - `username`: the username of the user; if omitted, any username is
+   allowed;
+ - `password`: the password of the user; if omitted, then any password
+   (including the empty paassword) is allowed.
+   
+For example
+
+    {"username":"jch","password":"topsecret"}
+    
+specifies user *jch* with password *topsecret*, while
+
+    {"password":"topsecret"}
+    
+specifies that any username will do.  The empty dictionary
+
+    {}
+    
+specifies that any username can connect, and that password are not
+verified.
+
+
+# Commands
+
+Typing a line starting with a slash `/` in the chat dialogue causes
+a command to be sent to the server.  The following commands are available
+to all users:
+
+ - `/me text`: sends a chat message starting with the sender's username;
+ - `/leave`: equivalent to clicking the *Disconnect* button.
+ 
+The following commands are only available to users with operator
+privileges:
+
+ - `/clear`: clears the chat history for all users;
+ - `/lock`: prevents any new users from connecting to the group unless
+   they have operator privileges;
+ - `/unlock`: reverts the effect of `/lock`;
+ - `/op user`: gives operator privileges to a user;
+ - `/unop user`: takes away operator privileges;
+ - `/present user`: gives presenter privileges to a user;
+ - `/unpresent user`: takes away presenter privileges from a user and
+   forcibly closes any presentations from that user that may be taking place;
+ - `/kick user`: forcibly disconnects a user from the group.
+
+--- Juliusz Chroboczek <https://www.irif.fr/~jch/>
