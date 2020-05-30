@@ -761,10 +761,9 @@ func delDownConn(c *webClient, id string) bool {
 
 	conn.remote.delLocal(conn)
 	for _, track := range conn.tracks {
-		found := track.remote.delLocal(track)
-		if !found {
-			log.Printf("Couldn't find remote track")
-		}
+		// we only insert the track after we get an answer, so
+		// ignore errors here.
+		track.remote.delLocal(track)
 	}
 	conn.pc.Close()
 	delete(c.down, id)
