@@ -211,6 +211,11 @@ func startClient(conn *websocket.Conn) (err error) {
 		return
 	}
 
+	if strings.ContainsRune(m.Username, ' ') {
+		err = userError("don't put spaces in your username")
+		return
+	}
+
 	c := &webClient{
 		id:       m.Id,
 		username: m.Username,
@@ -243,11 +248,6 @@ func startClient(conn *websocket.Conn) (err error) {
 
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
-
-	if strings.ContainsRune(m.Username, ' ') {
-		err = userError("don't put spaces in your username")
-		return
-	}
 
 	g, users, err := addClient(m.Group, c, m.Username, m.Password)
 	if err != nil {
