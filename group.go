@@ -315,18 +315,6 @@ func (g *group) getChatHistory() []chatHistoryEntry {
 	return h
 }
 
-type writerDeadError int
-
-func (err writerDeadError) Error() string {
-	return "client writer died"
-}
-
-type clientDeadError int
-
-func (err clientDeadError) Error() string {
-	return "client dead"
-}
-
 type groupUser struct {
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`

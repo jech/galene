@@ -1732,12 +1732,15 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 	}
 }
 
+var ErrWriterDead = errors.New("client writer died")
+var ErrClientDead = errors.New("client dead")
+
 func (c *webClient) action(m interface{}) error {
 	select {
 	case c.actionCh <- m:
 		return nil
 	case <-c.done:
-		return clientDeadError(0)
+		return ErrClientDead
 	}
 }
 
@@ -1746,7 +1749,7 @@ func (c *webClient) write(m clientMessage) error {
 	case c.writeCh <- m:
 		return nil
 	case <-c.writerDone:
-		return writerDeadError(0)
+		return ErrWriterDead
 	}
 }
 
