@@ -1385,7 +1385,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 				found := delUpConn(c, a.id)
 				if found {
 					err := failConnection(c, a.id,
-						"ICE said: connection failed")
+						"connection failed")
 					if err != nil {
 						return err
 					}
