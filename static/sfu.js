@@ -56,12 +56,14 @@ Connection.prototype.close = function(sendit) {
     while(this.timers.length > 0)
         clearInterval(this.timers.pop());
 
-    this.stream.getTracks().forEach(t => {
-        try {
-            t.stop();
-        } catch(e) {
-        }
-    });
+    if(this.stream) {
+        this.stream.getTracks().forEach(t => {
+            try {
+                t.stop();
+            } catch(e) {
+            }
+        });
+    }
     this.pc.close();
 
     if(sendit) {
