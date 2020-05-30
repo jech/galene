@@ -194,7 +194,10 @@ func newDiskConn(directory, label string, up *upConnection, remoteTracks []*upTr
 		}
 	}
 
-	up.addLocal(&conn)
+	err := up.addLocal(&conn)
+	if err != nil {
+		return nil, err
+	}
 
 	return &conn, nil
 }

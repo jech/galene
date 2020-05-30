@@ -50,17 +50,19 @@ func (up *upTrack) notifyLocal(add bool, track downTrack) {
 	}
 }
 
-func (up *upTrack) addLocal(local downTrack) {
+func (up *upTrack) addLocal(local downTrack) error {
 	up.mu.Lock()
 	for _, t := range up.local {
 		if t == local {
 			up.mu.Unlock()
-			return
+			return nil
 		}
 	}
 	up.local = append(up.local, local)
 	up.mu.Unlock()
+
 	up.notifyLocal(true, local)
+	return nil
 }
 
 func (up *upTrack) delLocal(local downTrack) bool {
@@ -107,20 +109,26 @@ type upConnection struct {
 	labels        map[string]string
 	iceCandidates []*webrtc.ICECandidateInit
 
-	mu    sync.Mutex
-	local []downConnection
+	mu     sync.Mutex
+	closed bool
+	local  []downConnection
 }
 
-func (up *upConnection) addLocal(local downConnection) {
+var ErrConnectionClosed = errors.New("connection is closed")
+
+func (up *upConnection) addLocal(local downConnection) error {
 	up.mu.Lock()
 	defer up.mu.Unlock()
+	if up.closed {
+		return ErrConnectionClosed
+	}
 	for _, t := range up.local {
 		if t == local {
-			up.mu.Unlock()
-			return
+			return nil
 		}
 	}
 	up.local = append(up.local, local)
+	return nil
 }
 
 func (up *upConnection) delLocal(local downConnection) bool {
@@ -141,6 +149,21 @@ func (up *upConnection) getLocal() []downConnection {
 	local := make([]downConnection, len(up.local))
 	copy(local, up.local)
 	return local
+}
+
+func (up *upConnection) Close() error {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+
+	go func(local []downConnection) {
+		for _, l := range local {
+			l.Close()
+		}
+	}(up.local)
+
+	up.local = nil
+	up.closed = true
+	return up.pc.Close()
 }
 
 func (up *upConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {

@@ -675,14 +675,7 @@ func delUpConn(c *webClient, id string) bool {
 		}
 	}
 
-	local := conn.getLocal()
-	go func() {
-		for _, l := range local {
-			l.Close()
-		}
-	}()
-
-	conn.pc.Close()
+	conn.Close()
 	delete(c.up, id)
 	return true
 }
@@ -744,9 +737,13 @@ func addDownConn(c *webClient, id string, remote *upConnection) (*rtpDownConnect
 		conn.pc.Close()
 		return nil, errors.New("Adding duplicate connection")
 	}
-	c.down[id] = conn
+	err = remote.addLocal(conn)
+	if err != nil {
+		conn.pc.Close()
+		return nil, err
+	}
 
-	remote.addLocal(conn)
+	c.down[id] = conn
 	return conn, nil
 }
 
