@@ -30,10 +30,9 @@ func webserver() {
 
 	go func() {
 		server := &http.Server{
-			Addr:         httpAddr,
-			ReadTimeout:  60 * time.Second,
-			WriteTimeout: 30 * time.Second,
-			IdleTimeout:  120 * time.Second,
+			Addr:              httpAddr,
+			ReadHeaderTimeout: 60 * time.Second,
+			IdleTimeout:       120 * time.Second,
 		}
 		var err error
 		err = server.ListenAndServeTLS(
