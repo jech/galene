@@ -6,7 +6,7 @@ import (
 
 var epoch = time.Now()
 
-func fromDuration(d time.Duration, hz uint32) uint64 {
+func FromDuration(d time.Duration, hz uint32) uint64 {
 	return uint64(d) * uint64(hz) / uint64(time.Second)
 }
 
@@ -15,7 +15,7 @@ func toDuration(tm uint64, hz uint32) time.Duration {
 }
 
 func Now(hz uint32) uint64 {
-	return fromDuration(time.Since(epoch), hz)
+	return FromDuration(time.Since(epoch), hz)
 }
 
 func Microseconds() uint64 {

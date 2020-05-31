@@ -6,7 +6,7 @@ import (
 )
 
 func TestDuration(t *testing.T) {
-	a := fromDuration(time.Second, 48000)
+	a := FromDuration(time.Second, 48000)
 	if a != 48000 {
 		t.Errorf("Expected 48000, got %v", a)
 	}
