@@ -10,8 +10,8 @@ func TestEstimator(t *testing.T) {
 	e := New(time.Second)
 
 	e.estimate(now)
-	e.Add(42)
-	e.Add(128)
+	e.Accumulate(42)
+	e.Accumulate(128)
 	e.estimate(now.Add(time.Second))
 	rate := e.estimate(now.Add(time.Second + time.Millisecond))
 

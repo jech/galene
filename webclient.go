@@ -422,7 +422,7 @@ func readLoop(conn *upConnection, track *upTrack) {
 			}
 			break
 		}
-		track.rate.Add(uint32(bytes))
+		track.rate.Accumulate(uint32(bytes))
 
 		err = packet.Unmarshal(buf[:bytes])
 		if err != nil {
@@ -1050,7 +1050,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
 				log.Printf("WriteRTP: %v", err)
 				continue
 			}
-			track.rate.Add(uint32(l))
+			track.rate.Accumulate(uint32(l))
 		}
 	}
 }

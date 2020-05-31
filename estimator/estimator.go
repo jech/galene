@@ -33,7 +33,7 @@ func (e *Estimator) swap(now time.Time) {
 	e.time = now
 }
 
-func (e *Estimator) Add(count uint32) {
+func (e *Estimator) Accumulate(count uint32) {
 	atomic.AddUint32(&e.count, count)
 }
 

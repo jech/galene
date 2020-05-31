@@ -286,7 +286,7 @@ func (down *rtpDownTrack) WriteRTP(packet *rtp.Packet) error {
 }
 
 func (down *rtpDownTrack) Accumulate(bytes uint32) {
-	down.rate.Add(bytes)
+	down.rate.Accumulate(bytes)
 }
 
 func (down *rtpDownTrack) GetMaxBitrate(now uint64) uint64 {
