@@ -40,6 +40,21 @@ Run the server binary:
     nohup ./sfu &
 
 
+# Locations
+
+There is a landing page at the root of the server.  It contains a form
+for typing the name of a group, and a clickable list of public groups.
+
+Groups are available under `/group/groupname`.  You may share this URL
+with others, there is no need to go through the landing page.
+
+Recordings can be accessed under `/recordings/groupname`.  This is only
+available to the administrator of the group.
+
+Some statistics are available under `/stats`.  This is only available to
+the server administrator.
+
+
 # Group definitions
 
 Groups are defined by files in the directory defined by the `-groups`
@@ -71,7 +86,7 @@ A user definition is a dictionary with the following fields:
    
 For example
 
-    {"username":"jch","password":"topsecret"}
+    {"username":"jch", "password":"topsecret"}
     
 specifies user *jch* with password *topsecret*, while
 
@@ -81,8 +96,7 @@ specifies that any username will do.  The empty dictionary
 
     {}
     
-specifies that any username can connect, and that password are not
-verified.
+specifies that any username will do and that password are not verified.
 
 
 # Commands
