@@ -9,7 +9,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,6 +26,12 @@ func webserver() {
 			mungeHeader(w)
 			http.ServeFile(w, r, staticRoot+"/sfu.html")
 		})
+	http.HandleFunc("/recordings",
+		func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r,
+				"/recordings/", http.StatusPermanentRedirect)
+		})
+	http.HandleFunc("/recordings/", recordingsHandler)
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/public-groups.json", publicHandler)
 	http.HandleFunc("/stats", statsHandler)
@@ -95,22 +103,23 @@ func getPassword() (string, string, error) {
 	return l[0], l[1], nil
 }
 
-func statsHandler(w http.ResponseWriter, r *http.Request) {
-	bail := func() {
-		w.Header().Set("www-authenticate", "basic realm=\"stats\"")
-		http.Error(w, "Haha!", http.StatusUnauthorized)
-	}
+func failAuthentication(w http.ResponseWriter, realm string) {
+	w.Header().Set("www-authenticate",
+		fmt.Sprintf("basic realm=\"%v\"", realm))
+	http.Error(w, "Haha!", http.StatusUnauthorized)
+}
 
+func statsHandler(w http.ResponseWriter, r *http.Request) {
 	u, p, err := getPassword()
 	if err != nil {
 		log.Printf("Passwd: %v", err)
-		bail()
+		failAuthentication(w, "stats")
 		return
 	}
 
 	username, password, ok := r.BasicAuth()
 	if !ok || username != u || password != p {
-		bail()
+		failAuthentication(w, "stats")
 		return
 	}
 
@@ -124,6 +133,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "<!DOCTYPE html>\n<html><head>\n")
 	fmt.Fprintf(w, "<title>Stats</title>\n")
+	fmt.Fprintf(w, "<link rel=\"stylesheet\" type=\"text/css\" href=\"/common.css\"/>")
 	fmt.Fprintf(w, "<head><body>\n")
 
 	printBitrate := func(w io.Writer, rate, maxRate uint64) error {
@@ -191,4 +201,162 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("client: %v", err)
 		}
 	}()
+}
+
+func recordingsHandler(w http.ResponseWriter, r *http.Request) {
+	if len(r.URL.Path) < 12 || r.URL.Path[:12] != "/recordings/" {
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+
+	pth := r.URL.Path[12:]
+
+	if pth == "" {
+		http.Error(w, "nothing to see", http.StatusNotImplemented)
+		return
+	}
+
+	f, err := os.Open(filepath.Join(recordingsDir, pth))
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.NotFound(w, r)
+		} else {
+			http.Error(w, "server error",
+				http.StatusInternalServerError)
+		}
+		return
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+
+	if fi.IsDir() {
+		if pth[len(pth)-1] != '/' {
+			http.Redirect(w, r,
+				r.URL.Path+"/", http.StatusPermanentRedirect)
+			return
+		}
+		ok := checkGroupPermissions(w, r, path.Dir(pth))
+		if !ok {
+			failAuthentication(w, "recordings/"+path.Dir(pth))
+			return
+		}
+		if r.Method == "POST" {
+			handleGroupAction(w, r, path.Dir(pth))
+		} else {
+			serveGroupRecordings(w, r, f, path.Dir(pth))
+		}
+	} else {
+		ok := checkGroupPermissions(w, r, path.Dir(pth))
+		if !ok {
+			failAuthentication(w, "recordings/"+path.Dir(pth))
+			return
+		}
+		http.ServeContent(w, r, r.URL.Path, fi.ModTime(), f)
+	}
+}
+
+func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
+	if r.Method != "POST" {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, "couldn't parse request", http.StatusBadRequest)
+		return
+	}
+
+	q := r.Form.Get("q")
+
+	switch q {
+	case "delete":
+		filename := r.Form.Get("filename")
+		if group == "" || filename == "" {
+			http.Error(w, "no filename provided",
+				http.StatusBadRequest)
+			return
+		}
+		err := os.Remove(
+			filepath.Join(recordingsDir, group+"/"+filename),
+		)
+		if err != nil {
+			if os.IsPermission(err) {
+				http.Error(w, "unauthorized",
+					http.StatusForbidden)
+			} else {
+				http.Error(w, "server error",
+					http.StatusInternalServerError)
+			}
+			return
+		}
+		http.Redirect(w, r, "/recordings/"+group+"/",
+			http.StatusSeeOther)
+		return
+	default:
+		http.Error(w, "unknown query", http.StatusBadRequest)
+	}
+}
+
+func checkGroupPermissions(w http.ResponseWriter, r *http.Request, group string) bool {
+	desc, err := getDescription(group)
+	if err != nil {
+		return false
+	}
+
+	user, pass, ok := r.BasicAuth()
+	if !ok {
+		return false
+	}
+
+	p, err := getPermission(desc, user, pass)
+	if err != nil || !p.Record {
+		return false
+	}
+
+	return true
+}
+
+func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, group string) {
+	fis, err := f.Readdir(-1)
+	if err != nil {
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("content-type", "text/html; charset=utf-8")
+	w.Header().Set("cache-control", "no-cache")
+
+	if r.Method == "HEAD" {
+		return
+	}
+
+	fmt.Fprintf(w, "<!DOCTYPE html>\n<html><head>\n")
+	fmt.Fprintf(w, "<title>Recordings for group %v</title>\n", group)
+	fmt.Fprintf(w, "<link rel=\"stylesheet\" type=\"text/css\" href=\"/common.css\"/>")
+	fmt.Fprintf(w, "<head><body>\n")
+
+	fmt.Fprintf(w, "<table>\n")
+	for _, fi := range fis {
+		if fi.IsDir() {
+			continue
+		}
+		fmt.Fprintf(w, "<tr><td><a href=\"%v\">%v</a></td><td>%d</td>",
+			html.EscapeString(fi.Name()),
+			html.EscapeString(fi.Name()),
+			fi.Size(),
+		)
+		fmt.Fprintf(w,
+			"<td><form action=\"/recordings/%v/?q=delete\" method=\"post\">"+
+				"<button type=\"submit\" name=\"filename\" value=\"%v\">Delete</button>"+
+				"</form></td></tr>\n",
+			url.PathEscape(group), fi.Name())
+	}
+	fmt.Fprintf(w, "</table>\n")
+	fmt.Fprintf(w, "</body></html>\n")
 }

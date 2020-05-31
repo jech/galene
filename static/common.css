@@ -6,6 +6,10 @@ h1 {
     font-size: 160%;
 }
 
+.inline {
+    display: inline;
+}
+
 .signature {
     border-top: solid;
     margin-top: 2em;
