@@ -558,10 +558,11 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.SenderReport:
-				atomic.StoreUint32(&track.lastSenderReport,
-					uint32(p.NTPTime>>16))
-				atomic.StoreUint32(&track.lastSenderReportTime,
-					uint32(mono.Now(0x10000)))
+				track.mu.Lock()
+				track.srTime = mono.Now(0x10000)
+				track.srNTPTime = p.NTPTime
+				track.srRTPTime = p.RTPTime
+				track.mu.Unlock()
 			case *rtcp.SourceDescription:
 			}
 		}
@@ -573,7 +574,7 @@ func sendRR(conn *upConnection) error {
 		return nil
 	}
 
-	now := uint32(mono.Now(0x10000))
+	now := mono.Now(0x10000)
 
 	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
@@ -584,10 +585,15 @@ func sendRR(conn *upConnection) error {
 		if lost >= expected {
 			lost = expected - 1
 		}
-		lastSR := atomic.LoadUint32(&t.lastSenderReport)
-		var delay uint32
-		if lastSR != 0 {
-			delay = now - atomic.LoadUint32(&t.lastSenderReportTime)
+
+		t.mu.Lock()
+		srTime := t.srTime
+		srNTPTime := t.srNTPTime
+		t.mu.Unlock()
+
+		var delay uint64
+		if srNTPTime != 0 {
+			delay = now - srTime
 		}
 
 		reports = append(reports, rtcp.ReceptionReport{
@@ -596,8 +602,8 @@ func sendRR(conn *upConnection) error {
 			TotalLost:          totalLost,
 			LastSequenceNumber: eseqno,
 			Jitter:             t.jitter.Jitter(),
-			LastSenderReport:   lastSR,
-			Delay:              delay,
+			LastSenderReport:   uint32(srNTPTime >> 16),
+			Delay:              uint32(delay),
 		})
 	}
 

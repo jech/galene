@@ -24,23 +24,24 @@ type localTrackAction struct {
 }
 
 type upTrack struct {
-	track                *webrtc.Track
-	label                string
-	rate                 *estimator.Estimator
-	cache                *packetcache.Cache
-	jitter               *jitter.Estimator
-	maxBitrate           uint64
-	lastPLI              uint64
-	lastFIR              uint64
-	firSeqno             uint32
-	lastSenderReport     uint32
-	lastSenderReportTime uint32
+	track      *webrtc.Track
+	label      string
+	rate       *estimator.Estimator
+	cache      *packetcache.Cache
+	jitter     *jitter.Estimator
+	maxBitrate uint64
+	lastPLI    uint64
+	lastFIR    uint64
+	firSeqno   uint32
 
 	localCh    chan localTrackAction // signals that local has changed
 	writerDone chan struct{}         // closed when the loop dies
 
-	mu    sync.Mutex
-	local []downTrack
+	mu        sync.Mutex
+	local     []downTrack
+	srTime    uint64
+	srNTPTime uint64
+	srRTPTime uint32
 }
 
 func (up *upTrack) notifyLocal(add bool, track downTrack) {
