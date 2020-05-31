@@ -836,7 +836,7 @@ const (
 
 func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 	rate := track.maxLossBitrate.Get(now)
-	if rate > maxLossRate {
+	if rate < minLossRate || rate > maxLossRate {
 		// no recent feedback, reset
 		rate = initLossRate
 	}
