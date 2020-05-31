@@ -336,8 +336,6 @@ func addUpConn(c *webClient, id string) (*upConnection, error) {
 		sendICE(c, id, candidate)
 	})
 
-	go rtcpUpSender(c, conn)
-
 	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
 		c.mu.Lock()
 		u, ok := c.up[id]
@@ -395,6 +393,7 @@ func addUpConn(c *webClient, id string) (*upConnection, error) {
 			for _, cc := range clients {
 				cc.pushConn(u, tracks, u.label)
 			}
+			go rtcpUpSender(conn)
 		}
 	})
 
@@ -569,10 +568,8 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 	}
 }
 
-func sendRR(c *webClient, conn *upConnection) error {
-	c.mu.Lock()
+func sendRR(conn *upConnection) error {
 	if len(conn.tracks) == 0 {
-		c.mu.Unlock()
 		return nil
 	}
 
@@ -600,25 +597,23 @@ func sendRR(c *webClient, conn *upConnection) error {
 			Delay:              delay,
 		})
 	}
-	c.mu.Unlock()
 
 	return conn.pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.ReceiverReport{
-			SSRC:    1,
 			Reports: reports,
 		},
 	})
 }
 
-func rtcpUpSender(c *webClient, conn *upConnection) {
+func rtcpUpSender(conn *upConnection) {
 	for {
 		time.Sleep(time.Second)
-		err := sendRR(c, conn)
+		err := sendRR(conn)
 		if err != nil {
 			if err == io.EOF || err == io.ErrClosedPipe {
 				return
 			}
-			log.Printf("WriteRTCP: %v", err)
+			log.Printf("sendRR: %v", err)
 		}
 	}
 }
