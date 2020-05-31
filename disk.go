@@ -36,6 +36,10 @@ func (client *diskClient) getUsername() string {
 	return "RECORDING"
 }
 
+func (client *diskClient) pushClient(id, username string, add bool) error {
+	return nil
+}
+
 func (client *diskClient) Close() error {
 	client.mu.Lock()
 	defer client.mu.Unlock()

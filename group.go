@@ -26,6 +26,7 @@ type client interface {
 	getId() string
 	getUsername() string
 	pushConn(conn *upConnection, tracks []*upTrack, label string) error
+	pushClient(id, username string, add bool) error
 }
 
 type chatHistoryEntry struct {
@@ -202,23 +203,23 @@ type userid struct {
 	username string
 }
 
-func addClient(name string, client client, user, pass string) (*group, []userid, error) {
+func addClient(name string, c client, user, pass string) (*group, error) {
 	g, err := addGroup(name, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	perms, err := getPermission(g.description, user, pass)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	c, ok := client.(*webClient)
+	w, ok := c.(*webClient)
 	if ok {
-		c.permissions = perms
+		w.permissions = perms
 	}
 
 	if !perms.Op && atomic.LoadUint32(&g.locked) != 0 {
-		return nil, nil, userError("group is locked")
+		return nil, userError("group is locked")
 	}
 
 	g.mu.Lock()
@@ -226,19 +227,26 @@ func addClient(name string, client client, user, pass string) (*group, []userid,
 
 	if !perms.Op && g.description.MaxClients > 0 {
 		if len(g.clients) >= g.description.MaxClients {
-			return nil, nil, userError("too many users")
+			return nil, userError("too many users")
 		}
 	}
-	if g.clients[client.getId()] != nil {
-		return nil, nil, protocolError("duplicate client id")
+	if g.clients[c.getId()] != nil {
+		return nil, protocolError("duplicate client id")
 	}
 
-	var users []userid
-	for _, c := range g.clients {
-		users = append(users, userid{c.getId(), c.getUsername()})
-	}
-	g.clients[client.getId()] = client
-	return g, users, nil
+	g.clients[c.getId()] = c
+
+	go func(clients []client) {
+		for _, cc := range clients {
+			err := c.pushClient(cc.getId(), cc.getUsername(), true)
+			if err == ErrClientDead {
+				return
+			}
+			cc.pushClient(c.getId(), c.getUsername(), true)
+		}
+	}(g.getClientsUnlocked(c))
+
+	return g, nil
 }
 
 func delClient(c client) {
@@ -251,11 +259,21 @@ func delClient(c client) {
 		return
 	}
 	delete(g.clients, c.getId())
+
+	go func(clients []client) {
+		for _, cc := range clients {
+			cc.pushClient(c.getId(), c.getUsername(), false)
+		}
+	}(g.getClientsUnlocked(c))
 }
 
 func (g *group) getClients(except client) []client {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	return g.getClientsUnlocked(except)
+}
+
+func (g *group) getClientsUnlocked(except client) []client {
 	clients := make([]client, 0, len(g.clients))
 	for _, c := range g.clients {
 		if c != except {

@@ -119,6 +119,15 @@ func (c *webClient) getUsername() string {
 	return c.username
 }
 
+func (c *webClient) pushClient(id, username string, add bool) error {
+	return c.write(clientMessage{
+		Type:     "user",
+		Id:       id,
+		Username: username,
+		Del:      !add,
+	})
+}
+
 type rateMap map[string]uint32
 
 func (v *rateMap) UnmarshalJSON(b []byte) error {
@@ -249,49 +258,12 @@ func startClient(conn *websocket.Conn) (err error) {
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
 
-	g, users, err := addClient(m.Group, c, m.Username, m.Password)
+	g, err := addClient(m.Group, c, m.Username, m.Password)
 	if err != nil {
 		return
 	}
 	c.group = g
 	defer delClient(c)
-
-	for _, u := range users {
-		c.write(clientMessage{
-			Type:     "user",
-			Id:       u.id,
-			Username: u.username,
-		})
-	}
-
-	clients := g.getClients(nil)
-	u := clientMessage{
-		Type:     "user",
-		Id:       c.id,
-		Username: c.username,
-	}
-	for _, c := range clients {
-		c, ok := c.(*webClient)
-		if ok {
-			c.write(u)
-		}
-	}
-
-	defer func() {
-		clients := g.getClients(c)
-		u := clientMessage{
-			Type:     "user",
-			Id:       c.id,
-			Username: c.username,
-			Del:      true,
-		}
-		for _, c := range clients {
-			c, ok := c.(*webClient)
-			if ok {
-				c.write(u)
-			}
-		}
-	}()
 
 	return clientLoop(c, conn)
 }
@@ -1597,7 +1569,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			group: c.group,
 			id:    "recording",
 		}
-		_, _, err := addClient(c.group.name, disk, "", "")
+		_, err := addClient(c.group.name, disk, "", "")
 		if err != nil {
 			disk.Close()
 			return c.error(err)
