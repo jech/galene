@@ -866,16 +866,13 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == track.track.SSRC() {
-						now := mono.Microseconds()
-						track.stats.Set(
-							r.FractionLost,
-							r.Jitter,
-							now,
-						)
-						track.updateRate(
-							r.FractionLost,
-							now,
-						)
+						handleReport(track, r)
+					}
+				}
+			case *rtcp.SenderReport:
+				for _, r := range p.Reports {
+					if r.SSRC == track.track.SSRC() {
+						handleReport(track, r)
 					}
 				}
 			case *rtcp.TransportLayerNack:
@@ -889,6 +886,12 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 			}
 		}
 	}
+}
+
+func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport) {
+	now := mono.Microseconds()
+	track.stats.Set(report.FractionLost, report.Jitter, now)
+	track.updateRate(report.FractionLost, now)
 }
 
 func trackKinds(down *rtpDownConnection) (audio bool, video bool) {
