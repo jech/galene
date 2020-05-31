@@ -585,7 +585,10 @@ func sendRR(conn *upConnection) error {
 			lost = expected - 1
 		}
 		lastSR := atomic.LoadUint32(&t.lastSenderReport)
-		delay := now - atomic.LoadUint32(&t.lastSenderReportTime)
+		var delay uint32
+		if lastSR != 0 {
+			delay = now - atomic.LoadUint32(&t.lastSenderReportTime)
+		}
 
 		reports = append(reports, rtcp.ReceptionReport{
 			SSRC:               t.track.SSRC(),
