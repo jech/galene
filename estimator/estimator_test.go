@@ -18,4 +18,12 @@ func TestEstimator(t *testing.T) {
 	if rate != 42+128 {
 		t.Errorf("Expected %v, got %v", 42+128, rate)
 	}
+
+	totalP, totalB := e.Totals()
+	if totalP != 2 {
+		t.Errorf("Expected 2, got %v", totalP)
+	}
+	if totalB != 42+128 {
+		t.Errorf("Expected %v, got %v", 42+128, totalB)
+	}
 }

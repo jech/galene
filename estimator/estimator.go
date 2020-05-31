@@ -10,9 +10,11 @@ type Estimator struct {
 	interval time.Duration
 	count    uint32
 
-	mu   sync.Mutex
-	rate uint32
-	time time.Time
+	mu           sync.Mutex
+	totalBytes   uint32
+	totalPackets uint32
+	rate         uint32
+	time         time.Time
 }
 
 func New(interval time.Duration) *Estimator {
@@ -34,6 +36,8 @@ func (e *Estimator) swap(now time.Time) {
 }
 
 func (e *Estimator) Accumulate(count uint32) {
+	atomic.AddUint32(&e.totalBytes, count)
+	atomic.AddUint32(&e.totalPackets, 1)
 	atomic.AddUint32(&e.count, count)
 }
 
@@ -51,4 +55,10 @@ func (e *Estimator) Estimate() uint32 {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.estimate(now)
+}
+
+func (e *Estimator) Totals() (uint32, uint32) {
+	b := atomic.LoadUint32(&e.totalBytes)
+	p := atomic.LoadUint32(&e.totalPackets)
+	return p, b
 }
