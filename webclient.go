@@ -627,6 +627,57 @@ func rtcpUpSender(conn *upConnection) {
 	}
 }
 
+func sendSR(conn *rtpDownConnection) error {
+	packets := make([]rtcp.Packet, 0, len(conn.tracks))
+
+	now := time.Now()
+	nowNTP := mono.TimeToNTP(now)
+
+	for _, t := range conn.tracks {
+		clockrate := t.track.Codec().ClockRate
+		remote := t.remote
+		remote.mu.Lock()
+		srNTPTime := remote.srNTPTime
+		srRTPTime := remote.srRTPTime
+		remote.mu.Unlock()
+
+		nowRTP := srRTPTime
+		if srNTPTime != 0 {
+			srTime := mono.NTPToTime(srNTPTime)
+			delay := now.Sub(srTime)
+			if delay > 0 && delay < time.Hour {
+				d := mono.FromDuration(delay, clockrate)
+				nowRTP = srRTPTime + uint32(d)
+			}
+		}
+
+		p, b := t.rate.Totals()
+		packets = append(packets,
+			&rtcp.SenderReport{
+				SSRC:        t.track.SSRC(),
+				NTPTime:     nowNTP,
+				RTPTime:     nowRTP,
+				PacketCount: p,
+				OctetCount:  b,
+			})
+	}
+
+	return conn.pc.WriteRTCP(packets)
+}
+
+func rtcpDownSender(conn *rtpDownConnection) {
+	for {
+		time.Sleep(time.Second)
+		err := sendSR(conn)
+		if err != nil {
+			if err == io.EOF || err == io.ErrClosedPipe {
+				return
+			}
+			log.Printf("sendSR: %v", err)
+		}
+	}
+}
+
 func delUpConn(c *webClient, id string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -1243,6 +1294,8 @@ func addDownConnTracks(c *webClient, remote *upConnection, tracks []*upTrack) (*
 			return nil, err
 		}
 	}
+
+	go rtcpDownSender(down)
 
 	return down, nil
 }
