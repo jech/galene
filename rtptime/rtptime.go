@@ -10,7 +10,7 @@ func FromDuration(d time.Duration, hz uint32) uint64 {
 	return uint64(d) * uint64(hz) / uint64(time.Second)
 }
 
-func toDuration(tm uint64, hz uint32) time.Duration {
+func ToDuration(tm uint64, hz uint32) time.Duration {
 	return time.Duration(tm * uint64(time.Second) / uint64(hz))
 }
 
@@ -27,6 +27,10 @@ const JiffiesPerSec = 24576000
 
 func Jiffies() uint64 {
 	return Now(JiffiesPerSec)
+}
+
+func TimeToJiffies(tm time.Time) uint64 {
+	return FromDuration(tm.Sub(epoch), JiffiesPerSec)
 }
 
 var ntpEpoch = time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)

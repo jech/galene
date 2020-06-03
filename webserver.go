@@ -154,11 +154,14 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "<td>%d%%</td>",
 			t.loss,
 		)
-		if t.jitter > 0 {
-			fmt.Fprintf(w, "<td>%v</td>", t.jitter)
-		} else {
-			fmt.Fprintf(w, "<td></td>")
+		fmt.Fprintf(w, "<td>")
+		if t.rtt > 0 {
+			fmt.Fprintf(w, "%v", t.rtt)
 		}
+		if t.jitter > 0 {
+			fmt.Fprintf(w, "&#177;%v", t.jitter)
+		}
+		fmt.Fprintf(w, "</td>")
 		fmt.Fprintf(w, "</tr>")
 	}
 

@@ -11,7 +11,7 @@ func TestDuration(t *testing.T) {
 		t.Errorf("Expected 48000, got %v", a)
 	}
 
-	b := toDuration(48000, 48000)
+	b := ToDuration(48000, 48000)
 	if b != time.Second {
 		t.Errorf("Expected %v, got %v", time.Second, b)
 	}

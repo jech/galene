@@ -281,6 +281,9 @@ type rtpDownTrack struct {
 	maxREMBBitrate *bitrate
 	rate           *estimator.Estimator
 	stats          *receiverStats
+	srTime         uint64
+	srNTPTime      uint64
+	rtt            uint64
 }
 
 func (down *rtpDownTrack) WriteRTP(packet *rtp.Packet) error {

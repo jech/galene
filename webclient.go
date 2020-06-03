@@ -20,8 +20,8 @@ import (
 
 	"sfu/estimator"
 	"sfu/jitter"
-	"sfu/rtptime"
 	"sfu/packetcache"
+	"sfu/rtptime"
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/rtcp"
@@ -633,6 +633,7 @@ func sendSR(conn *rtpDownConnection) error {
 
 	now := time.Now()
 	nowNTP := rtptime.TimeToNTP(now)
+	jiffies := rtptime.TimeToJiffies(now)
 
 	for _, t := range conn.tracks {
 		clockrate := t.track.Codec().ClockRate
@@ -661,6 +662,8 @@ func sendSR(conn *rtpDownConnection) error {
 				PacketCount: p,
 				OctetCount:  b,
 			})
+		atomic.StoreUint64(&t.srTime, jiffies)
+		atomic.StoreUint64(&t.srNTPTime, nowNTP)
 	}
 
 	return conn.pc.WriteRTCP(packets)
@@ -876,6 +879,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 			}
 			return
 		}
+		jiffies := rtptime.Jiffies()
 
 		for _, p := range ps {
 			switch p := p.(type) {
@@ -918,25 +922,21 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					log.Printf("sendFIR: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				track.maxREMBBitrate.Set(
-					p.Bitrate, rtptime.Jiffies(),
-				)
+				track.maxREMBBitrate.Set(p.Bitrate, jiffies)
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == track.track.SSRC() {
-						handleReport(track, r)
+						handleReport(track, r, jiffies)
 					}
 				}
 			case *rtcp.SenderReport:
 				for _, r := range p.Reports {
 					if r.SSRC == track.track.SSRC() {
-						handleReport(track, r)
+						handleReport(track, r, jiffies)
 					}
 				}
 			case *rtcp.TransportLayerNack:
-				maxBitrate := track.GetMaxBitrate(
-					rtptime.Jiffies(),
-				)
+				maxBitrate := track.GetMaxBitrate(jiffies)
 				bitrate := track.rate.Estimate()
 				if uint64(bitrate)*7/8 < maxBitrate {
 					sendRecovery(p, track)
@@ -946,10 +946,32 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 	}
 }
 
-func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport) {
-	jiffies := rtptime.Jiffies()
+func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport, jiffies uint64) {
 	track.stats.Set(report.FractionLost, report.Jitter, jiffies)
 	track.updateRate(report.FractionLost, jiffies)
+
+	if report.LastSenderReport != 0 {
+		jiffies := rtptime.Jiffies()
+		srTime := atomic.LoadUint64(&track.srTime)
+		if jiffies < srTime || jiffies-srTime > 8*rtptime.JiffiesPerSec {
+			return
+		}
+		srNTPTime := atomic.LoadUint64(&track.srNTPTime)
+		if report.LastSenderReport == uint32(srNTPTime>>16) {
+			delay := uint64(report.Delay) *
+				(rtptime.JiffiesPerSec / 0x10000)
+			if delay > jiffies-srTime {
+				return
+			}
+			rtt := (jiffies - srTime) - delay
+			oldrtt := atomic.LoadUint64(&track.rtt)
+			newrtt := rtt
+			if oldrtt > 0 {
+				newrtt = (3*oldrtt + rtt) / 4
+			}
+			atomic.StoreUint64(&track.rtt, newrtt)
+		}
+	}
 }
 
 func trackKinds(down *rtpDownConnection) (audio bool, video bool) {
@@ -1013,7 +1035,7 @@ func (up *upConnection) sendPLI(track *upTrack) error {
 	}
 	last := atomic.LoadUint64(&track.lastPLI)
 	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec / 5 {
+	if now >= last && now-last < rtptime.JiffiesPerSec/5 {
 		return ErrRateLimited
 	}
 	atomic.StoreUint64(&track.lastPLI, now)
@@ -1041,7 +1063,7 @@ func (up *upConnection) sendFIR(track *upTrack, increment bool) error {
 	}
 	last := atomic.LoadUint64(&track.lastFIR)
 	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec / 5 {
+	if now >= last && now-last < rtptime.JiffiesPerSec/5 {
 		return ErrRateLimited
 	}
 	atomic.StoreUint64(&track.lastFIR, now)
