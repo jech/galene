@@ -559,7 +559,7 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 			switch p := p.(type) {
 			case *rtcp.SenderReport:
 				track.mu.Lock()
-				track.srTime = rtptime.Now(0x10000)
+				track.srTime = rtptime.Jiffies()
 				track.srNTPTime = p.NTPTime
 				track.srRTPTime = p.RTPTime
 				track.mu.Unlock()
@@ -574,7 +574,7 @@ func sendRR(conn *upConnection) error {
 		return nil
 	}
 
-	now := rtptime.Now(0x10000)
+	now := rtptime.Jiffies()
 
 	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
@@ -592,8 +592,9 @@ func sendRR(conn *upConnection) error {
 		t.mu.Unlock()
 
 		var delay uint64
-		if srNTPTime != 0 {
-			delay = now - srTime
+		if srTime != 0 {
+			delay = (now - srTime) /
+				(rtptime.JiffiesPerSec / 0x10000)
 		}
 
 		reports = append(reports, rtcp.ReceptionReport{
