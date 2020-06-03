@@ -22,6 +22,13 @@ func Microseconds() uint64 {
 	return Now(1000000)
 }
 
+// JiffiesPerSec is the LCM of 48000, 96000 and 65536
+const JiffiesPerSec = 24576000
+
+func Jiffies() uint64 {
+	return Now(JiffiesPerSec)
+}
+
 var ntpEpoch = time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func NTPToTime(ntp uint64) time.Time {

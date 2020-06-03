@@ -24,7 +24,7 @@ func differs(a, b, delta uint64) bool {
 	return a - b >= delta
 }
 
-func TestMono(t *testing.T) {
+func TestTime(t *testing.T) {
 	a := Now(48000)
 	time.Sleep(4 * time.Millisecond)
 	b := Now(48000) - a
@@ -36,6 +36,13 @@ func TestMono(t *testing.T) {
 	time.Sleep(4 * time.Millisecond)
 	d := Microseconds() - c
 	if differs(d, 4000, 1000) {
+		t.Errorf("Expected %v, got %v", 4000, d)
+	}
+
+	c = Jiffies()
+	time.Sleep(time.Second * 100000 / JiffiesPerSec)
+	d = Jiffies() - c
+	if differs(d, 100000, 10000) {
 		t.Errorf("Expected %v, got %v", 4000, d)
 	}
 }
