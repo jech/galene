@@ -81,6 +81,49 @@ func TestCacheOverflow(t *testing.T) {
 	}
 }
 
+func TestCacheGrow(t *testing.T) {
+	cache := New(16)
+
+	for i := 0; i < 24; i++ {
+		cache.Store(uint16(i), []byte{uint8(i)})
+	}
+
+	cache.Resize(32)
+	for i := 0; i < 32; i++ {
+		expected := uint16(0)
+		if i < 8 {
+			expected = uint16(i + 16)
+		}
+		if i >= 24 {
+			expected = uint16(i - 16)
+		}
+		if cache.entries[i].seqno != expected {
+			t.Errorf("At %v, got %v, expected %v",
+				i, cache.entries[i].seqno, expected)
+		}
+	}
+}
+
+func TestCacheShrink(t *testing.T) {
+	cache := New(16)
+
+	for i := 0; i < 24; i++ {
+		cache.Store(uint16(i), []byte{uint8(i)})
+	}
+
+	cache.Resize(12)
+	for i := 0; i < 12; i++ {
+		expected := uint16(i + 16)
+		if i >= 8 {
+			expected = uint16(i + 4)
+		}
+		if cache.entries[i].seqno != expected {
+			t.Errorf("At %v, got %v, expected %v",
+				i, cache.entries[i].seqno, expected)
+		}
+	}
+}
+
 func TestBitmap(t *testing.T) {
 	value := uint64(0xcdd58f1e035379c0)
 	packet := make([]byte, 1)

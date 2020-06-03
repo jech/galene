@@ -139,6 +139,9 @@ func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
+	if int(index) > len(cache.entries) {
+		return 0
+	}
 	if cache.entries[index].seqno != seqno {
 		return 0
 	}
@@ -146,6 +149,57 @@ func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 		result[:cache.entries[index].length],
 		cache.entries[index].buf[:]),
 	)
+}
+
+func (cache *Cache) resize(capacity int) {
+	if len(cache.entries) == capacity {
+		return
+	}
+
+	entries := make([]entry, capacity)
+
+	if capacity > len(cache.entries) {
+		copy(entries, cache.entries[:cache.tail])
+		copy(entries[int(cache.tail)+capacity-len(cache.entries):],
+			cache.entries[cache.tail:])
+	} else if capacity > int(cache.tail) {
+		copy(entries, cache.entries[:cache.tail])
+		copy(entries[cache.tail:],
+			cache.entries[int(cache.tail)+
+				len(cache.entries)-capacity:])
+	} else {
+		// too bad, invalidate all indices
+		copy(entries,
+			cache.entries[int(cache.tail)-capacity:cache.tail])
+		cache.tail = 0
+	}
+	cache.entries = entries
+}
+
+func (cache *Cache) Resize(capacity int) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	cache.resize(capacity)
+}
+
+func (cache *Cache) ResizeCond(capacity int) bool {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	current := len(cache.entries)
+
+	if current >= capacity/2 && current < capacity*2 {
+		return false
+	}
+
+	if int(cache.tail) > current/2 && int(cache.tail) > capacity/2 {
+		// bad time to resize, this would invalidate too many indices
+		return false
+	}
+
+	cache.resize(capacity)
+	return true
 }
 
 // Shift 17 bits out of the bitmap.  Return a boolean indicating if any
