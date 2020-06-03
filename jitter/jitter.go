@@ -3,13 +3,13 @@ package jitter
 import (
 	"sync/atomic"
 
-	"sfu/mono"
+	"sfu/rtptime"
 )
 
 type Estimator struct {
 	hz        uint32
 	timestamp uint32
-	time uint32
+	time      uint32
 
 	jitter uint32 // atomic
 }
@@ -25,11 +25,11 @@ func (e *Estimator) accumulate(timestamp, now uint32) {
 	}
 
 	d := uint32((e.time - now) - (e.timestamp - timestamp))
-	if d & 0x80000000 != 0 {
+	if d&0x80000000 != 0 {
 		d = uint32(-int32(d))
 	}
 	oldjitter := atomic.LoadUint32(&e.jitter)
-	jitter := (oldjitter * 15 + d) / 16
+	jitter := (oldjitter*15 + d) / 16
 	atomic.StoreUint32(&e.jitter, jitter)
 
 	e.timestamp = timestamp
@@ -37,7 +37,7 @@ func (e *Estimator) accumulate(timestamp, now uint32) {
 }
 
 func (e *Estimator) Accumulate(timestamp uint32) {
-	e.accumulate(timestamp, uint32(mono.Now(e.hz)))
+	e.accumulate(timestamp, uint32(rtptime.Now(e.hz)))
 }
 
 func (e *Estimator) Jitter() uint32 {

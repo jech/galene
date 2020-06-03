@@ -20,7 +20,7 @@ import (
 
 	"sfu/estimator"
 	"sfu/jitter"
-	"sfu/mono"
+	"sfu/rtptime"
 	"sfu/packetcache"
 
 	"github.com/gorilla/websocket"
@@ -559,7 +559,7 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 			switch p := p.(type) {
 			case *rtcp.SenderReport:
 				track.mu.Lock()
-				track.srTime = mono.Now(0x10000)
+				track.srTime = rtptime.Now(0x10000)
 				track.srNTPTime = p.NTPTime
 				track.srRTPTime = p.RTPTime
 				track.mu.Unlock()
@@ -574,7 +574,7 @@ func sendRR(conn *upConnection) error {
 		return nil
 	}
 
-	now := mono.Now(0x10000)
+	now := rtptime.Now(0x10000)
 
 	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
@@ -631,7 +631,7 @@ func sendSR(conn *rtpDownConnection) error {
 	packets := make([]rtcp.Packet, 0, len(conn.tracks))
 
 	now := time.Now()
-	nowNTP := mono.TimeToNTP(now)
+	nowNTP := rtptime.TimeToNTP(now)
 
 	for _, t := range conn.tracks {
 		clockrate := t.track.Codec().ClockRate
@@ -643,10 +643,10 @@ func sendSR(conn *rtpDownConnection) error {
 
 		nowRTP := srRTPTime
 		if srNTPTime != 0 {
-			srTime := mono.NTPToTime(srNTPTime)
+			srTime := rtptime.NTPToTime(srNTPTime)
 			delay := now.Sub(srTime)
 			if delay > 0 && delay < time.Hour {
-				d := mono.FromDuration(delay, clockrate)
+				d := rtptime.FromDuration(delay, clockrate)
 				nowRTP = srRTPTime + uint32(d)
 			}
 		}
@@ -918,7 +918,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				track.maxREMBBitrate.Set(
-					p.Bitrate, mono.Microseconds(),
+					p.Bitrate, rtptime.Microseconds(),
 				)
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
@@ -934,7 +934,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				}
 			case *rtcp.TransportLayerNack:
 				maxBitrate := track.GetMaxBitrate(
-					mono.Microseconds(),
+					rtptime.Microseconds(),
 				)
 				bitrate := track.rate.Estimate()
 				if uint64(bitrate)*7/8 < maxBitrate {
@@ -946,7 +946,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 }
 
 func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport) {
-	now := mono.Microseconds()
+	now := rtptime.Microseconds()
 	track.stats.Set(report.FractionLost, report.Jitter, now)
 	track.updateRate(report.FractionLost, now)
 }
@@ -972,7 +972,7 @@ func trackKinds(down *rtpDownConnection) (audio bool, video bool) {
 }
 
 func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
-	now := mono.Microseconds()
+	now := rtptime.Microseconds()
 
 	for _, track := range up.tracks {
 		isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
@@ -1011,7 +1011,7 @@ func (up *upConnection) sendPLI(track *upTrack) error {
 		return ErrUnsupportedFeedback
 	}
 	last := atomic.LoadUint64(&track.lastPLI)
-	now := mono.Microseconds()
+	now := rtptime.Microseconds()
 	if now >= last && now-last < 200000 {
 		return ErrRateLimited
 	}
@@ -1039,7 +1039,7 @@ func (up *upConnection) sendFIR(track *upTrack, increment bool) error {
 		return ErrUnsupportedFeedback
 	}
 	last := atomic.LoadUint64(&track.lastFIR)
-	now := mono.Microseconds()
+	now := rtptime.Microseconds()
 	if now >= last && now-last < 200000 {
 		return ErrRateLimited
 	}

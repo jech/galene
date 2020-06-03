@@ -1,4 +1,4 @@
-package mono
+package rtptime
 
 import (
 	"time"
