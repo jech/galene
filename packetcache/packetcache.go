@@ -10,7 +10,6 @@ type entry struct {
 	seqno  uint16
 	length uint16
 	buf    [BufSize]byte
-	pad    [32 - (BufSize+4)%32]byte // avoid false sharing
 }
 
 type Cache struct {
