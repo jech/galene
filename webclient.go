@@ -975,26 +975,6 @@ func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport, jiffies uint
 	}
 }
 
-func trackKinds(down *rtpDownConnection) (audio bool, video bool) {
-	if down.pc == nil {
-		return
-	}
-
-	for _, s := range down.pc.GetSenders() {
-		track := s.Track()
-		if track == nil {
-			continue
-		}
-		switch track.Kind() {
-		case webrtc.RTPCodecTypeAudio:
-			audio = true
-		case webrtc.RTPCodecTypeVideo:
-			video = true
-		}
-	}
-	return
-}
-
 func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
 	now := rtptime.Jiffies()
 
