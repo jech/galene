@@ -3,6 +3,7 @@ package packetcache
 import (
 	"bytes"
 	"math/rand"
+	"sync"
 	"testing"
 	"unsafe"
 
@@ -85,8 +86,8 @@ func TestCacheAlignment(t *testing.T) {
 	cache := New(16)
 	for i := range cache.entries {
 		p := unsafe.Pointer(&cache.entries[i])
-		if uintptr(p) % 32 != 0 {
-			t.Errorf("%v: alignment %v", i, uintptr(p) % 32)
+		if uintptr(p)%32 != 0 {
+			t.Errorf("%v: alignment %v", i, uintptr(p)%32)
 		}
 	}
 }
@@ -100,7 +101,7 @@ func TestBitmap(t *testing.T) {
 	var first uint16
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			first, _ = cache.Store(uint16(42 + i), packet)
+			first, _ = cache.Store(uint16(42+i), packet)
 		}
 	}
 
@@ -122,7 +123,7 @@ func TestBitmapWrap(t *testing.T) {
 	var first uint16
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			first, _ = cache.Store(uint16(42 + i), packet)
+			first, _ = cache.Store(uint16(42+i), packet)
 		}
 	}
 
@@ -140,7 +141,7 @@ func TestBitmapGet(t *testing.T) {
 
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			cache.Store(uint16(42 + i), packet)
+			cache.Store(uint16(42+i), packet)
 		}
 	}
 
@@ -161,7 +162,7 @@ func TestBitmapGet(t *testing.T) {
 		value >>= 1
 		pos += 1
 		for bitmap != 0 {
-			if uint8(bitmap & 1) == uint8(value & 1) {
+			if uint8(bitmap&1) == uint8(value&1) {
 				t.Errorf("Bitmap mismatch")
 			}
 			bitmap >>= 1
@@ -182,7 +183,7 @@ func TestBitmapPacket(t *testing.T) {
 
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			cache.Store(uint16(42 + i), packet)
+			cache.Store(uint16(42+i), packet)
 		}
 	}
 
@@ -202,4 +203,102 @@ func TestBitmapPacket(t *testing.T) {
 			}
 		}
 	}
+}
+
+func BenchmarkCachePutGet(b *testing.B) {
+	n := 10
+	chans := make([]chan uint16, n)
+	for i := range chans {
+		chans[i] = make(chan uint16, 8)
+	}
+
+	cache := New(96)
+
+	var wg sync.WaitGroup
+	wg.Add(len(chans))
+
+	for i := range chans {
+		go func(ch <-chan uint16) {
+			defer wg.Done()
+			buf := make([]byte, BufSize)
+			for {
+				seqno, ok := <-ch
+				if !ok {
+					return
+				}
+				l := cache.Get(seqno, buf)
+				if l == 0 {
+					b.Errorf("Couldn't get %v", seqno)
+				}
+			}
+		}(chans[i])
+	}
+
+	buf := make([]byte, 1200)
+
+	b.SetBytes(1200)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		seqno := uint16(i)
+		cache.Store(seqno, buf)
+		for _, ch := range chans {
+			ch <- seqno
+		}
+	}
+	for _, ch := range chans {
+		close(ch)
+	}
+	wg.Wait()
+}
+
+type is struct {
+	index, seqno uint16
+}
+
+func BenchmarkCachePutGetAt(b *testing.B) {
+	n := 10
+	chans := make([]chan is, n)
+	for i := range chans {
+		chans[i] = make(chan is, 8)
+	}
+
+	cache := New(96)
+
+	var wg sync.WaitGroup
+	wg.Add(len(chans))
+
+	for i := range chans {
+		go func(ch <-chan is) {
+			defer wg.Done()
+			buf := make([]byte, BufSize)
+			for {
+				is, ok := <-ch
+				if !ok {
+					return
+				}
+				l := cache.GetAt(is.seqno, is.index, buf)
+				if l == 0 {
+					b.Errorf("Couldn't get %v", is)
+				}
+			}
+		}(chans[i])
+	}
+
+	buf := make([]byte, 1200)
+
+	b.SetBytes(1200)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		seqno := uint16(i)
+		_, index := cache.Store(seqno, buf)
+		for _, ch := range chans {
+			ch <- is{index, seqno}
+		}
+	}
+	for _, ch := range chans {
+		close(ch)
+	}
+	wg.Wait()
 }
