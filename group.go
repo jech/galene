@@ -587,13 +587,13 @@ func getClientStats(c *webClient) clientStats {
 	for _, down := range c.down {
 		conns := connStats{id: down.id}
 		for _, t := range down.tracks {
-			us := rtptime.Microseconds()
-			loss, jitter := t.stats.Get(us)
+			jiffies := rtptime.Jiffies()
+			loss, jitter := t.stats.Get(jiffies)
 			j := time.Duration(jitter) * time.Second /
 				time.Duration(t.track.Codec().ClockRate)
 			conns.tracks = append(conns.tracks, trackStats{
 				bitrate:    uint64(t.rate.Estimate()) * 8,
-				maxBitrate: t.GetMaxBitrate(us),
+				maxBitrate: t.GetMaxBitrate(jiffies),
 				loss:       uint8(uint32(loss) * 100 / 256),
 				jitter:     j,
 			})

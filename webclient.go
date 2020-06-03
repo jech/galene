@@ -918,7 +918,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				track.maxREMBBitrate.Set(
-					p.Bitrate, rtptime.Microseconds(),
+					p.Bitrate, rtptime.Jiffies(),
 				)
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
@@ -934,7 +934,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				}
 			case *rtcp.TransportLayerNack:
 				maxBitrate := track.GetMaxBitrate(
-					rtptime.Microseconds(),
+					rtptime.Jiffies(),
 				)
 				bitrate := track.rate.Estimate()
 				if uint64(bitrate)*7/8 < maxBitrate {
@@ -946,9 +946,9 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 }
 
 func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport) {
-	now := rtptime.Microseconds()
-	track.stats.Set(report.FractionLost, report.Jitter, now)
-	track.updateRate(report.FractionLost, now)
+	jiffies := rtptime.Jiffies()
+	track.stats.Set(report.FractionLost, report.Jitter, jiffies)
+	track.updateRate(report.FractionLost, jiffies)
 }
 
 func trackKinds(down *rtpDownConnection) (audio bool, video bool) {
@@ -972,7 +972,7 @@ func trackKinds(down *rtpDownConnection) (audio bool, video bool) {
 }
 
 func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
-	now := rtptime.Microseconds()
+	now := rtptime.Jiffies()
 
 	for _, track := range up.tracks {
 		isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
@@ -1011,8 +1011,8 @@ func (up *upConnection) sendPLI(track *upTrack) error {
 		return ErrUnsupportedFeedback
 	}
 	last := atomic.LoadUint64(&track.lastPLI)
-	now := rtptime.Microseconds()
-	if now >= last && now-last < 200000 {
+	now := rtptime.Jiffies()
+	if now >= last && now-last < rtptime.JiffiesPerSec / 5 {
 		return ErrRateLimited
 	}
 	atomic.StoreUint64(&track.lastPLI, now)
@@ -1039,8 +1039,8 @@ func (up *upConnection) sendFIR(track *upTrack, increment bool) error {
 		return ErrUnsupportedFeedback
 	}
 	last := atomic.LoadUint64(&track.lastFIR)
-	now := rtptime.Microseconds()
-	if now >= last && now-last < 200000 {
+	now := rtptime.Jiffies()
+	if now >= last && now-last < rtptime.JiffiesPerSec / 5 {
 		return ErrRateLimited
 	}
 	atomic.StoreUint64(&track.lastFIR, now)

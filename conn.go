@@ -13,6 +13,7 @@ import (
 	"sfu/estimator"
 	"sfu/jitter"
 	"sfu/packetcache"
+	"sfu/rtptime"
 
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
@@ -223,42 +224,42 @@ func (up *upConnection) complete() bool {
 }
 
 type bitrate struct {
-	bitrate      uint64
-	microseconds uint64
+	bitrate uint64
+	jiffies uint64
 }
 
-const receiverReportTimeout = 8000000
+const receiverReportTimeout = 8 * rtptime.JiffiesPerSec
 
 func (br *bitrate) Set(bitrate uint64, now uint64) {
 	// this is racy -- a reader might read the
 	// data between the two writes.  This shouldn't
 	// matter, we'll recover at the next sample.
 	atomic.StoreUint64(&br.bitrate, bitrate)
-	atomic.StoreUint64(&br.microseconds, now)
+	atomic.StoreUint64(&br.jiffies, now)
 }
 
 func (br *bitrate) Get(now uint64) uint64 {
-	ts := atomic.LoadUint64(&br.microseconds)
-	if now < ts || now > ts+receiverReportTimeout {
+	ts := atomic.LoadUint64(&br.jiffies)
+	if now < ts || now-ts > receiverReportTimeout {
 		return ^uint64(0)
 	}
 	return atomic.LoadUint64(&br.bitrate)
 }
 
 type receiverStats struct {
-	loss         uint32
-	jitter       uint32
-	microseconds uint64
+	loss    uint32
+	jitter  uint32
+	jiffies uint64
 }
 
 func (s *receiverStats) Set(loss uint8, jitter uint32, now uint64) {
 	atomic.StoreUint32(&s.loss, uint32(loss))
 	atomic.StoreUint32(&s.jitter, jitter)
-	atomic.StoreUint64(&s.microseconds, now)
+	atomic.StoreUint64(&s.jiffies, now)
 }
 
 func (s *receiverStats) Get(now uint64) (uint8, uint32) {
-	ts := atomic.LoadUint64(&s.microseconds)
+	ts := atomic.LoadUint64(&s.jiffies)
 	if now < ts || now > ts+receiverReportTimeout {
 		return 0, 0
 	}
