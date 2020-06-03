@@ -26,20 +26,20 @@ func TestCache(t *testing.T) {
 	buf := make([]byte, BufSize)
 
 	l := cache.Get(13, buf)
-	if bytes.Compare(buf[:l], buf1) != 0 {
+	if !bytes.Equal(buf[:l], buf1) {
 		t.Errorf("Couldn't get 13")
 	}
 	l = cache.GetAt(13, i1, buf)
-	if bytes.Compare(buf[:l], buf1) != 0 {
+	if !bytes.Equal(buf[:l], buf1) {
 		t.Errorf("Couldn't get 13 at %v", i1)
 	}
 
 	l = cache.Get(17, buf)
-	if bytes.Compare(buf[:l], buf2) != 0 {
+	if !bytes.Equal(buf[:l], buf2) {
 		t.Errorf("Couldn't get 17")
 	}
 	l = cache.GetAt(17, i2, buf)
-	if bytes.Compare(buf[:l], buf2) != 0 {
+	if !bytes.Equal(buf[:l], buf2) {
 		t.Errorf("Couldn't get 17 at %v", i2)
 	}
 
