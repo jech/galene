@@ -847,7 +847,8 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 	if loss < 5 {
 		// if our actual rate is low, then we're not probing the
 		// bottleneck
-		actual := 8 * uint64(track.rate.Estimate())
+		r, _ := track.rate.Estimate()
+		actual := 8 * uint64(r)
 		if actual >= (rate*7)/8 {
 			// loss < 0.02, multiply by 1.05
 			rate = rate * 269 / 256
@@ -937,7 +938,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				}
 			case *rtcp.TransportLayerNack:
 				maxBitrate := track.GetMaxBitrate(jiffies)
-				bitrate := track.rate.Estimate()
+				bitrate, _ := track.rate.Estimate()
 				if uint64(bitrate)*7/8 < maxBitrate {
 					sendRecovery(p, track)
 				}

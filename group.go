@@ -573,8 +573,9 @@ func getClientStats(c *webClient) clientStats {
 			loss := uint8(lost * 100 / expected)
 			jitter := time.Duration(t.jitter.Jitter()) *
 				(time.Second / time.Duration(t.jitter.HZ()))
+			rate, _ := t.rate.Estimate()
 			conns.tracks = append(conns.tracks, trackStats{
-				bitrate:    uint64(t.rate.Estimate()) * 8,
+				bitrate:    uint64(rate) * 8,
 				maxBitrate: atomic.LoadUint64(&t.maxBitrate),
 				loss:       loss,
 				jitter:     jitter,
@@ -590,13 +591,14 @@ func getClientStats(c *webClient) clientStats {
 		conns := connStats{id: down.id}
 		for _, t := range down.tracks {
 			jiffies := rtptime.Jiffies()
+			rate, _ := t.rate.Estimate()
 			rtt := rtptime.ToDuration(atomic.LoadUint64(&t.rtt),
 				rtptime.JiffiesPerSec)
 			loss, jitter := t.stats.Get(jiffies)
 			j := time.Duration(jitter) * time.Second /
 				time.Duration(t.track.Codec().ClockRate)
 			conns.tracks = append(conns.tracks, trackStats{
-				bitrate:    uint64(t.rate.Estimate()) * 8,
+				bitrate:    uint64(rate) * 8,
 				maxBitrate: t.GetMaxBitrate(jiffies),
 				loss:       uint8(uint32(loss) * 100 / 256),
 				rtt:        rtt,
