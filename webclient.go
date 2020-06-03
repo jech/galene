@@ -366,7 +366,7 @@ func addUpConn(c *webClient, id string) (*upConnection, error) {
 		track := &upTrack{
 			track:      remote,
 			label:      label,
-			cache:      packetcache.New(96),
+			cache:      packetcache.New(32),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
 			maxBitrate: ^uint64(0),
@@ -975,11 +975,12 @@ func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport, jiffies uint
 	}
 }
 
-func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
+func updateUpTrack(up *upConnection, maxVideoRate uint64) {
 	now := rtptime.Jiffies()
 
 	for _, track := range up.tracks {
 		isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
+		clockrate := track.track.Codec().ClockRate
 		minrate := uint64(minAudioRate)
 		rate := ^uint64(0)
 		if isvideo {
@@ -990,6 +991,7 @@ func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
 			}
 		}
 		local := track.getLocal()
+		var maxrto uint64
 		for _, l := range local {
 			bitrate := l.GetMaxBitrate(now)
 			if bitrate == ^uint64(0) {
@@ -1002,8 +1004,29 @@ func updateUpBitrate(up *upConnection, maxVideoRate uint64) {
 			if rate > bitrate {
 				rate = bitrate
 			}
+			ll, ok := l.(*rtpDownTrack)
+			if ok {
+				_, j := ll.stats.Get(now)
+				jitter := uint64(j) *
+					(rtptime.JiffiesPerSec /
+						uint64(clockrate))
+				rtt := atomic.LoadUint64(&ll.rtt)
+				rto := rtt + 4*jitter
+				if rto > maxrto {
+					maxrto = rto
+				}
+			}
 		}
 		track.maxBitrate = rate
+		_, r := track.rate.Estimate()
+		packets := int((uint64(r) * maxrto * 4) / rtptime.JiffiesPerSec)
+		if packets < 32 {
+			packets = 32
+		}
+		if packets > 256 {
+			packets = 256
+		}
+		track.cache.ResizeCond(packets)
 	}
 }
 
@@ -1690,7 +1713,7 @@ func sendRateUpdate(c *webClient) {
 
 	c.mu.Lock()
 	for _, u := range c.up {
-		updateUpBitrate(u, maxVideoRate)
+		updateUpTrack(u, maxVideoRate)
 		for _, t := range u.tracks {
 			if !t.hasRtcpFb("goog-remb", "") {
 				continue
