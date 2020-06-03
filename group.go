@@ -237,6 +237,7 @@ func addClient(name string, c client, user, pass string) (*group, error) {
 	g.clients[c.getId()] = c
 
 	go func(clients []client) {
+		c.pushClient(c.getId(), c.getUsername(), true)
 		for _, cc := range clients {
 			err := c.pushClient(cc.getId(), cc.getUsername(), true)
 			if err == ErrClientDead {
@@ -264,7 +265,7 @@ func delClient(c client) {
 		for _, cc := range clients {
 			cc.pushClient(c.getId(), c.getUsername(), false)
 		}
-	}(g.getClientsUnlocked(c))
+	}(g.getClientsUnlocked(nil))
 }
 
 func (g *group) getClients(except client) []client {
