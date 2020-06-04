@@ -547,6 +547,7 @@ func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
 
 func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 	for {
+		firstSR := false
 		ps, err := r.ReadRTCP()
 		if err != nil {
 			if err != io.EOF {
@@ -555,15 +556,35 @@ func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
 			return
 		}
 
+		now := rtptime.Jiffies()
+
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.SenderReport:
 				track.mu.Lock()
-				track.srTime = rtptime.Jiffies()
+				if track.srTime == 0 {
+					firstSR = true
+				}
+				track.srTime = now
 				track.srNTPTime = p.NTPTime
 				track.srRTPTime = p.RTPTime
 				track.mu.Unlock()
 			case *rtcp.SourceDescription:
+			}
+		}
+
+		if(firstSR) {
+			// this is the first SR we got for at least one track,
+			// quickly propagate the time offsets downstream
+			local := conn.getLocal()
+			for _, l := range local {
+				l, ok := l.(*rtpDownConnection)
+				if ok {
+					err := sendSR(l)
+					if err != nil {
+						log.Printf("sendSR: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -638,10 +659,17 @@ func sendSR(conn *rtpDownConnection) error {
 	for _, t := range conn.tracks {
 		clockrate := t.track.Codec().ClockRate
 		remote := t.remote
+
 		remote.mu.Lock()
+		lastTime := remote.srTime
 		srNTPTime := remote.srNTPTime
 		srRTPTime := remote.srRTPTime
 		remote.mu.Unlock()
+
+		if lastTime == 0 {
+			// we never got a remote SR, skip this track
+			continue
+		}
 
 		nowRTP := srRTPTime
 		if srNTPTime != 0 {
@@ -664,6 +692,10 @@ func sendSR(conn *rtpDownConnection) error {
 			})
 		atomic.StoreUint64(&t.srTime, jiffies)
 		atomic.StoreUint64(&t.srNTPTime, nowNTP)
+	}
+
+	if len(packets) == 0 {
+		return nil
 	}
 
 	return conn.pc.WriteRTCP(packets)
