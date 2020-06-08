@@ -8,10 +8,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log"
 	"math"
-	"math/bits"
 	"os"
 	"strings"
 	"sync"
@@ -19,13 +17,8 @@ import (
 	"time"
 
 	"sfu/estimator"
-	"sfu/jitter"
-	"sfu/packetcache"
-	"sfu/rtptime"
 
 	"github.com/gorilla/websocket"
-	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -104,18 +97,18 @@ type webClient struct {
 
 	mu   sync.Mutex
 	down map[string]*rtpDownConnection
-	up   map[string]*upConnection
+	up   map[string]*rtpUpConnection
 }
 
-func (c *webClient) getGroup() *group {
+func (c *webClient) Group() *group {
 	return c.group
 }
 
-func (c *webClient) getId() string {
+func (c *webClient) Id() string {
 	return c.id
 }
 
-func (c *webClient) getUsername() string {
+func (c *webClient) Username() string {
 	return c.username
 }
 
@@ -196,135 +189,37 @@ type closeMessage struct {
 	data []byte
 }
 
-func startClient(conn *websocket.Conn) (err error) {
-	var m clientMessage
-
-	err = conn.SetReadDeadline(time.Now().Add(15 * time.Second))
-	if err != nil {
-		conn.Close()
-		return
-	}
-	err = conn.ReadJSON(&m)
-	if err != nil {
-		conn.Close()
-		return
-	}
-	err = conn.SetReadDeadline(time.Time{})
-	if err != nil {
-		conn.Close()
-		return
-	}
-
-	if m.Type != "handshake" {
-		conn.Close()
-		return
-	}
-
-	if strings.ContainsRune(m.Username, ' ') {
-		err = userError("don't put spaces in your username")
-		return
-	}
-
-	c := &webClient{
-		id:       m.Id,
-		username: m.Username,
-		actionCh: make(chan interface{}, 10),
-		done:     make(chan struct{}),
-	}
-
-	defer close(c.done)
-
-	c.writeCh = make(chan interface{}, 25)
-	defer func() {
-		if isWSNormalError(err) {
-			err = nil
-		} else {
-			m, e := errorToWSCloseMessage(err)
-			if m != "" {
-				c.write(clientMessage{
-					Type:  "error",
-					Value: m,
-				})
-			}
-			select {
-			case c.writeCh <- closeMessage{e}:
-			case <-c.writerDone:
-			}
-		}
-		close(c.writeCh)
-		c.writeCh = nil
-	}()
-
-	c.writerDone = make(chan struct{})
-	go clientWriter(conn, c.writeCh, c.writerDone)
-
-	g, err := addClient(m.Group, c, m.Username, m.Password)
-	if err != nil {
-		return
-	}
-	c.group = g
-	defer delClient(c)
-
-	return clientLoop(c, conn)
-}
-
-func getUpConn(c *webClient, id string) *upConnection {
+func getUpConn(c *webClient, id string) *rtpUpConnection {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.up == nil {
 		return nil
 	}
-	conn := c.up[id]
-	if conn == nil {
-		return nil
-	}
-	return conn
+	return c.up[id]
 }
 
-func getUpConns(c *webClient) []*upConnection {
+func getUpConns(c *webClient) []*rtpUpConnection {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	up := make([]*upConnection, 0, len(c.up))
+	up := make([]*rtpUpConnection, 0, len(c.up))
 	for _, u := range c.up {
 		up = append(up, u)
 	}
 	return up
 }
 
-func addUpConn(c *webClient, id string) (*upConnection, error) {
-	pc, err := groups.api.NewPeerConnection(iceConfiguration())
+func addUpConn(c *webClient, id string) (*rtpUpConnection, error) {
+	conn, err := newUpConn(c, id)
 	if err != nil {
 		return nil, err
 	}
-
-	_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio,
-		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		},
-	)
-	if err != nil {
-		pc.Close()
-		return nil, err
-	}
-
-	_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo,
-		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		},
-	)
-	if err != nil {
-		pc.Close()
-		return nil, err
-	}
-
-	conn := &upConnection{id: id, pc: pc}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.up == nil {
-		c.up = make(map[string]*upConnection)
+		c.up = make(map[string]*rtpUpConnection)
 	}
 	if c.up[id] != nil || (c.down != nil && c.down[id] != nil) {
 		conn.pc.Close()
@@ -332,384 +227,11 @@ func addUpConn(c *webClient, id string) (*upConnection, error) {
 	}
 	c.up[id] = conn
 
-	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+	conn.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		sendICE(c, id, candidate)
 	})
 
-	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
-		conn.mu.Lock()
-		defer conn.mu.Unlock()
-
-		mid := getUpMid(pc, remote)
-		if mid == "" {
-			log.Printf("Couldn't get track's mid")
-			return
-		}
-
-		label, ok := conn.labels[mid]
-		if !ok {
-			log.Printf("Couldn't get track's label")
-			isvideo := remote.Kind() == webrtc.RTPCodecTypeVideo
-			if isvideo {
-				label = "video"
-			} else {
-				label = "audio"
-			}
-		}
-
-		track := &upTrack{
-			track:      remote,
-			label:      label,
-			cache:      packetcache.New(32),
-			rate:       estimator.New(time.Second),
-			jitter:     jitter.New(remote.Codec().ClockRate),
-			maxBitrate: ^uint64(0),
-			localCh:    make(chan localTrackAction, 2),
-			writerDone: make(chan struct{}),
-		}
-
-		conn.tracks = append(conn.tracks, track)
-
-		if remote.Kind() == webrtc.RTPCodecTypeVideo {
-			atomic.AddUint32(&c.group.videoCount, 1)
-		}
-
-		go readLoop(conn, track)
-
-		go rtcpUpListener(conn, track, receiver)
-
-		if conn.complete() {
-			// cannot call getTracks, we're locked
-			tracks := make([]*upTrack, len(conn.tracks))
-			copy(tracks, conn.tracks)
-			clients := c.group.getClients(c)
-			for _, cc := range clients {
-				cc.pushConn(conn, tracks, conn.label)
-			}
-			go rtcpUpSender(conn)
-		}
-	})
-
 	return conn, nil
-}
-
-type packetIndex struct {
-	seqno uint16
-	index uint16
-}
-
-func readLoop(conn *upConnection, track *upTrack) {
-	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
-	ch := make(chan packetIndex, 32)
-	defer close(ch)
-	go writeLoop(conn, track, ch)
-
-	buf := make([]byte, packetcache.BufSize)
-	var packet rtp.Packet
-	drop := 0
-	for {
-		bytes, err := track.track.Read(buf)
-		if err != nil {
-			if err != io.EOF {
-				log.Printf("%v", err)
-			}
-			break
-		}
-		track.rate.Accumulate(uint32(bytes))
-
-		err = packet.Unmarshal(buf[:bytes])
-		if err != nil {
-			log.Printf("%v", err)
-			continue
-		}
-
-		track.jitter.Accumulate(packet.Timestamp)
-
-		first, index :=
-			track.cache.Store(packet.SequenceNumber, buf[:bytes])
-		if packet.SequenceNumber-first > 24 {
-			found, first, bitmap := track.cache.BitmapGet()
-			if found {
-				err := conn.sendNACK(track, first, bitmap)
-				if err != nil {
-					log.Printf("%v", err)
-				}
-			}
-		}
-
-		if drop > 0 {
-			if packet.Marker {
-				// last packet in frame
-				drop = 0
-			} else {
-				drop--
-			}
-			continue
-		}
-
-		select {
-		case ch <- packetIndex{packet.SequenceNumber, index}:
-		default:
-			if isvideo {
-				// the writer is congested.  Drop until
-				// the end of the frame.
-				if isvideo && !packet.Marker {
-					drop = 7
-				}
-			}
-		}
-	}
-}
-
-func writeLoop(conn *upConnection, track *upTrack, ch <-chan packetIndex) {
-	defer close(track.writerDone)
-
-	buf := make([]byte, packetcache.BufSize)
-	var packet rtp.Packet
-
-	local := make([]downTrack, 0)
-
-	firSent := false
-
-	for {
-		select {
-		case action := <-track.localCh:
-			if action.add {
-				local = append(local, action.track)
-				firSent = false
-			} else {
-				found := false
-				for i, t := range local {
-					if t == action.track {
-						local = append(local[:i], local[i+1:]...)
-						found = true
-						break
-					}
-				}
-				if !found {
-					log.Printf("Deleting unknown track!")
-				}
-			}
-		case pi, ok := <-ch:
-			if !ok {
-				return
-			}
-
-			bytes := track.cache.GetAt(pi.seqno, pi.index, buf)
-			if bytes == 0 {
-				continue
-			}
-
-			err := packet.Unmarshal(buf[:bytes])
-			if err != nil {
-				log.Printf("%v", err)
-				continue
-			}
-
-			kfNeeded := false
-
-			for _, l := range local {
-				err := l.WriteRTP(&packet)
-				if err != nil {
-					if err == ErrKeyframeNeeded {
-						kfNeeded = true
-					} else if err != io.ErrClosedPipe {
-						log.Printf("WriteRTP: %v", err)
-					}
-					continue
-				}
-				l.Accumulate(uint32(bytes))
-			}
-
-			if kfNeeded {
-				err := conn.sendFIR(track, !firSent)
-				if err == ErrUnsupportedFeedback {
-					err := conn.sendPLI(track)
-					if err != nil &&
-						err != ErrUnsupportedFeedback {
-						log.Printf("sendPLI: %v", err)
-					}
-				} else if err != nil {
-					log.Printf("sendFIR: %v", err)
-				}
-				firSent = true
-			}
-		}
-	}
-}
-
-func rtcpUpListener(conn *upConnection, track *upTrack, r *webrtc.RTPReceiver) {
-	for {
-		firstSR := false
-		ps, err := r.ReadRTCP()
-		if err != nil {
-			if err != io.EOF {
-				log.Printf("ReadRTCP: %v", err)
-			}
-			return
-		}
-
-		now := rtptime.Jiffies()
-
-		for _, p := range ps {
-			switch p := p.(type) {
-			case *rtcp.SenderReport:
-				track.mu.Lock()
-				if track.srTime == 0 {
-					firstSR = true
-				}
-				track.srTime = now
-				track.srNTPTime = p.NTPTime
-				track.srRTPTime = p.RTPTime
-				track.mu.Unlock()
-			case *rtcp.SourceDescription:
-			}
-		}
-
-		if firstSR {
-			// this is the first SR we got for at least one track,
-			// quickly propagate the time offsets downstream
-			local := conn.getLocal()
-			for _, l := range local {
-				l, ok := l.(*rtpDownConnection)
-				if ok {
-					err := sendSR(l)
-					if err != nil {
-						log.Printf("sendSR: %v", err)
-					}
-				}
-			}
-		}
-	}
-}
-
-func sendRR(conn *upConnection) error {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-
-	if len(conn.tracks) == 0 {
-		return nil
-	}
-
-	now := rtptime.Jiffies()
-
-	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
-	for _, t := range conn.tracks {
-		expected, lost, totalLost, eseqno := t.cache.GetStats(true)
-		if expected == 0 {
-			expected = 1
-		}
-		if lost >= expected {
-			lost = expected - 1
-		}
-
-		t.mu.Lock()
-		srTime := t.srTime
-		srNTPTime := t.srNTPTime
-		t.mu.Unlock()
-
-		var delay uint64
-		if srTime != 0 {
-			delay = (now - srTime) /
-				(rtptime.JiffiesPerSec / 0x10000)
-		}
-
-		reports = append(reports, rtcp.ReceptionReport{
-			SSRC:               t.track.SSRC(),
-			FractionLost:       uint8((lost * 256) / expected),
-			TotalLost:          totalLost,
-			LastSequenceNumber: eseqno,
-			Jitter:             t.jitter.Jitter(),
-			LastSenderReport:   uint32(srNTPTime >> 16),
-			Delay:              uint32(delay),
-		})
-	}
-
-	return conn.pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.ReceiverReport{
-			Reports: reports,
-		},
-	})
-}
-
-func rtcpUpSender(conn *upConnection) {
-	for {
-		time.Sleep(time.Second)
-		err := sendRR(conn)
-		if err != nil {
-			if err == io.EOF || err == io.ErrClosedPipe {
-				return
-			}
-			log.Printf("sendRR: %v", err)
-		}
-	}
-}
-
-func sendSR(conn *rtpDownConnection) error {
-	// since this is only called after all tracks have been created,
-	// there is no need for locking.
-	packets := make([]rtcp.Packet, 0, len(conn.tracks))
-
-	now := time.Now()
-	nowNTP := rtptime.TimeToNTP(now)
-	jiffies := rtptime.TimeToJiffies(now)
-
-	for _, t := range conn.tracks {
-		clockrate := t.track.Codec().ClockRate
-		remote := t.remote
-
-		remote.mu.Lock()
-		lastTime := remote.srTime
-		srNTPTime := remote.srNTPTime
-		srRTPTime := remote.srRTPTime
-		remote.mu.Unlock()
-
-		if lastTime == 0 {
-			// we never got a remote SR, skip this track
-			continue
-		}
-
-		nowRTP := srRTPTime
-		if srNTPTime != 0 {
-			srTime := rtptime.NTPToTime(srNTPTime)
-			delay := now.Sub(srTime)
-			if delay > 0 && delay < time.Hour {
-				d := rtptime.FromDuration(delay, clockrate)
-				nowRTP = srRTPTime + uint32(d)
-			}
-		}
-
-		p, b := t.rate.Totals()
-		packets = append(packets,
-			&rtcp.SenderReport{
-				SSRC:        t.track.SSRC(),
-				NTPTime:     nowNTP,
-				RTPTime:     nowRTP,
-				PacketCount: p,
-				OctetCount:  b,
-			})
-		atomic.StoreUint64(&t.srTime, jiffies)
-		atomic.StoreUint64(&t.srNTPTime, nowNTP)
-	}
-
-	if len(packets) == 0 {
-		return nil
-	}
-
-	return conn.pc.WriteRTCP(packets)
-}
-
-func rtcpDownSender(conn *rtpDownConnection) {
-	for {
-		time.Sleep(time.Second)
-		err := sendSR(conn)
-		if err != nil {
-			if err == io.EOF || err == io.ErrClosedPipe {
-				return
-			}
-			log.Printf("sendSR: %v", err)
-		}
-	}
 }
 
 func delUpConn(c *webClient, id string) bool {
@@ -769,37 +291,28 @@ func getConn(c *webClient, id string) iceConnection {
 	return nil
 }
 
-func addDownConn(c *webClient, id string, remote *upConnection) (*rtpDownConnection, error) {
-	pc, err := groups.api.NewPeerConnection(iceConfiguration())
+func addDownConn(c *webClient, id string, remote upConnection) (*rtpDownConnection, error) {
+	conn, err := newDownConn(id, remote)
 	if err != nil {
 		return nil, err
-	}
-
-	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
-		sendICE(c, id, candidate)
-	})
-
-	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
-		log.Printf("Got track on downstream connection")
-	})
-
-	if c.down == nil {
-		c.down = make(map[string]*rtpDownConnection)
-	}
-	conn := &rtpDownConnection{
-		id:     id,
-		client: c,
-		pc:     pc,
-		remote: remote,
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.down == nil {
+		c.down = make(map[string]*rtpDownConnection)
+	}
+
 	if c.down[id] != nil || (c.up != nil && c.up[id] != nil) {
 		conn.pc.Close()
 		return nil, errors.New("Adding duplicate connection")
 	}
+
+	conn.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+		sendICE(c, id, candidate)
+	})
+
 	err = remote.addLocal(conn)
 	if err != nil {
 		conn.pc.Close()
@@ -807,6 +320,10 @@ func addDownConn(c *webClient, id string, remote *upConnection) (*rtpDownConnect
 	}
 
 	c.down[id] = conn
+	conn.close = func() error {
+		return c.action(delConnAction{conn.id})
+	}
+
 	return conn, nil
 }
 
@@ -833,13 +350,21 @@ func delDownConn(c *webClient, id string) bool {
 	return true
 }
 
-func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack *upTrack, remoteConn *upConnection) (*webrtc.RTPSender, error) {
-	local, err := conn.pc.NewTrack(
-		remoteTrack.track.PayloadType(),
-		remoteTrack.track.SSRC(),
-		remoteTrack.track.ID(),
-		remoteTrack.track.Label(),
-	)
+func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack upTrack, remoteConn upConnection) (*webrtc.RTPSender, error) {
+	var pt uint8
+	var ssrc uint32
+	var id, label string
+	switch rt := remoteTrack.(type) {
+	case *rtpUpTrack:
+		pt = rt.track.PayloadType()
+		ssrc = rt.track.SSRC()
+		id = rt.track.ID()
+		label = rt.track.Label()
+	default:
+		return nil, errors.New("not implemented yet")
+	}
+
+	local, err := conn.pc.NewTrack(pt, ssrc, id, label)
 	if err != nil {
 		return nil, err
 	}
@@ -862,319 +387,6 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack *upTrack, r
 	go rtcpDownListener(conn, track, s)
 
 	return s, nil
-}
-
-const (
-	minLossRate  = 9600
-	initLossRate = 512 * 1000
-	maxLossRate  = 1 << 30
-)
-
-func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
-	rate := track.maxLossBitrate.Get(now)
-	if rate < minLossRate || rate > maxLossRate {
-		// no recent feedback, reset
-		rate = initLossRate
-	}
-	if loss < 5 {
-		// if our actual rate is low, then we're not probing the
-		// bottleneck
-		r, _ := track.rate.Estimate()
-		actual := 8 * uint64(r)
-		if actual >= (rate*7)/8 {
-			// loss < 0.02, multiply by 1.05
-			rate = rate * 269 / 256
-			if rate > maxLossRate {
-				rate = maxLossRate
-			}
-		}
-	} else if loss > 25 {
-		// loss > 0.1, multiply by (1 - loss/2)
-		rate = rate * (512 - uint64(loss)) / 512
-		if rate < minLossRate {
-			rate = minLossRate
-		}
-	}
-
-	// update unconditionally, to set the timestamp
-	track.maxLossBitrate.Set(rate, now)
-}
-
-func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RTPSender) {
-	var gotFir bool
-	lastFirSeqno := uint8(0)
-
-	for {
-		ps, err := s.ReadRTCP()
-		if err != nil {
-			if err != io.EOF {
-				log.Printf("ReadRTCP: %v", err)
-			}
-			return
-		}
-		jiffies := rtptime.Jiffies()
-
-		for _, p := range ps {
-			switch p := p.(type) {
-			case *rtcp.PictureLossIndication:
-				err := conn.remote.sendPLI(track.remote)
-				if err != nil {
-					log.Printf("sendPLI: %v", err)
-				}
-			case *rtcp.FullIntraRequest:
-				found := false
-				var seqno uint8
-				for _, entry := range p.FIR {
-					if entry.SSRC == track.track.SSRC() {
-						found = true
-						seqno = entry.SequenceNumber
-						break
-					}
-				}
-				if !found {
-					log.Printf("Misdirected FIR")
-					continue
-				}
-
-				increment := true
-				if gotFir {
-					increment = seqno != lastFirSeqno
-				}
-				gotFir = true
-				lastFirSeqno = seqno
-
-				err := conn.remote.sendFIR(
-					track.remote, increment,
-				)
-				if err == ErrUnsupportedFeedback {
-					err := conn.remote.sendPLI(track.remote)
-					if err != nil {
-						log.Printf("sendPLI: %v", err)
-					}
-				} else if err != nil {
-					log.Printf("sendFIR: %v", err)
-				}
-			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				track.maxREMBBitrate.Set(p.Bitrate, jiffies)
-			case *rtcp.ReceiverReport:
-				for _, r := range p.Reports {
-					if r.SSRC == track.track.SSRC() {
-						handleReport(track, r, jiffies)
-					}
-				}
-			case *rtcp.SenderReport:
-				for _, r := range p.Reports {
-					if r.SSRC == track.track.SSRC() {
-						handleReport(track, r, jiffies)
-					}
-				}
-			case *rtcp.TransportLayerNack:
-				maxBitrate := track.GetMaxBitrate(jiffies)
-				bitrate, _ := track.rate.Estimate()
-				if uint64(bitrate)*7/8 < maxBitrate {
-					sendRecovery(p, track)
-				}
-			}
-		}
-	}
-}
-
-func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport, jiffies uint64) {
-	track.stats.Set(report.FractionLost, report.Jitter, jiffies)
-	track.updateRate(report.FractionLost, jiffies)
-
-	if report.LastSenderReport != 0 {
-		jiffies := rtptime.Jiffies()
-		srTime := atomic.LoadUint64(&track.srTime)
-		if jiffies < srTime || jiffies-srTime > 8*rtptime.JiffiesPerSec {
-			return
-		}
-		srNTPTime := atomic.LoadUint64(&track.srNTPTime)
-		if report.LastSenderReport == uint32(srNTPTime>>16) {
-			delay := uint64(report.Delay) *
-				(rtptime.JiffiesPerSec / 0x10000)
-			if delay > jiffies-srTime {
-				return
-			}
-			rtt := (jiffies - srTime) - delay
-			oldrtt := atomic.LoadUint64(&track.rtt)
-			newrtt := rtt
-			if oldrtt > 0 {
-				newrtt = (3*oldrtt + rtt) / 4
-			}
-			atomic.StoreUint64(&track.rtt, newrtt)
-		}
-	}
-}
-
-func updateUpTrack(track *upTrack, maxVideoRate uint64) uint64 {
-	now := rtptime.Jiffies()
-
-	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
-	clockrate := track.track.Codec().ClockRate
-	minrate := uint64(minAudioRate)
-	rate := ^uint64(0)
-	if isvideo {
-		minrate = minVideoRate
-		rate = maxVideoRate
-		if rate < minrate {
-			rate = minrate
-		}
-	}
-	local := track.getLocal()
-	var maxrto uint64
-	for _, l := range local {
-		bitrate := l.GetMaxBitrate(now)
-		if bitrate == ^uint64(0) {
-			continue
-		}
-		if bitrate <= minrate {
-			rate = minrate
-			break
-		}
-		if rate > bitrate {
-			rate = bitrate
-		}
-		ll, ok := l.(*rtpDownTrack)
-		if ok {
-			_, j := ll.stats.Get(now)
-			jitter := uint64(j) *
-				(rtptime.JiffiesPerSec /
-					uint64(clockrate))
-			rtt := atomic.LoadUint64(&ll.rtt)
-			rto := rtt + 4*jitter
-			if rto > maxrto {
-				maxrto = rto
-			}
-		}
-	}
-	track.maxBitrate = rate
-	_, r := track.rate.Estimate()
-	packets := int((uint64(r) * maxrto * 4) / rtptime.JiffiesPerSec)
-	if packets < 32 {
-		packets = 32
-	}
-	if packets > 256 {
-		packets = 256
-	}
-	track.cache.ResizeCond(packets)
-
-	return rate
-}
-
-var ErrUnsupportedFeedback = errors.New("unsupported feedback type")
-var ErrRateLimited = errors.New("rate limited")
-
-func (up *upConnection) sendPLI(track *upTrack) error {
-	if !track.hasRtcpFb("nack", "pli") {
-		return ErrUnsupportedFeedback
-	}
-	last := atomic.LoadUint64(&track.lastPLI)
-	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec/5 {
-		return ErrRateLimited
-	}
-	atomic.StoreUint64(&track.lastPLI, now)
-	return sendPLI(up.pc, track.track.SSRC())
-}
-
-func sendPLI(pc *webrtc.PeerConnection, ssrc uint32) error {
-	return pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.PictureLossIndication{MediaSSRC: ssrc},
-	})
-}
-
-func (up *upConnection) sendFIR(track *upTrack, increment bool) error {
-	// we need to reliably increment the seqno, even if we are going
-	// to drop the packet due to rate limiting.
-	var seqno uint8
-	if increment {
-		seqno = uint8(atomic.AddUint32(&track.firSeqno, 1) & 0xFF)
-	} else {
-		seqno = uint8(atomic.LoadUint32(&track.firSeqno) & 0xFF)
-	}
-
-	if !track.hasRtcpFb("ccm", "fir") {
-		return ErrUnsupportedFeedback
-	}
-	last := atomic.LoadUint64(&track.lastFIR)
-	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec/5 {
-		return ErrRateLimited
-	}
-	atomic.StoreUint64(&track.lastFIR, now)
-	return sendFIR(up.pc, track.track.SSRC(), seqno)
-}
-
-func sendFIR(pc *webrtc.PeerConnection, ssrc uint32, seqno uint8) error {
-	return pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.FullIntraRequest{
-			FIR: []rtcp.FIREntry{
-				rtcp.FIREntry{
-					SSRC:           ssrc,
-					SequenceNumber: seqno,
-				},
-			},
-		},
-	})
-}
-
-func sendREMB(pc *webrtc.PeerConnection, ssrc uint32, bitrate uint64) error {
-	return pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.ReceiverEstimatedMaximumBitrate{
-			Bitrate: bitrate,
-			SSRCs:   []uint32{ssrc},
-		},
-	})
-}
-
-func (up *upConnection) sendNACK(track *upTrack, first uint16, bitmap uint16) error {
-	if !track.hasRtcpFb("nack", "") {
-		return nil
-	}
-	err := sendNACK(up.pc, track.track.SSRC(), first, bitmap)
-	if err == nil {
-		track.cache.Expect(1 + bits.OnesCount16(bitmap))
-	}
-	return err
-}
-
-func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint16) error {
-	packet := rtcp.Packet(
-		&rtcp.TransportLayerNack{
-			MediaSSRC: ssrc,
-			Nacks: []rtcp.NackPair{
-				rtcp.NackPair{
-					first,
-					rtcp.PacketBitmap(bitmap),
-				},
-			},
-		},
-	)
-	return pc.WriteRTCP([]rtcp.Packet{packet})
-}
-
-func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
-	var packet rtp.Packet
-	buf := make([]byte, packetcache.BufSize)
-	for _, nack := range p.Nacks {
-		for _, seqno := range nack.PacketList() {
-			l := track.remote.cache.Get(seqno, buf)
-			if l == 0 {
-				continue
-			}
-			err := packet.Unmarshal(buf[:l])
-			if err != nil {
-				continue
-			}
-			err = track.track.WriteRTP(&packet)
-			if err != nil {
-				log.Printf("WriteRTP: %v", err)
-				continue
-			}
-			track.rate.Accumulate(uint32(l))
-		}
-	}
 }
 
 func negotiate(c *webClient, down *rtpDownConnection) error {
@@ -1200,7 +412,7 @@ func negotiate(c *webClient, down *rtpDownConnection) error {
 
 		for _, tr := range down.tracks {
 			if tr.track == track {
-				labels[t.Mid()] = tr.remote.label
+				labels[t.Mid()] = tr.remote.Label()
 			}
 		}
 	}
@@ -1313,7 +525,7 @@ func (c *webClient) setRequested(requested map[string]uint32) error {
 }
 
 func pushConns(c client) {
-	clients := c.getGroup().getClients(c)
+	clients := c.Group().getClients(c)
 	for _, cc := range clients {
 		ccc, ok := cc.(*webClient)
 		if ok {
@@ -1326,10 +538,10 @@ func (c *webClient) isRequested(label string) bool {
 	return c.requested[label] != 0
 }
 
-func addDownConnTracks(c *webClient, remote *upConnection, tracks []*upTrack) (*rtpDownConnection, error) {
+func addDownConnTracks(c *webClient, remote upConnection, tracks []upTrack) (*rtpDownConnection, error) {
 	requested := false
 	for _, t := range tracks {
-		if c.isRequested(t.label) {
+		if c.isRequested(t.Label()) {
 			requested = true
 			break
 		}
@@ -1338,13 +550,13 @@ func addDownConnTracks(c *webClient, remote *upConnection, tracks []*upTrack) (*
 		return nil, nil
 	}
 
-	down, err := addDownConn(c, remote.id, remote)
+	down, err := addDownConn(c, remote.Id(), remote)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, t := range tracks {
-		if !c.isRequested(t.label) {
+		if !c.isRequested(t.Label()) {
 			continue
 		}
 		_, err = addDownTrack(c, down, t, remote)
@@ -1359,18 +571,90 @@ func addDownConnTracks(c *webClient, remote *upConnection, tracks []*upTrack) (*
 	return down, nil
 }
 
-func (c *webClient) pushConn(conn *upConnection, tracks []*upTrack, label string) error {
+func (c *webClient) pushConn(conn upConnection, tracks []upTrack, label string) error {
 	err := c.action(addConnAction{conn, tracks})
 	if err != nil {
 		return err
 	}
 	if label != "" {
-		err := c.action(addLabelAction{conn.id, conn.label})
+		err := c.action(addLabelAction{conn.Id(), conn.Label()})
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func startClient(conn *websocket.Conn) (err error) {
+	var m clientMessage
+
+	err = conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+	if err != nil {
+		conn.Close()
+		return
+	}
+	err = conn.ReadJSON(&m)
+	if err != nil {
+		conn.Close()
+		return
+	}
+	err = conn.SetReadDeadline(time.Time{})
+	if err != nil {
+		conn.Close()
+		return
+	}
+
+	if m.Type != "handshake" {
+		conn.Close()
+		return
+	}
+
+	if strings.ContainsRune(m.Username, ' ') {
+		err = userError("don't put spaces in your username")
+		return
+	}
+
+	c := &webClient{
+		id:       m.Id,
+		username: m.Username,
+		actionCh: make(chan interface{}, 10),
+		done:     make(chan struct{}),
+	}
+
+	defer close(c.done)
+
+	c.writeCh = make(chan interface{}, 25)
+	defer func() {
+		if isWSNormalError(err) {
+			err = nil
+		} else {
+			m, e := errorToWSCloseMessage(err)
+			if m != "" {
+				c.write(clientMessage{
+					Type:  "error",
+					Value: m,
+				})
+			}
+			select {
+			case c.writeCh <- closeMessage{e}:
+			case <-c.writerDone:
+			}
+		}
+		close(c.writeCh)
+		c.writeCh = nil
+	}()
+
+	c.writerDone = make(chan struct{})
+	go clientWriter(conn, c.writeCh, c.writerDone)
+
+	g, err := addClient(m.Group, c, m.Username, m.Password)
+	if err != nil {
+		return
+	}
+	c.group = g
+	defer delClient(c)
+
+	return clientLoop(c, conn)
 }
 
 func clientLoop(c *webClient, conn *websocket.Conn) error {
@@ -1469,7 +753,11 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 			case pushConnsAction:
 				for _, u := range c.up {
 					tracks := u.getTracks()
-					go a.c.pushConn(u, tracks, u.label)
+					ts := make([]upTrack, len(tracks))
+					for i, t := range tracks {
+						ts[i] = t
+					}
+					go a.c.pushConn(u, ts, u.label)
 				}
 			case connectionFailedAction:
 				found := delUpConn(c, a.id)

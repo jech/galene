@@ -24,15 +24,15 @@ type diskClient struct {
 	closed bool
 }
 
-func (client *diskClient) getGroup() *group {
+func (client *diskClient) Group() *group {
 	return client.group
 }
 
-func (client *diskClient) getId() string {
+func (client *diskClient) Id() string {
 	return client.id
 }
 
-func (client *diskClient) getUsername() string {
+func (client *diskClient) Username() string {
 	return "RECORDING"
 }
 
@@ -52,7 +52,7 @@ func (client *diskClient) Close() error {
 	return nil
 }
 
-func (client *diskClient) pushConn(conn *upConnection, tracks []*upTrack, label string) error {
+func (client *diskClient) pushConn(conn upConnection, tracks []upTrack, label string) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -75,15 +75,13 @@ func (client *diskClient) pushConn(conn *upConnection, tracks []*upTrack, label 
 	return nil
 }
 
-var _ client = &diskClient{}
-
 type diskConn struct {
 	directory string
 	label     string
 
 	mu            sync.Mutex
 	file          *os.File
-	remote        *upConnection
+	remote        upConnection
 	tracks        []*diskTrack
 	width, height uint32
 }
@@ -154,7 +152,7 @@ func openDiskFile(directory, label string) (*os.File, error) {
 }
 
 type diskTrack struct {
-	remote *upTrack
+	remote upTrack
 	conn   *diskConn
 
 	writer    webm.BlockWriteCloser
@@ -162,7 +160,7 @@ type diskTrack struct {
 	timestamp uint32
 }
 
-func newDiskConn(directory, label string, up *upConnection, remoteTracks []*upTrack) (*diskConn, error) {
+func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrack) (*diskConn, error) {
 	conn := diskConn{
 		directory: directory,
 		label:     label,
@@ -172,7 +170,7 @@ func newDiskConn(directory, label string, up *upConnection, remoteTracks []*upTr
 	video := false
 	for _, remote := range remoteTracks {
 		var builder *samplebuilder.SampleBuilder
-		switch remote.track.Codec().Name {
+		switch remote.Codec().Name {
 		case webrtc.Opus:
 			builder = samplebuilder.New(16, &codecs.OpusPacket{})
 		case webrtc.VP8:
@@ -245,7 +243,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 		keyframe := true
 
-		switch t.remote.track.Codec().Name {
+		switch t.remote.Codec().Name {
 		case webrtc.VP8:
 			if len(sample.Data) < 1 {
 				return nil
@@ -265,7 +263,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 			return nil
 		}
 
-		tm := t.timestamp / (t.remote.track.Codec().ClockRate / 1000)
+		tm := t.timestamp / (t.remote.Codec().ClockRate / 1000)
 		_, err := t.writer.Write(keyframe, int64(tm), sample.Data)
 		if err != nil {
 			return err
@@ -275,7 +273,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 // called locked
 func (t *diskTrack) initWriter(data []byte) error {
-	switch t.remote.track.Codec().Name {
+	switch t.remote.Codec().Name {
 	case webrtc.VP8:
 		if len(data) < 10 {
 			return nil
@@ -300,9 +298,9 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	}
 	var entries []webm.TrackEntry
 	for i, t := range conn.tracks {
-		codec := t.remote.track.Codec()
+		codec := t.remote.Codec()
 		var entry webm.TrackEntry
-		switch t.remote.track.Codec().Name {
+		switch t.remote.Codec().Name {
 		case webrtc.Opus:
 			entry = webm.TrackEntry{
 				Name:        "Audio",

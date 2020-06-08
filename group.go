@@ -22,10 +22,10 @@ import (
 )
 
 type client interface {
-	getGroup() *group
-	getId() string
-	getUsername() string
-	pushConn(conn *upConnection, tracks []*upTrack, label string) error
+	Group() *group
+	Id() string
+	Username() string
+	pushConn(conn upConnection, tracks []upTrack, label string) error
 	pushClient(id, username string, add bool) error
 }
 
@@ -58,8 +58,8 @@ type delConnAction struct {
 }
 
 type addConnAction struct {
-	conn   *upConnection
-	tracks []*upTrack
+	conn   upConnection
+	tracks []upTrack
 }
 
 type addLabelAction struct {
@@ -230,20 +230,20 @@ func addClient(name string, c client, user, pass string) (*group, error) {
 			return nil, userError("too many users")
 		}
 	}
-	if g.clients[c.getId()] != nil {
+	if g.clients[c.Id()] != nil {
 		return nil, protocolError("duplicate client id")
 	}
 
-	g.clients[c.getId()] = c
+	g.clients[c.Id()] = c
 
 	go func(clients []client) {
-		c.pushClient(c.getId(), c.getUsername(), true)
+		c.pushClient(c.Id(), c.Username(), true)
 		for _, cc := range clients {
-			err := c.pushClient(cc.getId(), cc.getUsername(), true)
+			err := c.pushClient(cc.Id(), cc.Username(), true)
 			if err == ErrClientDead {
 				return
 			}
-			cc.pushClient(c.getId(), c.getUsername(), true)
+			cc.pushClient(c.Id(), c.Username(), true)
 		}
 	}(g.getClientsUnlocked(c))
 
@@ -251,19 +251,19 @@ func addClient(name string, c client, user, pass string) (*group, error) {
 }
 
 func delClient(c client) {
-	g := c.getGroup()
+	g := c.Group()
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if g.clients[c.getId()] != c {
+	if g.clients[c.Id()] != c {
 		log.Printf("Deleting unknown client")
 		return
 	}
-	delete(g.clients, c.getId())
+	delete(g.clients, c.Id())
 
 	go func(clients []client) {
 		for _, cc := range clients {
-			cc.pushClient(c.getId(), c.getUsername(), false)
+			cc.pushClient(c.Id(), c.Username(), false)
 		}
 	}(g.getClientsUnlocked(nil))
 }
