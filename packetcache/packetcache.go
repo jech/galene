@@ -135,6 +135,21 @@ func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	return 0
 }
 
+func (cache *Cache) GetLast(result []byte) uint16 {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	i := cache.tail - 1
+	if i >= uint16(len(cache.entries)) {
+		i = 0
+	}
+
+	return uint16(copy(
+		result[:cache.entries[i].length],
+		cache.entries[i].buf[:]),
+	)
+}
+
 func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()

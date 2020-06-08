@@ -33,6 +33,10 @@ func TestCache(t *testing.T) {
 	if !bytes.Equal(buf[:l], buf1) {
 		t.Errorf("Couldn't get 13 at %v", i1)
 	}
+	l = cache.GetLast(buf)
+	if !bytes.Equal(buf[:l], buf2) {
+		t.Errorf("Couldn't get last")
+	}
 
 	l = cache.Get(17, buf)
 	if !bytes.Equal(buf[:l], buf2) {
