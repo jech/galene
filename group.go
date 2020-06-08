@@ -203,13 +203,13 @@ type userid struct {
 	username string
 }
 
-func addClient(name string, c client, user, pass string) (*group, error) {
+func addClient(name string, c client, pass string) (*group, error) {
 	g, err := addGroup(name, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	perms, err := getPermission(g.description, user, pass)
+	perms, err := getPermission(g.description, c.Username(), pass)
 	if err != nil {
 		return nil, err
 	}

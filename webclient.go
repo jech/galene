@@ -647,7 +647,7 @@ func startClient(conn *websocket.Conn) (err error) {
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
 
-	g, err := addClient(m.Group, c, m.Username, m.Password)
+	g, err := addClient(m.Group, c, m.Password)
 	if err != nil {
 		return
 	}
@@ -975,7 +975,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			group: c.group,
 			id:    "recording",
 		}
-		_, err := addClient(c.group.name, disk, "", "")
+		_, err := addClient(c.group.name, disk, "")
 		if err != nil {
 			disk.Close()
 			return c.error(err)
