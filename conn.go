@@ -107,16 +107,24 @@ type upConnection struct {
 	id            string
 	label         string
 	pc            *webrtc.PeerConnection
-	tracks        []*upTrack
 	labels        map[string]string
 	iceCandidates []*webrtc.ICECandidateInit
 
 	mu     sync.Mutex
 	closed bool
+	tracks []*upTrack
 	local  []downConnection
 }
 
 var ErrConnectionClosed = errors.New("connection is closed")
+
+func (up *upConnection) getTracks() []*upTrack {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	tracks := make([]*upTrack, len(up.tracks))
+	copy(tracks, up.tracks)
+	return tracks
+}
 
 func (up *upConnection) addLocal(local downConnection) error {
 	up.mu.Lock()
@@ -206,6 +214,7 @@ func getUpMid(pc *webrtc.PeerConnection, track *webrtc.Track) string {
 	return ""
 }
 
+// called locked
 func (up *upConnection) complete() bool {
 	for mid, _ := range up.labels {
 		found := false

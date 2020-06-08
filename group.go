@@ -565,7 +565,8 @@ func getClientStats(c *webClient) clientStats {
 
 	for _, up := range c.up {
 		conns := connStats{id: up.id}
-		for _, t := range up.tracks {
+		tracks := up.getTracks()
+		for _, t := range tracks {
 			expected, lost, _, _ := t.cache.GetStats(false)
 			if expected == 0 {
 				expected = 1
