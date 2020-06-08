@@ -41,4 +41,5 @@ type downTrack interface {
 	WriteRTP(packat *rtp.Packet) error
 	Accumulate(bytes uint32)
 	GetMaxBitrate(now uint64) uint64
+	setTimeOffset(ntp uint64, rtp uint32)
 }

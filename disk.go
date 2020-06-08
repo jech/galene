@@ -204,6 +204,9 @@ func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrac
 	return &conn, nil
 }
 
+func (t *diskTrack) setTimeOffset(ntp uint64, rtp uint32) {
+}
+
 func clonePacket(packet *rtp.Packet) *rtp.Packet {
 	buf, err := packet.Marshal()
 	if err != nil {
