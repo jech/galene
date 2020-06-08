@@ -67,10 +67,13 @@ Connection.prototype.close = function(sendit) {
     this.pc.close();
 
     if(sendit) {
-        send({
-            type: 'close',
-            id: this.id,
-        });
+        try {
+            send({
+                type: 'close',
+                id: this.id,
+            });
+        } catch(e) {
+        }
     }
 };
 
@@ -526,7 +529,6 @@ function serverConnect() {
 
     return new Promise((resolve, reject) => {
         socket.onerror = function(e) {
-            console.error(e);
             reject(e.error ? e.error : e);
         };
         socket.onopen = function(e) {
@@ -534,14 +536,21 @@ function serverConnect() {
             resetChat();
             setConnected(true);
             let up = getUserPass();
-            send({
-                type: 'handshake',
-                id: myid,
-                group: group,
-                username: up.username,
-                password: up.password,
-            });
-            sendRequest(document.getElementById('requestselect').value);
+            try {
+                send({
+                    type: 'handshake',
+                    id: myid,
+                    group: group,
+                    username: up.username,
+                    password: up.password,
+                })
+                sendRequest(document.getElementById('requestselect').value);
+                } catch(e) {
+                    console.error(e);
+                    displayError(e);
+                    reject(e);
+                    return;
+                }
             resolve();
         };
         socket.onclose = function(e) {
@@ -730,6 +739,10 @@ async function addIceCandidates(conn) {
 function send(m) {
     if(!m)
         throw(new Error('Sending null message'));
+    if(socket.readyState !== socket.OPEN) {
+        // send on a closed connection doesn't throw
+        throw(new Error('Connection is not open'));
+    }
     return socket.send(JSON.stringify(m));
 }
 
@@ -993,14 +1006,19 @@ function handleInput() {
         return;
     }
 
-    addToChatbox(myid, username, message, me);
-    send({
-        type: 'chat',
-        id: myid,
-        username: username,
-        value: message,
-        me: me,
-    });
+    try {
+        let a = send({
+            type: 'chat',
+            id: myid,
+            username: username,
+            value: message,
+            me: me,
+        });
+        addToChatbox(myid, username, message, me);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+    }
 }
 
 document.getElementById('inputform').onsubmit = function(e) {
