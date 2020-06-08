@@ -78,11 +78,13 @@ func (client *diskClient) pushConn(conn upConnection, tracks []upTrack, label st
 type diskConn struct {
 	directory string
 	label     string
+	hasVideo  bool
 
 	mu            sync.Mutex
 	file          *os.File
 	remote        upConnection
 	tracks        []*diskTrack
+	reference     int // the track used as a time reference
 	width, height uint32
 }
 
@@ -126,7 +128,7 @@ func (conn *diskConn) Close() error {
 }
 
 func openDiskFile(directory, label string) (*os.File, error) {
-	filename := time.Now().Format("2006-01-02T15:04:05")
+	filename := time.Now().Format("2006-01-02T15:04:05.000")
 	if label != "" {
 		filename = filename + "-" + label
 	}
@@ -155,9 +157,11 @@ type diskTrack struct {
 	remote upTrack
 	conn   *diskConn
 
-	writer    webm.BlockWriteCloser
-	builder   *samplebuilder.SampleBuilder
-	timestamp uint32
+	writer  webm.BlockWriteCloser
+	builder *samplebuilder.SampleBuilder
+
+	// bit 32 is a boolean indicating that the origin is valid
+	origin uint64
 }
 
 func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrack) (*diskConn, error) {
@@ -167,18 +171,17 @@ func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrac
 		tracks:    make([]*diskTrack, 0, len(remoteTracks)),
 		remote:    up,
 	}
-	video := false
 	for _, remote := range remoteTracks {
 		var builder *samplebuilder.SampleBuilder
 		switch remote.Codec().Name {
 		case webrtc.Opus:
 			builder = samplebuilder.New(16, &codecs.OpusPacket{})
 		case webrtc.VP8:
-			if video {
+			if conn.hasVideo {
 				return nil, errors.New("multiple video tracks not supported")
 			}
 			builder = samplebuilder.New(32, &codecs.VP8Packet{})
-			video = true
+			conn.hasVideo = true
 		}
 		track := &diskTrack{
 			remote:  remote,
@@ -187,13 +190,6 @@ func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrac
 		}
 		conn.tracks = append(conn.tracks, track)
 		remote.addLocal(track)
-	}
-
-	if !video {
-		err := conn.initWriter(0, 0)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	err := up.addLocal(&conn)
@@ -237,12 +233,10 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 	t.builder.Push(p)
 
 	for {
-		sample := t.builder.Pop()
+		sample, ts := t.builder.PopWithTimestamp()
 		if sample == nil {
 			return nil
 		}
-
-		t.timestamp += sample.Samples
 
 		keyframe := true
 
@@ -258,7 +252,17 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 					return err
 				}
 			}
+		default:
+			if t.writer == nil {
+				if !t.conn.hasVideo {
+					err := t.conn.initWriter(0, 0)
+					if err != nil {
+						return err
+					}
+				}
+			}
 		}
+
 		if t.writer == nil {
 			if !keyframe {
 				return ErrKeyframeNeeded
@@ -266,7 +270,12 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 			return nil
 		}
 
-		tm := t.timestamp / (t.remote.Codec().ClockRate / 1000)
+		if t.origin == 0 {
+			t.origin = uint64(ts) | (1 << 32)
+		}
+		ts -= uint32(t.origin)
+
+		tm := ts / (t.remote.Codec().ClockRate / 1000)
 		_, err := t.writer.Write(keyframe, int64(tm), sample.Data)
 		if err != nil {
 			return err
