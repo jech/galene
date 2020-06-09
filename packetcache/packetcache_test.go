@@ -128,6 +128,33 @@ func TestCacheShrink(t *testing.T) {
 	}
 }
 
+func TestCacheGrowCond(t *testing.T) {
+	cache := New(16)
+	if len(cache.entries) != 16 {
+		t.Errorf("Expected 16, got %v", len(cache.entries))
+	}
+
+	done := cache.ResizeCond(17)
+	if done || len(cache.entries) != 16 {
+		t.Errorf("Grew cache by 1")
+	}
+
+	done = cache.ResizeCond(15)
+	if done || len(cache.entries) != 16 {
+		t.Errorf("Shrunk cache by 1")
+	}
+
+	done = cache.ResizeCond(32)
+	if !done || len(cache.entries) != 32 {
+		t.Errorf("Didn't grow cache")
+	}
+
+	done = cache.ResizeCond(16)
+	if !done || len(cache.entries) != 16 {
+		t.Errorf("Didn't shrink cache")
+	}
+}
+
 func TestBitmap(t *testing.T) {
 	value := uint64(0xcdd58f1e035379c0)
 	packet := make([]byte, 1)

@@ -204,13 +204,15 @@ func (cache *Cache) ResizeCond(capacity int) bool {
 
 	current := len(cache.entries)
 
-	if current >= capacity/2 && current < capacity*2 {
+	if current >= capacity*3/4 && current < capacity*2 {
 		return false
 	}
 
-	if int(cache.tail) > current/2 && int(cache.tail) > capacity/2 {
-		// bad time to resize, this would invalidate too many indices
-		return false
+	if capacity < current {
+		if int(cache.tail) > capacity {
+			// this would invalidate too many indices
+			return false
+		}
 	}
 
 	cache.resize(capacity)
