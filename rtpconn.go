@@ -799,6 +799,10 @@ func sendRR(conn *rtpUpConnection) error {
 	defer conn.mu.Unlock()
 
 	if len(conn.tracks) == 0 {
+		state := conn.pc.ConnectionState()
+		if state == webrtc.PeerConnectionStateClosed {
+			return io.ErrClosedPipe
+		}
 		return nil
 	}
 
@@ -899,6 +903,10 @@ func sendSR(conn *rtpDownConnection) error {
 	}
 
 	if len(packets) == 0 {
+		state := conn.pc.ConnectionState()
+		if state == webrtc.PeerConnectionStateClosed {
+			return io.ErrClosedPipe
+		}
 		return nil
 	}
 
