@@ -2,18 +2,20 @@ package estimator
 
 import (
 	"testing"
-	"time"
+
+	"sfu/rtptime"
 )
 
 func TestEstimator(t *testing.T) {
-	now := time.Now()
-	e := New(time.Second)
+	now := rtptime.Jiffies()
+	e := New(rtptime.JiffiesPerSec)
 
 	e.estimate(now)
 	e.Accumulate(42)
 	e.Accumulate(128)
-	e.estimate(now.Add(time.Second))
-	rate, packetRate := e.estimate(now.Add(time.Second + time.Millisecond))
+	e.estimate(now + rtptime.JiffiesPerSec)
+	rate, packetRate :=
+		e.estimate(now + (rtptime.JiffiesPerSec * 1001) / 1000)
 
 	if rate != 42+128 {
 		t.Errorf("Expected %v, got %v", 42+128, rate)
