@@ -64,7 +64,15 @@ h1 {
 #audioselect {
     width: 8em;
     text-align-last: center;
+}
+
+#mutebutton {
+    width: 6em;
     margin-right: 0.4em;
+}
+
+.muted {
+    color: red;
 }
 
 #sharebutton, #unsharebutton {

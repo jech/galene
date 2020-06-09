@@ -170,15 +170,37 @@ function setButtonsVisibility() {
     setVisibility('mediaoptions', permissions.present);
 }
 
-document.getElementById('audioselect').onchange = function(e) {
-    e.preventDefault();
-    changePresentation();
-};
+let localMute = false;
+
+function toggleLocalMute() {
+    setLocalMute(!localMute);
+}
+
+function setLocalMute(mute) {
+    localMute = mute;
+    muteLocalTracks(localMute);
+    let button = document.getElementById('mutebutton');
+    button.textContent = localMute ? 'Unmute' : 'Mute';
+    if(localMute)
+        button.classList.add('muted');
+    else
+        button.classList.remove('muted');
+}
 
 document.getElementById('videoselect').onchange = function(e) {
     e.preventDefault();
     changePresentation();
 };
+
+document.getElementById('audioselect').onchange = function(e) {
+    e.preventDefault();
+    changePresentation();
+};
+
+document.getElementById('mutebutton').onclick = function(e) {
+    e.preventDefault();
+    toggleLocalMute();
+}
 
 document.getElementById('sharebutton').onclick = function(e) {
     e.preventDefault();
@@ -349,6 +371,8 @@ async function addLocalMedia() {
     c.stream = stream;
     stream.getTracks().forEach(t => {
         c.labels[t.id] = t.kind
+        if(t.kind == 'audio' && localMute)
+            t.enabled = false;
         let sender = c.pc.addTrack(t, stream);
         c.setInterval(() => {
             updateStats(c, sender);
@@ -426,6 +450,20 @@ function findUpMedia(kind) {
             return true;
     }
     return false;
+}
+
+function muteLocalTracks(mute) {
+    for(let id in up) {
+        let c = up[id];
+        if(c.kind === 'local') {
+            let stream = c.stream;
+            stream.getTracks().forEach(t => {
+                if(t.kind === 'audio') {
+                    t.enabled = !mute;
+                }
+            });
+        }
+    }
 }
 
 function setMedia(id) {
@@ -1193,6 +1231,8 @@ function start() {
         document.title = title;
         document.getElementById('title').textContent = title;
     }
+
+    setLocalMute(localMute);
 
     myid = randomid();
 
