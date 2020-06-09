@@ -621,7 +621,7 @@ func writeLoop(conn *rtpUpConnection, track *rtpUpTrack, ch <-chan packetIndex) 
 			var delay time.Duration
 			if len(local) > 0 {
 				delay = rtptime.ToDuration(
-					uint64(pi.delay / uint32(len(local))),
+					uint64(pi.delay/uint32(len(local))),
 					rtptime.JiffiesPerSec,
 				)
 			}
@@ -648,10 +648,11 @@ func writeLoop(conn *rtpUpConnection, track *rtpUpTrack, ch <-chan packetIndex) 
 				if err == ErrUnsupportedFeedback {
 					err := conn.sendPLI(track)
 					if err != nil &&
-						err != ErrUnsupportedFeedback {
+						err != ErrUnsupportedFeedback &&
+						err != ErrRateLimited {
 						log.Printf("sendPLI: %v", err)
 					}
-				} else if err != nil {
+				} else if err != nil && err != ErrRateLimited {
 					log.Printf("sendFIR: %v", err)
 				}
 				firSent = true
@@ -1018,7 +1019,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					continue
 				}
 				err := remote.sendPLI(rt)
-				if err != nil {
+				if err != nil && err != ErrRateLimited {
 					log.Printf("sendPLI: %v", err)
 				}
 			case *rtcp.FullIntraRequest:
@@ -1054,7 +1055,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				err := remote.sendFIR(rt, increment)
 				if err == ErrUnsupportedFeedback {
 					err := remote.sendPLI(rt)
-					if err != nil {
+					if err != nil && err != ErrRateLimited {
 						log.Printf("sendPLI: %v", err)
 					}
 				} else if err != nil {
