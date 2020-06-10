@@ -736,7 +736,14 @@ async function gotAnswer(id, answer) {
     let c = up[id];
     if(!c)
         throw new Error('unknown up stream');
-    await c.pc.setRemoteDescription(answer);
+    try {
+        await c.pc.setRemoteDescription(answer);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        delUpMedia(id);
+        return;
+    }
     await addIceCandidates(c);
 }
 
@@ -1117,7 +1124,15 @@ async function newUpStream() {
         throw new Error("Couldn't create peer connection");
     up[id] = new Connection(id, pc);
 
-    pc.onnegotiationneeded = e => negotiate(id);
+    pc.onnegotiationneeded = async e => {
+        try {
+            await negotiate(id);
+        } catch(e) {
+            console.error(e);
+            displayError(e);
+            delUpMedia(id);
+        }
+    }
 
     pc.onicecandidate = function(e) {
         if(!e.candidate)
