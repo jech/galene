@@ -139,14 +139,10 @@ document.getElementById('unpresentbutton').onclick = function(e) {
 };
 
 function changePresentation() {
-    let found = false;
-    for(let id in up) {
-        if(up[id].kind === 'local')
-            found = true;
+    let id = findUpMedia('local');
+    if(id) {
+        addLocalMedia(id);
     }
-    delUpMediaKind('local');
-    if(found)
-        addLocalMedia();
 }
 
 function setVisibility(id, visible) {
@@ -158,8 +154,8 @@ function setVisibility(id, visible) {
 }
 
 function setButtonsVisibility() {
-    let local = findUpMedia('local');
-    let share = findUpMedia('screenshare')
+    let local = !!findUpMedia('local');
+    let share = !!findUpMedia('screenshare')
     // don't allow multiple presentations
     setVisibility('presentbutton', permissions.present && !local);
     setVisibility('unpresentbutton', local);
@@ -344,15 +340,21 @@ async function setMediaChoices() {
     mediaChoicesDone = true;
 }
 
-async function addLocalMedia() {
+async function addLocalMedia(id) {
     if(!getUserPass())
         return;
 
     let audio = mapMediaOption(document.getElementById('audioselect').value);
     let video = mapMediaOption(document.getElementById('videoselect').value);
 
-    if(!audio && !video)
+    if(!audio && !video) {
+        if(id)
+            delUpMedia(id);
         return;
+    }
+
+    if(id)
+        stopUpMedia(id);
 
     let constraints = {audio: audio, video: video};
     let stream = null;
@@ -360,13 +362,16 @@ async function addLocalMedia() {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch(e) {
         console.error(e);
+        if(id)
+            delUpMedia(id);
         return;
     }
 
     setMediaChoices();
 
-    let id = await newUpStream();
+    id = await newUpStream(id);
     let c = up[id];
+
     c.kind = 'local';
     c.stream = stream;
     stream.getTracks().forEach(t => {
@@ -418,16 +423,32 @@ async function addShareMedia(setup) {
     setButtonsVisibility()
 }
 
+function stopUpMedia(id) {
+    let c = up[id];
+    if(!c) {
+        console.error('Stopping unknown up media');
+        return;
+    }
+    if(!c.stream)
+        return;
+    c.stream.getTracks().forEach(t => {
+        try {
+            t.stop();
+        } catch(e) {
+        }
+    });
+}
+
 function delUpMedia(id) {
     let c = up[id];
     if(!c) {
-        console.error("Deleting unknown up media");
+        console.error('Deleting unknown up media');
         return;
     }
-    c.close(true);
+    stopUpMedia(id);
     delMedia(id);
+    c.close(true);
     delete(up[id]);
-
     setButtonsVisibility()
 }
 
@@ -447,9 +468,9 @@ function delUpMediaKind(kind) {
 function findUpMedia(kind) {
     for(let id in up) {
         if(up[id].kind === kind)
-            return true;
+            return id;
     }
-    return false;
+    return null;
 }
 
 function muteLocalTracks(mute) {
@@ -680,6 +701,14 @@ function sendRequest(value) {
 
 async function gotOffer(id, labels, offer) {
     let c = down[id];
+    if(c) {
+        // a new offer with a known id does not indicate renegotiation,
+        // but a new connection that replaces the old one.
+        delete(down[id])
+        c.close(false);
+        c = null;
+    }
+
     if(!c) {
         let pc = new RTCPeerConnection({
             iceServers: iceServers,
@@ -1113,15 +1142,20 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
-async function newUpStream() {
-    let id = randomid();
-    if(up[id])
-        throw new Error('Eek!');
+async function newUpStream(id) {
+    if(!id) {
+        id = randomid();
+        if(up[id])
+            throw new Error('Eek!');
+    }
     let pc = new RTCPeerConnection({
         iceServers: iceServers,
     });
     if(!pc)
         throw new Error("Couldn't create peer connection");
+    if(up[id]) {
+        up[id].close(false);
+    }
     up[id] = new Connection(id, pc);
 
     pc.onnegotiationneeded = async e => {

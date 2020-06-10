@@ -221,10 +221,17 @@ func addUpConn(c *webClient, id string) (*rtpUpConnection, error) {
 	if c.up == nil {
 		c.up = make(map[string]*rtpUpConnection)
 	}
-	if c.up[id] != nil || (c.down != nil && c.down[id] != nil) {
+	if c.down != nil && c.down[id] != nil {
 		conn.pc.Close()
 		return nil, errors.New("Adding duplicate connection")
 	}
+
+	old := c.up[id]
+	if old != nil {
+		decrementVideoTracks(c, old)
+		old.pc.Close()
+	}
+
 	c.up[id] = conn
 
 	conn.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
@@ -248,7 +255,21 @@ func delUpConn(c *webClient, id string) bool {
 	delete(c.up, id)
 	c.mu.Unlock()
 
+	decrementVideoTracks(c, conn)
+
+	go func(clients []client) {
+		for _, c := range clients {
+			c.pushConn(conn.id, nil, nil, "")
+		}
+	}(c.Group().getClients(c))
+
+	conn.pc.Close()
+	return true
+}
+
+func decrementVideoTracks(c *webClient, conn *rtpUpConnection) {
 	conn.mu.Lock()
+	defer conn.mu.Unlock()
 	for _, track := range conn.tracks {
 		if track.track.Kind() == webrtc.RTPCodecTypeVideo {
 			count := atomic.AddUint32(&c.group.videoCount,
@@ -259,17 +280,6 @@ func delUpConn(c *webClient, id string) bool {
 			}
 		}
 	}
-	conn.mu.Unlock()
-
-	go func(clients []client) {
-		for _, c := range clients {
-			c.pushConn(conn.id, nil, nil, "")
-		}
-	}(c.Group().getClients(c))
-
-	conn.pc.Close()
-
-	return true
 }
 
 func getDownConn(c *webClient, id string) *rtpDownConnection {
@@ -307,13 +317,18 @@ func addDownConn(c *webClient, id string, remote upConnection) (*rtpDownConnecti
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.up != nil && c.up[id] != nil {
+		conn.pc.Close()
+		return nil, errors.New("Adding duplicate connection")
+	}
+
 	if c.down == nil {
 		c.down = make(map[string]*rtpDownConnection)
 	}
 
-	if c.down[id] != nil || (c.up != nil && c.up[id] != nil) {
-		conn.pc.Close()
-		return nil, errors.New("Adding duplicate connection")
+	old := c.down[id]
+	if old != nil {
+		old.pc.Close()
 	}
 
 	conn.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
@@ -441,13 +456,9 @@ func sendICE(c *webClient, id string, candidate *webrtc.ICECandidate) error {
 }
 
 func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, labels map[string]string) error {
-	var err error
-	up, ok := c.up[id]
-	if !ok {
-		up, err = addUpConn(c, id)
-		if err != nil {
-			return err
-		}
+	up, err := addUpConn(c, id)
+	if err != nil {
+		return err
 	}
 	if c.username != "" {
 		up.label = c.username
@@ -718,13 +729,16 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 		case a := <-c.actionCh:
 			switch a := a.(type) {
 			case pushConnAction:
-				found := delDownConn(c, a.id)
 				if a.conn == nil {
+					found := delDownConn(c, a.id)
 					if found {
 						c.write(clientMessage{
 							Type: "close",
 							Id:   a.id,
 						})
+					} else {
+						log.Printf("Deleting unknown " +
+							"down connection")
 					}
 					continue
 				}
