@@ -34,7 +34,6 @@ type upTrack interface {
 }
 
 type downConnection interface {
-	Close() error
 }
 
 type downTrack interface {

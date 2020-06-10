@@ -20,7 +20,7 @@ type diskClient struct {
 	id    string
 
 	mu     sync.Mutex
-	down   []*diskConn
+	down   map[string]*diskConn
 	closed bool
 }
 
@@ -52,12 +52,22 @@ func (client *diskClient) Close() error {
 	return nil
 }
 
-func (client *diskClient) pushConn(conn upConnection, tracks []upTrack, label string) error {
+func (client *diskClient) pushConn(id string, conn upConnection, tracks []upTrack, label string) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
 	if client.closed {
 		return errors.New("disk client is closed")
+	}
+
+	old := client.down[id]
+	if old != nil {
+		old.Close()
+		delete(client.down, id)
+	}
+
+	if conn == nil {
+		return nil
 	}
 
 	directory := filepath.Join(recordingsDir, client.group.name)
@@ -66,12 +76,16 @@ func (client *diskClient) pushConn(conn upConnection, tracks []upTrack, label st
 		return err
 	}
 
+	if client.down == nil {
+		client.down = make(map[string]*diskConn)
+	}
+
 	down, err := newDiskConn(directory, label, conn, tracks)
 	if err != nil {
 		return err
 	}
 
-	client.down = append(client.down, down)
+	client.down[conn.Id()] = down
 	return nil
 }
 

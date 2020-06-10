@@ -111,7 +111,6 @@ type rtpDownConnection struct {
 	remote        upConnection
 	tracks        []*rtpDownTrack
 	iceCandidates []*webrtc.ICECandidateInit
-	close         func() error
 }
 
 func newDownConn(id string, remote upConnection) (*rtpDownConnection, error) {
@@ -131,10 +130,6 @@ func newDownConn(id string, remote upConnection) (*rtpDownConnection, error) {
 	}
 
 	return conn, nil
-}
-
-func (down *rtpDownConnection) Close() error {
-	return down.close()
 }
 
 func (down *rtpDownConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
@@ -279,7 +274,6 @@ type rtpUpConnection struct {
 	iceCandidates []*webrtc.ICECandidateInit
 
 	mu     sync.Mutex
-	closed bool
 	tracks []*rtpUpTrack
 	local  []downConnection
 }
@@ -303,9 +297,6 @@ func (up *rtpUpConnection) Label() string {
 func (up *rtpUpConnection) addLocal(local downConnection) error {
 	up.mu.Lock()
 	defer up.mu.Unlock()
-	if up.closed {
-		return ErrConnectionClosed
-	}
 	for _, t := range up.local {
 		if t == local {
 			return nil
@@ -333,21 +324,6 @@ func (up *rtpUpConnection) getLocal() []downConnection {
 	local := make([]downConnection, len(up.local))
 	copy(local, up.local)
 	return local
-}
-
-func (up *rtpUpConnection) Close() error {
-	up.mu.Lock()
-	defer up.mu.Unlock()
-
-	go func(local []downConnection) {
-		for _, l := range local {
-			l.Close()
-		}
-	}(up.local)
-
-	up.local = nil
-	up.closed = true
-	return up.pc.Close()
 }
 
 func (up *rtpUpConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
@@ -468,7 +444,7 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 			}
 			clients := c.Group().getClients(c)
 			for _, cc := range clients {
-				cc.pushConn(conn, tracks, conn.label)
+				cc.pushConn(conn.id, conn, tracks, conn.label)
 			}
 			go rtcpUpSender(conn)
 		}

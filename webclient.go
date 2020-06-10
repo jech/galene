@@ -261,7 +261,14 @@ func delUpConn(c *webClient, id string) bool {
 	}
 	conn.mu.Unlock()
 
-	conn.Close()
+	go func(clients []client) {
+		for _, c := range clients {
+			c.pushConn(conn.id, nil, nil, "")
+		}
+	}(c.Group().getClients(c))
+
+	conn.pc.Close()
+
 	return true
 }
 
@@ -320,10 +327,6 @@ func addDownConn(c *webClient, id string, remote upConnection) (*rtpDownConnecti
 	}
 
 	c.down[id] = conn
-	conn.close = func() error {
-		return c.action(delConnAction{conn.id})
-	}
-
 	return conn, nil
 }
 
@@ -571,12 +574,12 @@ func addDownConnTracks(c *webClient, remote upConnection, tracks []upTrack) (*rt
 	return down, nil
 }
 
-func (c *webClient) pushConn(conn upConnection, tracks []upTrack, label string) error {
-	err := c.action(addConnAction{conn, tracks})
+func (c *webClient) pushConn(id string, conn upConnection, tracks []upTrack, label string) error {
+	err := c.action(pushConnAction{id, conn, tracks})
 	if err != nil {
 		return err
 	}
-	if label != "" {
+	if conn != nil && label != "" {
 		err := c.action(addLabelAction{conn.Id(), conn.Label()})
 		if err != nil {
 			return err
@@ -714,7 +717,17 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 			}
 		case a := <-c.actionCh:
 			switch a := a.(type) {
-			case addConnAction:
+			case pushConnAction:
+				found := delDownConn(c, a.id)
+				if a.conn == nil {
+					if found {
+						c.write(clientMessage{
+							Type: "close",
+							Id:   a.id,
+						})
+					}
+					continue
+				}
 				down, err := addDownConnTracks(
 					c, a.conn, a.tracks,
 				)
@@ -736,14 +749,6 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 						continue
 					}
 				}
-			case delConnAction:
-				found := delDownConn(c, a.id)
-				if found {
-					c.write(clientMessage{
-						Type: "close",
-						Id:   a.id,
-					})
-				}
 			case addLabelAction:
 				c.write(clientMessage{
 					Type:  "label",
@@ -757,7 +762,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 					for i, t := range tracks {
 						ts[i] = t
 					}
-					go a.c.pushConn(u, ts, u.label)
+					go a.c.pushConn(u.id, u, ts, u.label)
 				}
 			case connectionFailedAction:
 				found := delUpConn(c, a.id)

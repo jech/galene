@@ -25,7 +25,7 @@ type client interface {
 	Group() *group
 	Id() string
 	Username() string
-	pushConn(conn upConnection, tracks []upTrack, label string) error
+	pushConn(id string, conn upConnection, tracks []upTrack, label string) error
 	pushClient(id, username string, add bool) error
 }
 
@@ -53,11 +53,8 @@ type group struct {
 	history []chatHistoryEntry
 }
 
-type delConnAction struct {
-	id string
-}
-
-type addConnAction struct {
+type pushConnAction struct {
+	id     string
 	conn   upConnection
 	tracks []upTrack
 }
