@@ -530,6 +530,7 @@ function setMedia(id) {
 
     media.srcObject = c.stream;
     setLabel(id);
+    setMediaStatus(id, false);
 
     resizePeers();
 }
@@ -544,6 +545,19 @@ function delMedia(id) {
 
     resizePeers();
 }
+
+function setMediaStatus(id, good) {
+    let media = document.getElementById('media-' + id);
+    if(!media) {
+        console.warn('Setting status of unknown media.');
+        return;
+    }
+    if(good)
+        media.classList.remove('media-failed');
+    else
+        media.classList.add('media-failed');
+}
+
 
 function setLabel(id, fallback) {
     let label = document.getElementById('label-' + id);
@@ -724,6 +738,12 @@ async function gotOffer(id, labels, offer) {
                   candidate: e.candidate,
                  });
         };
+
+        pc.oniceconnectionstatechange = e => {
+            setMediaStatus(id,
+                           pc.iceConnectionState === 'connected' ||
+                           pc.iceConnectionState === 'completed');
+        }
 
         c.pc.ontrack = function(e) {
             let label = e.transceiver && c.labelsByMid[e.transceiver.mid];
@@ -1178,6 +1198,9 @@ async function newUpStream(id) {
     };
 
     pc.oniceconnectionstatechange = e => {
+        setMediaStatus(id,
+                       pc.iceConnectionState === 'connected' ||
+                       pc.iceConnectionState === 'completed');
         if(pc.iceConnectionState === 'failed') {
             try {
                 pc.restartIce();
