@@ -6,6 +6,6 @@ require (
 	github.com/at-wat/ebml-go v0.11.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/pion/rtcp v1.2.3
-	github.com/pion/rtp v1.5.4
-	github.com/pion/webrtc/v2 v2.2.15-0.20200529032419-667941621dd8
+	github.com/pion/rtp v1.5.5
+	github.com/pion/webrtc/v2 v2.2.15
 )
