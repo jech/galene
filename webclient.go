@@ -335,6 +335,12 @@ func addDownConn(c *webClient, id string, remote upConnection) (*rtpDownConnecti
 		sendICE(c, id, candidate)
 	})
 
+	conn.pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
+		if state == webrtc.ICEConnectionStateFailed {
+			c.action(connectionFailedAction{id: id})
+		}
+	})
+
 	err = remote.addLocal(conn)
 	if err != nil {
 		conn.pc.Close()
@@ -779,17 +785,20 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 					go a.c.pushConn(u.id, u, ts, u.label)
 				}
 			case connectionFailedAction:
-				found := delUpConn(c, a.id)
-				if found {
-					err := failConnection(c, a.id,
-						"connection failed")
-					if err != nil {
-						return err
-					}
+				down := getDownConn(c, a.id);
+				if down == nil {
+					log.Printf("Failed indication for " +
+						"unknown connection")
 					continue
 				}
-				// What should we do if a downstream
-				// connection fails?  Renegotiate?
+				tracks := make([]upTrack, len(down.tracks))
+				for i, t := range down.tracks {
+					tracks[i] = t.remote
+				}
+				go c.pushConn(
+					down.remote.Id(), down.remote,
+					tracks, down.remote.Label(),
+				)
 			case permissionsChangedAction:
 				c.write(clientMessage{
 					Type:        "permissions",
