@@ -1168,7 +1168,7 @@ async function newUpStream(id) {
         }
     }
 
-    pc.onicecandidate = function(e) {
+    pc.onicecandidate = e => {
         if(!e.candidate)
             return;
         send({type: 'ice',
@@ -1176,6 +1176,17 @@ async function newUpStream(id) {
              candidate: e.candidate,
              });
     };
+
+    pc.oniceconnectionstatechange = e => {
+        if(pc.iceConnectionState === 'failed') {
+            try {
+                pc.restartIce();
+            } catch(e) {
+                console.error(e);
+                displayError(e);
+            }
+        }
+    }
 
     pc.ontrack = console.error;
 
