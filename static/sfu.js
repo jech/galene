@@ -44,8 +44,7 @@ function Connection(id, pc) {
     this.labelsByMid = {};
     this.iceCandidates = [];
     this.timers = [];
-    this.audioStats = {};
-    this.videoStats = {};
+    this.stats = {};
 }
 
 Connection.prototype.setInterval = function(f, t) {
@@ -214,22 +213,21 @@ document.getElementById('requestselect').onchange = function(e) {
 };
 
 async function updateStats(conn, sender) {
-    let stats;
-    if(!sender.track)
+    let tid = sender.track && sender.track.id;
+    if(!tid)
         return;
 
-    if(sender.track.kind === 'audio')
-        stats = conn.audioStats;
-    else if(sender.track.kind === 'video')
-        stats = conn.videoStats;
-    else
-        return;
+    let stats = conn.stats[tid];
+    if(!stats) {
+        conn.stats[tid] = {};
+        stats = conn.stats[tid];
+    }
 
     let report;
     try {
         report = await sender.getStats();
     } catch(e) {
-        delete(stats.rate);
+        delete(stats[id].rate);
         delete(stats.timestamp);
         delete(stats.bytesSent);
         return;
@@ -254,25 +252,24 @@ async function updateStats(conn, sender) {
 
 function displayStats(id) {
     let conn = up[id];
-    if(!conn.audioStats.rate && !conn.videoStats.rate) {
+    if(!conn) {
         setLabel(id);
         return;
     }
 
-    let a = conn.audioStats.rate;
-    let v = conn.videoStats.rate;
-
     let text = '';
-    if(a)
-        text = text + Math.round(a / 1000) + 'kbps';
-    if(a && v)
-        text = text + ' + ';
-    if(v)
-        text = text + Math.round(v / 1000) + 'kbps';
-    if(text)
-        setLabel(id, text);
-    else
-        setLabel(id);
+
+    conn.pc.getSenders().forEach(s => {
+        let tid = s.track && s.track.id;
+        let stats = tid && conn.stats[tid];
+        if(stats && stats.rate > 0) {
+            if(text)
+                text = text + ' + ';
+            text = text + Math.round(stats.rate / 1000) + 'kbps';
+        }
+    });
+
+    setLabel(id, text);
 }
 
 function mapMediaOption(value) {
