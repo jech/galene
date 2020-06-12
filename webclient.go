@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"math"
 	"os"
 	"strings"
 	"sync"
@@ -228,7 +227,6 @@ func addUpConn(c *webClient, id string) (*rtpUpConnection, error) {
 
 	old := c.up[id]
 	if old != nil {
-		decrementVideoTracks(c, old)
 		old.pc.Close()
 	}
 
@@ -255,8 +253,6 @@ func delUpConn(c *webClient, id string) bool {
 	delete(c.up, id)
 	c.mu.Unlock()
 
-	decrementVideoTracks(c, conn)
-
 	go func(clients []client) {
 		for _, c := range clients {
 			c.pushConn(conn.id, nil, nil, "")
@@ -265,21 +261,6 @@ func delUpConn(c *webClient, id string) bool {
 
 	conn.pc.Close()
 	return true
-}
-
-func decrementVideoTracks(c *webClient, conn *rtpUpConnection) {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	for _, track := range conn.tracks {
-		if track.track.Kind() == webrtc.RTPCodecTypeVideo {
-			count := atomic.AddUint32(&c.group.videoCount,
-				^uint32(0))
-			if count == ^uint32(0) {
-				log.Printf("Negative track count!")
-				atomic.StoreUint32(&c.group.videoCount, 0)
-			}
-		}
-	}
 }
 
 func getDownConn(c *webClient, id string) *rtpDownConnection {
@@ -1042,21 +1023,12 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 }
 
 func sendRateUpdate(c *webClient) {
-	maxVideoRate := ^uint64(0)
-	count := atomic.LoadUint32(&c.group.videoCount)
-	if count >= 3 {
-		maxVideoRate = uint64(2000000 / math.Sqrt(float64(count)))
-		if maxVideoRate < minVideoRate {
-			maxVideoRate = minVideoRate
-		}
-	}
-
 	up := getUpConns(c)
 
 	for _, u := range up {
 		tracks := u.getTracks()
 		for _, t := range tracks {
-			rate := updateUpTrack(t, maxVideoRate)
+			rate := updateUpTrack(t)
 			if !t.hasRtcpFb("goog-remb", "") {
 				continue
 			}

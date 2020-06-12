@@ -45,7 +45,6 @@ type group struct {
 	name        string
 	dead        bool
 	description *groupDescription
-	videoCount  uint32
 	locked      uint32
 
 	mu      sync.Mutex

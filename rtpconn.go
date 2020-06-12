@@ -429,10 +429,6 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 
 		conn.tracks = append(conn.tracks, track)
 
-		if remote.Kind() == webrtc.RTPCodecTypeVideo {
-			atomic.AddUint32(&c.Group().videoCount, 1)
-		}
-
 		go readLoop(conn, track)
 
 		go rtcpUpListener(conn, track, receiver)
@@ -1090,7 +1086,7 @@ func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport, jiffies uint
 	}
 }
 
-func updateUpTrack(track *rtpUpTrack, maxVideoRate uint64) uint64 {
+func updateUpTrack(track *rtpUpTrack) uint64 {
 	now := rtptime.Jiffies()
 
 	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
@@ -1099,10 +1095,7 @@ func updateUpTrack(track *rtpUpTrack, maxVideoRate uint64) uint64 {
 	rate := ^uint64(0)
 	if isvideo {
 		minrate = minVideoRate
-		rate = maxVideoRate
-		if rate < minrate {
-			rate = minrate
-		}
+		rate = ^uint64(0)
 	}
 	local := track.getLocal()
 	var maxrto uint64
