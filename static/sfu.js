@@ -527,7 +527,7 @@ function setMedia(id) {
 
     media.srcObject = c.stream;
     setLabel(id);
-    setMediaStatus(id, false);
+    setMediaStatus(id);
 
     resizePeers();
 }
@@ -543,7 +543,11 @@ function delMedia(id) {
     resizePeers();
 }
 
-function setMediaStatus(id, good) {
+function setMediaStatus(id) {
+    let c = up[id] || down[id];
+    let state = c && c.pc && c.pc.iceConnectionState;
+    let good = state === 'connected' || state === 'completed';
+
     let media = document.getElementById('media-' + id);
     if(!media) {
         console.warn('Setting status of unknown media.');
@@ -737,9 +741,7 @@ async function gotOffer(id, labels, offer) {
         };
 
         pc.oniceconnectionstatechange = e => {
-            setMediaStatus(id,
-                           pc.iceConnectionState === 'connected' ||
-                           pc.iceConnectionState === 'completed');
+            setMediaStatus(id);
         }
 
         c.pc.ontrack = function(e) {
@@ -1195,9 +1197,7 @@ async function newUpStream(id) {
     };
 
     pc.oniceconnectionstatechange = e => {
-        setMediaStatus(id,
-                       pc.iceConnectionState === 'connected' ||
-                       pc.iceConnectionState === 'completed');
+        setMediaStatus(id);
         if(pc.iceConnectionState === 'failed') {
             try {
                 pc.restartIce();
