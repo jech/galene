@@ -382,10 +382,10 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	return nil
 }
 
-func (t *diskTrack) Accumulate(bytes uint32) {
-	return
+func (down *diskConn) GetMaxBitrate(now uint64) uint64 {
+	return ^uint64(0)
 }
 
-func (down *diskTrack) GetMaxBitrate(now uint64) uint64 {
-	return ^uint64(0)
+func (t *diskTrack) Accumulate(bytes uint32) {
+	return
 }

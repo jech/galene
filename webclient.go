@@ -380,12 +380,11 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack upTrack, re
 	}
 
 	track := &rtpDownTrack{
-		track:          local,
-		remote:         remoteTrack,
-		maxLossBitrate: new(bitrate),
-		maxREMBBitrate: new(bitrate),
-		stats:          new(receiverStats),
-		rate:           estimator.New(time.Second),
+		track:      local,
+		remote:     remoteTrack,
+		maxBitrate: new(bitrate),
+		stats:      new(receiverStats),
+		rate:       estimator.New(time.Second),
 	}
 	conn.tracks = append(conn.tracks, track)
 
@@ -692,10 +691,8 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 
 	readTime := time.Now()
 
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	slowTicker := time.NewTicker(10 * time.Second)
-	defer slowTicker.Stop()
 
 	for {
 		select {
@@ -766,7 +763,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 					go a.c.pushConn(u.id, u, ts, u.label)
 				}
 			case connectionFailedAction:
-				down := getDownConn(c, a.id);
+				down := getDownConn(c, a.id)
 				if down == nil {
 					log.Printf("Failed indication for " +
 						"unknown connection")
@@ -804,8 +801,6 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 				return errors.New("unexpected action")
 			}
 		case <-ticker.C:
-			sendRateUpdate(c)
-		case <-slowTicker.C:
 			if time.Since(readTime) > 90*time.Second {
 				return errors.New("client is dead")
 			}
@@ -1020,27 +1015,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		return protocolError("unexpected message")
 	}
 	return nil
-}
-
-func sendRateUpdate(c *webClient) {
-	up := getUpConns(c)
-
-	for _, u := range up {
-		tracks := u.getTracks()
-		for _, t := range tracks {
-			rate := updateUpTrack(t)
-			if !t.hasRtcpFb("goog-remb", "") {
-				continue
-			}
-			if rate == ^uint64(0) {
-				continue
-			}
-			err := sendREMB(u.pc, t.track.SSRC(), rate)
-			if err != nil {
-				log.Printf("sendREMB: %v", err)
-			}
-		}
-	}
 }
 
 func clientReader(conn *websocket.Conn, read chan<- interface{}, done <-chan struct{}) {

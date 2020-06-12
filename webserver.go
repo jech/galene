@@ -171,16 +171,26 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 		for _, cs := range gs.clients {
 			fmt.Fprintf(w, "<tr><td>%v</td></tr>\n", cs.id)
 			for _, up := range cs.up {
-				fmt.Fprintf(w, "<tr><td></td><td>Up</td><td>%v</td></tr>\n",
+				fmt.Fprintf(w, "<tr><td></td><td>Up</td><td>%v</td>",
 					up.id)
+				if up.maxBitrate > 0 {
+					fmt.Fprintf(w, "<td>%v</td>",
+						up.maxBitrate)
+				}
+				fmt.Fprintf(w, "</tr>\n")
 				for _, t := range up.tracks {
 					printTrack(w, t)
 				}
 			}
-			for _, up := range cs.down {
-				fmt.Fprintf(w, "<tr><td></td><td>Down</td><td> %v</td></tr>\n",
-					up.id)
-				for _, t := range up.tracks {
+			for _, down := range cs.down {
+				fmt.Fprintf(w, "<tr><td></td><td>Down</td><td> %v</td>",
+					down.id)
+				if down.maxBitrate > 0 {
+					fmt.Fprintf(w, "<td>%v</td>",
+						down.maxBitrate)
+				}
+				fmt.Fprintf(w, "</tr>\n")
+				for _, t := range down.tracks {
 					printTrack(w, t)
 				}
 			}

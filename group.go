@@ -37,8 +37,7 @@ type chatHistoryEntry struct {
 }
 
 const (
-	minVideoRate = 200000
-	minAudioRate = 9600
+	minBitrate = 200000
 )
 
 type group struct {
@@ -506,8 +505,9 @@ type clientStats struct {
 }
 
 type connStats struct {
-	id     string
-	tracks []trackStats
+	id         string
+	maxBitrate uint64
+	tracks     []trackStats
 }
 
 type trackStats struct {
@@ -560,7 +560,9 @@ func getClientStats(c *webClient) clientStats {
 	}
 
 	for _, up := range c.up {
-		conns := connStats{id: up.id}
+		conns := connStats{
+			id: up.id,
+		}
 		tracks := up.getTracks()
 		for _, t := range tracks {
 			expected, lost, _, _ := t.cache.GetStats(false)
@@ -572,10 +574,9 @@ func getClientStats(c *webClient) clientStats {
 				(time.Second / time.Duration(t.jitter.HZ()))
 			rate, _ := t.rate.Estimate()
 			conns.tracks = append(conns.tracks, trackStats{
-				bitrate:    uint64(rate) * 8,
-				maxBitrate: atomic.LoadUint64(&t.maxBitrate),
-				loss:       loss,
-				jitter:     jitter,
+				bitrate: uint64(rate) * 8,
+				loss:    loss,
+				jitter:  jitter,
 			})
 		}
 		cs.up = append(cs.up, conns)
@@ -584,10 +585,13 @@ func getClientStats(c *webClient) clientStats {
 		return cs.up[i].id < cs.up[j].id
 	})
 
+	jiffies := rtptime.Jiffies()
 	for _, down := range c.down {
-		conns := connStats{id: down.id}
+		conns := connStats{
+			id:         down.id,
+			maxBitrate: down.GetMaxBitrate(jiffies),
+		}
 		for _, t := range down.tracks {
-			jiffies := rtptime.Jiffies()
 			rate, _ := t.rate.Estimate()
 			rtt := rtptime.ToDuration(atomic.LoadUint64(&t.rtt),
 				rtptime.JiffiesPerSec)
@@ -596,7 +600,7 @@ func getClientStats(c *webClient) clientStats {
 				time.Duration(t.track.Codec().ClockRate)
 			conns.tracks = append(conns.tracks, trackStats{
 				bitrate:    uint64(rate) * 8,
-				maxBitrate: t.GetMaxBitrate(jiffies),
+				maxBitrate: t.maxBitrate.Get(jiffies),
 				loss:       uint8(uint32(loss) * 100 / 256),
 				rtt:        rtt,
 				jitter:     j,
