@@ -1217,27 +1217,25 @@ async function negotiate(id) {
     let c = up[id];
     if(!c)
         throw new Error('unknown connection');
+
+    if(typeof(c.pc.getTransceivers) !== 'function')
+        throw new Error('Browser too old, please upgrade');
+
     let offer = await c.pc.createOffer({});
     if(!offer)
         throw(new Error("Didn't create offer"));
     await c.pc.setLocalDescription(offer);
 
     // mids are not known until this point
-    if(typeof(c.pc.getTransceivers) === 'function') {
-        c.pc.getTransceivers().forEach(t => {
-            if(t.sender && t.sender.track) {
-                let label = c.labels[t.sender.track.id];
-                if(label)
-                    c.labelsByMid[t.mid] = label;
-                else
-                    console.warn("Couldn't find label for track");
-            }
-        });
-    } else {
-        console.warn('getTransceivers undefined');
-        displayWarning('getTransceivers undefined, please upgrade your browser');
-        // let the server deal with the mess
-    }
+    c.pc.getTransceivers().forEach(t => {
+        if(t.sender && t.sender.track) {
+            let label = c.labels[t.sender.track.id];
+            if(label)
+                c.labelsByMid[t.mid] = label;
+            else
+                console.warn("Couldn't find label for track");
+        }
+    });
 
     send({
         type: 'offer',
