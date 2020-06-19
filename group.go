@@ -21,14 +21,6 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-type client interface {
-	Group() *group
-	Id() string
-	Username() string
-	pushConn(id string, conn upConnection, tracks []upTrack, label string) error
-	pushClient(id, username string, add bool) error
-}
-
 type chatHistoryEntry struct {
 	id    string
 	user  string
