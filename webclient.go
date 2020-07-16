@@ -18,7 +18,7 @@ import (
 	"sfu/estimator"
 
 	"github.com/gorilla/websocket"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 var iceConf webrtc.Configuration

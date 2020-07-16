@@ -16,9 +16,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"sfu/rtptime"
+	"github.com/pion/webrtc/v3"
 
-	"github.com/pion/webrtc/v2"
+	"sfu/rtptime"
 )
 
 type chatHistoryEntry struct {
@@ -79,7 +79,6 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	if groups.groups == nil {
 		groups.groups = make(map[string]*group)
 		s := webrtc.SettingEngine{}
-		s.SetTrickle(true)
 		m := webrtc.MediaEngine{}
 		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
 			webrtc.DefaultPayloadTypeVP8, 90000,

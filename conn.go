@@ -9,7 +9,7 @@ import (
 	"errors"
 
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 var ErrConnectionClosed = errors.New("connection is closed")
