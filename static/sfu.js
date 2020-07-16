@@ -643,7 +643,7 @@ function serverConnect() {
             let m = JSON.parse(e.data);
             switch(m.type) {
             case 'offer':
-                gotOffer(m.id, m.labels, m.offer);
+                gotOffer(m.id, m.labels, m.offer, !!m.renegotiate);
                 break;
             case 'answer':
                 gotAnswer(m.id, m.answer);
@@ -714,11 +714,12 @@ function sendRequest(value) {
     });
 }
 
-async function gotOffer(id, labels, offer) {
+async function gotOffer(id, labels, offer, renegotiate) {
     let c = down[id];
-    if(c) {
-        // a new offer with a known id does not indicate renegotiation,
-        // but a new connection that replaces the old one.
+    if(c && !renegotiate) {
+        // SDP is rather inflexible as to what can be renegotiated.
+        // Unless the server indicates that this is a renegotiation with
+        // all parameters unchanged, tear down the existing connection.
         delete(down[id])
         c.close(false);
         c = null;

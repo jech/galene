@@ -179,6 +179,7 @@ type clientMessage struct {
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
+	Renegotiate bool                       `json:"renegotiate,omitempty"`
 	Labels      map[string]string          `json:"labels,omitempty"`
 	Del         bool                       `json:"del,omitempty"`
 	Request     rateMap                    `json:"request,omitempty"`
@@ -393,8 +394,9 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack upTrack, re
 	return s, nil
 }
 
-func negotiate(c *webClient, down *rtpDownConnection) error {
-	offer, err := down.pc.CreateOffer(nil)
+func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bool) error {
+	options := webrtc.OfferOptions{ICERestart: restartIce}
+	offer, err := down.pc.CreateOffer(&options)
 	if err != nil {
 		return err
 	}
@@ -422,10 +424,11 @@ func negotiate(c *webClient, down *rtpDownConnection) error {
 	}
 
 	return c.write(clientMessage{
-		Type:   "offer",
-		Id:     down.id,
-		Offer:  &offer,
-		Labels: labels,
+		Type:        "offer",
+		Id:          down.id,
+		Offer:       &offer,
+		Renegotiate: renegotiate,
+		Labels:      labels,
 	})
 }
 
@@ -733,7 +736,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 					return err
 				}
 				if down != nil {
-					err = negotiate(c, down)
+					err = negotiate(c, down, false, false)
 					if err != nil {
 						log.Printf("Negotiate: %v", err)
 						delDownConn(c, down.id)
@@ -769,14 +772,19 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 						"unknown connection")
 					continue
 				}
-				tracks := make([]upTrack, len(down.tracks))
-				for i, t := range down.tracks {
-					tracks[i] = t.remote
+				err := negotiate(c, down, true, true)
+				if err != nil {
+					tracks := make(
+						[]upTrack, len(down.tracks),
+					)
+					for i, t := range down.tracks {
+						tracks[i] = t.remote
+					}
+					go c.pushConn(
+						down.remote.Id(), down.remote,
+						tracks, down.remote.Label(),
+					)
 				}
-				go c.pushConn(
-					down.remote.Id(), down.remote,
-					tracks, down.remote.Label(),
-				)
 			case permissionsChangedAction:
 				c.write(clientMessage{
 					Type:        "permissions",
