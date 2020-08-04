@@ -98,7 +98,6 @@ type diskConn struct {
 	file          *os.File
 	remote        upConnection
 	tracks        []*diskTrack
-	reference     int // the track used as a time reference
 	width, height uint32
 }
 
