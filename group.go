@@ -54,10 +54,6 @@ type addLabelAction struct {
 	label string
 }
 
-type getUpAction struct {
-	ch chan<- string
-}
-
 type pushConnsAction struct {
 	c client
 }
@@ -183,11 +179,6 @@ func delGroupUnlocked(name string) bool {
 
 	delete(groups.groups, name)
 	return true
-}
-
-type userid struct {
-	id       string
-	username string
 }
 
 func addClient(name string, c client, pass string) (*group, error) {
