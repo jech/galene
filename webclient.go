@@ -209,12 +209,7 @@ func getUpConns(c *webClient) []*rtpUpConnection {
 	return up
 }
 
-func addUpConn(c *webClient, id string) (*rtpUpConnection, error) {
-	conn, err := newUpConn(c, id)
-	if err != nil {
-		return nil, err
-	}
-
+func addUpConn(c *webClient, id string) (*rtpUpConnection, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -222,13 +217,17 @@ func addUpConn(c *webClient, id string) (*rtpUpConnection, error) {
 		c.up = make(map[string]*rtpUpConnection)
 	}
 	if c.down != nil && c.down[id] != nil {
-		conn.pc.Close()
-		return nil, errors.New("Adding duplicate connection")
+		return nil, false, errors.New("Adding duplicate connection")
 	}
 
 	old := c.up[id]
 	if old != nil {
-		old.pc.Close()
+		return old, false, nil
+	}
+
+	conn, err := newUpConn(c, id)
+	if err != nil {
+		return nil, false, err
 	}
 
 	c.up[id] = conn
@@ -237,7 +236,7 @@ func addUpConn(c *webClient, id string) (*rtpUpConnection, error) {
 		sendICE(c, id, candidate)
 	})
 
-	return conn, nil
+	return conn, true, nil
 }
 
 func delUpConn(c *webClient, id string) bool {
@@ -444,11 +443,18 @@ func sendICE(c *webClient, id string, candidate *webrtc.ICECandidate) error {
 	})
 }
 
-func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, labels map[string]string) error {
-	up, err := addUpConn(c, id)
+func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegotiate bool, labels map[string]string) error {
+	if !renegotiate {
+		// unless the client indicates that this is a compatible
+		// renegotiation, tear down the existing connection.
+		delUpConn(c, id)
+	}
+
+	up, _, err := addUpConn(c, id)
 	if err != nil {
 		return err
 	}
+
 	if c.username != "" {
 		up.label = c.username
 	}
@@ -911,7 +917,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if m.Offer == nil {
 			return protocolError("null offer")
 		}
-		err := gotOffer(c, m.Id, *m.Offer, m.Labels)
+		err := gotOffer(c, m.Id, *m.Offer, m.Renegotiate, m.Labels)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
 			return failConnection(c, m.Id, "negotiation failed")

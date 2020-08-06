@@ -1243,6 +1243,7 @@ async function negotiate(id) {
         id: id,
         labels: c.labelsByMid,
         offer: offer,
+        renegotiate: true,
     });
 }
 
