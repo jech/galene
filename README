@@ -15,7 +15,7 @@ Set the server administrator's username and password (optional):
 
 Configure the list of STUN and TURN servers (optional):
 
-    vi static/ice-servers.json
+    vi data/ice-servers.json
 
 Set up a group
 

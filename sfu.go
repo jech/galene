@@ -81,7 +81,7 @@ func main() {
 		}()
 	}
 
-	iceFilename = filepath.Join(staticRoot, "ice-servers.json")
+	iceFilename = filepath.Join(dataDir, "ice-servers.json")
 
 	go readPublicGroups()
 	webserver()

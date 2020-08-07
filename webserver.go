@@ -24,7 +24,8 @@ func webserver() {
 	http.HandleFunc("/group/",
 		func(w http.ResponseWriter, r *http.Request) {
 			mungeHeader(w)
-			http.ServeFile(w, r, staticRoot+"/sfu.html")
+			http.ServeFile(w, r,
+				filepath.Join(staticRoot, "sfu.html"))
 		})
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +34,12 @@ func webserver() {
 		})
 	http.HandleFunc("/recordings/", recordingsHandler)
 	http.HandleFunc("/ws", wsHandler)
+	http.HandleFunc("/ice-servers.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			mungeHeader(w)
+			http.ServeFile(w, r,
+				filepath.Join(dataDir, "ice-servers.json"))
+		})
 	http.HandleFunc("/public-groups.json", publicHandler)
 	http.HandleFunc("/stats", statsHandler)
 
