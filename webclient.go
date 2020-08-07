@@ -945,7 +945,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 	case "chat":
 		c.group.addToChatHistory(m.Id, m.Username, m.Value, m.Me)
-		clients := c.group.getClients(c)
+		clients := c.group.getClients(nil)
 		for _, cc := range clients {
 			cc, ok := cc.(*webClient)
 			if ok {

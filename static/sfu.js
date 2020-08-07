@@ -1108,7 +1108,6 @@ function handleInput() {
             value: message,
             me: me,
         });
-        addToChatbox(myid, username, message, me);
     } catch(e) {
         console.error(e);
         displayError(e);
