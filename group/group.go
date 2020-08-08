@@ -8,6 +8,7 @@ package group
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -136,6 +137,18 @@ func (g *Group) API() *webrtc.API {
 	return groups.api
 }
 
+var tcpListener net.Listener
+
+func StartTCPListener(addr *net.TCPAddr) error {
+	if tcpListener != nil {
+		tcpListener.Close()
+		tcpListener = nil
+	}
+	var err error
+	tcpListener, err = net.ListenTCP("tcp", addr)
+	return err
+}
+
 func Add(name string, desc *description) (*Group, error) {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
@@ -143,6 +156,16 @@ func Add(name string, desc *description) (*Group, error) {
 	if groups.groups == nil {
 		groups.groups = make(map[string]*Group)
 		s := webrtc.SettingEngine{}
+		if tcpListener != nil {
+			mux := webrtc.NewICETCPMux(nil, tcpListener, 8)
+			s.SetICETCPMux(mux)
+			s.SetNetworkTypes([]webrtc.NetworkType{
+				webrtc.NetworkTypeUDP4,
+				webrtc.NetworkTypeUDP6,
+				webrtc.NetworkTypeTCP4,
+				webrtc.NetworkTypeTCP6,
+			})
+		}
 		m := webrtc.MediaEngine{}
 		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
 			webrtc.DefaultPayloadTypeVP8, 90000,
