@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 func main() {
 	var cpuprofile, memprofile, mutexprofile, httpAddr string
 	var udpRange string
+	var tcpPort int
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
@@ -43,6 +45,9 @@ func main() {
 		"store mutex profile in `file`")
 	flag.StringVar(&udpRange, "udp-range", "",
 		"UDP port `range`")
+	flag.IntVar(&tcpPort, "tcp-port", -1,
+		"TCP listener `port`.  If 0, an ephemeral port is used.\n"+
+			"If -1, the TCP listerer is disabled")
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
@@ -114,6 +119,15 @@ func main() {
 
 	// make sure the list of public groups is updated early
 	go group.Update()
+
+	if tcpPort >= 0 {
+		err := group.StartTCPListener(&net.TCPAddr{
+			Port: tcpPort,
+		})
+		if err != nil {
+			log.Fatalf("Couldn't start ICE TCP: %v", err)
+		}
+	}
 
 	// causes the built-in server to start if required
 	ice.Update()

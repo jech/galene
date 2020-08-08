@@ -55,8 +55,9 @@ github.com/pion/dtls/v2 v2.1.1/go.mod h1:qG3gA7ZPZemBqpEFqRKyURYdKEwFZQCGb7gv9T3
 github.com/pion/dtls/v2 v2.1.2 h1:22Q1Jk9L++Yo7BIf9130MonNPfPVb+YgdYLeyQotuAA=
 github.com/pion/dtls/v2 v2.1.2/go.mod h1:o6+WvyLDAlXF7YiPB/RlskRoeK+/JtuaZa5emwQcWus=
 github.com/pion/ice/v2 v2.1.12/go.mod h1:ovgYHUmwYLlRvcCLI67PnQ5YGe+upXZbGgllBDG/ktU=
-github.com/pion/ice/v2 v2.1.20 h1:xpxXyX5b4WjCh/D905gzBeW/hbJxMEPx2ptVfrhVE6M=
 github.com/pion/ice/v2 v2.1.20/go.mod h1:hEAldRzBhTtAfvlU1V/2/nLCMvveQWFKPNCop+63/Iw=
+github.com/pion/ice/v2 v2.2.1-0.20220221210118-fca128a058ec h1:dN7oetSQnnfGeJaBWZyLpnM825etYPasGKCIY88QBpU=
+github.com/pion/ice/v2 v2.2.1-0.20220221210118-fca128a058ec/go.mod h1:Op8jlPtjeiycsXh93Cs4jK82C9j/kh7vef6ztIOvtIQ=
 github.com/pion/interceptor v0.1.0/go.mod h1:j5NIl3tJJPB3u8+Z2Xz8MZs/VV6rc+If9mXEKNuFmEM=
 github.com/pion/interceptor v0.1.7 h1:HThW0tIIKT9RRoDWGURe8rlZVOx0fJHxBHpA0ej0+bo=
 github.com/pion/interceptor v0.1.7/go.mod h1:Lh3JSl/cbJ2wP8I3ccrjh1K/deRGRn3UlSPuOTiHb6U=

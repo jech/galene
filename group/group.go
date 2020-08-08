@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net"
 	"net/url"
 	"os"
 	"path"
@@ -169,6 +170,18 @@ func (g *Group) API() (*webrtc.API, error) {
 	g.mu.Unlock()
 
 	return APIFromNames(codecs)
+}
+
+var tcpListener net.Listener
+
+func StartTCPListener(addr *net.TCPAddr) error {
+	if tcpListener != nil {
+		tcpListener.Close()
+		tcpListener = nil
+	}
+	var err error
+	tcpListener, err = net.ListenTCP("tcp", addr)
+	return err
 }
 
 func fmtpValue(fmtp, key string) string {
@@ -338,6 +351,17 @@ func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 	if !UseMDNS {
 		s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
 	}
+	if tcpListener != nil {
+		mux := webrtc.NewICETCPMux(nil, tcpListener, 8)
+		s.SetICETCPMux(mux)
+		s.SetNetworkTypes([]webrtc.NetworkType{
+			webrtc.NetworkTypeUDP4,
+			webrtc.NetworkTypeUDP6,
+			webrtc.NetworkTypeTCP4,
+			webrtc.NetworkTypeTCP6,
+		})
+	}
+
 	m := webrtc.MediaEngine{}
 
 	for _, codec := range codecs {
