@@ -5,76 +5,8 @@
 
 'use strict';
 
-let myid;
-
 let group;
-
-let socket;
-
-let up = {}, down = {};
-
-let iceServers = [];
-
-let permissions = {};
-
-function toHex(array) {
-    let a = new Uint8Array(array);
-    function hex(x) {
-        let h = x.toString(16);
-        if(h.length < 2)
-            h = '0' + h;
-        return h;
-    }
-    return a.reduce((x, y) => x + hex(y), '');
-}
-
-function randomid() {
-    let a = new Uint8Array(16);
-    crypto.getRandomValues(a);
-    return toHex(a);
-}
-
-function Stream(id, pc) {
-    this.id = id;
-    this.kind = null;
-    this.label = null;
-    this.pc = pc;
-    this.stream = null;
-    this.labels = {};
-    this.labelsByMid = {};
-    this.iceCandidates = [];
-    this.timers = [];
-    this.stats = {};
-}
-
-Stream.prototype.setInterval = function(f, t) {
-    this.timers.push(setInterval(f, t));
-};
-
-Stream.prototype.close = function(sendit) {
-    while(this.timers.length > 0)
-        clearInterval(this.timers.pop());
-
-    if(this.stream) {
-        this.stream.getTracks().forEach(t => {
-            try {
-                t.stop();
-            } catch(e) {
-            }
-        });
-    }
-    this.pc.close();
-
-    if(sendit) {
-        try {
-            send({
-                type: 'close',
-                id: this.id,
-            });
-        } catch(e) {
-        }
-    }
-};
+let serverConnection;
 
 function setUserPass(username, password) {
     window.sessionStorage.setItem(
@@ -103,6 +35,8 @@ function setConnected(connected) {
     let disconnectbutton = document.getElementById('disconnectbutton');
     if(connected) {
         clearError();
+        resetUsers();
+        clearChat();
         statspan.textContent = 'Connected';
         statspan.classList.remove('disconnected');
         statspan.classList.add('connected');
@@ -122,8 +56,40 @@ function setConnected(connected) {
         userform.classList.add('userform');
         userform.classList.remove('invisible');
         disconnectbutton.classList.add('invisible');
-        permissions={};
-        clearUsername(false);
+        clearUsername();
+    }
+}
+
+function gotConnected() {
+    setConnected(true);
+    let up = getUserPass();
+    this.login(up.username, up.password);
+    this.join(group);
+    this.request(document.getElementById('requestselect').value);
+}
+
+function gotClose(code, reason) {
+    setConnected(false);
+    if(code != 1000)
+        console.warn('Socket close', code, reason);
+}
+
+function gotDownStream(c) {
+    c.onclose = function() {
+        delMedia(c.id);
+    };
+    c.onerror = function(e) {
+        console.error(e);
+        displayError(e);
+    }
+    c.ondowntrack = function(track, transceiver, label, stream) {
+        setMedia(c, false);
+    }
+    c.onlabel = function(label) {
+        setLabel(c);
+    }
+    c.onstatus = function(status) {
+        setMediaStatus(c);
     }
 }
 
@@ -153,6 +119,7 @@ function setVisibility(id, visible) {
 }
 
 function setButtonsVisibility() {
+    let permissions = serverConnection.permissions;
     let local = !!findUpMedia('local');
     let share = !!findUpMedia('screenshare')
     // don't allow multiple presentations
@@ -209,59 +176,17 @@ document.getElementById('unsharebutton').onclick = function(e) {
 
 document.getElementById('requestselect').onchange = function(e) {
     e.preventDefault();
-    sendRequest(this.value);
+    serverConnection.request(this.value);
 };
 
-async function updateStats(conn, sender) {
-    let tid = sender.track && sender.track.id;
-    if(!tid)
-        return;
-
-    let stats = conn.stats[tid];
-    if(!stats) {
-        conn.stats[tid] = {};
-        stats = conn.stats[tid];
-    }
-
-    let report;
-    try {
-        report = await sender.getStats();
-    } catch(e) {
-        delete(stats[id].rate);
-        delete(stats.timestamp);
-        delete(stats.bytesSent);
-        return;
-    }
-
-    for(let r of report.values()) {
-        if(r.type !== 'outbound-rtp')
-            continue;
-
-        if(stats.timestamp) {
-            stats.rate =
-                ((r.bytesSent - stats.bytesSent) * 1000 /
-                 (r.timestamp - stats.timestamp)) * 8;
-        } else {
-            delete(stats.rate);
-        }
-        stats.timestamp = r.timestamp;
-        stats.bytesSent = r.bytesSent;
-        return;
-    }
-}
-
-function displayStats(id) {
-    let conn = up[id];
-    if(!conn) {
-        setLabel(id);
-        return;
-    }
+function displayStats(stats) {
+    let c = this;
 
     let text = '';
 
-    conn.pc.getSenders().forEach(s => {
+    c.pc.getSenders().forEach(s => {
         let tid = s.track && s.track.id;
-        let stats = tid && conn.stats[tid];
+        let stats = tid && c.stats[tid];
         if(stats && stats.rate > 0) {
             if(text)
                 text = text + ' + ';
@@ -269,7 +194,7 @@ function displayStats(id) {
         }
     });
 
-    setLabel(id, text);
+    setLabel(c, text);
 }
 
 function mapMediaOption(value) {
@@ -337,6 +262,22 @@ async function setMediaChoices() {
     mediaChoicesDone = true;
 }
 
+function newUpStream(id) {
+    let c = serverConnection.newUpStream();
+    c.onstatus = function(status) {
+        setMediaStatus(c);
+    }
+    c.onerror = function(e) {
+        console.error(e);
+        displayError(e);
+        delUpMedia(c.id);
+    }
+    c.onabort = function() {
+        delUpMedia(c.id);
+    }
+    return c;
+}
+
 async function addLocalMedia(id) {
     if(!getUserPass())
         return;
@@ -366,8 +307,7 @@ async function addLocalMedia(id) {
 
     setMediaChoices();
 
-    id = await newUpStream(id);
-    let c = up[id];
+    let c = newUpStream(id);
 
     c.kind = 'local';
     c.stream = stream;
@@ -376,14 +316,10 @@ async function addLocalMedia(id) {
         if(t.kind == 'audio' && localMute)
             t.enabled = false;
         let sender = c.pc.addTrack(t, stream);
-        c.setInterval(() => {
-            updateStats(c, sender);
-        }, 2000);
     });
-    c.setInterval(() => {
-        displayStats(id);
-    }, 2500);
-    await setMedia(id);
+    c.onstats = displayStats;
+    c.setStatsInterval(2000);
+    await setMedia(c, true);
     setButtonsVisibility()
 }
 
@@ -399,33 +335,23 @@ async function addShareMedia(setup) {
         return;
     }
 
-    let id = await newUpStream();
-    let c = up[id];
+    let c = await serverConnection.newUpStream();
     c.kind = 'screenshare';
     c.stream = stream;
     stream.getTracks().forEach(t => {
         let sender = c.pc.addTrack(t, stream);
         t.onended = e => {
-            delUpMedia(id);
+            delUpMedia(c.id);
         };
         c.labels[t.id] = 'screenshare';
-        c.setInterval(() => {
-            updateStats(c, sender);
-        }, 2000);
     });
-    c.setInterval(() => {
-        displayStats(id);
-    }, 2500);
-    await setMedia(id);
+    c.onstats = displayStats;
+    c.setStatsInterval(2000);
+    await setMedia(c, true);
     setButtonsVisibility()
 }
 
-function stopUpMedia(id) {
-    let c = up[id];
-    if(!c) {
-        console.error('Stopping unknown up media');
-        return;
-    }
+function stopUpMedia(c) {
     if(!c.stream)
         return;
     c.stream.getTracks().forEach(t => {
@@ -436,43 +362,40 @@ function stopUpMedia(id) {
     });
 }
 
-function delUpMedia(id) {
-    let c = up[id];
-    if(!c) {
-        console.error('Deleting unknown up media');
-        return;
-    }
-    stopUpMedia(id);
-    delMedia(id);
+function delUpMedia(c) {
+    stopUpMedia(c);
+    delMedia(c);
     c.close(true);
-    delete(up[id]);
+    delete(serverConnection.up[c.id]);
     setButtonsVisibility()
 }
 
 function delUpMediaKind(kind) {
-    for(let id in up) {
-        let c = up[id];
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
         if(c.kind != kind)
             continue
         c.close(true);
         delMedia(id);
-        delete(up[id]);
+        delete(serverConnection.up[id]);
     }
 
     setButtonsVisibility()
 }
 
 function findUpMedia(kind) {
-    for(let id in up) {
-        if(up[id].kind === kind)
+    for(let id in serverConnection.up) {
+        if(serverConnection.up[id].kind === kind)
             return id;
     }
     return null;
 }
 
 function muteLocalTracks(mute) {
-    for(let id in up) {
-        let c = up[id];
+    if(!serverConnection)
+        return;
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
         if(c.kind === 'local') {
             let stream = c.stream;
             stream.getTracks().forEach(t => {
@@ -484,50 +407,45 @@ function muteLocalTracks(mute) {
     }
 }
 
-function setMedia(id) {
-    let mine = true;
-    let c = up[id];
-    if(!c) {
-        c = down[id];
-        mine = false;
-    }
-    if(!c)
-        throw new Error('Unknown stream');
-
+/**
+ * @param {Stream} c
+ * @param {boolean} isUp
+ */
+function setMedia(c, isUp) {
     let peersdiv = document.getElementById('peers');
 
-    let div = document.getElementById('peer-' + id);
+    let div = document.getElementById('peer-' + c.id);
     if(!div) {
         div = document.createElement('div');
-        div.id = 'peer-' + id;
+        div.id = 'peer-' + c.id;
         div.classList.add('peer');
         peersdiv.appendChild(div);
     }
 
-    let media = document.getElementById('media-' + id);
+    let media = document.getElementById('media-' + c.id);
     if(!media) {
         media = document.createElement('video');
-        media.id = 'media-' + id;
+        media.id = 'media-' + c.id;
         media.classList.add('media');
         media.autoplay = true;
         media.playsinline = true;
         media.controls = true;
-        if(mine)
+        if(isUp)
             media.muted = true;
         div.appendChild(media);
     }
 
-    let label = document.getElementById('label-' + id);
+    let label = document.getElementById('label-' + c.id);
     if(!label) {
         label = document.createElement('div');
-        label.id = 'label-' + id;
+        label.id = 'label-' + c.id;
         label.classList.add('label');
         div.appendChild(label);
     }
 
     media.srcObject = c.stream;
-    setLabel(id);
-    setMediaStatus(id);
+    setLabel(c);
+    setMediaStatus(c);
 
     resizePeers();
 }
@@ -543,12 +461,14 @@ function delMedia(id) {
     resizePeers();
 }
 
-function setMediaStatus(id) {
-    let c = up[id] || down[id];
+/**
+ * @param {Stream} c
+ */
+function setMediaStatus(c) {
     let state = c && c.pc && c.pc.iceConnectionState;
     let good = state === 'connected' || state === 'completed';
 
-    let media = document.getElementById('media-' + id);
+    let media = document.getElementById('media-' + c.id);
     if(!media) {
         console.warn('Setting status of unknown media.');
         return;
@@ -560,11 +480,15 @@ function setMediaStatus(id) {
 }
 
 
-function setLabel(id, fallback) {
-    let label = document.getElementById('label-' + id);
+/**
+ * @param {Stream} c
+ * @param {string} [fallback]
+ */
+function setLabel(c, fallback) {
+    let label = document.getElementById('label-' + c.id);
     if(!label)
         return;
-    let l = down[id] ? down[id].label : null;
+    let l = c.label;
     if(l) {
         label.textContent = l;
         label.classList.remove('label-fallback');
@@ -578,292 +502,12 @@ function setLabel(id, fallback) {
 }
 
 function resizePeers() {
-    let count = Object.keys(up).length + Object.keys(down).length;
+    let count =
+        Object.keys(serverConnection.up).length +
+        Object.keys(serverConnection.down).length;
     let columns = Math.ceil(Math.sqrt(count));
     document.getElementById('peers').style['grid-template-columns'] =
         `repeat(${columns}, 1fr)`;
-}
-
-function serverConnect() {
-    if(socket) {
-        socket.close(1000, 'Reconnecting');
-        socket = null;
-        setConnected(false);
-    }
-
-    try {
-        socket = new WebSocket(
-            `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`,
-        );
-    } catch(e) {
-        console.error(e);
-        setConnected(false);
-        return Promise.reject(e);
-    }
-
-    return new Promise((resolve, reject) => {
-        socket.onerror = function(e) {
-            reject(e.error ? e.error : e);
-        };
-        socket.onopen = function(e) {
-            resetUsers();
-            resetChat();
-            setConnected(true);
-            let up = getUserPass();
-            try {
-                send({
-                    type: 'login',
-                    id: myid,
-                    username: up.username,
-                    password: up.password,
-                })
-                send({
-                    type: 'join',
-                    group: group,
-                })
-                sendRequest(document.getElementById('requestselect').value);
-                } catch(e) {
-                    console.error(e);
-                    displayError(e);
-                    reject(e);
-                    return;
-                }
-            resolve();
-        };
-        socket.onclose = function(e) {
-            setConnected(false);
-            delUpMediaKind('local');
-            delUpMediaKind('screenshare');
-            for(let id in down) {
-                let c = down[id];
-                delete(down[id]);
-                c.close(false);
-                delMedia(id);
-            }
-            reject(new Error('websocket close ' + e.code + ' ' + e.reason));
-        };
-        socket.onmessage = function(e) {
-            let m = JSON.parse(e.data);
-            switch(m.type) {
-            case 'offer':
-                gotOffer(m.id, m.labels, m.offer, m.kind === 'renegotiate');
-                break;
-            case 'answer':
-                gotAnswer(m.id, m.answer);
-                break;
-            case 'renegotiate':
-                let c = up[m.id];
-                if(c) {
-                    try {
-                        c.pc.restartIce()
-                    } catch(e) {
-                        console.error(e);
-                        displayError(e);
-                    }
-                }
-                break;
-            case 'close':
-                gotClose(m.id);
-                break;
-            case 'abort':
-                gotAbort(m.id);
-                break;
-            case 'ice':
-                gotICE(m.id, m.candidate);
-                break;
-            case 'label':
-                gotLabel(m.id, m.value);
-                break;
-            case 'permissions':
-                gotPermissions(m.permissions);
-                break;
-            case 'user':
-                gotUser(m.id, m.kind, m.username);
-                break;
-            case 'chat':
-                addToChatbox(m.id, m.username, m.kind, m.value);
-                break;
-            case 'clearchat':
-                resetChat();
-                break;
-            case 'ping':
-                send({
-                    type: 'pong',
-                });
-                break;
-            case 'pong':
-                /* nothing */
-                break;
-            case 'usermessage':
-                switch(m.kind) {
-                case 'error':
-                    displayError('The server said: ' + m.value);
-                    break;
-                default:
-                    displayWarning('The server said: ' + m.value)
-                    break;
-                }
-                break;
-            default:
-                console.warn('Unexpected server message', m.type);
-                return;
-            }
-        };
-    });
-}
-
-function sendRequest(value) {
-    let request = [];
-    switch(value) {
-    case 'audio':
-        request = {audio: true};
-        break;
-    case 'screenshare':
-        request = {audio: true, screenshare: true};
-        break;
-    case 'everything':
-        request = {audio: true, screenshare: true, video: true};
-        break;
-    default:
-        console.error(`Uknown value ${value} in sendRequest`);
-        break;
-    }
-
-    send({
-        type: 'request',
-        request: request,
-    });
-}
-
-async function gotOffer(id, labels, offer, renegotiate) {
-    let c = down[id];
-    if(c && !renegotiate) {
-        // SDP is rather inflexible as to what can be renegotiated.
-        // Unless the server indicates that this is a renegotiation with
-        // all parameters unchanged, tear down the existing connection.
-        delete(down[id])
-        c.close(false);
-        c = null;
-    }
-
-    if(!c) {
-        let pc = new RTCPeerConnection({
-            iceServers: iceServers,
-        });
-        c = new Stream(id, pc);
-        down[id] = c;
-
-        c.pc.onicecandidate = function(e) {
-            if(!e.candidate)
-                return;
-            send({type: 'ice',
-                  id: id,
-                  candidate: e.candidate,
-                 });
-        };
-
-        pc.oniceconnectionstatechange = e => {
-            setMediaStatus(id);
-            if(pc.iceConnectionState === 'failed') {
-                send({type: 'renegotiate',
-                      id: id,
-                     });
-            }
-        }
-
-        c.pc.ontrack = function(e) {
-            let label = e.transceiver && c.labelsByMid[e.transceiver.mid];
-            if(label) {
-                c.labels[e.track.id] = label;
-            } else {
-                console.warn("Couldn't find label for track");
-            }
-            c.stream = e.streams[0];
-            setMedia(id);
-        };
-    }
-
-    c.labelsByMid = labels;
-
-    await c.pc.setRemoteDescription(offer);
-    await addIceCandidates(c);
-    let answer = await c.pc.createAnswer();
-    if(!answer)
-        throw new Error("Didn't create answer");
-    await c.pc.setLocalDescription(answer);
-    send({
-        type: 'answer',
-        id: id,
-        answer: answer,
-    });
-}
-
-function gotLabel(id, label) {
-    let c = down[id];
-    if(!c)
-        throw new Error('Got label for unknown id');
-
-    c.label = label;
-    setLabel(id);
-}
-
-async function gotAnswer(id, answer) {
-    let c = up[id];
-    if(!c)
-        throw new Error('unknown up stream');
-    try {
-        await c.pc.setRemoteDescription(answer);
-    } catch(e) {
-        console.error(e);
-        displayError(e);
-        delUpMedia(id);
-        return;
-    }
-    await addIceCandidates(c);
-}
-
-function gotClose(id) {
-    let c = down[id];
-    if(!c)
-        throw new Error('unknown down stream');
-    delete(down[id]);
-    c.close(false);
-    delMedia(id);
-}
-
-function gotAbort(id) {
-    delUpMedia(id);
-}
-
-async function gotICE(id, candidate) {
-    let conn = up[id];
-    if(!conn)
-        conn = down[id];
-    if(!conn)
-        throw new Error('unknown stream');
-    if(conn.pc.remoteDescription)
-        await conn.pc.addIceCandidate(candidate).catch(console.warn);
-    else
-        conn.iceCandidates.push(candidate);
-}
-
-async function addIceCandidates(conn) {
-    let promises = [];
-    conn.iceCandidates.forEach(c => {
-        promises.push(conn.pc.addIceCandidate(c).catch(console.warn));
-    });
-    conn.iceCandidates = [];
-    return await Promise.all(promises);
-}
-
-function send(m) {
-    if(!m)
-        throw(new Error('Sending null message'));
-    if(socket.readyState !== socket.OPEN) {
-        // send on a closed connection doesn't throw
-        throw(new Error('Stream is not open'));
-    }
-    return socket.send(JSON.stringify(m));
 }
 
 let users = {};
@@ -919,11 +563,11 @@ function displayUsername() {
     let text = '';
     if(userpass && userpass.username)
         text = 'as ' + userpass.username;
-    if(permissions.op && permissions.present)
+    if(serverConnection.permissions.op && serverConnection.permissions.present)
         text = text + ' (op, presenter)';
-    else if(permissions.op)
+    else if(serverConnection.permissions.op)
         text = text + ' (op)';
-    else if(permissions.present)
+    else if(serverConnection.permissions.present)
         text = text + ' (presenter)';
     document.getElementById('userspan').textContent = text;
 }
@@ -932,8 +576,10 @@ function clearUsername() {
     document.getElementById('userspan').textContent = '';
 }
 
-function gotPermissions(perm) {
-    permissions = perm;
+/**
+ * @param {Object.<string,boolean>} perms
+ */
+function gotPermissions(perms) {
     displayUsername();
     setButtonsVisibility();
 }
@@ -1020,13 +666,12 @@ function addToChatbox(peerId, nick, kind, message){
     return message;
 }
 
-function resetChat() {
+function clearChat() {
     lastMessage = {};
     document.getElementById('box').textContent = '';
 }
 
 function handleInput() {
-    let username = getUsername();
     let input = document.getElementById('input');
     let data = input.value;
     input.value = '';
@@ -1057,51 +702,42 @@ function handleInput() {
                 me = true;
                 break;
             case '/leave':
-                socket.close();
+                serverConnection.close();
                 return;
             case '/clear':
-                if(!permissions.op) {
+                if(!serverConnection.permissions.op) {
                     displayError("You're not an operator");
                     return;
                 }
-                send({
-                    type: 'groupaction',
-                    kind: 'clearchat',
-                });
+                serverConnection.groupAction('clearchat');
                 return;
             case '/lock':
             case '/unlock':
-                if(!permissions.op) {
+                if(!serverConnection.permissions.op) {
                     displayError("You're not an operator");
                     return;
                 }
-                send({
-                    type: 'groupaction',
-                    kind: cmd.slice(1),
-                });
+                serverConnection.groupAction(cmd.slice(1));
                 return;
             case '/record':
             case '/unrecord':
-                if(!permissions.record) {
+                if(!serverConnection.permissions.record) {
                     displayError("You're not allowed to record");
                     return;
                 }
-                send({
-                    type: 'groupaction',
-                    kind: cmd.slice(1),
-                });
+                serverConnection.groupAction(cmd.slice(1));
                 return;
             case '/op':
             case '/unop':
             case '/kick':
             case '/present':
             case '/unpresent': {
-                if(!permissions.op) {
+                if(!serverConnection.permissions.op) {
                     displayError("You're not an operator");
                     return;
                 }
                 let id;
-                if(id in users) {
+                if(rest in users) {
                     id = rest;
                 } else {
                     for(let i in users) {
@@ -1115,11 +751,7 @@ function handleInput() {
                     displayError('Unknown user ' + rest);
                     return;
                 }
-                send({
-                    type: 'useraction',
-                    kind: cmd.slice(1),
-                    id: id,
-                });
+                serverConnection.userAction(cmd.slice(1), id)
                 return;
             }
             default:
@@ -1132,19 +764,14 @@ function handleInput() {
         me = false;
     }
 
+    let username = getUsername();
     if(!username) {
         displayError("Sorry, you're anonymous, you cannot chat");
         return;
     }
 
     try {
-        let a = send({
-            type: 'chat',
-            id: myid,
-            username: username,
-            kind: me ? 'me' : '',
-            value: message,
-        });
+        serverConnection.chat(username, me ? 'me' : '', message);
     } catch(e) {
         console.error(e);
         displayError(e);
@@ -1198,91 +825,6 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
-async function newUpStream(id) {
-    if(!id) {
-        id = randomid();
-        if(up[id])
-            throw new Error('Eek!');
-    }
-    let pc = new RTCPeerConnection({
-        iceServers: iceServers,
-    });
-    if(!pc)
-        throw new Error("Couldn't create peer connection");
-    if(up[id]) {
-        up[id].close(false);
-    }
-    up[id] = new Stream(id, pc);
-
-    pc.onnegotiationneeded = async e => {
-        try {
-            await negotiate(id, false);
-        } catch(e) {
-            console.error(e);
-            displayError(e);
-            delUpMedia(id);
-        }
-    }
-
-    pc.onicecandidate = e => {
-        if(!e.candidate)
-            return;
-        send({type: 'ice',
-             id: id,
-             candidate: e.candidate,
-             });
-    };
-
-    pc.oniceconnectionstatechange = e => {
-        setMediaStatus(id);
-        if(pc.iceConnectionState === 'failed') {
-            try {
-                pc.restartIce();
-            } catch(e) {
-                console.error(e);
-                displayError(e);
-            }
-        }
-    }
-
-    pc.ontrack = console.error;
-
-    return id;
-}
-
-async function negotiate(id, restartIce) {
-    let c = up[id];
-    if(!c)
-        throw new Error('unknown stream');
-
-    if(typeof(c.pc.getTransceivers) !== 'function')
-        throw new Error('Browser too old, please upgrade');
-
-    let offer = await c.pc.createOffer({iceRestart: restartIce});
-    if(!offer)
-        throw(new Error("Didn't create offer"));
-    await c.pc.setLocalDescription(offer);
-
-    // mids are not known until this point
-    c.pc.getTransceivers().forEach(t => {
-        if(t.sender && t.sender.track) {
-            let label = c.labels[t.sender.track.id];
-            if(label)
-                c.labelsByMid[t.mid] = label;
-            else
-                console.warn("Couldn't find label for track");
-        }
-    });
-
-    send({
-        type: 'offer',
-        kind: 'renegotiate',
-        id: id,
-        labels: c.labelsByMid,
-        offer: offer,
-    });
-}
-
 let errorTimeout = null;
 
 function setErrorTimeout(ms) {
@@ -1317,28 +859,35 @@ function clearError() {
     setErrorTimeout(null);
 }
 
-async function getIceServers() {
-    let r = await fetch('/ice-servers.json');
-    if(!r.ok)
-        throw new Error("Couldn't fetch ICE servers: " +
-                        r.status + ' ' + r.statusText);
-    let servers = await r.json();
-    if(!(servers instanceof Array))
-        throw new Error("couldn't parse ICE servers");
-    iceServers = servers;
-}
-
-document.getElementById('userform').onsubmit = async function(e) {
+document.getElementById('userform').onsubmit = function(e) {
     e.preventDefault();
     let username = document.getElementById('username').value.trim();
     let password = document.getElementById('password').value;
     setUserPass(username, password);
-    await serverConnect();
+    serverConnect();
 };
 
 document.getElementById('disconnectbutton').onclick = function(e) {
-    socket.close();
+    serverConnection.close();
 };
+
+function serverConnect() {
+    serverConnection = new ServerConnection();
+    serverConnection.onconnected = gotConnected;
+    serverConnection.onclose = gotClose;
+    serverConnection.ondownstream = gotDownStream;
+    serverConnection.onuser = gotUser;
+    serverConnection.onpermissions = gotPermissions;
+    serverConnection.onchat = addToChatbox;
+    serverConnection.onclearchat = clearChat;
+    serverConnection.onusermessage = function(kind, message) {
+        if(kind === 'error')
+            displayError(`The server said: ${message}`);
+        else
+            displayWarning(`The server said: ${message}`);
+    }
+    return serverConnection.connect(`ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`);
+}
 
 function start() {
     group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));
@@ -1350,15 +899,11 @@ function start() {
 
     setLocalMute(localMute);
 
-    myid = randomid();
+    document.getElementById('connectbutton').disabled = false;
 
-    getIceServers().catch(console.error).then(c => {
-        document.getElementById('connectbutton').disabled = false;
-    }).then(c => {
-        let userpass = getUserPass();
-        if(userpass)
-            return serverConnect();
-    });
+    let userpass = getUserPass();
+    if(userpass)
+        serverConnect();
 }
 
 start();
