@@ -648,6 +648,17 @@ function serverConnect() {
             case 'answer':
                 gotAnswer(m.id, m.answer);
                 break;
+            case 'renegotiate':
+                let c = up[id];
+                if(c) {
+                    try {
+                        c.pc.restartIce()
+                    } catch(e) {
+                        console.error(e);
+                        displayError(e);
+                    }
+                }
+                break;
             case 'close':
                 gotClose(m.id);
                 break;
@@ -743,6 +754,11 @@ async function gotOffer(id, labels, offer, renegotiate) {
 
         pc.oniceconnectionstatechange = e => {
             setMediaStatus(id);
+            if(pc.iceConnectionState === 'failed') {
+                send({type: 'renegotiate',
+                      id: id,
+                     });
+            }
         }
 
         c.pc.ontrack = function(e) {
@@ -1179,7 +1195,7 @@ async function newUpStream(id) {
 
     pc.onnegotiationneeded = async e => {
         try {
-            await negotiate(id);
+            await negotiate(id, false);
         } catch(e) {
             console.error(e);
             displayError(e);
@@ -1213,7 +1229,7 @@ async function newUpStream(id) {
     return id;
 }
 
-async function negotiate(id) {
+async function negotiate(id, restartIce) {
     let c = up[id];
     if(!c)
         throw new Error('unknown connection');
@@ -1221,7 +1237,7 @@ async function negotiate(id) {
     if(typeof(c.pc.getTransceivers) !== 'function')
         throw new Error('Browser too old, please upgrade');
 
-    let offer = await c.pc.createOffer({});
+    let offer = await c.pc.createOffer({iceRestart: restartIce});
     if(!offer)
         throw(new Error("Didn't create offer"));
     await c.pc.setLocalDescription(offer);

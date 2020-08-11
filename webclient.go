@@ -236,6 +236,12 @@ func addUpConn(c *webClient, id string) (*rtpUpConnection, bool, error) {
 		sendICE(c, id, candidate)
 	})
 
+	conn.pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
+		if state == webrtc.ICEConnectionStateFailed {
+			c.action(connectionFailedAction{id: id})
+		}
+	})
+
 	return conn, true, nil
 }
 
@@ -772,14 +778,11 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 					go a.c.pushConn(u.id, u, ts, u.label)
 				}
 			case connectionFailedAction:
-				down := getDownConn(c, a.id)
-				if down == nil {
-					log.Printf("Failed indication for " +
-						"unknown connection")
-					continue
-				}
-				err := negotiate(c, down, true, true)
-				if err != nil {
+				if down := getDownConn(c, a.id); down != nil {
+					err := negotiate(c, down, true, true)
+					if err == nil {
+						return err
+					}
 					tracks := make(
 						[]upTrack, len(down.tracks),
 					)
@@ -790,7 +793,16 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 						down.remote.Id(), down.remote,
 						tracks, down.remote.Label(),
 					)
+				} else if up := getUpConn(c, a.id); up != nil {
+					c.write(clientMessage{
+						Type: "renegotiate",
+						Id:   a.id,
+					})
+				} else {
+					log.Printf("Attempting to renegotiate " +
+						"unknown connection")
 				}
+
 			case permissionsChangedAction:
 				c.write(clientMessage{
 					Type:        "permissions",
@@ -929,6 +941,16 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		err := gotAnswer(c, m.Id, *m.Answer)
 		if err != nil {
 			return err
+		}
+	case "renegotiate":
+		down := getDownConn(c, m.Id)
+		if down != nil {
+			err := negotiate(c, down, true, true)
+			if err != nil {
+				return err
+			}
+		} else {
+			log.Printf("Trying to renegotiate unknown connection")
 		}
 	case "close":
 		found := delUpConn(c, m.Id)
