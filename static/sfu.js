@@ -34,7 +34,7 @@ function randomid() {
     return toHex(a);
 }
 
-function Connection(id, pc) {
+function Stream(id, pc) {
     this.id = id;
     this.kind = null;
     this.label = null;
@@ -47,11 +47,11 @@ function Connection(id, pc) {
     this.stats = {};
 }
 
-Connection.prototype.setInterval = function(f, t) {
+Stream.prototype.setInterval = function(f, t) {
     this.timers.push(setInterval(f, t));
 };
 
-Connection.prototype.close = function(sendit) {
+Stream.prototype.close = function(sendit) {
     while(this.timers.length > 0)
         clearInterval(this.timers.pop());
 
@@ -492,7 +492,7 @@ function setMedia(id) {
         mine = false;
     }
     if(!c)
-        throw new Error('Unknown connection');
+        throw new Error('Unknown stream');
 
     let peersdiv = document.getElementById('peers');
 
@@ -750,7 +750,7 @@ async function gotOffer(id, labels, offer, renegotiate) {
         let pc = new RTCPeerConnection({
             iceServers: iceServers,
         });
-        c = new Connection(id, pc);
+        c = new Stream(id, pc);
         down[id] = c;
 
         c.pc.onicecandidate = function(e) {
@@ -861,7 +861,7 @@ function send(m) {
         throw(new Error('Sending null message'));
     if(socket.readyState !== socket.OPEN) {
         // send on a closed connection doesn't throw
-        throw(new Error('Connection is not open'));
+        throw(new Error('Stream is not open'));
     }
     return socket.send(JSON.stringify(m));
 }
@@ -1205,7 +1205,7 @@ async function newUpStream(id) {
     if(up[id]) {
         up[id].close(false);
     }
-    up[id] = new Connection(id, pc);
+    up[id] = new Stream(id, pc);
 
     pc.onnegotiationneeded = async e => {
         try {
@@ -1246,7 +1246,7 @@ async function newUpStream(id) {
 async function negotiate(id, restartIce) {
     let c = up[id];
     if(!c)
-        throw new Error('unknown connection');
+        throw new Error('unknown stream');
 
     if(typeof(c.pc.getTransceivers) !== 'function')
         throw new Error('Browser too old, please upgrade');
