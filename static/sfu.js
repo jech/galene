@@ -1058,7 +1058,8 @@ function handleInput() {
                     return;
                 }
                 send({
-                    type: 'clearchat',
+                    type: 'groupaction',
+                    kind: 'clearchat',
                 });
                 return;
             case '/lock':
@@ -1068,7 +1069,8 @@ function handleInput() {
                     return;
                 }
                 send({
-                    type: cmd.slice(1),
+                    type: 'groupaction',
+                    kind: cmd.slice(1),
                 });
                 return;
             case '/record':
@@ -1078,7 +1080,8 @@ function handleInput() {
                     return;
                 }
                 send({
-                    type: cmd.slice(1),
+                    type: 'groupaction',
+                    kind: cmd.slice(1),
                 });
                 return;
             case '/op':
@@ -1106,7 +1109,8 @@ function handleInput() {
                     return;
                 }
                 send({
-                    type: cmd.slice(1),
+                    type: 'useraction',
+                    kind: cmd.slice(1),
                     id: id,
                 });
                 return;

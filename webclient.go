@@ -1006,71 +1006,81 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				cc.write(m)
 			}
 		}
-	case "clearchat":
-		c.group.clearChatHistory()
-		m := clientMessage{Type: "clearchat"}
-		clients := c.group.getClients(nil)
-		for _, cc := range clients {
-			cc, ok := cc.(*webClient)
-			if ok {
-				cc.write(m)
+	case "groupaction":
+		switch m.Kind {
+		case "clearchat":
+			c.group.clearChatHistory()
+			m := clientMessage{Type: "clearchat"}
+			clients := c.group.getClients(nil)
+			for _, cc := range clients {
+				cc, ok := cc.(*webClient)
+				if ok {
+					cc.write(m)
+				}
 			}
-		}
-	case "op", "unop", "present", "unpresent":
-		if !c.permissions.Op {
-			return c.error(userError("not authorised"))
-		}
-		err := setPermissions(c.group, m.Id, m.Type)
-		if err != nil {
-			return c.error(err)
-		}
-	case "lock", "unlock":
-		if !c.permissions.Op {
-			return c.error(userError("not authorised"))
-		}
-		var locked uint32
-		if m.Type == "lock" {
-			locked = 1
-		}
-		atomic.StoreUint32(&c.group.locked, locked)
-	case "record":
-		if !c.permissions.Record {
-			return c.error(userError("not authorised"))
-		}
-		for _, cc := range c.group.getClients(c) {
-			_, ok := cc.(*diskClient)
-			if ok {
-				return c.error(userError("already recording"))
+		case "lock", "unlock":
+			if !c.permissions.Op {
+				return c.error(userError("not authorised"))
 			}
-		}
-		disk := &diskClient{
-			group: c.group,
-			id:    "recording",
-		}
-		_, err := addClient(c.group.name, disk)
-		if err != nil {
-			disk.Close()
-			return c.error(err)
-		}
-		go pushConns(disk)
-	case "unrecord":
-		if !c.permissions.Record {
-			return c.error(userError("not authorised"))
-		}
-		for _, cc := range c.group.getClients(c) {
-			disk, ok := cc.(*diskClient)
-			if ok {
+			var locked uint32
+			if m.Kind == "lock" {
+				locked = 1
+			}
+			atomic.StoreUint32(&c.group.locked, locked)
+		case "record":
+			if !c.permissions.Record {
+				return c.error(userError("not authorised"))
+			}
+			for _, cc := range c.group.getClients(c) {
+				_, ok := cc.(*diskClient)
+				if ok {
+					return c.error(userError("already recording"))
+				}
+			}
+			disk := &diskClient{
+				group: c.group,
+				id:    "recording",
+			}
+			_, err := addClient(c.group.name, disk)
+			if err != nil {
 				disk.Close()
-				delClient(disk)
+				return c.error(err)
 			}
+			go pushConns(disk)
+		case "unrecord":
+			if !c.permissions.Record {
+				return c.error(userError("not authorised"))
+			}
+			for _, cc := range c.group.getClients(c) {
+				disk, ok := cc.(*diskClient)
+				if ok {
+					disk.Close()
+					delClient(disk)
+				}
+			}
+		default:
+			return protocolError("unknown group action")
 		}
-	case "kick":
-		if !c.permissions.Op {
-			return c.error(userError("not authorised"))
-		}
-		err := kickClient(c.group, m.Id)
-		if err != nil {
-			return c.error(err)
+	case "useraction":
+		switch m.Kind {
+		case "op", "unop", "present", "unpresent":
+			if !c.permissions.Op {
+				return c.error(userError("not authorised"))
+			}
+			err := setPermissions(c.group, m.Id, m.Kind)
+			if err != nil {
+				return c.error(err)
+			}
+		case "kick":
+			if !c.permissions.Op {
+				return c.error(userError("not authorised"))
+			}
+			err := kickClient(c.group, m.Id)
+			if err != nil {
+				return c.error(err)
+			}
+		default:
+			return protocolError("unknown user action")
 		}
 	case "pong":
 		// nothing
