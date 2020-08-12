@@ -86,8 +86,8 @@ func isWSNormalError(err error) bool {
 type webClient struct {
 	group       *group
 	id          string
-	username    string
-	permissions userPermission
+	credentials clientCredentials
+	permissions clientPermission
 	requested   map[string]uint32
 	done        chan struct{}
 	writeCh     chan interface{}
@@ -107,8 +107,8 @@ func (c *webClient) Id() string {
 	return c.id
 }
 
-func (c *webClient) Username() string {
-	return c.username
+func (c *webClient) Credentials() clientCredentials {
+	return c.credentials
 }
 
 func (c *webClient) pushClient(id, username string, add bool) error {
@@ -172,7 +172,7 @@ type clientMessage struct {
 	Id          string                     `json:"id,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
-	Permissions userPermission             `json:"permissions,omitempty"`
+	Permissions clientPermission           `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
 	Me          bool                       `json:"me,omitempty"`
@@ -461,8 +461,8 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 		return err
 	}
 
-	if c.username != "" {
-		up.label = c.username
+	if u := c.Credentials().Username; u != "" {
+		up.label = u
 	}
 	err = up.pc.SetRemoteDescription(offer)
 	if err != nil {
@@ -630,8 +630,11 @@ func startClient(conn *websocket.Conn) (err error) {
 	}
 
 	c := &webClient{
-		id:       m.Id,
-		username: m.Username,
+		id: m.Id,
+		credentials: clientCredentials{
+			m.Username,
+			m.Password,
+		},
 		actionCh: make(chan interface{}, 10),
 		done:     make(chan struct{}),
 	}
@@ -662,7 +665,7 @@ func startClient(conn *websocket.Conn) (err error) {
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
 
-	g, err := addClient(m.Group, c, m.Password)
+	g, err := addClient(m.Group, c)
 	if err != nil {
 		return
 	}
@@ -1015,7 +1018,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			group: c.group,
 			id:    "recording",
 		}
-		_, err := addClient(c.group.name, disk, "")
+		_, err := addClient(c.group.name, disk)
 		if err != nil {
 			disk.Close()
 			return c.error(err)

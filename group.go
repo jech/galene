@@ -180,13 +180,13 @@ func delGroupUnlocked(name string) bool {
 	return true
 }
 
-func addClient(name string, c client, pass string) (*group, error) {
+func addClient(name string, c client) (*group, error) {
 	g, err := addGroup(name, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	perms, err := getPermission(g.description, c.Username(), pass)
+	perms, err := getPermission(g.description, c.Credentials())
 	if err != nil {
 		return nil, err
 	}
@@ -214,13 +214,15 @@ func addClient(name string, c client, pass string) (*group, error) {
 	g.clients[c.Id()] = c
 
 	go func(clients []client) {
-		c.pushClient(c.Id(), c.Username(), true)
+		u := c.Credentials().Username
+		c.pushClient(c.Id(), u, true)
 		for _, cc := range clients {
-			err := c.pushClient(cc.Id(), cc.Username(), true)
+			uu := cc.Credentials().Username
+			err := c.pushClient(cc.Id(), uu, true)
 			if err == ErrClientDead {
 				return
 			}
-			cc.pushClient(c.Id(), c.Username(), true)
+			cc.pushClient(c.Id(), u, true)
 		}
 	}(g.getClientsUnlocked(c))
 
@@ -240,7 +242,7 @@ func delClient(c client) {
 
 	go func(clients []client) {
 		for _, cc := range clients {
-			cc.pushClient(c.Id(), c.Username(), false)
+			cc.pushClient(c.Id(), c.Credentials().Username, false)
 		}
 	}(g.getClientsUnlocked(nil))
 }
@@ -311,35 +313,31 @@ func (g *group) getChatHistory() []chatHistoryEntry {
 	return h
 }
 
-type groupUser struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
-func matchUser(user, pass string, users []groupUser) (bool, bool) {
+func matchUser(user clientCredentials, users []clientCredentials) (bool, bool) {
 	for _, u := range users {
 		if u.Username == "" {
-			if u.Password == "" || u.Password == pass {
+			if u.Password == "" || u.Password == user.Password {
 				return true, true
 			}
-		} else if u.Username == user {
-			return true, (u.Password == "" || u.Password == pass)
+		} else if u.Username == user.Username {
+			return true,
+				(u.Password == "" || u.Password == user.Password)
 		}
 	}
 	return false, false
 }
 
 type groupDescription struct {
-	loadTime       time.Time   `json:"-"`
-	modTime        time.Time   `json:"-"`
-	fileSize       int64       `json:"-"`
-	Public         bool        `json:"public,omitempty"`
-	MaxClients     int         `json:"max-clients,omitempty"`
-	AllowAnonymous bool        `json:"allow-anonymous,omitempty"`
-	AllowRecording bool        `json:"allow-recording,omitempty"`
-	Op             []groupUser `json:"op,omitempty"`
-	Presenter      []groupUser `json:"presenter,omitempty"`
-	Other          []groupUser `json:"other,omitempty"`
+	loadTime       time.Time           `json:"-"`
+	modTime        time.Time           `json:"-"`
+	fileSize       int64               `json:"-"`
+	Public         bool                `json:"public,omitempty"`
+	MaxClients     int                 `json:"max-clients,omitempty"`
+	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
+	AllowRecording bool                `json:"allow-recording,omitempty"`
+	Op             []clientCredentials `json:"op,omitempty"`
+	Presenter      []clientCredentials `json:"presenter,omitempty"`
+	Other          []clientCredentials `json:"other,omitempty"`
 }
 
 func descriptionChanged(name string, old *groupDescription) (bool, error) {
@@ -384,18 +382,18 @@ func getDescription(name string) (*groupDescription, error) {
 	return &desc, nil
 }
 
-type userPermission struct {
+type clientPermission struct {
 	Op      bool `json:"op,omitempty"`
 	Present bool `json:"present,omitempty"`
 	Record  bool `json:"record,omitempty"`
 }
 
-func getPermission(desc *groupDescription, user, pass string) (userPermission, error) {
-	var p userPermission
-	if !desc.AllowAnonymous && user == "" {
+func getPermission(desc *groupDescription, creds clientCredentials) (clientPermission, error) {
+	var p clientPermission
+	if !desc.AllowAnonymous && creds.Username == "" {
 		return p, userError("anonymous users not allowed in this group, please choose a username")
 	}
-	if found, good := matchUser(user, pass, desc.Op); found {
+	if found, good := matchUser(creds, desc.Op); found {
 		if good {
 			p.Op = true
 			p.Present = true
@@ -406,14 +404,14 @@ func getPermission(desc *groupDescription, user, pass string) (userPermission, e
 		}
 		return p, userError("not authorised")
 	}
-	if found, good := matchUser(user, pass, desc.Presenter); found {
+	if found, good := matchUser(creds, desc.Presenter); found {
 		if good {
 			p.Present = true
 			return p, nil
 		}
 		return p, userError("not authorised")
 	}
-	if found, good := matchUser(user, pass, desc.Other); found {
+	if found, good := matchUser(creds, desc.Other); found {
 		if good {
 			return p, nil
 		}

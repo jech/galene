@@ -32,8 +32,8 @@ func (client *diskClient) Id() string {
 	return client.id
 }
 
-func (client *diskClient) Username() string {
-	return "RECORDING"
+func (client *diskClient) Credentials() clientCredentials {
+	return clientCredentials{"RECORDING", ""}
 }
 
 func (client *diskClient) pushClient(id, username string, add bool) error {

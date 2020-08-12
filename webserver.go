@@ -334,7 +334,7 @@ func checkGroupPermissions(w http.ResponseWriter, r *http.Request, group string)
 		return false
 	}
 
-	p, err := getPermission(desc, user, pass)
+	p, err := getPermission(desc, clientCredentials{user, pass})
 	if err != nil || !p.Record {
 		return false
 	}
