@@ -681,7 +681,7 @@ function serverConnect() {
                 gotUser(m.id, m.username, m.del);
                 break;
             case 'chat':
-                addToChatbox(m.id, m.username, m.value, m.me);
+                addToChatbox(m.id, m.username, m.kind, m.value);
                 break;
             case 'clearchat':
                 resetChat();
@@ -694,8 +694,15 @@ function serverConnect() {
             case 'pong':
                 /* nothing */
                 break;
-            case 'error':
-                displayError('The server said: ' + m.value);
+            case 'usermessage':
+                switch(m.kind) {
+                case 'error':
+                    displayError('The server said: ' + m.value);
+                    break;
+                default:
+                    displayWarning('The server said: ' + m.value)
+                    break;
+                }
                 break;
             default:
                 console.warn('Unexpected server message', m.type);
@@ -962,10 +969,10 @@ function formatLines(lines) {
 
 let lastMessage = {};
 
-function addToChatbox(peerId, nick, message, me){
+function addToChatbox(peerId, nick, kind, message){
     let container = document.createElement('div');
     container.classList.add('message');
-    if(!me) {
+    if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
         if (lastMessage.nick !== nick || lastMessage.peerId !== peerId) {
             let user = document.createElement('p');
@@ -1124,8 +1131,8 @@ function handleInput() {
             type: 'chat',
             id: myid,
             username: username,
+            kind: me ? 'me' : '',
             value: message,
-            me: me,
         });
     } catch(e) {
         console.error(e);

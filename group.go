@@ -24,8 +24,8 @@ import (
 type chatHistoryEntry struct {
 	id    string
 	user  string
+	kind  string
 	value string
-	me    bool
 }
 
 const (
@@ -294,7 +294,7 @@ func (g *group) clearChatHistory() {
 	g.history = nil
 }
 
-func (g *group) addToChatHistory(id, user, value string, me bool) {
+func (g *group) addToChatHistory(id, user, kind, value string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -303,7 +303,7 @@ func (g *group) addToChatHistory(id, user, value string, me bool) {
 		g.history = g.history[:len(g.history)-1]
 	}
 	g.history = append(g.history,
-		chatHistoryEntry{id: id, user: user, value: value, me: me},
+		chatHistoryEntry{id: id, user: user, kind: kind, value: value},
 	)
 }
 

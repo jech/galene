@@ -175,7 +175,7 @@ type clientMessage struct {
 	Permissions clientPermission           `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
-	Me          bool                       `json:"me,omitempty"`
+	Kind        string                     `json:"kind,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
@@ -634,7 +634,8 @@ func startClient(conn *websocket.Conn) (err error) {
 		// at this point, the writer is not running yet, so format
 		// the message ourselves
 		conn.WriteJSON(clientMessage{
-			Type:  "error",
+			Type:  "usermessage",
+			Kind:  "error",
 			Value: "don't put spaces in your username",
 		})
 		conn.WriteMessage(websocket.CloseMessage,
@@ -667,7 +668,8 @@ func startClient(conn *websocket.Conn) (err error) {
 			m, e := errorToWSCloseMessage(err)
 			if m != "" {
 				c.write(clientMessage{
-					Type:  "error",
+					Type:  "usermessage",
+					Kind:  "error",
 					Value: m,
 				})
 			}
@@ -727,7 +729,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 			Id:       m.id,
 			Username: m.user,
 			Value:    m.value,
-			Me:       m.me,
+			Kind:     m.kind,
 		})
 		if err != nil {
 			return err
@@ -996,7 +998,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("ICE: %v", err)
 		}
 	case "chat":
-		c.group.addToChatHistory(m.Id, m.Username, m.Value, m.Me)
+		c.group.addToChatHistory(m.Id, m.Username, m.Kind, m.Value)
 		clients := c.group.getClients(nil)
 		for _, cc := range clients {
 			cc, ok := cc.(*webClient)
@@ -1163,7 +1165,8 @@ func (c *webClient) error(err error) error {
 	switch e := err.(type) {
 	case userError:
 		return c.write(clientMessage{
-			Type:  "error",
+			Type:  "usermessage",
+			Kind:  "error",
 			Value: string(e),
 		})
 	default:
