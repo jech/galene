@@ -646,7 +646,7 @@ function serverConnect() {
             let m = JSON.parse(e.data);
             switch(m.type) {
             case 'offer':
-                gotOffer(m.id, m.labels, m.offer, !!m.renegotiate);
+                gotOffer(m.id, m.labels, m.offer, m.kind === 'renegotiate');
                 break;
             case 'answer':
                 gotAnswer(m.id, m.answer);
@@ -1276,10 +1276,10 @@ async function negotiate(id, restartIce) {
 
     send({
         type: 'offer',
+        kind: 'renegotiate',
         id: id,
         labels: c.labelsByMid,
         offer: offer,
-        renegotiate: true,
     });
 }
 

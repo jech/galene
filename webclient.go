@@ -173,17 +173,16 @@ func (v rateMap) MarshalJSON() ([]byte, error) {
 
 type clientMessage struct {
 	Type        string                     `json:"type"`
+	Kind        string                     `json:"kind,omitempty"`
 	Id          string                     `json:"id,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
 	Permissions clientPermission           `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
-	Kind        string                     `json:"kind,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
-	Renegotiate bool                       `json:"renegotiate,omitempty"`
 	Labels      map[string]string          `json:"labels,omitempty"`
 	Request     rateMap                    `json:"request,omitempty"`
 }
@@ -431,12 +430,17 @@ func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bo
 		}
 	}
 
+	kind := ""
+	if renegotiate {
+		kind = "renegotiate"
+	}
+
 	return c.write(clientMessage{
-		Type:        "offer",
-		Id:          down.id,
-		Offer:       &offer,
-		Renegotiate: renegotiate,
-		Labels:      labels,
+		Type:   "offer",
+		Kind:   kind,
+		Id:     down.id,
+		Offer:  &offer,
+		Labels: labels,
 	})
 }
 
@@ -964,7 +968,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if m.Offer == nil {
 			return protocolError("null offer")
 		}
-		err := gotOffer(c, m.Id, *m.Offer, m.Renegotiate, m.Labels)
+		err := gotOffer(
+			c, m.Id, *m.Offer, m.Kind == "renegotiate", m.Labels,
+		)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
 			return failConnection(c, m.Id, "negotiation failed")
