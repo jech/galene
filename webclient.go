@@ -619,13 +619,31 @@ func startClient(conn *websocket.Conn) (err error) {
 		return
 	}
 
-	if m.Type != "handshake" {
+	if m.Type != "login" {
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(
+				websocket.CloseProtocolError,
+				"you must login first",
+			),
+		)
 		conn.Close()
 		return
 	}
 
 	if strings.ContainsRune(m.Username, ' ') {
-		err = userError("don't put spaces in your username")
+		// at this point, the writer is not running yet, so format
+		// the message ourselves
+		conn.WriteJSON(clientMessage{
+			Type:  "error",
+			Value: "don't put spaces in your username",
+		})
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(
+				websocket.CloseProtocolError,
+				"don't put spaces in your username",
+			),
+		)
+		conn.Close()
 		return
 	}
 
@@ -664,6 +682,15 @@ func startClient(conn *websocket.Conn) (err error) {
 
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
+
+	err = conn.ReadJSON(&m)
+	if err != nil {
+		return err
+	}
+
+	if m.Type != "join" {
+		return protocolError("you must join a group first")
+	}
 
 	g, err := addClient(m.Group, c)
 	if err != nil {

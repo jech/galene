@@ -231,6 +231,9 @@ func addClient(name string, c client) (*group, error) {
 
 func delClient(c client) {
 	g := c.Group()
+	if g == nil {
+		return
+	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 

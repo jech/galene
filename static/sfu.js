@@ -612,11 +612,14 @@ function serverConnect() {
             let up = getUserPass();
             try {
                 send({
-                    type: 'handshake',
+                    type: 'login',
                     id: myid,
-                    group: group,
                     username: up.username,
                     password: up.password,
+                })
+                send({
+                    type: 'join',
+                    group: group,
                 })
                 sendRequest(document.getElementById('requestselect').value);
                 } catch(e) {
