@@ -678,7 +678,7 @@ function serverConnect() {
                 gotPermissions(m.permissions);
                 break;
             case 'user':
-                gotUser(m.id, m.username, m.del);
+                gotUser(m.id, m.kind, m.username);
                 break;
             case 'chat':
                 addToChatbox(m.id, m.username, m.kind, m.value);
@@ -900,11 +900,18 @@ function resetUsers() {
         delUser(id, users[id]);
 }
 
-function gotUser(id, name, del) {
-    if(del)
-        delUser(id, name);
-    else
+function gotUser(id, kind, name) {
+    switch(kind) {
+    case 'add':
         addUser(id, name);
+        break;
+    case 'delete':
+        delUser(id, name);
+        break;
+    default:
+        console.warn('Unknown user kind', kind);
+        break;
+    }
 }
 
 function displayUsername() {

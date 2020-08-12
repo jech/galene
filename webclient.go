@@ -112,11 +112,15 @@ func (c *webClient) Credentials() clientCredentials {
 }
 
 func (c *webClient) pushClient(id, username string, add bool) error {
+	kind := "add"
+	if !add {
+		kind = "delete"
+	}
 	return c.write(clientMessage{
 		Type:     "user",
+		Kind:     kind,
 		Id:       id,
 		Username: username,
-		Del:      !add,
 	})
 }
 
@@ -181,7 +185,6 @@ type clientMessage struct {
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
 	Renegotiate bool                       `json:"renegotiate,omitempty"`
 	Labels      map[string]string          `json:"labels,omitempty"`
-	Del         bool                       `json:"del,omitempty"`
 	Request     rateMap                    `json:"request,omitempty"`
 }
 
