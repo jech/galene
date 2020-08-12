@@ -1,0 +1,119 @@
+# Writing a new frontend
+
+The frontend is split into two javascript files:
+
+  - `protocol.js` contains the low-level functions that interact with the server;
+  - `sfu.js` contains the user interface.
+
+If you wish to develop your own frontend, I recommend using `protocol.js`,
+which is likely to remain reasonably stable as the protocol evolves.  This
+file can be processed with JSDoc or Typescript (a sample `tsconfig.json`
+is provided).
+
+## Data structures
+
+The class `ServerConnection` encapsulates a connection to the server as
+well as all the associated streams.
+
+The class `Stream` encapsulates a set of associated audio and video
+tracks; your frontend will probably associate each stream with a video
+component.
+
+## Connecting to the server
+
+First, create a `ServerConnection` and set up all the callbacks:
+
+```
+let sc = new ServerConnection()
+serverConnection.onconnected = ...;
+serverConnection.onclose = ...;
+serverConnection.ondownstream = ...;
+serverConnection.onuser = ...;
+serverConnection.onpermissions = ...;
+serverConnection.onchat = ...;
+serverConnection.onclearchat = ...;
+serverConnection.onusermessage = ...;
+```
+
+You may now connect to the server:
+```
+serverConnection.connect(`wss://${location.host}/ws`);
+```
+You log-in, join a group and request media in the `onconnected` callback:
+```
+serverConnection.onconnected = function() {
+    this.login(username, password);
+    this.join(group); 
+    this.request('everything');
+}
+```
+The `onpermissions` callback will trigger when the server informs us about
+the permissions that were granted; you should probably reflect the
+permissions in the user interface.
+
+## Managing groups and clients
+
+The `groupaction` and `useraction` methods perform actions such as kicking
+users or locking groups.  Most actions require either the `Op` or the
+`Record` permission.
+
+## Sending and receiving chat messages
+
+You send a chat message with the `chat` method:
+```
+serverConnection.chat(username, '', 'Hi!');
+```
+You receive chat messages in the `onchat` callback.  The server may
+request that you clear your chat window, in that case the `onclearchat`
+callback will trigger.
+
+## Accepting incoming video streams
+
+When the server pushes a stream to the client, the `ondownstream` callback
+will trigger; you should set up the stream callbacks here.  It is
+premature to set up a video component --- do that in `ondowntrack`.
+```
+   serverConnection.ondownstream = function(stream) {
+       stream.onclose = ...;
+       stream.onerror = ...;
+       stream.ondowntrack = ...;
+       stream.onlabel = ...;
+       stream.onstatus = ...;
+   }
+```
+After a new stream is created, `ondowntrack` will be called whenever
+a track is added.  If the `MediaStream` passed to `ondowntrack` differs
+from the one previously received, then the stream has been torn down and
+recreated, and you must drop all previously received tracks; in practice,
+it is enough to set the `srcObject` property of the video component to the
+new stream.
+
+## Pushing outgoing video streams
+
+If you have the `present` permission, you may use the `newUpStream` method
+to push a stream to the server.  Given a local stream `localStream`, do
+something like the following:
+```
+let stream = serverConnection.newUpStream;
+stream.kind = 'local';
+stream.onerror = ...;
+stream.onabort = ...;
+stream.onstatus = ...;
+localStream.getTracks().forEach(t => {
+    c.labels[t.id] = t.kind;
+    c.pc.addTrack(t, c.stream);
+});
+```
+You should set `c.labels[t.id]` to one of `audio`, `video` or `screenshare`.
+
+## Stream status and statistics
+
+The `onstatus` callback can be used to give users feedback about whether
+a stream is working.  You should probably treat states `connected` and
+`completed` as good, and all other states as bad.
+
+For outgoing streams only, the `setStatsInterval` and `onstats` callback
+can be used to determine the data rate in real time.  This is currently
+not implemented for down streams.
+
+--- Juliusz Chroboczek <https://www.irif.fr/~jch/>
