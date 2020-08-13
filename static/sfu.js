@@ -270,10 +270,10 @@ function newUpStream(id) {
     c.onerror = function(e) {
         console.error(e);
         displayError(e);
-        delUpMedia(c.id);
+        delUpMedia(c);
     }
     c.onabort = function() {
-        delUpMedia(c.id);
+        delUpMedia(c);
     }
     return c;
 }
@@ -285,14 +285,16 @@ async function addLocalMedia(id) {
     let audio = mapMediaOption(document.getElementById('audioselect').value);
     let video = mapMediaOption(document.getElementById('videoselect').value);
 
+    let old = id && serverConnection.up[id];
+
     if(!audio && !video) {
-        if(id)
-            delUpMedia(id);
+        if(old)
+            delUpMedia(old);
         return;
     }
 
-    if(id)
-        stopUpMedia(id);
+    if(old)
+        stopUpMedia(old);
 
     let constraints = {audio: audio, video: video};
     let stream = null;
@@ -300,8 +302,8 @@ async function addLocalMedia(id) {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch(e) {
         console.error(e);
-        if(id)
-            delUpMedia(id);
+        if(old)
+            delUpMedia(old);
         return;
     }
 
@@ -364,7 +366,7 @@ function stopUpMedia(c) {
 
 function delUpMedia(c) {
     stopUpMedia(c);
-    delMedia(c);
+    delMedia(c.id);
     c.close(true);
     delete(serverConnection.up[c.id]);
     setButtonsVisibility()
