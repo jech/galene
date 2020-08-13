@@ -64,7 +64,7 @@ function ServerConnection() {
      * The ICE configuration used by all associated streams.
      * @type {Array.<Object>}
      */
-    this.iceServers = [];
+    this.iceServers = null;
     /**
      * The permissions granted to this connection.
      * @type {Object.<string,boolean>}
@@ -359,7 +359,7 @@ ServerConnection.prototype.newUpStream = function(id) {
             throw new Error('Eek!');
     }
     let pc = new RTCPeerConnection({
-        iceServers: sc.iceServers,
+        iceServers: sc.iceServers || [],
     });
     if(!pc)
         throw new Error("Couldn't create peer connection");
