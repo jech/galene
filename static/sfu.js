@@ -263,7 +263,7 @@ async function setMediaChoices() {
 }
 
 function newUpStream(id) {
-    let c = serverConnection.newUpStream();
+    let c = serverConnection.newUpStream(id);
     c.onstatus = function(status) {
         setMediaStatus(c);
     }
