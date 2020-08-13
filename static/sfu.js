@@ -74,6 +74,9 @@ function gotClose(code, reason) {
         console.warn('Socket close', code, reason);
 }
 
+/**
+ * @param {Stream} c
+ */
 function gotDownStream(c) {
     c.onclose = function() {
         delMedia(c.id);
@@ -110,6 +113,10 @@ function changePresentation() {
     }
 }
 
+/**
+ * @param {string} id
+ * @param {boolean} visible
+ */
 function setVisibility(id, visible) {
     let elt = document.getElementById(id);
     if(visible)
@@ -262,6 +269,9 @@ async function setMediaChoices() {
     mediaChoicesDone = true;
 }
 
+/**
+ * @param {string} id
+ */
 function newUpStream(id) {
     let c = serverConnection.newUpStream(id);
     c.onstatus = function(status) {
@@ -278,6 +288,9 @@ function newUpStream(id) {
     return c;
 }
 
+/**
+ * @param {string} [id]
+ */
 async function addLocalMedia(id) {
     if(!getUserPass())
         return;
@@ -353,6 +366,9 @@ async function addShareMedia(setup) {
     setButtonsVisibility()
 }
 
+/**
+ * @param {Stream} c
+ */
 function stopUpMedia(c) {
     if(!c.stream)
         return;
@@ -364,6 +380,9 @@ function stopUpMedia(c) {
     });
 }
 
+/**
+ * @param {Stream} c
+ */
 function delUpMedia(c) {
     stopUpMedia(c);
     delMedia(c.id);
@@ -514,6 +533,10 @@ function resizePeers() {
 
 let users = {};
 
+/**
+ * @param {string} id
+ * @param {string} name
+ */
 function addUser(id, name) {
     if(!name)
         name = null;
@@ -528,6 +551,10 @@ function addUser(id, name) {
     div.appendChild(user);
 }
 
+/**
+ * @param {string} id
+ * @param {string} name
+ */
 function delUser(id, name) {
     if(!name)
         name = null;
@@ -546,6 +573,11 @@ function resetUsers() {
         delUser(id, users[id]);
 }
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} name
+ */
 function gotUser(id, kind, name) {
     switch(kind) {
     case 'add':
