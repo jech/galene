@@ -819,7 +819,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 			case connectionFailedAction:
 				if down := getDownConn(c, a.id); down != nil {
 					err := negotiate(c, down, true, true)
-					if err == nil {
+					if err != nil {
 						return err
 					}
 					tracks := make(
