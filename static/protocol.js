@@ -607,7 +607,7 @@ ServerConnection.prototype.gotClose = function(id) {
  * @param {string} id
  */
 ServerConnection.prototype.gotAbort = function(id) {
-    let c = this.down[id];
+    let c = this.up[id];
     if(!c)
         throw new Error('unknown up stream');
     if(c.onabort)
