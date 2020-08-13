@@ -652,7 +652,7 @@ function serverConnect() {
                 gotAnswer(m.id, m.answer);
                 break;
             case 'renegotiate':
-                let c = up[id];
+                let c = up[m.id];
                 if(c) {
                     try {
                         c.pc.restartIce()
