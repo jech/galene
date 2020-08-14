@@ -1,57 +1,72 @@
 # Writing a new frontend
 
-The frontend is split into two javascript files:
+The frontend is written in JavaScript and is split into two files:
 
-  - `protocol.js` contains the low-level functions that interact with the server;
+  - `protocol.js` contains the low-level functions that interact with the
+    server;
   - `sfu.js` contains the user interface.
 
 If you wish to develop your own frontend, I recommend using `protocol.js`,
 which is likely to remain reasonably stable as the protocol evolves.  This
 file can be processed with JSDoc or Typescript (a sample `tsconfig.json`
-is provided).
+is provided), but is otherwise plain Javascript (ES6).
 
 ## Data structures
 
 The class `ServerConnection` encapsulates a connection to the server as
 well as all the associated streams.
 
-The class `Stream` encapsulates a set of associated audio and video
-tracks; your frontend will probably associate each stream with a video
-component.
+The class `Stream` encapsulates a set of related audio and video tracks;
+your frontend will probably associate each stream with a `video` or
+`audio` component.
 
 ## Connecting to the server
 
 First, create a `ServerConnection` and set up all the callbacks:
 
-```
+```javascript
 let sc = new ServerConnection()
 serverConnection.onconnected = ...;
 serverConnection.onclose = ...;
-serverConnection.ondownstream = ...;
-serverConnection.onuser = ...;
+serverConnection.onusermessage = ...;
 serverConnection.onpermissions = ...;
+serverConnection.onuser = ...;
 serverConnection.onchat = ...;
 serverConnection.onclearchat = ...;
-serverConnection.onusermessage = ...;
+serverConnection.ondownstream = ...;
 ```
 
-You may now connect to the server:
-```
+The `onconnected` callback is called when we connect to the server;
+`onclose` is the opposite of `onconnected`.  `onusermessage` indicates
+a message from the server that should be displayed to the user.
+
+The other callbacks will only be called after you join a group.  `onuser`
+is used to indicate that a user has joined or left the current group.
+`onchat` indicates that a chat message has been posted to the group, and
+`onclearchat` indicates that the chat history has been cleared.  Finally,
+`ondownstream` is called when the server pushes a stream to the client;
+see the section below about streams.
+
+You may now connect to the server.
+
+```javascript
 serverConnection.connect(`wss://${location.host}/ws`);
 ```
-You log-in, join a group and request media in the `onconnected` callback:
-```
+
+You log-in, join a group and request media in the `onconnected` callback.
+
+```javascript
 serverConnection.onconnected = function() {
     this.login(username, password);
     this.join(group); 
     this.request('everything');
 }
 ```
-The `onpermissions` callback will trigger when the server informs us about
-the permissions that were granted; you should probably reflect the
-permissions in the user interface.
 
-## Managing groups and clients
+You should not attempt to push a stream to the server until it has granted
+you the `present` permission through the `onpermissions` callback.
+
+## Managing groups and users
 
 The `groupaction` and `useraction` methods perform actions such as kicking
 users or locking groups.  Most actions require either the `Op` or the
@@ -59,10 +74,13 @@ users or locking groups.  Most actions require either the `Op` or the
 
 ## Sending and receiving chat messages
 
-You send a chat message with the `chat` method:
-```
+Once you have joined a group, you send chat messages with the `chat`
+method.  No permission is needed to do that.
+
+```javascript
 serverConnection.chat(username, '', 'Hi!');
 ```
+
 You receive chat messages in the `onchat` callback.  The server may
 request that you clear your chat window, in that case the `onclearchat`
 callback will trigger.
@@ -70,17 +88,26 @@ callback will trigger.
 ## Accepting incoming video streams
 
 When the server pushes a stream to the client, the `ondownstream` callback
-will trigger; you should set up the stream callbacks here.  It is
-premature to set up a video component --- do that in `ondowntrack`.
+will trigger; you should set up the stream's callbacks here.
+```javascript
+serverConnection.ondownstream = function(stream) {
+    stream.onclose = ...;
+    stream.onerror = ...;
+    stream.ondowntrack = ...;
+    stream.onlabel = ...;
+    stream.onstatus = ...;
+}
 ```
-   serverConnection.ondownstream = function(stream) {
-       stream.onclose = ...;
-       stream.onerror = ...;
-       stream.ondowntrack = ...;
-       stream.onlabel = ...;
-       stream.onstatus = ...;
-   }
-```
+
+The `stream.labels` dictionary maps each track's id to one of `audio`,
+`video` or `screenshare`.  Since `stream.labels` is already available at
+this point, you may set up an `audio` or `video` component straight away,
+or you may choose to wait until the `ondowntrack` callback is called.
+
+The server will usually invoke the `onlabel` callback in order to set
+a user-readable label on the stream; this is currently just the
+originating client's username.
+
 After a new stream is created, `ondowntrack` will be called whenever
 a track is added.  If the `MediaStream` passed to `ondowntrack` differs
 from the one previously received, then the stream has been torn down and
@@ -88,14 +115,22 @@ recreated, and you must drop all previously received tracks; in practice,
 it is enough to set the `srcObject` property of the video component to the
 new stream.
 
+The `onstatus` callback is invoked whenever the client library detects
+a change in the status of the stream; states `connected` and `complete`
+indicate a functioning stream; other states indicate that the stream is
+not working right now but might recover in the future.
+
+The `onclose` callback is called when the stream is destroyed by the
+server.
+
 ## Pushing outgoing video streams
 
 If you have the `present` permission, you may use the `newUpStream` method
-to push a stream to the server.  Given a local stream `localStream`, do
-something like the following:
-```
-let stream = serverConnection.newUpStream;
-stream.kind = 'local';
+to push a stream to the server.  Given a `MediaStream` called `localStream`
+(as obtained from `getUserMedia` or `getDisplayMedia`).
+
+```javascript
+let stream = serverConnection.newUpStream();
 stream.onerror = ...;
 stream.onabort = ...;
 stream.onstatus = ...;
@@ -104,13 +139,10 @@ localStream.getTracks().forEach(t => {
     c.pc.addTrack(t, c.stream);
 });
 ```
-You should set `c.labels[t.id]` to one of `audio`, `video` or `screenshare`.
 
-## Stream status and statistics
+See above for information about setting up the `labels` dictionary.
 
-The `onstatus` callback can be used to give users feedback about whether
-a stream is working.  You should probably treat states `connected` and
-`completed` as good, and all other states as bad.
+## Stream statistics
 
 For outgoing streams only, the `setStatsInterval` and `onstats` callback
 can be used to determine the data rate in real time.  This is currently
