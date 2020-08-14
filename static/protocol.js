@@ -162,6 +162,7 @@ ServerConnection.prototype.send = function(m) {
  * lazily by connect.
  *
  * @returns {Promise<Array.<Object>>}
+ * @function
  */
 ServerConnection.prototype.getIceServers = async function() {
     let r = await fetch('/ice-servers.json');
@@ -452,6 +453,7 @@ ServerConnection.prototype.userAction = function(kind, id) {
  * @param {Object.<string, string>} labels
  * @param {RTCSessionDescriptionInit} offer
  * @param {boolean} renegotiate
+ * @function
  */
 ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegotiate) {
     let sc = this;
@@ -554,6 +556,7 @@ ServerConnection.prototype.gotLabel = function(id, label) {
  *
  * @param {string} id
  * @param {RTCSessionDescriptionInit} answer
+ * @function
  */
 ServerConnection.prototype.gotAnswer = async function(id, answer) {
     let c = this.up[id];
@@ -574,6 +577,7 @@ ServerConnection.prototype.gotAnswer = async function(id, answer) {
  * call this.
  *
  * @param {string} id
+ * @function
  */
 ServerConnection.prototype.gotRenegotiate = async function(id) {
     let c = this.up[id];
@@ -620,6 +624,7 @@ ServerConnection.prototype.gotAbort = function(id) {
  *
  * @param {string} id
  * @param {RTCIceCandidate} candidate
+ * @function
  */
 ServerConnection.prototype.gotICE = async function(id, candidate) {
     let c = this.up[id];
@@ -805,6 +810,7 @@ Stream.prototype.close = function(sendclose) {
 /**
  * flushIceCandidates flushes any buffered ICE candidates.  It is called
  * automatically when the connection reaches a stable state.
+ * @function
  */
 Stream.prototype.flushIceCandidates = async function () {
     let promises = [];
@@ -820,6 +826,7 @@ Stream.prototype.flushIceCandidates = async function () {
  * automatically when required.  If the client requires renegotiation, it
  * is probably more effective to call restartIce on the underlying PC
  * rather than invoking this function directly.
+ * @function
  */
 Stream.prototype.negotiate = async function () {
     let c = this;
@@ -853,7 +860,7 @@ Stream.prototype.negotiate = async function () {
  * updateStats is called periodically, if requested by setStatsInterval,
  * in order to recompute stream statistics and invoke the onstats handler.
  *
- * @returns {Promise<void>}
+ * @function
  */
 Stream.prototype.updateStats = async function() {
     let c = this;
