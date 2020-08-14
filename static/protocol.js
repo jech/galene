@@ -62,7 +62,7 @@ function ServerConnection() {
     this.down = {};
     /**
      * The ICE configuration used by all associated streams.
-     * @type {Array.<Object>}
+     * @type {Array.<RTCIceServer>}
      */
     this.iceServers = null;
     /**
@@ -435,6 +435,7 @@ ServerConnection.prototype.groupAction = function(kind) {
  * userAction sends a request to act on a user.
  *
  * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
+ * @param {string} id
  */
 ServerConnection.prototype.userAction = function(kind, id) {
     this.send({
@@ -448,7 +449,7 @@ ServerConnection.prototype.userAction = function(kind, id) {
  * Called when we receive an offer from the server.  Don't call this.
  *
  * @param {string} id
- * @param labels
+ * @param {Object.<string, string>} labels
  * @param {RTCSessionDescriptionInit} offer
  * @param {boolean} renegotiate
  */
