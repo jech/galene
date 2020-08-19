@@ -385,7 +385,11 @@ function stopUpMedia(c) {
  */
 function delUpMedia(c) {
     stopUpMedia(c);
-    delMedia(c.id);
+    try {
+        delMedia(c.id);
+    } catch(e) {
+        console.warn(e);
+    }
     c.close(true);
     delete(serverConnection.up[c.id]);
     setButtonsVisibility()
@@ -474,6 +478,8 @@ function setMedia(c, isUp) {
 function delMedia(id) {
     let mediadiv = document.getElementById('peers');
     let peer = document.getElementById('peer-' + id);
+    if(!peer)
+        throw new Error('Removing unknown media');
     let media = document.getElementById('media-' + id);
 
     media.srcObject = null;

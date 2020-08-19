@@ -150,7 +150,7 @@ ServerConnection.prototype.close = function() {
   * @param {message} m - the message to send.
   */
 ServerConnection.prototype.send = function(m) {
-    if(this.socket.readyState !== this.socket.OPEN) {
+    if(!this.socket || this.socket.readyState !== this.socket.OPEN) {
         // send on a closed connection doesn't throw
         throw(new Error('Connection is not open'));
     }
