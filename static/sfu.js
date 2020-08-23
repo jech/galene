@@ -69,6 +69,7 @@ function gotConnected() {
 }
 
 function gotClose(code, reason) {
+    delUpMediaKind(null);
     setConnected(false);
     if(code != 1000)
         console.warn('Socket close', code, reason);
@@ -395,10 +396,15 @@ function delUpMedia(c) {
     setButtonsVisibility()
 }
 
+/**
+ * delUpMediaKind reoves all up media of the given kind.  If kind is
+ * falseish, it removes all up media.
+ * @param {string} kind
+*/
 function delUpMediaKind(kind) {
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
-        if(c.kind != kind)
+        if(kind && c.kind != kind)
             continue
         c.close(true);
         delMedia(id);

@@ -36,9 +36,11 @@ serverConnection.onclearchat = ...;
 serverConnection.ondownstream = ...;
 ```
 
-The `onconnected` callback is called when we connect to the server;
-`onclose` is the opposite of `onconnected`.  `onusermessage` indicates
-a message from the server that should be displayed to the user.
+The `onconnected` callback is called when we connect to the server.  The
+`onclose` callback is called when the socket is closed; you should use it
+to close all your outgoing streams (incoming streams will be closed by the
+server).  `onusermessage` indicates a message from the server that should
+be displayed to the user.
 
 The other callbacks will only be called after you join a group.  `onuser`
 is used to indicate that a user has joined or left the current group.
