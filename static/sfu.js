@@ -357,7 +357,7 @@ async function addShareMedia(setup) {
     stream.getTracks().forEach(t => {
         let sender = c.pc.addTrack(t, stream);
         t.onended = e => {
-            delUpMedia(c.id);
+            delUpMedia(c);
         };
         c.labels[t.id] = 'screenshare';
     });
