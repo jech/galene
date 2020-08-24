@@ -349,7 +349,7 @@ ServerConnection.prototype.request = function(what) {
 /**
  * newUpStream requests the creation of a new up stream.
  *
- * @param {string} id - The id of the stream to create (optional).
+ * @param {string} [id] - The id of the stream to create.
  * @returns {Stream}
  */
 ServerConnection.prototype.newUpStream = function(id) {

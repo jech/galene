@@ -5,7 +5,10 @@
 
 'use strict';
 
+/** @type {string} */
 let group;
+
+/** @type {ServerConnection} */
 let serverConnection;
 
 function setUserPass(username, password) {
