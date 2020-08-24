@@ -143,6 +143,7 @@ function setButtonsVisibility() {
     setVisibility('mediaoptions', permissions.present);
 }
 
+/** @type {boolean} */
 let localMute = false;
 
 function toggleLocalMute() {
@@ -237,6 +238,7 @@ function addSelectOption(select, label, value) {
 
 // media names might not be available before we call getDisplayMedia.  So
 // we call this lazily.
+/** @type {boolean} */
 let mediaChoicesDone = false;
 
 async function setMediaChoices() {
@@ -546,6 +548,7 @@ function resizePeers() {
         `repeat(${columns}, 1fr)`;
 }
 
+/** @type{Object.<string,string>} */
 let users = {};
 
 /**
@@ -669,6 +672,13 @@ function formatLines(lines) {
     return elt;
 }
 
+/**
+ * @typedef {Object} lastMessage
+ * @property {string} [nick]
+ * @property {string} [peerId]
+ */
+
+/** @type {lastMessage} */
 let lastMessage = {};
 
 function addToChatbox(peerId, nick, kind, message){
@@ -874,6 +884,7 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
+/** @type {number} */
 let errorTimeout = null;
 
 function setErrorTimeout(ms) {
