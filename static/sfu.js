@@ -186,6 +186,33 @@ document.getElementById('unsharebutton').onclick = function(e) {
     delUpMediaKind('screenshare');
 }
 
+/** @returns {number} */
+function getMaxVideoThroughput() {
+    let v = document.getElementById('sendselect').value;
+    switch(v) {
+    case 'lowest':
+        return 150000;
+    case 'low':
+        return 300000;
+    case 'normal':
+        return 700000;
+    case 'unlimited':
+        return null;
+    default:
+        console.error('Unknown video quality', v);
+        return 700000;
+    }
+}
+
+document.getElementById('sendselect').onchange = async function(e) {
+    let t = getMaxVideoThroughput();
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
+        if(c.kind === 'local')
+            await setMaxVideoThroughput(c, t);
+    }
+}
+
 document.getElementById('requestselect').onchange = function(e) {
     e.preventDefault();
     serverConnection.request(this.value);
@@ -291,7 +318,37 @@ function newUpStream(id) {
     c.onabort = function() {
         delUpMedia(c);
     }
+    c.onnegotiationcompleted = function() {
+        setMaxVideoThroughput(c, getMaxVideoThroughput())
+    }
     return c;
+}
+
+/**
+ * @param {Stream} c
+ * @param {number} [bps]
+ */
+async function setMaxVideoThroughput(c, bps) {
+    let senders = c.pc.getSenders();
+    for(let i = 0; i < senders.length; i++) {
+        let s = senders[i];
+        if(!s.track || s.track.kind !== 'video')
+            continue;
+        let p = s.getParameters();
+        if(!p.encodings)
+            continue;
+        p.encodings.forEach(e => {
+            if(bps > 0)
+                e.maxBitrate = bps;
+            else
+                delete e.maxBitrate;
+        });
+        try {
+            await s.setParameters(p);
+        } catch(e) {
+            console.error(e);
+        }
+    }
 }
 
 /**
@@ -338,6 +395,7 @@ async function addLocalMedia(id) {
             t.enabled = false;
         let sender = c.pc.addTrack(t, stream);
     });
+
     c.onstats = displayStats;
     c.setStatsInterval(2000);
     await setMedia(c, true);
