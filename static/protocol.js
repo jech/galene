@@ -533,6 +533,8 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
         id: id,
         answer: answer,
     });
+    if(c.onnegotiationcompleted)
+        c.onnegotiationcompleted.call(c);
 }
 
 /**
@@ -570,6 +572,8 @@ ServerConnection.prototype.gotAnswer = async function(id, answer) {
         return;
     }
     await c.flushIceCandidates();
+    if(c.onnegotiationcompleted)
+        c.onnegotiationcompleted.call(c);
 }
 
 /**
@@ -739,6 +743,13 @@ function Stream(sc, id, pc) {
      * @type{function(any): any}
      */
     this.onerror = null;
+    /**
+     * onnegotiationcompleted is called whenever negotiation or
+     * renegotiation has completed.
+     *
+     * @type{function(): any}
+     */
+    this.onnegotiationcompleted = null;
     /**
      * ondowntrack is called whenever a new track is added to a stream.
      * If the stream parameter differs from its previous value, then it
