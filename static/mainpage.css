@@ -6,3 +6,45 @@
 }
 
 
+.signature {
+    border-top: solid;
+    padding-top: 0em;
+    border-width: thin;
+    clear: both;
+    height: 50px;
+    text-align: center;
+}
+
+.navbar-brand {
+  margin-bottom: 80px;
+}
+
+.home {
+  height: calc(100vh - 50px);
+  padding: 30px;
+}
+
+#public-groups-table tr a{
+    margin-left: 15px;
+    font-weight: 700;
+}
+
+a {
+  text-decoration: none;
+  color: #0058e4;
+}
+
+a:hover {
+  color: #0a429c;
+}
+
+label {
+  display: block;
+}
+
+@media only screen and (max-device-width: 480px) {
+ .home {
+  padding: 10px;
+}
+  
+}

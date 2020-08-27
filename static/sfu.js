@@ -52,6 +52,7 @@ function setConnected(connected) {
     let statspan = document.getElementById('statspan');
     let userform = document.getElementById('userform');
     let disconnectbutton = document.getElementById('disconnectbutton');
+    let connectbutton = document.getElementById('connectbutton');
     if(connected) {
         clearError();
         resetUsers();
@@ -62,6 +63,7 @@ function setConnected(connected) {
         userform.classList.add('invisible');
         userform.classList.remove('userform');
         disconnectbutton.classList.remove('invisible');
+        connectbutton.classList.add('invisible');
         displayUsername();
     } else {
         resetUsers();
@@ -76,6 +78,7 @@ function setConnected(connected) {
         userform.classList.add('userform');
         userform.classList.remove('invisible');
         disconnectbutton.classList.add('invisible');
+        connectbutton.classList.remove('invisible');
         clearUsername();
     }
 }
@@ -759,8 +762,11 @@ function formatLines(lines) {
 let lastMessage = {};
 
 function addToChatbox(peerId, nick, kind, message){
+    let row = document.createElement('div');
+    row.classList.add('message-row');
     let container = document.createElement('div');
     container.classList.add('message');
+    row.appendChild(container);
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
         if (lastMessage.nick !== nick || lastMessage.peerId !== peerId) {
@@ -794,7 +800,7 @@ function addToChatbox(peerId, nick, kind, message){
     }
 
     let box = document.getElementById('box');
-    box.appendChild(container);
+    box.appendChild(row);
     if(box.scrollHeight > box.clientHeight) {
         box.scrollTop = box.scrollHeight - box.clientHeight;
     }
@@ -1006,6 +1012,40 @@ document.getElementById('userform').onsubmit = function(e) {
 
 document.getElementById('disconnectbutton').onclick = function(e) {
     serverConnection.close();
+};
+
+function openNav() {
+    document.getElementById("sidebarnav").style.width = "250px";
+}
+
+function closeNav() {
+    document.getElementById("sidebarnav").style.width = "0";
+}
+
+document.getElementById('sidebarCollapse').onclick = function(e) {
+    document.getElementById("left-sidebar").classList.toggle("active");
+    document.getElementById("mainrow").classList.toggle("full-width-active");
+};
+
+document.getElementById('openside').onclick = function(e) {
+      e.preventDefault();
+      let sidewidth = document.getElementById("sidebarnav").style.width;
+      if (sidewidth !== "0px" && sidewidth !== "") {
+          closeNav();
+          return;
+      } else {
+          openNav();
+      }
+};
+
+document.getElementById('user').onclick = function(e) {
+    document.getElementById("userDropdown").classList.toggle("show");
+};
+
+
+document.getElementById('clodeside').onclick = function(e) {
+    e.preventDefault();
+    closeNav();
 };
 
 function serverConnect() {

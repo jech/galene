@@ -2,53 +2,114 @@
 <html lang="en">
   <head>
     <title>SFU</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="/common.css"/>
     <link rel="stylesheet" type="text/css" href="/sfu.css"/>
     <link rel="author" href="https://www.irif.fr/~jch/"/>
+    <!-- Font Awesome File -->
+    <link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css">
   </head>
 
   <body>
-    <h1 id="title">SFU</h1>
-
-    <div id="header">
-      <div id="statdiv">
-        <span id="statspan"></span>
-        <span id="userspan"></span>
-        <form id="userform" class="userform">
-          <label for="username">Username:</label>
-          <input id="username" type="text" name="username"
-                 autocomplete="username"/>
-          <label for="password">Password:</label>
-          <input id="password" type="password" name="password"
-                 autocomplete="current-password"/>
-          <input id="connectbutton" type="submit" value="Connect" disabled/>
-        </form>
-        <input id="disconnectbutton" class="invisible"
-               type="submit" value="Disconnect"/>
-        <span id="errspan"></span>
+    <div id="main" class="app">
+      <div class="row full-height">
+        <nav id="left-sidebar">
+          <div class="users-header">
+            <div class="sfu-header">SFU</div>
+          </div>
+          <div class="header-sep"></div>
+          <div id="users"></div>
+        </nav>
+        <div class="container">
+          <header>
+            <nav class="topnav navbar navbar-expand navbar-light fixed-top">
+              <div id="header">
+                <div class="colapse" title="Colapse" id="sidebarCollapse">
+                  <svg class="svg-inline--fa fa-align-left fa-w-14" aria-hidden="true" data-prefix="fas" data-icon="align-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg="">
+                    <path fill="currentColor" d="M288 44v40c0 8.837-7.163 16-16 16H16c-8.837 0-16-7.163-16-16V44c0-8.837 7.163-16 16-16h256c8.837 0 16 7.163 16 16zM0 172v40c0 8.837 7.163 16 16 16h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16zm16 312h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm256-200H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16h256c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16z"></path>
+                  </svg>
+                </div>
+                <h1 id="title" class="header-title"></h1>
+              </div>
+      
+              <ul class="nav-menu">
+                <li><button id="presentbutton" class="invisible btn btn-success"><i class="fa fa-video-camera" aria-hidden="true"></i><span class="nav-text"> Present</span></button></li>
+                <li><button id="unpresentbutton" class="invisible btn btn-cancel"><i class="fa fa-stop" aria-hidden="true"></i><span class="nav-text"> Stop presenting</span></button></li>
+                <li><button id="mutebutton" class="invisible btn btn-default">Mute</button></li>
+                <li><span id="sharebutton" class="invisible nav-link nav-button"><i class="fa fa-share-square-o" aria-hidden="true"></i></span></li>
+                <li><span id="unsharebutton" class="invisible nav-link nav-button nav-cancel"><i class="fa fa-window-close-o" aria-hidden="true"></i></span></li>
+                <li><span class="nav-button nav-link" id="user"><i class="fa fa-user dropbtn" aria-hidden="true"></i></span>
+                  <div id="userDropdown" class="dropdown-content">
+                    <div id="statdiv">
+                      <span id="statspan"></span>
+                      <span id="userspan"></span>
+                      <form id="userform" class="userform">
+                        <label for="username">Username:</label>
+                        <input id="username" type="text" name="username"
+                               autocomplete="username" class="form-control"/>
+                        <label for="password">Password:</label>
+                        <input id="password" type="password" name="password"
+                               autocomplete="current-password" class="form-control"/>
+                        <div class="clear"></div>
+                        <input id="connectbutton" type="submit" class="invisible btn btn-blue" value="Connect" disabled/>
+                      </form>
+                      <div class="clear"></div>
+                      <input id="disconnectbutton" class="invisible btn btn-warn"
+                             type="submit" value="Disconnect"/>
+                      <span id="errspan"></span>
+                    </div>
+                  </div>
+                </li>
+                <li><span class="nav-button nav-link" id="openside"><i class="fa fa-cog" aria-hidden="true"></i></span></li>
+              </ul>
+            </nav>
+          </header>
+          <div class="row full-width" id="mainrow">
+            <div class="coln-left">
+              <div id="chat">
+                <div id="chatbox">
+                  <div id="box"></div>
+                  <div class="reply">
+                    <form id="inputform">
+                      <textarea id="input" class="form-reply"></textarea>
+                      <input id="inputbutton" type="submit" value="&#10148;" class="btn btn-default"/>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              <div id="resizer">
+                </div>
+            </div>
+            <div class="coln-right">
+              <div class="video-container">
+                <div id="peers"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <div id="optionsdiv">
-        <button id="presentbutton" class="invisible">Present</button>
-        <button id="unpresentbutton" class="invisible">Stop presenting</button>
-
-        <span id="mediaoptions">
+    <div id="sidebarnav" class="sidenav">
+      <div class="sidenav-header">
+        <a class="closebtn" id="clodeside"><i class="fa fa-times" aria-hidden="true"></i></a>
+      </div>
+      <div class="sidenav-content" id="optionsdiv">
+        <h2>Configurations</h2>
+        <div id="mediaoptions">
           <label for="videoselect">Camera:</label>
-          <select id="videoselect">
+          <select id="videoselect" class="select select-inline">
             <option>default</option>
             <option>off</option>
           </select>
 
           <label for="audioselect">Microphone:</label>
-          <select id="audioselect">
+          <select id="audioselect" class="select select-inline">
             <option>default</option>
             <option>off</option>
           </select>
-          <button id="mutebutton">Mute</button>
-        </span>
-
-        <button id="sharebutton" class="invisible">Share screen</button>
-        <button id="unsharebutton" class="invisible">Stop sharing</button>
+          
+        </div>
 
         <label for="sendselect">Send:</label>
         <select id="sendselect">
@@ -59,29 +120,12 @@
         </select>
 
         <label for="requestselect">Receive:</label>
-        <select id="requestselect">
+        <select id="requestselect" class="select select-inline">
           <option value="audio">audio only</option>
           <option value="screenshare">screen share</option>
           <option value="everything" selected>everything</option>
         </select>
       </div>
-    </div>
-
-    <div id="main">
-      <div id="users"></div>
-      <div id="chat">
-        <div id="chatbox">
-          <div id="box"></div>
-          <form id="inputform">
-            <textarea id="input"></textarea>
-            <input id="inputbutton" type="submit" value="&#10148;"/>
-          </form>
-        </div>
-        <div id="resizer">
-        </div>
-      </div>
-
-      <div id="peers"></div>
     </div>
 
     <script src="/protocol.js" defer></script>
