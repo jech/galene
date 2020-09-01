@@ -2,12 +2,14 @@
 <html lang="en">
   <head>
     <title>SFU</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--<meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+    <meta name="viewport" content="minimal-ui, width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <link rel="stylesheet" type="text/css" href="/common.css"/>
     <link rel="stylesheet" type="text/css" href="/sfu.css"/>
     <link rel="author" href="https://www.irif.fr/~jch/"/>
     <!-- Font Awesome File -->
     <link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/toastify.min.css">
   </head>
 
   <body>
@@ -81,7 +83,8 @@
                 </div>
             </div>
             <div class="coln-right">
-              <div class="video-container">
+              <span class="show-video blink" id="switch-video"><i class="fa fa-exchange" aria-hidden="true"></i></span>
+              <div class="video-container no-video" id="video-container">
                 <div id="peers"></div>
               </div>
             </div>
@@ -130,5 +133,6 @@
 
     <script src="/protocol.js" defer></script>
     <script src="/sfu.js" defer></script>
+    <script src="/scripts/toastify-js" defer></script>
   </body>
 </html>

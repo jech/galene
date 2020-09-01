@@ -45,6 +45,25 @@ function getUsername() {
     return userpass.username;
 }
 
+function showVideo() {
+    let video_container = document.getElementById('video-container');
+    //video_container[0].style.display = "block";
+    video_container.classList.remove('no-video');
+}
+
+function hideVideo(force) {
+    let mediadiv = document.getElementById('peers');
+    if (force === undefined) {
+      force = false;
+    }
+    if (mediadiv.childElementCount > 0 && !force) {
+      return;
+    }
+    let video_container = document.getElementById('video-container');
+    //video_container.style.display = "";
+    video_container.classList.add('no-video');
+}
+
 /**
   * @param{boolean} connected
   */
@@ -54,7 +73,6 @@ function setConnected(connected) {
     let disconnectbutton = document.getElementById('disconnectbutton');
     let connectbutton = document.getElementById('connectbutton');
     if(connected) {
-        clearError();
         resetUsers();
         clearChat();
         statspan.textContent = 'Connected';
@@ -80,6 +98,7 @@ function setConnected(connected) {
         disconnectbutton.classList.add('invisible');
         connectbutton.classList.remove('invisible');
         clearUsername();
+        displayError("Disconnected!", "error");
     }
 }
 
@@ -94,8 +113,10 @@ function gotConnected() {
 function gotClose(code, reason) {
     delUpMediaKind(null);
     setConnected(false);
-    if(code != 1000)
+    if(code != 1000) {
+        //displayError('Socket close: Code ' + code, "error");
         console.warn('Socket close', code, reason);
+    }
 }
 
 /**
@@ -157,7 +178,7 @@ function setButtonsVisibility() {
     setVisibility('presentbutton', permissions.present && !local);
     setVisibility('unpresentbutton', local);
     // allow multiple shared documents
-    setVisibility('sharebutton', permissions.present);
+    setVisibility('sharebutton', permissions.present  && !share);
     setVisibility('unsharebutton', share);
 
     setVisibility('mediaoptions', permissions.present);
@@ -420,7 +441,7 @@ async function addLocalMedia(id) {
     c.onstats = displayStats;
     c.setStatsInterval(2000);
     await setMedia(c, true);
-    setButtonsVisibility()
+    setButtonsVisibility();
 }
 
 async function addShareMedia(setup) {
@@ -496,7 +517,8 @@ function delUpMediaKind(kind) {
         delete(serverConnection.up[id]);
     }
 
-    setButtonsVisibility()
+    setButtonsVisibility();
+    hideVideo();
 }
 
 function findUpMedia(kind) {
@@ -563,6 +585,7 @@ function setMedia(c, isUp) {
     setLabel(c);
     setMediaStatus(c);
 
+    showVideo();
     resizePeers();
 }
 
@@ -577,6 +600,7 @@ function delMedia(id) {
     mediadiv.removeChild(peer);
 
     resizePeers();
+    hideVideo();
 }
 
 /**
@@ -623,9 +647,16 @@ function resizePeers() {
     let count =
         Object.keys(serverConnection.up).length +
         Object.keys(serverConnection.down).length;
+    let peers = document.getElementById('peers');
     let columns = Math.ceil(Math.sqrt(count));
-    document.getElementById('peers').style['grid-template-columns'] =
-        `repeat(${columns}, 1fr)`;
+    if (columns > 1) {
+        if (peers.offsetWidth < peers.offsetHeight) {
+            // we change view orientation
+            peers.style['grid-template-rows'] = `repeat(${columns}, auto)`;
+        }
+    } else {
+        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    }
 }
 
 /** @type{Object.<string,string>} */
@@ -967,39 +998,27 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
-/** @type {number} */
-let errorTimeout = null;
 
-function setErrorTimeout(ms) {
-    if(errorTimeout) {
-        clearTimeout(errorTimeout);
-        errorTimeout = null;
+function displayError(message, level) {
+    var background = "linear-gradient(to right, #529518, #96c93d)";
+    if (level === undefined || level === "error") {
+      level = "error";
+      background = "linear-gradient(to right, #e20a0a, #df2d2d)";
     }
-    if(ms) {
-        errorTimeout = setTimeout(clearError, ms);
-    }
-}
-
-function displayError(message) {
-    let errspan = document.getElementById('errspan');
-    errspan.textContent = message;
-    errspan.classList.remove('noerror');
-    errspan.classList.add('error');
-    setErrorTimeout(8000);
+    Toastify({
+      text: message,
+      duration: 5000,
+      close: true,
+      position: 'center',
+      backgroundColor: background,
+      className: level,
+    }).showToast();
 }
 
 function displayWarning(message) {
     // don't overwrite real errors
     if(!errorTimeout)
         return displayError(message);
-}
-
-function clearError() {
-    let errspan = document.getElementById('errspan');
-    errspan.textContent = '';
-    errspan.classList.remove('error');
-    errspan.classList.add('noerror');
-    setErrorTimeout(null);
 }
 
 document.getElementById('userform').onsubmit = function(e) {
@@ -1042,10 +1061,44 @@ document.getElementById('user').onclick = function(e) {
     document.getElementById("userDropdown").classList.toggle("show");
 };
 
+window.onclick = function(event) {
+  let user_box = document.getElementById('userDropdown');
+  if (user_box.classList.contains("show") && event.target.id != "user") {
+      let parent = event.target;
+      while (parent.id !== "main" && parent.id !== "userDropdown" &&
+              parent.id !== "user" && parent.tagName !== "body") {
+          parent = parent.parentNode;
+      }
+      if (parent.id !="userDropdown" && parent.id !== "user") {
+          user_box.classList.toggle("show");
+      }
+  }
+};
+
 
 document.getElementById('clodeside').onclick = function(e) {
     e.preventDefault();
     closeNav();
+};
+
+document.getElementById('video-container').onclick = function(e) {
+    e.preventDefault();
+    let width = (window.innerWidth > 0) ? window.innerWidth : screen.width;
+    if (width <= 768) {
+      let user_box = document.getElementById('userDropdown');
+      if (user_box.classList.contains("show")) {
+        return;
+      }
+      // fixed div for small screen
+      hideVideo(true);
+      document.getElementById('switch-video').style.display = "block";
+    }
+};
+
+document.getElementById('switch-video').onclick = function(e) {
+    e.preventDefault();
+    showVideo();
+    this.style.display = "";
 };
 
 function serverConnect() {
