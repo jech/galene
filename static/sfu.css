@@ -10,7 +10,8 @@
 }
 .topnav {
     padding-left: 0;
-    height: 3.313rem;
+    /*height: 3.313rem;*/
+    height: 4rem;
     z-index: 1039;
 }
 .navbar .form-control, .topnav {
@@ -197,7 +198,7 @@
 
 .full-width {
   width: calc(100vw - 200px);
-  height: calc(100vh - 53px);
+  height: calc(100vh - 64px);
 }
 
 .full-width-active {
@@ -209,7 +210,7 @@
 }
 
 .users-header {
-  height: 53px;
+  height: 4rem;
   padding: 10px;
   background: #610a86;
   /*border-bottom: 1px solid #e6e6e6;*/
@@ -290,20 +291,6 @@ textarea.form-reply {
   width: inherit;
 }
 
-.message-sender {
-    float: right;
-    width: auto !important;
-    background: #dcf8c6;
-    border-radius: 10px 10px 0 10px;
-    padding: 4px 10px 7px !important;
-    font-size: 12px;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, .2);
-    display: inline-block;
-    word-wrap: break-word;
-    margin-left: 20% !important;
-    max-width: 80%;
-}
-
 .message {
     width: auto !important;
     padding: 4px 10px 7px !important;
@@ -315,6 +302,13 @@ textarea.form-reply {
     display: inline-block;
     margin: 1em 0 0;
     max-width: 80%;
+}
+
+.message-sender {
+    float: right;
+    background: #ececec;
+    border-radius: 10px 10px 0 10px;
+    margin-left: 20% !important;
 }
 
 .message-row:after, .message-row:before {
@@ -344,7 +338,7 @@ textarea.form-reply {
 
 .video-container {
   /*height: 100%;*/
-  height: calc(100vh - 53px);
+  height: calc(100vh - 64px);
   position: relative;
   background: rgba(0, 0, 0, 0.61);
   /* Display only when showing video */
@@ -361,6 +355,25 @@ textarea.form-reply {
 
 .mobile-container {
   display: block !important;
+}
+
+.login-container {
+  height: calc(100vh - 64px);
+  position: relative;
+  display: block;
+}
+
+.login-box {
+    position: absolute;
+    top: 90px;
+    left: 25%;
+    width: 21em;
+    padding: 2em;
+}
+
+.login-box h2 {
+  text-align: center;
+  margin-bottom: 40px;
 }
 
 .label-fallback {
@@ -390,14 +403,33 @@ textarea.form-reply {
   text-align: center;
   margin: 0 10px;
   position: relative;
+  line-height: 1.1;
 }
 
-.nav-cancel {
-  color: #d03e3e
+.nav-link span {
+  display: block;
+}
+
+.nav-link label {
+  display: block;
+  cursor: pointer;
+  color: #fff;
+  font-size: 55%;
 }
 
 .nav-link:hover {
   color: #c2a4e0;
+}
+.nav-link label:hover {
+  color: #c2a4e0;
+}
+
+.nav-cancel, .muted, .nav-cancel label, .muted label {
+  color: #d03e3e
+}
+
+.nav-cancel:hover, .muted:hover, .nav-cancel label:hover, .muted label:hover {
+  color: #d03e3e
 }
 
 .nav-button {
@@ -485,10 +517,6 @@ h1 {
     margin-right: 0.4em;
 }
 
-.muted {
-    color: red;
-}
-
 #sharebutton, #unsharebutton {
     white-space: nowrap;
 }
@@ -523,7 +551,7 @@ h1 {
     background-size: cover;
     overflow-y: scroll;
     border: none;
-    border-right: 1px solid #e6e6e6;
+    border-right: 4px solid #e6e6e6;
     height: 100% !important;
     min-width: 300px;
 }
@@ -567,7 +595,7 @@ h1 {
 
 #resizer {
     width: 8px;
-    margin-left: -8px;
+    margin-left: -4px;
     z-index: 1000;
 }
 
@@ -613,58 +641,58 @@ h1 {
 }
 
 .sidenav {
-  background-color: #4d076b;
-  -webkit-box-shadow: 0 0 24px 0 rgba(71,77,86,.1), 0 1px 0 0 rgba(71,77,86,.08);
-  box-shadow: 0 0 24px 0 rgba(71,77,86,.1), 0 1px 0 0 rgba(71,77,86,.08);
-  display: block;
-  position: fixed;
-  -webkit-transition: all .2s ease-out;
-  transition: all .2s ease-out;
-  width: 0px;
-  z-index: 2999;
-  top: 0;
-  right: 0;
-  height: 100vh;
-  overflow-x: hidden;
-  overflow-y: hidden;
-  padding-top: 52px;
+    background-color: #4d076b;
+    -webkit-box-shadow: 0 0 24px 0 rgba(71,77,86,.1), 0 1px 0 0 rgba(71,77,86,.08);
+    box-shadow: 0 0 24px 0 rgba(71,77,86,.1), 0 1px 0 0 rgba(71,77,86,.08);
+    display: block;
+    position: fixed;
+    -webkit-transition: all .2s ease-out;
+    transition: all .2s ease-out;
+    width: 0px;
+    z-index: 2999;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    padding-top: 64px;
 }
 
 .sidenav a {
-  padding: 8px;
-  text-decoration: none;
-  font-size: 25px;
-  color: #dbd9d9;
-  display: block;
-  transition: 0.3s;
+    padding: 10px;
+    text-decoration: none;
+    font-size: 30px;
+    color: #dbd9d9;
+    display: block;
+    transition: 0.3s;
 }
 
 .sidenav a:hover {
-  color: #c2a4e0;
+    color: #c2a4e0;
 }
 
 .sidenav .closebtn {
-  cursor: pointer;
-  position: absolute;
-  top: 0;
-  right: 25px;
-  margin-left: 50px;
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    right: 25px;
+    margin-left: 50px;
 }
 
 .sidenav label{
-  display: block;
-  margin-top: 15px;
+    display: block;
+    margin-top: 15px;
 }
 
 .sidenav-header {
-  border-bottom: 1px solid #e6e6e6;
-  background: #eee;
+    border-bottom: 1px solid #e6e6e6;
+    background: #eee;
 }
 
 .sidenav-content {
-  padding: 20px;
-  background: #fff;
-  height: 100%;
+    padding: 20px;
+    background: #fff;
+    height: 100%;
 }
 
 .sidenav-content h2 {
@@ -735,7 +763,7 @@ h1 {
   background-color: #fff;
   max-width: 300px;
   min-width: 200px;
-  margin-top: 8px;
+  margin-top: 11px;
   overflow: auto;
   right: 7px;
   box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
@@ -874,6 +902,10 @@ header .colapse {
 @media only screen and (max-device-width: 768px) {
     .nav-link {
       margin: 0;
+      line-height: 1.5;
+    }
+    .nav-link label {
+      display: none;
     }
     .nav-text {
       display: none;
@@ -884,9 +916,9 @@ header .colapse {
     }
     
     .video-container {
-      height: calc(100vh - 53px);
+      height: calc(100vh - 64px);
       position: fixed;
-      top: 53px;
+      top: 64px;
       right: 0;
       left: 0;
       margin-bottom: 60px;

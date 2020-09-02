@@ -69,19 +69,16 @@ function hideVideo(force) {
   */
 function setConnected(connected) {
     let statspan = document.getElementById('statspan');
-    let userform = document.getElementById('userform');
-    let disconnectbutton = document.getElementById('disconnectbutton');
-    let connectbutton = document.getElementById('connectbutton');
+    let userbox = document.getElementById('user');
+    let connectionbox = document.getElementById('login-container');
     if(connected) {
         resetUsers();
         clearChat();
         statspan.textContent = 'Connected';
         statspan.classList.remove('disconnected');
         statspan.classList.add('connected');
-        userform.classList.add('invisible');
-        userform.classList.remove('userform');
-        disconnectbutton.classList.remove('invisible');
-        connectbutton.classList.add('invisible');
+        userbox.classList.remove('invisible');
+        connectionbox.classList.add('invisible');
         displayUsername();
     } else {
         resetUsers();
@@ -93,10 +90,8 @@ function setConnected(connected) {
         statspan.textContent = 'Disconnected';
         statspan.classList.remove('connected');
         statspan.classList.add('disconnected');
-        userform.classList.add('userform');
-        userform.classList.remove('invisible');
-        disconnectbutton.classList.add('invisible');
-        connectbutton.classList.remove('invisible');
+        userbox.classList.add('invisible');
+        connectionbox.classList.remove('invisible');
         clearUsername();
         displayError("Disconnected!", "error");
     }
@@ -195,7 +190,7 @@ function setLocalMute(mute) {
     localMute = mute;
     muteLocalTracks(localMute);
     let button = document.getElementById('mutebutton');
-    button.textContent = localMute ? 'Unmute' : 'Mute';
+    //button.textContent = localMute ? 'Unmute' : 'Mute';
     if(localMute)
         button.classList.add('muted');
     else
@@ -649,7 +644,8 @@ function resizePeers() {
         Object.keys(serverConnection.down).length;
     let peers = document.getElementById('peers');
     let columns = Math.ceil(Math.sqrt(count));
-    if (columns > 1) {
+    peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    if (false) {
         if (peers.offsetWidth < peers.offsetHeight) {
             // we change view orientation
             peers.style['grid-template-rows'] = `repeat(${columns}, auto)`;
@@ -793,11 +789,15 @@ function formatLines(lines) {
 let lastMessage = {};
 
 function addToChatbox(peerId, nick, kind, message){
+    let userpass = getUserPass();
     let row = document.createElement('div');
     row.classList.add('message-row');
     let container = document.createElement('div');
     container.classList.add('message');
     row.appendChild(container);
+    if (userpass.username === nick) {
+      container.classList.add('message-sender');
+    }
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
         if (lastMessage.nick !== nick || lastMessage.peerId !== peerId) {
@@ -1031,6 +1031,11 @@ document.getElementById('userform').onsubmit = function(e) {
 
 document.getElementById('disconnectbutton').onclick = function(e) {
     serverConnection.close();
+    let user_box = document.getElementById('userDropdown');
+    if (user_box.classList.contains("show")) {
+      user_box.classList.toggle("show");
+    }
+    
 };
 
 function openNav() {

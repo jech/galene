@@ -35,34 +35,56 @@
               </div>
       
               <ul class="nav-menu">
-                <li><button id="presentbutton" class="invisible btn btn-success"><i class="fa fa-video-camera" aria-hidden="true"></i><span class="nav-text"> Present</span></button></li>
-                <li><button id="unpresentbutton" class="invisible btn btn-cancel"><i class="fa fa-stop" aria-hidden="true"></i><span class="nav-text"> Stop presenting</span></button></li>
-                <li><button id="mutebutton" class="invisible btn btn-default">Mute</button></li>
-                <li><span id="sharebutton" class="invisible nav-link nav-button"><i class="fa fa-share-square-o" aria-hidden="true"></i></span></li>
-                <li><span id="unsharebutton" class="invisible nav-link nav-button nav-cancel"><i class="fa fa-window-close-o" aria-hidden="true"></i></span></li>
-                <li><span class="nav-button nav-link" id="user"><i class="fa fa-user dropbtn" aria-hidden="true"></i></span>
+                <li>
+                  <button id="presentbutton" class="invisible btn btn-success">
+                    <i class="fa fa-video-camera" aria-hidden="true"></i><span class="nav-text"> Present</span>
+                  </button>
+                </li>
+                <li>
+                  <button id="unpresentbutton" class="invisible btn btn-cancel">
+                    <i class="fa fa-stop" aria-hidden="true"></i><span class="nav-text"> Stop presenting</span>
+                  </button>
+                </li>
+                <li>
+                  <div id="mutebutton" class="nav-link nav-button">
+                    <span><i class="fa fa-microphone-slash" aria-hidden="true"></i></span>
+                    <label>Mute</label>
+                  </div>
+                </li>
+                <li>
+                  <div id="sharebutton" class="invisible nav-link nav-button">
+                    <span><i class="fa fa-share-square-o" aria-hidden="true"></i></span>
+                    <label>Share Screen</label>
+                  </div>
+                </li>
+                <li>
+                  <div id="unsharebutton" class="invisible nav-link nav-button nav-cancel">
+                    <span><i class="fa fa-window-close-o" aria-hidden="true"></i></span>
+                    <label>Share Screen</label>
+                  </div>
+                </li>
+                <li>
+                  <div class="nav-button nav-link" id="user">
+                    <span><i class="fa fa-user dropbtn" aria-hidden="true"></i></span>
+                    <label>User</label>
+                  </div>
                   <div id="userDropdown" class="dropdown-content">
                     <div id="statdiv">
                       <span id="statspan"></span>
                       <span id="userspan"></span>
-                      <form id="userform" class="userform">
-                        <label for="username">Username:</label>
-                        <input id="username" type="text" name="username"
-                               autocomplete="username" class="form-control"/>
-                        <label for="password">Password:</label>
-                        <input id="password" type="password" name="password"
-                               autocomplete="current-password" class="form-control"/>
-                        <div class="clear"></div>
-                        <input id="connectbutton" type="submit" class="invisible btn btn-blue" value="Connect" disabled/>
-                      </form>
                       <div class="clear"></div>
-                      <input id="disconnectbutton" class="invisible btn btn-warn"
+                      <input id="disconnectbutton" class="btn btn-warn"
                              type="submit" value="Disconnect"/>
                       <span id="errspan"></span>
                     </div>
+                </div>
+                </li>
+                <li>
+                  <div class="nav-button nav-link" id="openside">
+                    <span><i class="fa fa-cog" aria-hidden="true"></i></span>
+                    <label>Parameters</label>
                   </div>
                 </li>
-                <li><span class="nav-button nav-link" id="openside"><i class="fa fa-cog" aria-hidden="true"></i></span></li>
               </ul>
             </nav>
           </header>
@@ -79,13 +101,28 @@
                   </div>
                 </div>
               </div>
-              <div id="resizer">
-                </div>
             </div>
+            <div id="resizer"></div>
             <div class="coln-right">
               <span class="show-video blink" id="switch-video"><i class="fa fa-exchange" aria-hidden="true"></i></span>
               <div class="video-container no-video" id="video-container">
                 <div id="peers"></div>
+              </div>
+              <div class="login-container invisible" id="login-container">
+                <div class="login-box">
+                  <h2>Login to SFU</h2>
+                  <form id="userform" class="userform">
+                    <label for="username">Username:</label>
+                    <input id="username" type="text" name="username"
+                           autocomplete="username" class="form-control"/>
+                    <label for="password">Password:</label>
+                    <input id="password" type="password" name="password"
+                           autocomplete="current-password" class="form-control"/>
+                    <div class="clear"></div>
+                    <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect" disabled/>
+                  </form>
+                  <div class="clear"></div>
+                </div>
               </div>
             </div>
           </div>
