@@ -1063,6 +1063,7 @@ document.getElementById('openside').onclick = function(e) {
 };
 
 document.getElementById('user').onclick = function(e) {
+    e.preventDefault();
     document.getElementById("userDropdown").classList.toggle("show");
 };
 
@@ -1134,11 +1135,15 @@ function start() {
 
     setLocalMute(localMute);
 
-    document.getElementById('connectbutton').disabled = false;
+    //document.getElementById('connectbutton').disabled = false;
 
     let userpass = getUserPass();
     if(userpass)
         serverConnect();
+    else {
+      document.getElementById("user").classList.add('invisible');
+      document.getElementById("login-container").classList.remove('invisible');
+    }
 }
 
 start();
