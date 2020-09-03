@@ -336,7 +336,7 @@ async function setMaxVideoThroughput(c, bps) {
             continue;
         let p = s.getParameters();
         if(!p.encodings)
-            continue;
+            p.encodings = [{}];
         p.encodings.forEach(e => {
             if(bps > 0)
                 e.maxBitrate = bps;
