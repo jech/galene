@@ -463,7 +463,7 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 		delUpConn(c, id)
 	}
 
-	up, _, err := addUpConn(c, id)
+	up, isnew, err := addUpConn(c, id)
 	if err != nil {
 		return err
 	}
@@ -473,6 +473,11 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 	}
 	err = up.pc.SetRemoteDescription(offer)
 	if err != nil {
+		if renegotiate && !isnew {
+			// create a new PC from scratch
+			log.Printf("SetRemoteDescription(offer): %v", err)
+			return gotOffer(c, id, offer, false, labels)
+		}
 		return err
 	}
 
