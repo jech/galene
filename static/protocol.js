@@ -386,14 +386,8 @@ ServerConnection.prototype.newUpStream = function(id) {
     pc.oniceconnectionstatechange = e => {
         if(c.onstatus)
             c.onstatus.call(c, pc.iceConnectionState);
-        if(pc.iceConnectionState === 'failed') {
-            try {
-                /** @ts-ignore */
-                pc.restartIce();
-            } catch(e) {
-                console.warn(e);
-            }
-        }
+        if(pc.iceConnectionState === 'failed')
+            c.restartIce();
     }
 
     pc.ontrack = console.error;
@@ -587,12 +581,7 @@ ServerConnection.prototype.gotRenegotiate = async function(id) {
     let c = this.up[id];
     if(!c)
         throw new Error('unknown up stream');
-    try {
-        /** @ts-ignore */
-        c.pc.restartIce();
-    } catch(e) {
-        console.warn(e);
-    }
+    c.restartIce();
 }
 
 /**
@@ -837,12 +826,17 @@ Stream.prototype.flushIceCandidates = async function () {
  * automatically when required.  If the client requires renegotiation, it
  * is probably more effective to call restartIce on the underlying PC
  * rather than invoking this function directly.
+ *
  * @function
+ * @param {boolean} [restartIce]
  */
-Stream.prototype.negotiate = async function () {
+Stream.prototype.negotiate = async function (restartIce) {
     let c = this;
 
-    let offer = await c.pc.createOffer();
+    let options = null;
+    if(restartIce)
+        options = {iceRestart: true};
+    let offer = await c.pc.createOffer(options);
     if(!offer)
         throw(new Error("Didn't create offer"));
     await c.pc.setLocalDescription(offer);
@@ -865,6 +859,30 @@ Stream.prototype.negotiate = async function () {
         labels: c.labelsByMid,
         offer: offer,
     });
+}
+
+/**
+ * restartIce causes an ICE restart on an up stream.  It is called
+ * automatically when ICE signals that the connection has failed.  It
+ * returns immediately, negotiation will happen asynchronously.
+ */
+
+Stream.prototype.restartIce = function () {
+    let c = this;
+
+    /** @ts-ignore */
+    if(typeof c.pc.restartIce === 'function') {
+        try {
+            /** @ts-ignore */
+            c.pc.restartIce();
+            return;
+        } catch(e) {
+            console.warn(e);
+        }
+    }
+
+    // negotiate is async, but this returns immediately.
+    c.negotiate(true);
 }
 
 /**
