@@ -41,4 +41,5 @@ type downTrack interface {
 	WriteRTP(packat *rtp.Packet) error
 	Accumulate(bytes uint32)
 	setTimeOffset(ntp uint64, rtp uint32)
+	setCname(string)
 }

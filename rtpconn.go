@@ -79,6 +79,7 @@ type rtpDownTrack struct {
 	srNTPTime     uint64
 	remoteNTPTime uint64
 	remoteRTPTime uint32
+	cname         atomic.Value
 	rtt           uint64
 }
 
@@ -93,6 +94,10 @@ func (down *rtpDownTrack) Accumulate(bytes uint32) {
 func (down *rtpDownTrack) setTimeOffset(ntp uint64, rtp uint32) {
 	atomic.StoreUint64(&down.remoteNTPTime, ntp)
 	atomic.StoreUint32(&down.remoteRTPTime, rtp)
+}
+
+func (down *rtpDownTrack) setCname(cname string) {
+	down.cname.Store(cname)
 }
 
 type rtpDownConnection struct {
@@ -187,6 +192,7 @@ type rtpUpTrack struct {
 	writerDone chan struct{}
 
 	mu        sync.Mutex
+	cname     string
 	local     []downTrack
 	srTime    uint64
 	srNTPTime uint64
@@ -362,7 +368,7 @@ func getTrackMid(pc *webrtc.PeerConnection, track *webrtc.Track) string {
 
 // called locked
 func (up *rtpUpConnection) complete() bool {
-	for mid, _ := range up.labels {
+	for mid := range up.labels {
 		found := false
 		for _, t := range up.tracks {
 			m := getTrackMid(up.pc, t.track)
@@ -566,9 +572,13 @@ func writeLoop(conn *rtpUpConnection, track *rtpUpTrack, ch <-chan packetIndex) 
 				track.mu.Lock()
 				ntp := track.srNTPTime
 				rtp := track.srRTPTime
+				cname := track.cname
 				track.mu.Unlock()
 				if ntp != 0 {
 					action.track.setTimeOffset(ntp, rtp)
+				}
+				if cname != "" {
+					action.track.setCname(cname)
 				}
 			} else {
 				found := false
@@ -691,7 +701,7 @@ func sendFIR(pc *webrtc.PeerConnection, ssrc uint32, seqno uint8) error {
 	return pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.FullIntraRequest{
 			FIR: []rtcp.FIREntry{
-				rtcp.FIREntry{
+				{
 					SSRC:           ssrc,
 					SequenceNumber: seqno,
 				},
@@ -716,7 +726,7 @@ func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint1
 		&rtcp.TransportLayerNack{
 			MediaSSRC: ssrc,
 			Nacks: []rtcp.NackPair{
-				rtcp.NackPair{
+				{
 					first,
 					rtcp.PacketBitmap(bitmap),
 				},
@@ -763,6 +773,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 		now := rtptime.Jiffies()
 
 		for _, p := range ps {
+			local := track.getLocal()
 			switch p := p.(type) {
 			case *rtcp.SenderReport:
 				track.mu.Lock()
@@ -773,11 +784,26 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 				track.srNTPTime = p.NTPTime
 				track.srRTPTime = p.RTPTime
 				track.mu.Unlock()
-				local := track.getLocal()
 				for _, l := range local {
 					l.setTimeOffset(p.NTPTime, p.RTPTime)
 				}
 			case *rtcp.SourceDescription:
+				for _, c := range p.Chunks {
+					if c.Source != track.track.SSRC() {
+						continue
+					}
+					for _, i := range c.Items {
+						if i.Type != rtcp.SDESCNAME {
+							continue
+						}
+						track.mu.Lock()
+						track.cname = i.Text
+						track.mu.Unlock()
+						for _, l := range local {
+							l.setCname(i.Text)
+						}
+					}
+				}
 			}
 		}
 
@@ -910,30 +936,46 @@ func sendSR(conn *rtpDownConnection) error {
 
 		remoteNTP := atomic.LoadUint64(&t.remoteNTPTime)
 		remoteRTP := atomic.LoadUint32(&t.remoteRTPTime)
-		if remoteNTP == 0 {
-			// we never got a remote SR for this track
-			continue
-		}
-		srTime := rtptime.NTPToTime(remoteNTP)
-		d := now.Sub(srTime)
-		if d > 0 && d < time.Hour {
-			delay := rtptime.FromDuration(
-				d, clockrate,
-			)
-			nowRTP = remoteRTP + uint32(delay)
+		if remoteNTP != 0 {
+			srTime := rtptime.NTPToTime(remoteNTP)
+			d := now.Sub(srTime)
+			if d > 0 && d < time.Hour {
+				delay := rtptime.FromDuration(
+					d, clockrate,
+				)
+				nowRTP = remoteRTP + uint32(delay)
+			}
+
+			p, b := t.rate.Totals()
+			packets = append(packets,
+				&rtcp.SenderReport{
+					SSRC:        t.track.SSRC(),
+					NTPTime:     nowNTP,
+					RTPTime:     nowRTP,
+					PacketCount: p,
+					OctetCount:  b,
+				})
+			atomic.StoreUint64(&t.srTime, jiffies)
+			atomic.StoreUint64(&t.srNTPTime, nowNTP)
 		}
 
-		p, b := t.rate.Totals()
-		packets = append(packets,
-			&rtcp.SenderReport{
-				SSRC:        t.track.SSRC(),
-				NTPTime:     nowNTP,
-				RTPTime:     nowRTP,
-				PacketCount: p,
-				OctetCount:  b,
-			})
-		atomic.StoreUint64(&t.srTime, jiffies)
-		atomic.StoreUint64(&t.srNTPTime, nowNTP)
+		cname, ok := t.cname.Load().(string)
+		if ok {
+			item := rtcp.SourceDescriptionItem{
+				Type: rtcp.SDESCNAME,
+				Text: cname,
+			}
+			packets = append(packets,
+				&rtcp.SourceDescription{
+					Chunks: []rtcp.SourceDescriptionChunk{
+						{
+							Source: t.track.SSRC(),
+							Items:  []rtcp.SourceDescriptionItem{item},
+						},
+					},
+				},
+			)
+		}
 	}
 
 	if len(packets) == 0 {
