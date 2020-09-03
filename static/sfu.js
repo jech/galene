@@ -143,6 +143,7 @@ document.getElementById('presentbutton').onclick = function(e) {
 document.getElementById('unpresentbutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('local');
+    resizePeers();
 };
 
 function changePresentation() {
@@ -642,6 +643,9 @@ function resizePeers() {
         Object.keys(serverConnection.down).length;
     let peers = document.getElementById('peers');
     let columns = Math.ceil(Math.sqrt(count));
+    if (!count)
+        // No video, nothing to resize.
+        return;
     let rows = "";
     let size = 100 / columns;
     // Peers div has padding 10 on top and bottom, remove 20 on offsetHeight

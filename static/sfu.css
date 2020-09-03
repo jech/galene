@@ -795,6 +795,7 @@ header .colapse {
     font-size: 1.3rem;
     font-weight: 900;
     color: #dbd9d9;
+    line-height: 44px;
 }
 
 .header-sep {
