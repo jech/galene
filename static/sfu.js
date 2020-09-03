@@ -378,6 +378,7 @@ async function addLocalMedia(id) {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch(e) {
         console.error(e);
+        displayError(e);
         if(old)
             delUpMedia(old);
         return;
@@ -411,6 +412,7 @@ async function addShareMedia(setup) {
         stream = await navigator.mediaDevices.getDisplayMedia({});
     } catch(e) {
         console.error(e);
+        displayError(e);
         return;
     }
 
