@@ -47,7 +47,6 @@ function getUsername() {
 
 function showVideo() {
     let video_container = document.getElementById('video-container');
-    //video_container[0].style.display = "block";
     video_container.classList.remove('no-video');
 }
 
@@ -60,7 +59,6 @@ function hideVideo(force) {
       return;
     }
     let video_container = document.getElementById('video-container');
-    //video_container.style.display = "";
     video_container.classList.add('no-video');
 }
 
@@ -80,6 +78,8 @@ function setConnected(connected) {
         userbox.classList.remove('invisible');
         connectionbox.classList.add('invisible');
         displayUsername();
+        displayMessage("Press Present to enable your camera or microphone",
+                      "info");
     } else {
         resetUsers();
         let userpass = getUserPass();
@@ -109,7 +109,6 @@ function gotClose(code, reason) {
     delUpMediaKind(null);
     setConnected(false);
     if(code != 1000) {
-        //displayError('Socket close: Code ' + code, "error");
         console.warn('Socket close', code, reason);
     }
 }
@@ -173,7 +172,7 @@ function setButtonsVisibility() {
     setVisibility('presentbutton', permissions.present && !local);
     setVisibility('unpresentbutton', local);
     // allow multiple shared documents
-    setVisibility('sharebutton', permissions.present  && !share);
+    setVisibility('sharebutton', permissions.present);
     setVisibility('unsharebutton', share);
 
     setVisibility('mediaoptions', permissions.present);
@@ -190,7 +189,6 @@ function setLocalMute(mute) {
     localMute = mute;
     muteLocalTracks(localMute);
     let button = document.getElementById('mutebutton');
-    //button.textContent = localMute ? 'Unmute' : 'Mute';
     if(localMute)
         button.classList.add('muted');
     else
@@ -644,15 +642,20 @@ function resizePeers() {
         Object.keys(serverConnection.down).length;
     let peers = document.getElementById('peers');
     let columns = Math.ceil(Math.sqrt(count));
-    peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
-    if (false) {
-        if (peers.offsetWidth < peers.offsetHeight) {
-            // we change view orientation
-            peers.style['grid-template-rows'] = `repeat(${columns}, auto)`;
-        }
-    } else {
-        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    let rows = "";
+    let size = 100 / columns;
+    // Peers div has padding 10 on top and bottom, remove 20 on offsetHeight
+    let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
+    for(let i = 0; i < columns; i++){
+      rows += size + "% ";
     }
+    peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    peers.style['grid-template-rows'] = rows;
+
+    let media_list = document.getElementsByClassName("media");
+    [].forEach.call(media_list, function (element) {
+      element.style['max-height'] = max_video_height + "px";
+    });
 }
 
 /** @type{Object.<string,string>} */
@@ -965,19 +968,17 @@ document.getElementById('input').onkeypress = function(e) {
 
 function chatResizer(e) {
     e.preventDefault();
-    let chat = document.getElementById('chat');
+    let full_width = document.getElementById("mainrow").offsetWidth;
+    let left = document.getElementById("left");
+    let right = document.getElementById("right");
+
     let start_x = e.clientX;
-    let start_width = parseFloat(
-        document.defaultView.getComputedStyle(chat).width.replace('px', ''),
-    );
-    let inputbutton = document.getElementById('inputbutton');
+    let start_width = parseFloat(left.offsetWidth);
+
     function start_drag(e) {
-        let width = start_width + e.clientX - start_x;
-        if(width < 40)
-            inputbutton.style.display = 'none';
-        else
-            inputbutton.style.display = 'inline';
-        chat.style.width = width + 'px';
+        let left_width = (start_width + e.clientX - start_x) * 100 / full_width;
+        left.style.flex = left_width;
+        right.style.flex = 100 - left_width;
     }
     function stop_drag(e) {
         document.documentElement.removeEventListener(
@@ -999,26 +1000,32 @@ function chatResizer(e) {
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
 
-function displayError(message, level) {
-    var background = "linear-gradient(to right, #529518, #96c93d)";
-    if (level === undefined || level === "error") {
-      level = "error";
-      background = "linear-gradient(to right, #e20a0a, #df2d2d)";
+function displayError(message, level, position, gravity) {
+    var background = "linear-gradient(to right, #e20a0a, #df2d2d)";
+    if (level === "info") {
+      background = "linear-gradient(to right, #529518, #96c93d)";
+    }
+    if (level === "warning") {
+      background = "linear-gradient(to right, #edd800, #c9c200)";
     }
     Toastify({
       text: message,
-      duration: 5000,
+      duration: 4000,
       close: true,
-      position: 'center',
+      position: position ? position: 'center',
+      gravity: gravity ? gravity : 'top',
       backgroundColor: background,
       className: level,
     }).showToast();
 }
 
 function displayWarning(message) {
-    // don't overwrite real errors
-    if(!errorTimeout)
-        return displayError(message);
+    let level = "warning";
+    return displayError(message, level);
+}
+
+function displayMessage(message) {
+    return displayError(message, "info", "right", "bottom");
 }
 
 document.getElementById('userform').onsubmit = function(e) {
@@ -1135,7 +1142,6 @@ function start() {
 
     setLocalMute(localMute);
 
-    //document.getElementById('connectbutton').disabled = false;
 
     let userpass = getUserPass();
     if(userpass)

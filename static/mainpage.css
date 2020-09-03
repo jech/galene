@@ -5,46 +5,36 @@
     display: none;
 }
 
-
-.signature {
-    border-top: solid;
-    padding-top: 0em;
-    border-width: thin;
-    clear: both;
-    height: 50px;
-    text-align: center;
-}
-
 .navbar-brand {
-  margin-bottom: 80px;
+  margin-bottom: 5rem;
 }
 
 .home {
   height: calc(100vh - 50px);
-  padding: 30px;
+  padding: 1.875rem;
 }
 
 #public-groups-table tr a{
-    margin-left: 15px;
+    margin-left: 0.9375rem;
     font-weight: 700;
 }
 
 a {
-  text-decoration: none;
-  color: #0058e4;
+    text-decoration: none;
+    color: #0058e4;
 }
 
 a:hover {
-  color: #0a429c;
+    color: #0a429c;
 }
 
 label {
-  display: block;
+    display: block;
 }
 
-@media only screen and (max-device-width: 480px) {
- .home {
-  padding: 10px;
-}
-  
+@media only screen and (max-device-width: 768px) {
+    .home {
+        padding: 0.625rem;
+    }
+
 }
