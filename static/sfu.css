@@ -880,10 +880,6 @@ header .colapse {
         display: none;
     }
 
-    .label {
-        margin: 5px 5px 5px 30%;
-    }
-
     .video-container {
         height: calc(100vh - 64px);
         position: fixed;
@@ -891,6 +887,19 @@ header .colapse {
         right: 0;
         left: 0;
         margin-bottom: 60px;
+    }
+
+    .login-container {
+        height: calc(100vh - 64px);
+        position: fixed;
+        top: 64px;
+        right: 0;
+        left: 0;
+        background: #eff3f9;
+    }
+
+    .login-box {
+        left: calc(100vw / 2 - 10.5em);
     }
 
     .coln-left {
@@ -940,6 +949,10 @@ header .colapse {
     }
 
     #resizer {
+      display: none;
+    }
+
+    #sharebutton {
       display: none;
     }
 

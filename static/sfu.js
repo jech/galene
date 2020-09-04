@@ -60,6 +60,7 @@ function hideVideo(force) {
     }
     let video_container = document.getElementById('video-container');
     video_container.classList.add('no-video');
+    document.getElementById('switch-video').style.display = "";
 }
 
 /**
@@ -648,7 +649,7 @@ function resizePeers() {
         return;
     let rows = "";
     let size = 100 / columns;
-    // Peers div has padding 10 on top and bottom, remove 20 on offsetHeight
+    // Peers div has total padding of 30px, we remove 30 on offsetHeight
     let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
     for(let i = 0; i < columns; i++){
       rows += size + "% ";
