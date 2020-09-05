@@ -32,6 +32,9 @@ function getUsername() {
     return userpass.username;
 }
 
+/**
+  * @param{boolean} connected
+  */
 function setConnected(connected) {
     let statspan = document.getElementById('statspan');
     let userform = document.getElementById('userform');
@@ -48,6 +51,7 @@ function setConnected(connected) {
         disconnectbutton.classList.remove('invisible');
         displayUsername();
     } else {
+        resetUsers();
         let userpass = getUserPass();
         document.getElementById('username').value =
             userpass ? userpass.username : '';
