@@ -804,7 +804,7 @@ h1 {
     display: inline-block;
 }
 
-header .colapse {
+header .collapse {
     float: left;
     text-align: center;
     cursor: pointer;
