@@ -307,7 +307,7 @@ async function setMediaChoices() {
 }
 
 /**
- * @param {string} id
+ * @param {string} [id]
  */
 function newUpStream(id) {
     let c = serverConnection.newUpStream(id);
@@ -420,7 +420,7 @@ async function addShareMedia(setup) {
         return;
     }
 
-    let c = await serverConnection.newUpStream();
+    let c = newUpStream();
     c.kind = 'screenshare';
     c.stream = stream;
     stream.getTracks().forEach(t => {
