@@ -46,8 +46,11 @@ function getUsername() {
 }
 
 function showVideo() {
+    let width = window.innerWidth;
     let video_container = document.getElementById('video-container');
     video_container.classList.remove('no-video');
+    if (width <= 768)
+        document.getElementById('collapse-video').style.display = "block";
 }
 
 function hideVideo(force) {
@@ -60,7 +63,12 @@ function hideVideo(force) {
     }
     let video_container = document.getElementById('video-container');
     video_container.classList.add('no-video');
+}
+
+function closeVideoControls() {
+    // hide all video buttons used to switch video on mobile layout
     document.getElementById('switch-video').style.display = "";
+    document.getElementById('collapse-video').style.display = "";
 }
 
 /**
@@ -95,6 +103,8 @@ function setConnected(connected) {
         connectionbox.classList.remove('invisible');
         clearUsername();
         displayError("Disconnected!", "error");
+        hideVideo();
+        closeVideoControls();
     }
 }
 
@@ -135,6 +145,16 @@ function gotDownStream(c) {
         setMediaStatus(c);
     }
 }
+
+// Store current browser viewport height in css variable
+function setViewportHeight() {
+    document.documentElement.style.setProperty('--vh', `${window.innerHeight/100}px`);
+};
+setViewportHeight();
+
+// On resize and orientation change, we update viewport height
+addEventListener('resize', setViewportHeight);
+addEventListener('orientationchange', setViewportHeight);
 
 document.getElementById('presentbutton').onclick = function(e) {
     e.preventDefault();
@@ -647,20 +667,21 @@ function resizePeers() {
     if (!count)
         // No video, nothing to resize.
         return;
-    let rows = "";
     let size = 100 / columns;
+    let container = document.getElementById("video-container")
     // Peers div has total padding of 30px, we remove 30 on offsetHeight
     let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
-    for(let i = 0; i < columns; i++){
-      rows += size + "% ";
-    }
-    peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
-    peers.style['grid-template-rows'] = rows;
 
     let media_list = document.getElementsByClassName("media");
     [].forEach.call(media_list, function (element) {
-      element.style['max-height'] = max_video_height + "px";
+        element.style['max-height'] = max_video_height + "px";
     });
+
+    if (count <= 2 && container.offsetHeight > container.offsetWidth) {
+        peers.style['grid-template-columns'] = "repeat(1, 1fr)";
+    } else {
+        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    }
 }
 
 /** @type{Object.<string,string>} */
@@ -1079,6 +1100,34 @@ document.getElementById('user').onclick = function(e) {
     document.getElementById("userDropdown").classList.toggle("show");
 };
 
+
+document.getElementById('clodeside').onclick = function(e) {
+    e.preventDefault();
+    closeNav();
+};
+
+document.getElementById('collapse-video').onclick = function(e) {
+    e.preventDefault();
+    let width = window.innerWidth;
+    if (width <= 768) {
+      let user_box = document.getElementById('userDropdown');
+      if (user_box.classList.contains("show")) {
+        return;
+      }
+      // fixed div for small screen
+      this.style.display = "";
+      hideVideo(true);
+      document.getElementById('switch-video').style.display = "block";
+    }
+};
+
+document.getElementById('switch-video').onclick = function(e) {
+    e.preventDefault();
+    showVideo();
+    this.style.display = "";
+    document.getElementById('collapse-video').style.display = "block";
+};
+
 window.onclick = function(event) {
   let user_box = document.getElementById('userDropdown');
   if (user_box.classList.contains("show") && event.target.id != "user") {
@@ -1091,32 +1140,6 @@ window.onclick = function(event) {
           user_box.classList.toggle("show");
       }
   }
-};
-
-
-document.getElementById('clodeside').onclick = function(e) {
-    e.preventDefault();
-    closeNav();
-};
-
-document.getElementById('video-container').onclick = function(e) {
-    e.preventDefault();
-    let width = (window.innerWidth > 0) ? window.innerWidth : screen.width;
-    if (width <= 768) {
-      let user_box = document.getElementById('userDropdown');
-      if (user_box.classList.contains("show")) {
-        return;
-      }
-      // fixed div for small screen
-      hideVideo(true);
-      document.getElementById('switch-video').style.display = "block";
-    }
-};
-
-document.getElementById('switch-video').onclick = function(e) {
-    e.preventDefault();
-    showVideo();
-    this.style.display = "";
 };
 
 function serverConnect() {

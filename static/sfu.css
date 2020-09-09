@@ -187,12 +187,12 @@
 }
 
 .full-height {
-    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
 }
 
 .full-width {
     width: calc(100vw - 200px);
-    height: calc(100vh - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 64px);
 }
 
 .full-width-active {
@@ -322,13 +322,29 @@ textarea.form-reply {
 }
 
 .video-container {
-    height: calc(100vh - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 64px);
     position: relative;
-    background: rgba(0, 0, 0, 0.61);
+    background: rgba(0, 0, 0, 0.91);
     /* Display only when showing video */
     display: block;
     transition: all 1s ease-out;
     opacity: 1;
+}
+
+.collapse-video {
+  display: none;
+  /*on top of video peers*/
+  z-index: 1002;
+  position: fixed;
+  top: 70px;
+  right: 10px;
+}
+
+.collapse-video .open-chat {
+    color: #fff;
+    height: 60px;
+    fill: #fff;
+    padding: 10px;
 }
 
 .no-video {
@@ -342,14 +358,14 @@ textarea.form-reply {
 }
 
 .login-container {
-    height: calc(100vh - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 64px);
     position: relative;
     display: block;
 }
 
 .login-box {
     position: absolute;
-    top: 90px;
+    top: 15%;
     left: 25%;
     width: 21em;
     padding: 2em;
@@ -422,7 +438,7 @@ textarea.form-reply {
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
-    color: #cecece;
+    color: #ebebeb;
     line-height: 2em;
 }
 
@@ -578,7 +594,7 @@ h1 {
     grid-template-columns: repeat(1, 1fr);
     grid-template-rows: repeat(1, auto);
     row-gap: 0;
-    column-gap: 20px;
+    column-gap: 10px;
     position: absolute;
     top: 0;
     right: 0; 
@@ -594,13 +610,15 @@ h1 {
 
 .peer {
     margin-top: auto;
+    margin-bottom: auto;
     position: relative;
 }
 
 .media {
     width: 100%;
-    max-height: calc(100vh - 84px);
+    max-height: calc(var(--vh, 1vh) * 100 - 84px);
     padding-bottom: 20px;
+    object-fit: contain;
 }
 
 .media-failed {
@@ -622,10 +640,9 @@ h1 {
     z-index: 2999;
     top: 0;
     right: 0;
-    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
     overflow-x: hidden;
     overflow-y: hidden;
-    padding-top: 64px;
 }
 
 .sidenav a {
@@ -635,6 +652,7 @@ h1 {
     color: #dbd9d9;
     display: block;
     transition: 0.3s;
+    line-height: 1.4;
 }
 
 .sidenav a:hover {
@@ -645,8 +663,7 @@ h1 {
     cursor: pointer;
     position: absolute;
     top: 0;
-    right: 25px;
-    margin-left: 50px;
+    right: 5px;
 }
 
 .sidenav label{
@@ -654,9 +671,12 @@ h1 {
     margin-top: 15px;
 }
 
-.sidenav-header {
-    border-bottom: 1px solid #e6e6e6;
-    background: #eee;
+.sidenav-header h2{
+    color: #fff;
+    padding: 10px;
+    margin: 0;
+    max-width: 70%;
+    line-height: 44px;
 }
 
 .sidenav-content {
@@ -671,6 +691,7 @@ h1 {
 
 .nav-menu {
     margin: 0;
+    padding: 0;
 }
 
 .nav-menu li {
@@ -881,7 +902,6 @@ header .colapse {
     }
 
     .video-container {
-        height: calc(100vh - 64px);
         position: fixed;
         top: 64px;
         right: 0;
@@ -890,7 +910,6 @@ header .colapse {
     }
 
     .login-container {
-        height: calc(100vh - 64px);
         position: fixed;
         top: 64px;
         right: 0;
@@ -945,15 +964,23 @@ header .colapse {
     }
 
     #peers {
-      padding: 3px;
+        padding: 3px;
     }
 
     #resizer {
-      display: none;
+        display: none;
+    }
+
+    #chat {
+        border-right: none;
     }
 
     #sharebutton {
-      display: none;
+        display: none;
+    }
+
+    .dropdown-content {
+        margin-top: 14px;
     }
 
 }
