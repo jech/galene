@@ -702,6 +702,13 @@ function Stream(sc, id, pc) {
      */
     this.iceCandidates = [];
     /**
+     * Indicates whether it is legal to renegotiate at this point.  If
+     * this is false, a new connection must be negotiated.
+     *
+     * @type {boolean}
+     */
+    this.renegotiate = false;
+    /**
      * The statistics last computed by the stats handler.  This is
      * a dictionary indexed by track id, with each value a disctionary of
      * statistics.
@@ -854,11 +861,12 @@ Stream.prototype.negotiate = async function (restartIce) {
 
     c.sc.send({
         type: 'offer',
-        kind: 'renegotiate',
+        kind: this.renegotiate ? 'renegotiate' : '',
         id: c.id,
         labels: c.labelsByMid,
         offer: offer,
     });
+    this.renegotiate = true;
 }
 
 /**
