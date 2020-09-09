@@ -87,8 +87,6 @@ function setConnected(connected) {
         userbox.classList.remove('invisible');
         connectionbox.classList.add('invisible');
         displayUsername();
-        displayMessage("Press Present to enable your camera or microphone",
-                      "info");
     } else {
         resetUsers();
         let userpass = getUserPass();
@@ -770,6 +768,9 @@ function clearUsername() {
 function gotPermissions(perms) {
     displayUsername();
     setButtonsVisibility();
+    if(serverConnection.permissions.present)
+        displayMessage("Press Present to enable your camera or microphone",
+                       "info");
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#=?]+[-a-zA-Z0-9@:%/_\\+~#=]/g;
