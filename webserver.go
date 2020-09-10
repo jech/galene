@@ -21,12 +21,7 @@ import (
 
 func webserver() {
 	http.Handle("/", mungeHandler{http.FileServer(http.Dir(staticRoot))})
-	http.HandleFunc("/group/",
-		func(w http.ResponseWriter, r *http.Request) {
-			mungeHeader(w)
-			http.ServeFile(w, r,
-				filepath.Join(staticRoot, "sfu.html"))
-		})
+	http.HandleFunc("/group/", groupHandler)
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r,
@@ -72,6 +67,44 @@ type mungeHandler struct {
 func (h mungeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mungeHeader(w)
 	h.h.ServeHTTP(w, r)
+}
+
+func parseGroupName(path string) string {
+	if !strings.HasPrefix(path, "/group/") {
+		return ""
+	}
+
+	name := path[len("/group/"):]
+	if name == "" {
+		return ""
+	}
+
+	if name[len(name)-1] == '/' {
+		name = name[:len(name)-1]
+	}
+	return name
+}
+
+func groupHandler(w http.ResponseWriter, r *http.Request) {
+	mungeHeader(w)
+	name := parseGroupName(r.URL.Path)
+	if name == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	_, err := addGroup(name, nil)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.NotFound(w, r)
+		} else {
+			log.Println("addGroup: %v", err)
+			http.Error(w, "Internal server error",
+				http.StatusInternalServerError)
+		}
+		return
+	}
+	http.ServeFile(w, r, filepath.Join(staticRoot, "sfu.html"))
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {

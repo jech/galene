@@ -346,9 +346,6 @@ type groupDescription struct {
 func descriptionChanged(name string, old *groupDescription) (bool, error) {
 	fi, err := os.Stat(filepath.Join(groupsDir, name+".json"))
 	if err != nil {
-		if os.IsNotExist(err) {
-			err = userError("group does not exist")
-		}
 		return false, err
 	}
 	if fi.Size() != old.fileSize || fi.ModTime() != old.modTime {
@@ -360,9 +357,6 @@ func descriptionChanged(name string, old *groupDescription) (bool, error) {
 func getDescription(name string) (*groupDescription, error) {
 	r, err := os.Open(filepath.Join(groupsDir, name+".json"))
 	if err != nil {
-		if os.IsNotExist(err) {
-			err = userError("group does not exist")
-		}
 		return nil, err
 	}
 	defer r.Close()

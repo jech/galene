@@ -704,6 +704,9 @@ func startClient(conn *websocket.Conn) (err error) {
 
 	g, err := addClient(m.Group, c)
 	if err != nil {
+		if os.IsNotExist(err) {
+			err = userError("group does not exist")
+		}
 		return
 	}
 	c.group = g
