@@ -93,7 +93,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := addGroup(name, nil)
+	g, err := addGroup(name, nil)
 	if err != nil {
 		if os.IsNotExist(err) {
 			http.NotFound(w, r)
@@ -104,6 +104,13 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	if g.description.Redirect != "" {
+		http.Redirect(w, r, g.description.Redirect,
+			http.StatusPermanentRedirect)
+		return
+	}
+
 	http.ServeFile(w, r, filepath.Join(staticRoot, "sfu.html"))
 }
 

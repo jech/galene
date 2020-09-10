@@ -709,6 +709,12 @@ func startClient(conn *websocket.Conn) (err error) {
 		}
 		return
 	}
+	if g.description.Redirect != "" {
+		// We normally redirect at the HTTP level, but the group
+		// description could have been edited in the meantime.
+		err = userError("group is now at " + g.description.Redirect)
+		return
+	}
 	c.group = g
 	defer delClient(c)
 

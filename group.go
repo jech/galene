@@ -334,6 +334,7 @@ type groupDescription struct {
 	loadTime       time.Time           `json:"-"`
 	modTime        time.Time           `json:"-"`
 	fileSize       int64               `json:"-"`
+	Redirect       string              `json:"redirect,omitempty"`
 	Public         bool                `json:"public,omitempty"`
 	MaxClients     int                 `json:"max-clients,omitempty"`
 	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`

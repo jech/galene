@@ -75,7 +75,9 @@ fields, all of which are optional.
  - `allow-recording`: if true, then recording is allowed in this group;
  - `allow-anonymous`: if true, then users may connect with an empty
    username; this is not recommended, since anonymous users are not
-   allowed to participate in the chat.
+   allowed to participate in the chat;
+ - `redirect`: if set, then attempts to join the group will be redirected
+   to the given URL; most other fields are ignored in this case.
    
 A user definition is a dictionary with the following fields:
 
