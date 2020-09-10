@@ -413,7 +413,7 @@ async function addShareMedia(setup) {
 
     let stream = null;
     try {
-        stream = await navigator.mediaDevices.getDisplayMedia({});
+        stream = await navigator.mediaDevices.getDisplayMedia({video: true});
     } catch(e) {
         console.error(e);
         displayError(e);
