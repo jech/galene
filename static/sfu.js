@@ -11,18 +11,31 @@ let group;
 /** @type {ServerConnection} */
 let serverConnection;
 
+/* Some browsers disable session storage when cookies are disabled,
+   we fall back to a global variable. */
+let fallbackUserPass = null;
+
 function setUserPass(username, password) {
-    window.sessionStorage.setItem(
-        'userpass',
-        JSON.stringify({username: username, password: password}),
-    );
+    let userpass = {username: username, password: password};
+    try {
+        window.sessionStorage.setItem('userpass', JSON.stringify(userpass));
+        fallbackUserPass = null;
+    } catch(e) {
+        console.warn("Couldn't store password:", e);
+        fallbackUserPass = {username: username, password: password};
+    }
 }
 
 function getUserPass() {
-    let userpass = window.sessionStorage.getItem('userpass');
-    if(!userpass)
-        return null;
-    return JSON.parse(userpass);
+    let userpass;
+    try {
+        let json = window.sessionStorage.getItem('userpass');
+        userpass = JSON.parse(json);
+    } catch(e) {
+        console.warn("Couldn't retrieve password:", e);
+        userpass = fallbackUserPass;
+    }
+    return userpass || null;
 }
 
 function getUsername() {
