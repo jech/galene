@@ -60,13 +60,50 @@ func mungeHeader(w http.ResponseWriter) {
 		"connect-src ws: wss: 'self'; img-src data: 'self'; default-src 'self'")
 }
 
+// mungeResponseWriter redirects 404 replies to our custom 404 page.
+type mungeResponseWriter struct {
+	http.ResponseWriter
+	active bool
+}
+
+func (w *mungeResponseWriter) WriteHeader(status int) {
+	if status == http.StatusNotFound {
+		w.active = true
+		notFound(w.ResponseWriter)
+		return
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *mungeResponseWriter) Write(p []byte) (int, error) {
+	if w.active {
+		return len(p), nil
+	}
+	return w.ResponseWriter.Write(p)
+}
+
+func notFound(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+
+	f, err := os.Open(path.Join(staticRoot, "404.html"))
+	if err != nil {
+		fmt.Fprintln(w, "<p>Not found</p>")
+		return
+	}
+	defer f.Close()
+
+	io.Copy(w, f)
+}
+
+// mungeHandler adds our custom headers and redirects 404 replies
 type mungeHandler struct {
 	h http.Handler
 }
 
 func (h mungeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mungeHeader(w)
-	h.h.ServeHTTP(w, r)
+	h.h.ServeHTTP(&mungeResponseWriter{ResponseWriter: w}, r)
 }
 
 func parseGroupName(path string) string {
@@ -89,14 +126,14 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 	mungeHeader(w)
 	name := parseGroupName(r.URL.Path)
 	if name == "" {
-		http.NotFound(w, r)
+		notFound(w)
 		return
 	}
 
 	g, err := addGroup(name, nil)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.NotFound(w, r)
+			notFound(w)
 		} else {
 			log.Println("addGroup: %v", err)
 			http.Error(w, "Internal server error",
@@ -279,7 +316,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 	f, err := os.Open(filepath.Join(recordingsDir, pth))
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.NotFound(w, r)
+			notFound(w)
 		} else {
 			http.Error(w, "server error",
 				http.StatusInternalServerError)
