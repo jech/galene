@@ -70,6 +70,12 @@ function ServerConnection() {
      * @type {Object.<string,boolean>}
      */
     this.permissions = {};
+    /**
+     * clientdata is a convenient place to attach data to a ServerConnection.
+     * It is not used by the library.
+     * @type{Object.<string,any>}
+     */
+    this.userdata = {};
 
     /* Callbacks */
 
@@ -723,6 +729,12 @@ function Stream(sc, id, pc) {
      * @type {number}
      */
     this.statsHandler = null;
+    /**
+     * clientdata is a convenient place to attach data to a Stream.
+     * It is not used by the library.
+     * @type{Object.<string,any>}
+     */
+    this.userdata = {};
 
     /* Callbacks */
 
