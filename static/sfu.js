@@ -209,10 +209,16 @@ function setLocalMute(mute) {
     localMute = mute;
     muteLocalTracks(localMute);
     let button = document.getElementById('mutebutton');
-    if(localMute)
+    let icon = button.querySelector("span .fa");
+    if(localMute){
+        icon.classList.add('fa-microphone-slash');
+        icon.classList.remove('fa-microphone');
         button.classList.add('muted');
-    else
+    } else {
+        icon.classList.remove('fa-microphone-slash');
+        icon.classList.add('fa-microphone');
         button.classList.remove('muted');
+    }
 }
 
 document.getElementById('videoselect').onchange = function(e) {
@@ -699,6 +705,7 @@ function addUser(id, name) {
     let div = document.getElementById('users');
     let user = document.createElement('div');
     user.id = 'user-' + id;
+    user.classList.add("user-p");
     user.textContent = name ? name : '(anon)';
     div.appendChild(user);
 }

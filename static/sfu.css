@@ -38,14 +38,14 @@
 }
 
 .shadow {
-    box-shadow: 0 .15rem 1.75rem 0 rgba(31,45,65,.15)!important;
+    box-shadow: 0 .15rem 1.75rem 0 rgba(31,45,65,.15);
 }
 .bg-white {
-    background-color: #fff!important;
+    background-color: #fff;
 }
 
 .bg-gray {
-    background-color: #eee!important;
+    background-color: #eee;
 }
 
 
@@ -228,6 +228,7 @@
     margin: 0;
     z-index: 1000;
 }
+
 .reply textarea {
     width: 100%;
     resize: none;
@@ -452,7 +453,7 @@ h1 {
 
 #statdiv {
     white-space: nowrap;
-    margin-bottom: 2pt;
+    margin-bottom: 16px;
 }
 
 #errspan {
@@ -509,10 +510,6 @@ h1 {
     text-align-last: center;
 }
 
-#mutebutton {
-    margin-right: 0.4em;
-}
-
 #sharebutton, #unsharebutton {
     white-space: nowrap;
 }
@@ -537,13 +534,14 @@ h1 {
 }
 
 #chat {
-    padding: 0 !important;
-    margin: 0 !important;
+    padding: 0;
+    margin: 0;
     background-color: #f9f9f9;
     background-size: cover;
     overflow-y: scroll;
     border: none;
     border-right: 4px solid #e6e6e6;
+    /* force to fill height */
     height: 100% !important;
     min-width: 300px;
 }
@@ -622,7 +620,8 @@ h1 {
 }
 
 .media-failed {
-    opacity: 0.7;
+    opacity: 0.5;
+    filter:blur(5px);
 }
 
 #inputform {
@@ -637,6 +636,7 @@ h1 {
     -webkit-transition: all .2s ease-out;
     transition: all .2s ease-out;
     width: 0px;
+    /* on top of everything */
     z-index: 2999;
     top: 0;
     right: 0;
@@ -652,7 +652,7 @@ h1 {
     color: #dbd9d9;
     display: block;
     transition: 0.3s;
-    line-height: 1.4;
+    line-height: 1.2;
 }
 
 .sidenav a:hover {
@@ -844,7 +844,7 @@ header .collapse {
 #users {
     padding: 0;
     margin: 0;
-    height: 100%;
+    height: calc(100% - 84px);
     width: 100%;
     z-index: 1;
     position: relative;
@@ -854,7 +854,7 @@ header .collapse {
     border: 1px solid #f7f7f7;
 }
 
-#users > div {
+#users .user-p {
     position: relative;
     padding: 10px !important;
     border-bottom: 1px solid #f0f0f0;
@@ -862,6 +862,8 @@ header .collapse {
     line-height: 18px;
     margin: 0 !important;
     cursor: pointer;
+    overflow: hidden;
+    white-space: pre;
 }
 
 #left-sidebar.active #users > div {
@@ -901,9 +903,22 @@ header .collapse {
         display: none;
     }
 
+    .topnav {
+        height: 3.5rem;
+    }
+
+    .users-header {
+        height: 3.5rem;
+    }
+
+    .full-width {
+        height: calc(var(--vh, 1vh) * 100 - 56px);
+    }
+
     .video-container {
         position: fixed;
-        top: 64px;
+        height: calc(var(--vh, 1vh) * 100 - 56px);
+        top: 56px;
         right: 0;
         left: 0;
         margin-bottom: 60px;
@@ -911,7 +926,8 @@ header .collapse {
 
     .login-container {
         position: fixed;
-        top: 64px;
+        height: calc(var(--vh, 1vh) * 100 - 56px);
+        top: 56px;
         right: 0;
         left: 0;
         background: #eff3f9;
@@ -963,6 +979,10 @@ header .collapse {
         display: block;
     }
 
+    .sidenav-header h2 {
+        line-height: 36px;
+    }
+
     #peers {
         padding: 3px;
     }
@@ -980,7 +1000,8 @@ header .collapse {
     }
 
     .dropdown-content {
-        margin-top: 14px;
+        margin-top: 10px;
     }
 
 }
+
