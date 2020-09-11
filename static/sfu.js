@@ -142,6 +142,9 @@ function gotDownStream(c) {
     c.onstatus = function(status) {
         setMediaStatus(c);
     }
+    c.onstats = gotDownStats;
+    if(document.getElementById('activitybox').value)
+        c.setStatsInterval(activityDetectionInterval);
 }
 
 // Store current browser viewport height in css variable
@@ -278,7 +281,23 @@ document.getElementById('requestselect').onchange = function(e) {
     serverConnection.request(this.value);
 };
 
-function displayStats(stats) {
+const activityDetectionInterval = 100;
+const activityDetectionPeriod = 700;
+const activityDetectionThreshold = 0.2;
+
+document.getElementById('activitybox').onchange = function(e) {
+    for(let id in serverConnection.down) {
+        let c = serverConnection.down[id];
+        if(this.value)
+            c.setStatsInterval(activityDetectionInterval);
+        else {
+            setActive(c, false);
+            c.setStatsInterval(0);
+        }
+    }
+}
+
+function gotUpStats(stats) {
     let c = this;
 
     let text = '';
@@ -286,14 +305,55 @@ function displayStats(stats) {
     c.pc.getSenders().forEach(s => {
         let tid = s.track && s.track.id;
         let stats = tid && c.stats[tid];
-        if(stats && stats.rate > 0) {
+        let rate = stats && stats['outbound-rtp'] && stats['outbound-rtp'].rate;
+        if(typeof rate === 'number') {
             if(text)
                 text = text + ' + ';
-            text = text + Math.round(stats.rate / 1000) + 'kbps';
+            text = text + Math.round(rate / 1000) + 'kbps';
         }
     });
 
     setLabel(c, text);
+}
+
+/**
+ * @param {Stream} c
+ * @param {boolean} value
+ */
+function setActive(c, value) {
+    let peer = document.getElementById('peer-' + c.id);
+    if(value)
+        peer.classList.add('peer-active');
+    else
+        peer.classList.remove('peer-active');
+}
+
+function gotDownStats(stats) {
+    if(!document.getElementById('activitybox').value)
+        return;
+
+    let c = this;
+
+    let maxEnergy = 0;
+
+    c.pc.getReceivers().forEach(r => {
+        let tid = r.track && r.track.id;
+        let s = tid && stats[tid];
+        let energy = s && s['track'] && s['track'].audioEnergy;
+        if(typeof energy === 'number')
+            maxEnergy = Math.max(maxEnergy, energy);
+    });
+
+    // totalAudioEnergy is defined as the integral of the square of the
+    // volume, so square the threshold.
+    if(maxEnergy > activityDetectionThreshold * activityDetectionThreshold) {
+        c.userdata.lastVoiceActivity = Date.now();
+        setActive(c, true);
+    } else {
+        let last = c.userdata.lastVoiceActivity;
+        if(!last || Date.now() - last > activityDetectionPeriod)
+            setActive(c, false);
+    }
 }
 
 function mapMediaOption(value) {
@@ -457,7 +517,7 @@ async function addLocalMedia(id) {
         let sender = c.pc.addTrack(t, stream);
     });
 
-    c.onstats = displayStats;
+    c.onstats = gotUpStats;
     c.setStatsInterval(2000);
     await setMedia(c, true);
     setButtonsVisibility();
@@ -486,7 +546,7 @@ async function addShareMedia(setup) {
         };
         c.labels[t.id] = 'screenshare';
     });
-    c.onstats = displayStats;
+    c.onstats = gotUpStats;
     c.setStatsInterval(2000);
     await setMedia(c, true);
     setButtonsVisibility()

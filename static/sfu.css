@@ -610,6 +610,11 @@ h1 {
     margin-top: auto;
     margin-bottom: auto;
     position: relative;
+    border: 2px solid rgba(0,0,0,0);
+}
+
+.peer-active {
+    border: 2px solid #610a86;
 }
 
 .media {
@@ -666,6 +671,11 @@ h1 {
 }
 
 .sidenav label{
+    display: block;
+    margin-top: 15px;
+}
+
+.sidenav form{
     display: block;
     margin-top: 15px;
 }

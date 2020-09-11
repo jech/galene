@@ -919,29 +919,59 @@ Stream.prototype.updateStats = async function() {
     let transceivers = c.pc.getTransceivers();
     for(let i = 0; i < transceivers.length; i++) {
         let t = transceivers[i];
-        let tid = t.sender.track && t.sender.track.id;
-        if(!tid)
-            continue;
+        let stid = t.sender.track && t.sender.track.id;
+        let rtid = t.receiver.track && t.receiver.track.id;
 
-        let report;
-        try {
-            report = await t.sender.getStats();
-        } catch(e) {
-            continue;
+        let report = null;
+        if(stid) {
+            try {
+                report = await t.sender.getStats();
+            } catch(e) {
+            }
         }
 
-        stats[tid] = {};
+        if(report) {
+            for(let r of report.values()) {
+                if(stid && r.type === 'outbound-rtp') {
+                    if(!('bytesSent' in r))
+                        continue;
+                    if(!stats[stid])
+                        stats[stid] = {};
+                    stats[stid][r.type] = {};
+                    stats[stid][r.type].timestamp = r.timestamp;
+                    stats[stid][r.type].bytesSent = r.bytesSent;
+                    if(old[stid] && old[stid][r.type])
+                        stats[stid][r.type].rate =
+                        ((r.bytesSent - old[stid][r.type].bytesSent) * 1000 /
+                         (r.timestamp - old[stid][r.type].timestamp)) * 8;
+                }
+            }
+        }
 
-        for(let r of report.values()) {
-            if(r.type !== 'outbound-rtp')
-                continue;
+        report = null;
+        if(rtid) {
+            try {
+                report = await t.receiver.getStats();
+            } catch(e) {
+                console.error(e);
+            }
+        }
 
-            stats[tid].timestamp = r.timestamp;
-            stats[tid].bytesSent = r.bytesSent;
-            if(old[tid] && old[tid].timestamp) {
-                stats[tid].rate =
-                    ((r.bytesSent - old[tid].bytesSent) * 1000 /
-                     (r.timestamp - old[tid].timestamp)) * 8;
+        if(report) {
+            for(let r of report.values()) {
+                if(rtid && r.type === 'track') {
+                    if(!('totalAudioEnergy' in r))
+                        continue;
+                    if(!stats[rtid])
+                        stats[rtid] = {};
+                    stats[rtid][r.type] = {};
+                    stats[rtid][r.type].timestamp = r.timestamp;
+                    stats[rtid][r.type].totalAudioEnergy = r.totalAudioEnergy;
+                    if(old[rtid] && old[rtid][r.type])
+                        stats[rtid][r.type].audioEnergy =
+                        (r.totalAudioEnergy - old[rtid][r.type].totalAudioEnergy) * 1000 /
+                        (r.timestamp - old[rtid][r.type].timestamp);
+                }
             }
         }
     }
