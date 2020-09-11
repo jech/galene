@@ -776,8 +776,7 @@ function gotPermissions(perms) {
     displayUsername();
     setButtonsVisibility();
     if(serverConnection.permissions.present)
-        displayMessage("Press Present to enable your camera or microphone",
-                       "info");
+        displayMessage("Press Present to enable your camera or microphone");
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#=?]+[-a-zA-Z0-9@:%/_\\+~#=]/g;
@@ -1007,7 +1006,7 @@ function chatResizer(e) {
     let right = document.getElementById("right");
 
     let start_x = e.clientX;
-    let start_width = parseFloat(left.offsetWidth);
+    let start_width = left.offsetWidth;
 
     function start_drag(e) {
         let left_width = (start_width + e.clientX - start_x) * 100 / full_width;
