@@ -2,28 +2,37 @@
 <html lang="en">
   <head>
     <title>SFU</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/common.css">
     <link rel="stylesheet" href="/mainpage.css">
+    <link rel="stylesheet" type="text/css" href="/sfu.css"/>
     <link rel="author" href="https://www.irif.fr/~jch/"/>
+    <!-- Font Awesome File -->
+    <link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css">
   </head>
 
   <body>
-    <h1>SFU</h1>
+  
+    <div class="home">
+      <h1 id="title" class="navbar-brand">SFU</h1>
 
-    <form id="groupform">
-      <label for="group">Group:</label>
-      <input id="group" type="text" name="group"/>
-      <input type="submit" value="Join"/><br/>
-    </form>
-
-    <div id="public-groups" class="groups">
-      <h2>Public groups</h2>
-
-      <table id="public-groups-table"></table>
+      <form id="groupform">
+        <label for="group">Group:</label>
+        <input id="group" type="text" name="group" class="form-control form-control-inline"/>
+        <input type="submit" value="Join" class="btn btn-default btn-large"/><br/>
+      </form>
+  
+      <div id="public-groups" class="groups">
+        <h2>Public groups</h2>
+  
+        <table id="public-groups-table"></table>
+      </div>
     </div>
-
-    <footer class="signature"><p><a href="https://www.irif.fr/~jch/software/sfu/">Unnamed SFU</a> by <a href="https://www.irif.fr/~jch/" rel="author">Juliusz Chroboczek</a></footer>
-
+    <footer class="signature">
+      <p><a href="https://www.irif.fr/~jch/software/sfu/">Unnamed SFU</a> by <a href="https://www.irif.fr/~jch/" rel="author">Juliusz Chroboczek</a>
+    </footer>
+    
     <script src="/mainpage.js" defer></script>
     
   </body>

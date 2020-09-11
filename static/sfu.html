@@ -2,56 +2,164 @@
 <html lang="en">
   <head>
     <title>SFU</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
     <link rel="stylesheet" type="text/css" href="/common.css"/>
     <link rel="stylesheet" type="text/css" href="/sfu.css"/>
     <link rel="author" href="https://www.irif.fr/~jch/"/>
+    <!-- Font Awesome File -->
+    <link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/toastify.min.css">
   </head>
 
   <body>
-    <h1 id="title">SFU</h1>
+    <div id="main" class="app">
+      <div class="row full-height">
+        <nav id="left-sidebar">
+          <div class="users-header">
+            <div class="sfu-header">SFU</div>
+          </div>
+          <div class="header-sep"></div>
+          <div id="users"></div>
+        </nav>
+        <div class="container">
+          <header>
+            <nav class="topnav navbar navbar-expand navbar-light fixed-top">
+              <div id="header">
+                <div class="collapse" title="Collapse left panel" id="sidebarCollapse">
+                  <svg class="svg-inline--fa" aria-hidden="true" data-icon="align-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+                    <path fill="currentColor" d="M288 44v40c0 8.837-7.163 16-16 16H16c-8.837 0-16-7.163-16-16V44c0-8.837 7.163-16 16-16h256c8.837 0 16 7.163 16 16zM0 172v40c0 8.837 7.163 16 16 16h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16zm16 312h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm256-200H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16h256c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16z"></path>
+                  </svg>
+                </div>
+                <h1 id="title" class="header-title"></h1>
+              </div>
 
-    <div id="header">
-      <div id="statdiv">
-        <span id="statspan"></span>
-        <span id="userspan"></span>
-        <form id="userform" class="userform">
-          <label for="username">Username:</label>
-          <input id="username" type="text" name="username"
-                 autocomplete="username"/>
-          <label for="password">Password:</label>
-          <input id="password" type="password" name="password"
-                 autocomplete="current-password"/>
-          <input id="connectbutton" type="submit" value="Connect" disabled/>
-        </form>
-        <input id="disconnectbutton" class="invisible"
-               type="submit" value="Disconnect"/>
-        <span id="errspan"></span>
+              <ul class="nav-menu">
+                <li>
+                  <button id="presentbutton" class="invisible btn btn-success">
+                    <i class="fa fa-video-camera" aria-hidden="true"></i><span class="nav-text"> Present</span>
+                  </button>
+                </li>
+                <li>
+                  <button id="unpresentbutton" class="invisible btn btn-cancel">
+                    <i class="fa fa-stop" aria-hidden="true"></i><span class="nav-text"> Stop presenting</span>
+                  </button>
+                </li>
+                <li>
+                  <div id="mutebutton" class="nav-link nav-button">
+                    <span><i class="fa fa-microphone-slash" aria-hidden="true"></i></span>
+                    <label>Mute</label>
+                  </div>
+                </li>
+                <li>
+                  <div id="sharebutton" class="invisible nav-link nav-button">
+                    <span><i class="fa fa-share-square-o" aria-hidden="true"></i></span>
+                    <label>Share Screen</label>
+                  </div>
+                </li>
+                <li>
+                  <div id="unsharebutton" class="invisible nav-link nav-button nav-cancel">
+                    <span><i class="fa fa-window-close-o" aria-hidden="true"></i></span>
+                    <label>Unshare Screen</label>
+                  </div>
+                </li>
+                <li>
+                  <div class="nav-button nav-link invisible" id="user">
+                    <span><i class="fa fa-user dropbtn" aria-hidden="true"></i></span>
+                    <label>User</label>
+                  </div>
+                  <div id="userDropdown" class="dropdown-content">
+                    <div id="statdiv">
+                      <span id="statspan"></span>
+                      <span id="userspan"></span>
+                      <div class="clear"></div>
+                      <input id="disconnectbutton" class="btn btn-warn"
+                             type="submit" value="Disconnect"/>
+                      <span id="errspan"></span>
+                    </div>
+                </div>
+                </li>
+                <li>
+                  <div class="nav-button nav-link" id="openside">
+                    <span><i class="fa fa-cog" aria-hidden="true"></i></span>
+                    <label>Settings</label>
+                  </div>
+                </li>
+              </ul>
+            </nav>
+          </header>
+          <div class="row full-width" id="mainrow">
+            <div class="coln-left" id="left">
+              <div id="chat">
+                <div id="chatbox">
+                  <div id="box"></div>
+                  <div class="reply">
+                    <form id="inputform">
+                      <textarea id="input" class="form-reply"></textarea>
+                      <input id="inputbutton" type="submit" value="&#10148;" class="btn btn-default"/>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="resizer"></div>
+            <div class="coln-right" id="right">
+              <span class="show-video blink" id="switch-video"><i class="fa fa-exchange" aria-hidden="true"></i></span>
+              <div class="collapse-video" id="collapse-video">
+                  <svg viewBox="-21 -47 682.66669 682" xmlns="http://www.w3.org/2000/svg" class="open-chat">
+                    <path d="m552.011719-1.332031h-464.023438c-48.515625 0-87.988281 39.464843-87.988281 87.988281v283.972656c0 48.414063 39.300781 87.816406 87.675781 87.988282v128.863281l185.191407-128.863281h279.144531c48.515625 0 87.988281-39.472657 87.988281-87.988282v-283.972656c0-48.523438-39.472656-87.988281-87.988281-87.988281zm50.488281 371.960937c0 27.835938-22.648438 50.488282-50.488281 50.488282h-290.910157l-135.925781 94.585937v-94.585937h-37.1875c-27.839843 0-50.488281-22.652344-50.488281-50.488282v-283.972656c0-27.84375 22.648438-50.488281 50.488281-50.488281h464.023438c27.839843 0 50.488281 22.644531 50.488281 50.488281zm0 0"/>
+                    <path d="m171.292969 131.171875h297.414062v37.5h-297.414062zm0 0"/>
+                    <path d="m171.292969 211.171875h297.414062v37.5h-297.414062zm0 0"/>
+                    <path d="m171.292969 291.171875h297.414062v37.5h-297.414062zm0 0"/>
+                  </svg>
+                </div>
+              <div class="video-container no-video" id="video-container">
+                <div id="peers"></div>
+              </div>
+              <div class="login-container invisible" id="login-container">
+                <div class="login-box">
+                  <form id="userform" class="userform">
+                    <label for="username">Username:</label>
+                    <input id="username" type="text" name="username"
+                           autocomplete="username" class="form-control"/>
+                    <label for="password">Password:</label>
+                    <input id="password" type="password" name="password"
+                           autocomplete="current-password" class="form-control"/>
+                    <div class="clear"></div>
+                    <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect"/>
+                  </form>
+                  <div class="clear"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <div id="optionsdiv">
-        <button id="presentbutton" class="invisible">Present</button>
-        <button id="unpresentbutton" class="invisible">Stop presenting</button>
-
-        <span id="mediaoptions">
+    <div id="sidebarnav" class="sidenav">
+      <div class="sidenav-header">
+        <h2>Settings</h2>
+        <a class="closebtn" id="clodeside"><i class="fa fa-times" aria-hidden="true"></i></a>
+      </div>
+      <div class="sidenav-content" id="optionsdiv">
+        <div id="mediaoptions">
           <label for="videoselect">Camera:</label>
-          <select id="videoselect">
+          <select id="videoselect" class="select select-inline">
             <option>default</option>
             <option>off</option>
           </select>
 
           <label for="audioselect">Microphone:</label>
-          <select id="audioselect">
+          <select id="audioselect" class="select select-inline">
             <option>default</option>
             <option>off</option>
           </select>
-          <button id="mutebutton">Mute</button>
-        </span>
 
-        <button id="sharebutton" class="invisible">Share screen</button>
-        <button id="unsharebutton" class="invisible">Stop sharing</button>
+        </div>
 
         <label for="sendselect">Send:</label>
-        <select id="sendselect">
+        <select id="sendselect" class="select select-inline">
           <option value="lowest">lowest</option>
           <option value="low">low</option>
           <option value="normal" selected>normal</option>
@@ -59,7 +167,7 @@
         </select>
 
         <label for="requestselect">Receive:</label>
-        <select id="requestselect">
+        <select id="requestselect" class="select select-inline">
           <option value="audio">audio only</option>
           <option value="screenshare">screen share</option>
           <option value="everything" selected>everything</option>
@@ -67,24 +175,8 @@
       </div>
     </div>
 
-    <div id="main">
-      <div id="users"></div>
-      <div id="chat">
-        <div id="chatbox">
-          <div id="box"></div>
-          <form id="inputform">
-            <textarea id="input"></textarea>
-            <input id="inputbutton" type="submit" value="&#10148;"/>
-          </form>
-        </div>
-        <div id="resizer">
-        </div>
-      </div>
-
-      <div id="peers"></div>
-    </div>
-
     <script src="/protocol.js" defer></script>
     <script src="/sfu.js" defer></script>
+    <script src="/scripts/toastify.js" defer></script>
   </body>
 </html>

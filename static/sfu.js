@@ -45,23 +45,47 @@ function getUsername() {
     return userpass.username;
 }
 
+function showVideo() {
+    let width = window.innerWidth;
+    let video_container = document.getElementById('video-container');
+    video_container.classList.remove('no-video');
+    if (width <= 768)
+        document.getElementById('collapse-video').style.display = "block";
+}
+
+function hideVideo(force) {
+    let mediadiv = document.getElementById('peers');
+    if (force === undefined) {
+      force = false;
+    }
+    if (mediadiv.childElementCount > 0 && !force) {
+      return;
+    }
+    let video_container = document.getElementById('video-container');
+    video_container.classList.add('no-video');
+}
+
+function closeVideoControls() {
+    // hide all video buttons used to switch video on mobile layout
+    document.getElementById('switch-video').style.display = "";
+    document.getElementById('collapse-video').style.display = "";
+}
+
 /**
   * @param{boolean} connected
   */
 function setConnected(connected) {
     let statspan = document.getElementById('statspan');
-    let userform = document.getElementById('userform');
-    let disconnectbutton = document.getElementById('disconnectbutton');
+    let userbox = document.getElementById('user');
+    let connectionbox = document.getElementById('login-container');
     if(connected) {
-        clearError();
         resetUsers();
         clearChat();
         statspan.textContent = 'Connected';
         statspan.classList.remove('disconnected');
         statspan.classList.add('connected');
-        userform.classList.add('invisible');
-        userform.classList.remove('userform');
-        disconnectbutton.classList.remove('invisible');
+        userbox.classList.remove('invisible');
+        connectionbox.classList.add('invisible');
         displayUsername();
     } else {
         resetUsers();
@@ -73,10 +97,12 @@ function setConnected(connected) {
         statspan.textContent = 'Disconnected';
         statspan.classList.remove('connected');
         statspan.classList.add('disconnected');
-        userform.classList.add('userform');
-        userform.classList.remove('invisible');
-        disconnectbutton.classList.add('invisible');
+        userbox.classList.add('invisible');
+        connectionbox.classList.remove('invisible');
         clearUsername();
+        displayError("Disconnected!", "error");
+        hideVideo();
+        closeVideoControls();
     }
 }
 
@@ -91,8 +117,9 @@ function gotConnected() {
 function gotClose(code, reason) {
     delUpMediaKind(null);
     setConnected(false);
-    if(code != 1000)
+    if(code != 1000) {
         console.warn('Socket close', code, reason);
+    }
 }
 
 /**
@@ -117,6 +144,16 @@ function gotDownStream(c) {
     }
 }
 
+// Store current browser viewport height in css variable
+function setViewportHeight() {
+    document.documentElement.style.setProperty('--vh', `${window.innerHeight/100}px`);
+};
+setViewportHeight();
+
+// On resize and orientation change, we update viewport height
+addEventListener('resize', setViewportHeight);
+addEventListener('orientationchange', setViewportHeight);
+
 document.getElementById('presentbutton').onclick = function(e) {
     e.preventDefault();
     addLocalMedia();
@@ -125,6 +162,7 @@ document.getElementById('presentbutton').onclick = function(e) {
 document.getElementById('unpresentbutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('local');
+    resizePeers();
 };
 
 function changePresentation() {
@@ -171,11 +209,16 @@ function setLocalMute(mute) {
     localMute = mute;
     muteLocalTracks(localMute);
     let button = document.getElementById('mutebutton');
-    button.textContent = localMute ? 'Unmute' : 'Mute';
-    if(localMute)
+    let icon = button.querySelector("span .fa");
+    if(localMute){
+        icon.classList.add('fa-microphone-slash');
+        icon.classList.remove('fa-microphone');
         button.classList.add('muted');
-    else
+    } else {
+        icon.classList.remove('fa-microphone-slash');
+        icon.classList.add('fa-microphone');
         button.classList.remove('muted');
+    }
 }
 
 document.getElementById('videoselect').onchange = function(e) {
@@ -417,7 +460,7 @@ async function addLocalMedia(id) {
     c.onstats = displayStats;
     c.setStatsInterval(2000);
     await setMedia(c, true);
-    setButtonsVisibility()
+    setButtonsVisibility();
 }
 
 async function addShareMedia(setup) {
@@ -493,7 +536,8 @@ function delUpMediaKind(kind) {
         delete(serverConnection.up[id]);
     }
 
-    setButtonsVisibility()
+    setButtonsVisibility();
+    hideVideo();
 }
 
 function findUpMedia(kind) {
@@ -560,6 +604,7 @@ function setMedia(c, isUp) {
     setLabel(c);
     setMediaStatus(c);
 
+    showVideo();
     resizePeers();
 }
 
@@ -574,6 +619,7 @@ function delMedia(id) {
     mediadiv.removeChild(peer);
 
     resizePeers();
+    hideVideo();
 }
 
 /**
@@ -620,9 +666,26 @@ function resizePeers() {
     let count =
         Object.keys(serverConnection.up).length +
         Object.keys(serverConnection.down).length;
+    let peers = document.getElementById('peers');
     let columns = Math.ceil(Math.sqrt(count));
-    document.getElementById('peers').style['grid-template-columns'] =
-        `repeat(${columns}, 1fr)`;
+    if (!count)
+        // No video, nothing to resize.
+        return;
+    let size = 100 / columns;
+    let container = document.getElementById("video-container")
+    // Peers div has total padding of 30px, we remove 30 on offsetHeight
+    let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
+
+    let media_list = document.getElementsByClassName("media");
+    [].forEach.call(media_list, function (element) {
+        element.style['max-height'] = max_video_height + "px";
+    });
+
+    if (count <= 2 && container.offsetHeight > container.offsetWidth) {
+        peers.style['grid-template-columns'] = "repeat(1, 1fr)";
+    } else {
+        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    }
 }
 
 /** @type{Object.<string,string>} */
@@ -642,6 +705,7 @@ function addUser(id, name) {
     let div = document.getElementById('users');
     let user = document.createElement('div');
     user.id = 'user-' + id;
+    user.classList.add("user-p");
     user.textContent = name ? name : '(anon)';
     div.appendChild(user);
 }
@@ -711,6 +775,9 @@ function clearUsername() {
 function gotPermissions(perms) {
     displayUsername();
     setButtonsVisibility();
+    if(serverConnection.permissions.present)
+        displayMessage("Press Present to enable your camera or microphone",
+                       "info");
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#=?]+[-a-zA-Z0-9@:%/_\\+~#=]/g;
@@ -759,8 +826,15 @@ function formatLines(lines) {
 let lastMessage = {};
 
 function addToChatbox(peerId, nick, kind, message){
+    let userpass = getUserPass();
+    let row = document.createElement('div');
+    row.classList.add('message-row');
     let container = document.createElement('div');
     container.classList.add('message');
+    row.appendChild(container);
+    if (userpass.username === nick) {
+      container.classList.add('message-sender');
+    }
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
         if (lastMessage.nick !== nick || lastMessage.peerId !== peerId) {
@@ -794,7 +868,7 @@ function addToChatbox(peerId, nick, kind, message){
     }
 
     let box = document.getElementById('box');
-    box.appendChild(container);
+    box.appendChild(row);
     if(box.scrollHeight > box.clientHeight) {
         box.scrollTop = box.scrollHeight - box.clientHeight;
     }
@@ -928,19 +1002,17 @@ document.getElementById('input').onkeypress = function(e) {
 
 function chatResizer(e) {
     e.preventDefault();
-    let chat = document.getElementById('chat');
+    let full_width = document.getElementById("mainrow").offsetWidth;
+    let left = document.getElementById("left");
+    let right = document.getElementById("right");
+
     let start_x = e.clientX;
-    let start_width = parseFloat(
-        document.defaultView.getComputedStyle(chat).width.replace('px', ''),
-    );
-    let inputbutton = document.getElementById('inputbutton');
+    let start_width = parseFloat(left.offsetWidth);
+
     function start_drag(e) {
-        let width = start_width + e.clientX - start_x;
-        if(width < 40)
-            inputbutton.style.display = 'none';
-        else
-            inputbutton.style.display = 'inline';
-        chat.style.width = width + 'px';
+        let left_width = (start_width + e.clientX - start_x) * 100 / full_width;
+        left.style.flex = left_width;
+        right.style.flex = 100 - left_width;
     }
     function stop_drag(e) {
         document.documentElement.removeEventListener(
@@ -961,39 +1033,33 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
-/** @type {number} */
-let errorTimeout = null;
 
-function setErrorTimeout(ms) {
-    if(errorTimeout) {
-        clearTimeout(errorTimeout);
-        errorTimeout = null;
+function displayError(message, level, position, gravity) {
+    var background = "linear-gradient(to right, #e20a0a, #df2d2d)";
+    if (level === "info") {
+      background = "linear-gradient(to right, #529518, #96c93d)";
     }
-    if(ms) {
-        errorTimeout = setTimeout(clearError, ms);
+    if (level === "warning") {
+      background = "linear-gradient(to right, #edd800, #c9c200)";
     }
-}
-
-function displayError(message) {
-    let errspan = document.getElementById('errspan');
-    errspan.textContent = message;
-    errspan.classList.remove('noerror');
-    errspan.classList.add('error');
-    setErrorTimeout(8000);
+    Toastify({
+      text: message,
+      duration: 4000,
+      close: true,
+      position: position ? position: 'center',
+      gravity: gravity ? gravity : 'top',
+      backgroundColor: background,
+      className: level,
+    }).showToast();
 }
 
 function displayWarning(message) {
-    // don't overwrite real errors
-    if(!errorTimeout)
-        return displayError(message);
+    let level = "warning";
+    return displayError(message, level);
 }
 
-function clearError() {
-    let errspan = document.getElementById('errspan');
-    errspan.textContent = '';
-    errspan.classList.remove('error');
-    errspan.classList.add('noerror');
-    setErrorTimeout(null);
+function displayMessage(message) {
+    return displayError(message, "info", "right", "bottom");
 }
 
 document.getElementById('userform').onsubmit = function(e) {
@@ -1006,6 +1072,82 @@ document.getElementById('userform').onsubmit = function(e) {
 
 document.getElementById('disconnectbutton').onclick = function(e) {
     serverConnection.close();
+    let user_box = document.getElementById('userDropdown');
+    if (user_box.classList.contains("show")) {
+      user_box.classList.toggle("show");
+    }
+    
+};
+
+function openNav() {
+    document.getElementById("sidebarnav").style.width = "250px";
+}
+
+function closeNav() {
+    document.getElementById("sidebarnav").style.width = "0";
+}
+
+document.getElementById('sidebarCollapse').onclick = function(e) {
+    document.getElementById("left-sidebar").classList.toggle("active");
+    document.getElementById("mainrow").classList.toggle("full-width-active");
+};
+
+document.getElementById('openside').onclick = function(e) {
+      e.preventDefault();
+      let sidewidth = document.getElementById("sidebarnav").style.width;
+      if (sidewidth !== "0px" && sidewidth !== "") {
+          closeNav();
+          return;
+      } else {
+          openNav();
+      }
+};
+
+document.getElementById('user').onclick = function(e) {
+    e.preventDefault();
+    document.getElementById("userDropdown").classList.toggle("show");
+};
+
+
+document.getElementById('clodeside').onclick = function(e) {
+    e.preventDefault();
+    closeNav();
+};
+
+document.getElementById('collapse-video').onclick = function(e) {
+    e.preventDefault();
+    let width = window.innerWidth;
+    if (width <= 768) {
+      let user_box = document.getElementById('userDropdown');
+      if (user_box.classList.contains("show")) {
+        return;
+      }
+      // fixed div for small screen
+      this.style.display = "";
+      hideVideo(true);
+      document.getElementById('switch-video').style.display = "block";
+    }
+};
+
+document.getElementById('switch-video').onclick = function(e) {
+    e.preventDefault();
+    showVideo();
+    this.style.display = "";
+    document.getElementById('collapse-video').style.display = "block";
+};
+
+window.onclick = function(event) {
+  let user_box = document.getElementById('userDropdown');
+  if (user_box.classList.contains("show") && event.target.id != "user") {
+      let parent = event.target;
+      while (parent.id !== "main" && parent.id !== "userDropdown" &&
+              parent.id !== "user" && parent.tagName !== "body") {
+          parent = parent.parentNode;
+      }
+      if (parent.id !="userDropdown" && parent.id !== "user") {
+          user_box.classList.toggle("show");
+      }
+  }
 };
 
 function serverConnect() {
@@ -1036,11 +1178,14 @@ function start() {
 
     setLocalMute(localMute);
 
-    document.getElementById('connectbutton').disabled = false;
 
     let userpass = getUserPass();
     if(userpass)
         serverConnect();
+    else {
+      document.getElementById("user").classList.add('invisible');
+      document.getElementById("login-container").classList.remove('invisible');
+    }
 }
 
 start();
