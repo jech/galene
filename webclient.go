@@ -870,7 +870,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 					}
 				}
 			case kickAction:
-				return userError("you have been kicked")
+				return userError(a.message)
 			default:
 				log.Printf("unexpected action %T", a)
 				return errors.New("unexpected action")
@@ -943,7 +943,7 @@ func setPermissions(g *group, id string, perm string) error {
 	return c.action(permissionsChangedAction{})
 }
 
-func kickClient(g *group, id string) error {
+func kickClient(g *group, id string, message string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -957,7 +957,7 @@ func kickClient(g *group, id string) error {
 		return userError("this is not a real user")
 	}
 
-	return c.action(kickAction{})
+	return c.action(kickAction{message})
 }
 
 func handleClientMessage(c *webClient, m clientMessage) error {
@@ -1094,7 +1094,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(userError("not authorised"))
 			}
-			err := kickClient(c.group, m.Id)
+			message := m.Value
+			if message == "" {
+				message = "you have been kicked"
+			}
+			err := kickClient(c.group, m.Id, message)
 			if err != nil {
 				return c.error(err)
 			}

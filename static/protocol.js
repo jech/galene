@@ -437,12 +437,14 @@ ServerConnection.prototype.groupAction = function(kind) {
  *
  * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
  * @param {string} id
+ * @param {string} [message]
  */
-ServerConnection.prototype.userAction = function(kind, id) {
+ServerConnection.prototype.userAction = function(kind, id, message) {
     this.send({
         type: 'useraction',
         kind: kind,
         id: id,
+        value: message,
     });
 }
 

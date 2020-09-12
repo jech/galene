@@ -64,7 +64,9 @@ type connectionFailedAction struct {
 
 type permissionsChangedAction struct{}
 
-type kickAction struct{}
+type kickAction struct{
+	message string
+}
 
 var groups struct {
 	mu     sync.Mutex

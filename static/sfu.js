@@ -955,14 +955,14 @@ function handleInput() {
             message = data.substring(1);
             me = false;
         } else {
-            let space, cmd, rest;
-            space = data.indexOf(' ');
+            let cmd, rest;
+            let space = data.indexOf(' ');
             if(space < 0) {
                 cmd = data;
                 rest = '';
             } else {
                 cmd = data.slice(0, space);
-                rest = data.slice(space + 1).trim();
+                rest = data.slice(space + 1);
             }
 
             switch(cmd) {
@@ -1005,22 +1005,31 @@ function handleInput() {
                     displayError("You're not an operator");
                     return;
                 }
+                let username, message;
+                let space = rest.indexOf(' ');
+                if(space < 0) {
+                    username = rest;
+                    message = null;
+                } else {
+                    username = rest.slice(0, space);
+                    message = rest.slice(space + 1).trim();
+                }
                 let id;
-                if(rest in users) {
+                if(username in users) {
                     id = rest;
                 } else {
                     for(let i in users) {
-                        if(users[i] === rest) {
+                        if(users[i] === username) {
                             id = i;
                             break;
                         }
                     }
                 }
                 if(!id) {
-                    displayError('Unknown user ' + rest);
+                    displayError('Unknown user ' + username);
                     return;
                 }
-                serverConnection.userAction(cmd.slice(1), id)
+                serverConnection.userAction(cmd.slice(1), id, message);
                 return;
             }
             default:
