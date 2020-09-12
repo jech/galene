@@ -52,6 +52,12 @@ func (client *diskClient) Close() error {
 	return nil
 }
 
+func (client *diskClient) kick(message string) error {
+	err := client.Close()
+	delClient(client)
+	return err
+}
+
 func (client *diskClient) pushConn(id string, conn upConnection, tracks []upTrack, label string) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()

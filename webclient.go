@@ -948,10 +948,7 @@ func (c *webClient) kick(message string) error {
 }
 
 func kickClient(g *group, id string, message string) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	client := g.getClientUnlocked(id)
+	client := g.getClient(id)
 	if client == nil {
 		return userError("no such user")
 	}

@@ -268,6 +268,12 @@ func (g *group) getClientsUnlocked(except client) []client {
 	return clients
 }
 
+func (g *group) getClient(id string) client {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.getClientUnlocked(id)
+}
+
 func (g *group) getClientUnlocked(id string) client {
 	for idd, c := range g.clients {
 		if idd == id {
