@@ -87,6 +87,7 @@ func main() {
 	webserver()
 
 	terminate := make(chan os.Signal, 1)
-	signal.Notify(terminate, syscall.SIGINT)
+	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 	<-terminate
+	shutdown()
 }

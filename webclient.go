@@ -943,6 +943,10 @@ func setPermissions(g *group, id string, perm string) error {
 	return c.action(permissionsChangedAction{})
 }
 
+func (c *webClient) kick(message string) error {
+	return c.action(kickAction{message})
+}
+
 func kickClient(g *group, id string, message string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -952,12 +956,12 @@ func kickClient(g *group, id string, message string) error {
 		return userError("no such user")
 	}
 
-	c, ok := client.(*webClient)
+	c, ok := client.(kickable)
 	if !ok {
-		return userError("this is not a real user")
+		return userError("this client is not kickable")
 	}
 
-	return c.action(kickAction{message})
+	return c.kick(message)
 }
 
 func handleClientMessage(c *webClient, m clientMessage) error {

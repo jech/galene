@@ -64,7 +64,7 @@ type connectionFailedAction struct {
 
 type permissionsChangedAction struct{}
 
-type kickAction struct{
+type kickAction struct {
 	message string
 }
 
@@ -286,6 +286,16 @@ func (g *group) Range(f func(c client) bool) {
 			break
 		}
 	}
+}
+
+func (g *group) shutdown(message string) {
+	g.Range(func(c client) bool {
+		cc, ok := c.(kickable)
+		if ok {
+			cc.kick(message)
+		}
+		return true
+	})
 }
 
 const maxChatHistory = 20

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,8 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+var server *http.Server
 
 func webserver() {
 	http.Handle("/", mungeHandler{http.FileServer(http.Dir(staticRoot))})
@@ -39,17 +42,24 @@ func webserver() {
 	http.HandleFunc("/stats", statsHandler)
 
 	go func() {
-		server := &http.Server{
+		server = &http.Server{
 			Addr:              httpAddr,
 			ReadHeaderTimeout: 60 * time.Second,
 			IdleTimeout:       120 * time.Second,
 		}
+		server.RegisterOnShutdown(func() {
+			groups.mu.Lock()
+			defer groups.mu.Unlock()
+			for _, g := range groups.groups {
+				go g.shutdown("server is shutting down")
+			}
+		})
 		var err error
 		err = server.ListenAndServeTLS(
 			filepath.Join(dataDir, "cert.pem"),
 			filepath.Join(dataDir, "key.pem"),
 		)
-		if err != nil {
+		if err != nil && err != http.ErrServerClosed {
 			log.Printf("ListenAndServeTLS: %v", err)
 		}
 	}()
@@ -456,4 +466,9 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 	}
 	fmt.Fprintf(w, "</table>\n")
 	fmt.Fprintf(w, "</body></html>\n")
+}
+
+func shutdown() {
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	server.Shutdown(ctx)
 }

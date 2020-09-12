@@ -12,3 +12,7 @@ type client interface {
 	pushConn(id string, conn upConnection, tracks []upTrack, label string) error
 	pushClient(id, username string, add bool) error
 }
+
+type kickable interface {
+	kick(message string) error
+}
