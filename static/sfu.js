@@ -11,10 +11,24 @@ let group;
 /** @type {ServerConnection} */
 let serverConnection;
 
+/**
+ * @typedef {Object} userpass
+ * @property {string} username
+ * @property {string} password
+ */
+
 /* Some browsers disable session storage when cookies are disabled,
    we fall back to a global variable. */
+/**
+ * @type {userpass}
+ */
 let fallbackUserPass = null;
 
+
+/**
+ * @param {string} username
+ * @param {string} password
+ */
 function setUserPass(username, password) {
     let userpass = {username: username, password: password};
     try {
@@ -22,10 +36,13 @@ function setUserPass(username, password) {
         fallbackUserPass = null;
     } catch(e) {
         console.warn("Couldn't store password:", e);
-        fallbackUserPass = {username: username, password: password};
+        fallbackUserPass = userpass;
     }
 }
 
+/**
+ * @returns {userpass}
+ */
 function getUserPass() {
     let userpass;
     try {
@@ -38,6 +55,9 @@ function getUserPass() {
     return userpass || null;
 }
 
+/**
+ * @returns {string}
+ */
 function getUsername() {
     let userpass = getUserPass();
     if(!userpass)
@@ -53,14 +73,13 @@ function showVideo() {
         document.getElementById('collapse-video').style.display = "block";
 }
 
+/**
+ * @param {boolean} [force]
+ */
 function hideVideo(force) {
     let mediadiv = document.getElementById('peers');
-    if (force === undefined) {
-      force = false;
-    }
-    if (mediadiv.childElementCount > 0 && !force) {
-      return;
-    }
+    if(mediadiv.childElementCount > 0 && !force)
+        return;
     let video_container = document.getElementById('video-container');
     video_container.classList.add('no-video');
 }
@@ -114,6 +133,10 @@ function gotConnected() {
     this.request(document.getElementById('requestselect').value);
 }
 
+/**
+ * @param {number} code
+ * @param {string} reason
+ */
 function gotClose(code, reason) {
     delUpMediaKind(null);
     setConnected(false);
@@ -149,7 +172,9 @@ function gotDownStream(c) {
 
 // Store current browser viewport height in css variable
 function setViewportHeight() {
-    document.documentElement.style.setProperty('--vh', `${window.innerHeight/100}px`);
+    document.documentElement.style.setProperty(
+        '--vh', `${window.innerHeight/100}px`,
+    );
 };
 setViewportHeight();
 
@@ -208,6 +233,9 @@ function toggleLocalMute() {
     setLocalMute(!localMute);
 }
 
+/**
+ * @param {boolean} mute
+ */
 function setLocalMute(mute) {
     localMute = mute;
     muteLocalTracks(localMute);
@@ -356,8 +384,10 @@ function gotDownStats(stats) {
     }
 }
 
+/**
+ * @param {string} value
+ */
 function mapMediaOption(value) {
-    console.assert(typeof(value) === 'string');
     switch(value) {
     case 'default':
         return true;
@@ -668,6 +698,9 @@ function setMedia(c, isUp) {
     resizePeers();
 }
 
+/**
+ * @param {string} id
+ */
 function delMedia(id) {
     let mediadiv = document.getElementById('peers');
     let peer = document.getElementById('peer-' + id);
@@ -737,9 +770,8 @@ function resizePeers() {
     let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
 
     let media_list = document.getElementsByClassName("media");
-    [].forEach.call(media_list, function (element) {
-        element.style['max-height'] = max_video_height + "px";
-    });
+    for(let i = 0; i < media_list.length; i++)
+        media_list[i].style['max_height'] = max_video_height + "px";
 
     if (count <= 2 && container.offsetHeight > container.offsetWidth) {
         peers.style['grid-template-columns'] = "repeat(1, 1fr)";
@@ -853,6 +885,10 @@ function gotPermissions(perms) {
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#=?]+[-a-zA-Z0-9@:%/_\\+~#=]/g;
 
+/**
+ * @param {string} line
+ * @returns {Array.<Text|HTMLElement>}
+ */
 function formatLine(line) {
     let r = new RegExp(urlRegexp);
     let result = [];
@@ -874,6 +910,10 @@ function formatLine(line) {
     return result;
 }
 
+/**
+ * @param {Array.<string>} lines
+ * @returns {HTMLElement}
+ */
 function formatLines(lines) {
     let elts = [];
     if(lines.length > 0)
@@ -1091,8 +1131,8 @@ function chatResizer(e) {
 
     function start_drag(e) {
         let left_width = (start_width + e.clientX - start_x) * 100 / full_width;
-        left.style.flex = left_width;
-        right.style.flex = 100 - left_width;
+        left.style.flex = left_width.toString();
+        right.style.flex = (100 - left_width).toString();
     }
     function stop_drag(e) {
         document.documentElement.removeEventListener(
