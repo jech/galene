@@ -252,20 +252,6 @@ func (up *rtpUpTrack) getRTP(seqno uint16, result []byte) uint16 {
 	return up.cache.Get(seqno, result)
 }
 
-func (up *rtpUpTrack) getTimestamp() (uint32, bool) {
-	buf := make([]byte, packetcache.BufSize)
-	l := up.cache.GetLast(buf)
-	if l == 0 {
-		return 0, false
-	}
-	var packet rtp.Packet
-	err := packet.Unmarshal(buf)
-	if err != nil {
-		return 0, false
-	}
-	return packet.Timestamp, true
-}
-
 func (up *rtpUpTrack) Label() string {
 	return up.label
 }

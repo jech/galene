@@ -29,8 +29,6 @@ type upTrack interface {
 	Codec() *webrtc.RTPCodec
 	// get a recent packet.  Returns 0 if the packet is not in cache.
 	getRTP(seqno uint16, result []byte) uint16
-	// returns the last timestamp, if possible
-	getTimestamp() (uint32, bool)
 }
 
 type downConnection interface {
