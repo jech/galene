@@ -767,6 +767,18 @@ function addUser(id, name) {
     user.id = 'user-' + id;
     user.classList.add("user-p");
     user.textContent = name ? name : '(anon)';
+
+    if(name) {
+        let us = div.children;
+        for(let i = 0; i < us.length; i++) {
+            let child = us[i];
+            let childname = users[child.id.slice('user-'.length)];
+            if(!childname || childname > name) {
+                div.insertBefore(user, child);
+                return;
+            }
+        }
+    }
     div.appendChild(user);
 }
 
