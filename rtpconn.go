@@ -189,7 +189,7 @@ type rtpUpTrack struct {
 	firSeqno uint32
 
 	localCh    chan localTrackAction
-	writerDone chan struct{}
+	readerDone chan struct{}
 
 	mu        sync.Mutex
 	cname     string
@@ -207,7 +207,7 @@ type localTrackAction struct {
 func (up *rtpUpTrack) notifyLocal(add bool, track downTrack) {
 	select {
 	case up.localCh <- localTrackAction{add, track}:
-	case <-up.writerDone:
+	case <-up.readerDone:
 	}
 }
 
@@ -426,7 +426,7 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
 			localCh:    make(chan localTrackAction, 2),
-			writerDone: make(chan struct{}),
+			readerDone: make(chan struct{}),
 		}
 
 		conn.tracks = append(conn.tracks, track)
@@ -451,21 +451,16 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 	return conn, nil
 }
 
-type packetIndex struct {
-	seqno uint16
-	index uint16
-	delay uint32
-}
-
 func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
-	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
-	ch := make(chan packetIndex, 32)
-	defer close(ch)
-	go writeLoop(conn, track, ch)
+	writers := rtpWriterPool{conn: conn, track: track}
+	defer func() {
+		writers.close()
+		close(track.readerDone)
+	}()
 
+	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
-	drop := 0
 	for {
 		bytes, err := track.track.Read(buf)
 		if err != nil {
@@ -496,145 +491,22 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 			}
 		}
 
-		if drop > 0 {
-			if packet.Marker {
-				// last packet in frame
-				drop = 0
-			} else {
-				drop--
-			}
-			continue
-		}
-
 		_, rate := track.rate.Estimate()
 		delay := uint32(rtptime.JiffiesPerSec / 1024)
 		if rate > 512 {
 			delay = rtptime.JiffiesPerSec / rate / 2
 		}
 
-		pi := packetIndex{packet.SequenceNumber, index, delay}
-		select {
-		case ch <- pi:
-		default:
-			// the writer is congested
-			if isvideo {
-				// keep dropping until the end of the frame
-				if isvideo && !packet.Marker {
-					drop = 7
-				}
-			} else {
-				// try again with half the delay on our side
-				timer := time.NewTimer(rtptime.ToDuration(
-					uint64(delay/2),
-					rtptime.JiffiesPerSec,
-				))
-				pi.delay = delay / 2
-				select {
-				case ch <- pi:
-					timer.Stop()
-				case <-timer.C:
-				}
-			}
-		}
-	}
-}
+		writers.write(packet.SequenceNumber, index, delay,
+			isvideo, packet.Marker)
 
-func writeLoop(conn *rtpUpConnection, track *rtpUpTrack, ch <-chan packetIndex) {
-	defer close(track.writerDone)
-
-	buf := make([]byte, packetcache.BufSize)
-	var packet rtp.Packet
-
-	local := make([]downTrack, 0)
-
-	firSent := false
-
-	for {
 		select {
 		case action := <-track.localCh:
-			if action.add {
-				local = append(local, action.track)
-				firSent = false
-				track.mu.Lock()
-				ntp := track.srNTPTime
-				rtp := track.srRTPTime
-				cname := track.cname
-				track.mu.Unlock()
-				if ntp != 0 {
-					action.track.setTimeOffset(ntp, rtp)
-				}
-				if cname != "" {
-					action.track.setCname(cname)
-				}
-			} else {
-				found := false
-				for i, t := range local {
-					if t == action.track {
-						local = append(local[:i],
-							local[i+1:]...)
-						found = true
-						break
-					}
-				}
-				if !found {
-					log.Printf("Deleting unknown track!")
-				}
-			}
-		case pi, ok := <-ch:
-			if !ok {
-				return
-			}
-
-			bytes := track.cache.GetAt(pi.seqno, pi.index, buf)
-			if bytes == 0 {
-				continue
-			}
-
-			err := packet.Unmarshal(buf[:bytes])
+			err := writers.add(action.track, action.add)
 			if err != nil {
-				log.Printf("%v", err)
-				continue
+				log.Printf("add/remove track: %v", err)
 			}
-
-			var delay time.Duration
-			if len(local) > 0 {
-				delay = rtptime.ToDuration(
-					uint64(pi.delay/uint32(len(local))),
-					rtptime.JiffiesPerSec,
-				)
-			}
-
-			kfNeeded := false
-			for _, l := range local {
-				err := l.WriteRTP(&packet)
-				if err != nil {
-					if err == ErrKeyframeNeeded {
-						kfNeeded = true
-					} else if err != io.ErrClosedPipe {
-						log.Printf("WriteRTP: %v", err)
-					}
-					continue
-				}
-				l.Accumulate(uint32(bytes))
-				if delay > 0 {
-					time.Sleep(delay)
-				}
-			}
-
-			if kfNeeded {
-				err := conn.sendFIR(track, !firSent)
-				if err == ErrUnsupportedFeedback {
-					err := conn.sendPLI(track)
-					if err != nil &&
-						err != ErrUnsupportedFeedback &&
-						err != ErrRateLimited {
-						log.Printf("sendPLI: %v", err)
-					}
-				} else if err != nil && err != ErrRateLimited {
-					log.Printf("sendFIR: %v", err)
-				}
-				firSent = true
-			}
+		default:
 		}
 	}
 }
