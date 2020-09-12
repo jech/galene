@@ -41,19 +41,19 @@ func webserver() {
 	http.HandleFunc("/public-groups.json", publicHandler)
 	http.HandleFunc("/stats", statsHandler)
 
-	go func() {
-		server = &http.Server{
-			Addr:              httpAddr,
-			ReadHeaderTimeout: 60 * time.Second,
-			IdleTimeout:       120 * time.Second,
+	server = &http.Server{
+		Addr:              httpAddr,
+		ReadHeaderTimeout: 60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	server.RegisterOnShutdown(func() {
+		groups.mu.Lock()
+		defer groups.mu.Unlock()
+		for _, g := range groups.groups {
+			go g.shutdown("server is shutting down")
 		}
-		server.RegisterOnShutdown(func() {
-			groups.mu.Lock()
-			defer groups.mu.Unlock()
-			for _, g := range groups.groups {
-				go g.shutdown("server is shutting down")
-			}
-		})
+	})
+	go func() {
 		var err error
 		err = server.ListenAndServeTLS(
 			filepath.Join(dataDir, "cert.pem"),
