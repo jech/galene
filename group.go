@@ -41,31 +41,6 @@ type group struct {
 	history []chatHistoryEntry
 }
 
-type pushConnAction struct {
-	id     string
-	conn   upConnection
-	tracks []upTrack
-}
-
-type addLabelAction struct {
-	id    string
-	label string
-}
-
-type pushConnsAction struct {
-	c client
-}
-
-type connectionFailedAction struct {
-	id string
-}
-
-type permissionsChangedAction struct{}
-
-type kickAction struct {
-	message string
-}
-
 var groups struct {
 	mu     sync.Mutex
 	groups map[string]*group

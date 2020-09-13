@@ -725,6 +725,31 @@ func startClient(conn *websocket.Conn) (err error) {
 	return clientLoop(c, conn)
 }
 
+type pushConnAction struct {
+	id     string
+	conn   upConnection
+	tracks []upTrack
+}
+
+type addLabelAction struct {
+	id    string
+	label string
+}
+
+type pushConnsAction struct {
+	c client
+}
+
+type connectionFailedAction struct {
+	id string
+}
+
+type permissionsChangedAction struct{}
+
+type kickAction struct {
+	message string
+}
+
 func clientLoop(c *webClient, conn *websocket.Conn) error {
 	read := make(chan interface{}, 1)
 	go clientReader(conn, read, c.done)
