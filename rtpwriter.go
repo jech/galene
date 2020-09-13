@@ -17,8 +17,6 @@ type packetIndex struct {
 	seqno uint16
 	// the index in the cache
 	index uint16
-	// the expected delay until the next packet, in jiffies
-	delay uint32
 }
 
 // An rtpWriterPool is a set of rtpWriters
@@ -109,7 +107,7 @@ func (wp *rtpWriterPool) close() {
 
 // write writes a packet stored in the packet cache to all local tracks
 func (wp *rtpWriterPool) write(seqno uint16, index uint16, delay uint32, isvideo bool, marker bool) {
-	pi := packetIndex{seqno, index, delay}
+	pi := packetIndex{seqno, index}
 
 	var dead []*rtpWriter
 	for _, w := range wp.writers {
@@ -143,11 +141,6 @@ func (wp *rtpWriterPool) write(seqno uint16, index uint16, delay uint32, isvideo
 			timer := time.NewTimer(rtptime.ToDuration(
 				uint64(d), rtptime.JiffiesPerSec,
 			))
-			if pi.delay > d {
-				pi.delay -= d
-			} else {
-				pi.delay = 0
-			}
 
 			select {
 			case w.ch <- pi:
@@ -286,14 +279,6 @@ func rtpWriterLoop(writer *rtpWriter, conn *rtpUpConnection, track *rtpUpTrack) 
 				continue
 			}
 
-			var delay time.Duration
-			if len(local) > 0 {
-				delay = rtptime.ToDuration(
-					uint64(pi.delay/uint32(len(local))),
-					rtptime.JiffiesPerSec,
-				)
-			}
-
 			kfNeeded := false
 			for _, l := range local {
 				err := l.WriteRTP(&packet)
@@ -304,9 +289,6 @@ func rtpWriterLoop(writer *rtpWriter, conn *rtpUpConnection, track *rtpUpTrack) 
 					continue
 				}
 				l.Accumulate(uint32(bytes))
-				if delay > 0 {
-					time.Sleep(delay)
-				}
 			}
 
 			if kfNeeded {
