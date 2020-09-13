@@ -71,6 +71,10 @@ func (g *group) AllowRecording() bool {
 	return g.description.AllowRecording
 }
 
+func (g *group) Redirect() string {
+	return g.description.Redirect
+}
+
 var groups struct {
 	mu     sync.Mutex
 	groups map[string]*group
