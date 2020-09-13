@@ -15,13 +15,13 @@ import (
 	"runtime/pprof"
 	"syscall"
 
+	"sfu/disk"
 	"sfu/group"
 )
 
 var httpAddr string
 var staticRoot string
 var dataDir string
-var recordingsDir string
 
 func main() {
 	var cpuprofile, memprofile, mutexprofile string
@@ -33,7 +33,7 @@ func main() {
 		"data `directory`")
 	flag.StringVar(&group.Directory, "groups", "./groups/",
 		"group description `directory`")
-	flag.StringVar(&recordingsDir, "recordings", "./recordings/",
+	flag.StringVar(&disk.Directory, "recordings", "./recordings/",
 		"recordings `directory`")
 	flag.StringVar(&cpuprofile, "cpuprofile", "",
 		"store CPU profile in `file`")

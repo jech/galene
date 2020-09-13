@@ -19,6 +19,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"sfu/disk"
 	"sfu/group"
 )
 
@@ -324,7 +325,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := os.Open(filepath.Join(recordingsDir, pth))
+	f, err := os.Open(filepath.Join(disk.Directory, pth))
 	if err != nil {
 		if os.IsNotExist(err) {
 			notFound(w)
@@ -391,7 +392,7 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 			return
 		}
 		err := os.Remove(
-			filepath.Join(recordingsDir, group+"/"+filename),
+			filepath.Join(disk.Directory, group+"/"+filename),
 		)
 		if err != nil {
 			if os.IsPermission(err) {

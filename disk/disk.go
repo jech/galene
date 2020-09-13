@@ -1,4 +1,4 @@
-package main
+package disk
 
 import (
 	"errors"
@@ -19,7 +19,9 @@ import (
 	"sfu/group"
 )
 
-type diskClient struct {
+var Directory string
+
+type Client struct {
 	group *group.Group
 	id    string
 
@@ -42,31 +44,31 @@ func newId() string {
 	return s
 }
 
-func NewDiskClient(g *group.Group) *diskClient {
-	return &diskClient{group: g, id: newId()}
+func New(g *group.Group) *Client {
+	return &Client{group: g, id: newId()}
 }
 
-func (client *diskClient) Group() *group.Group {
+func (client *Client) Group() *group.Group {
 	return client.group
 }
 
-func (client *diskClient) Id() string {
+func (client *Client) Id() string {
 	return client.id
 }
 
-func (client *diskClient) Credentials() group.ClientCredentials {
+func (client *Client) Credentials() group.ClientCredentials {
 	return group.ClientCredentials{"RECORDING", ""}
 }
 
-func (client *diskClient) SetPermissions(perms group.ClientPermissions) {
+func (client *Client) SetPermissions(perms group.ClientPermissions) {
 	return
 }
 
-func (client *diskClient) PushClient(id, username string, add bool) error {
+func (client *Client) PushClient(id, username string, add bool) error {
 	return nil
 }
 
-func (client *diskClient) Close() error {
+func (client *Client) Close() error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -78,13 +80,13 @@ func (client *diskClient) Close() error {
 	return nil
 }
 
-func (client *diskClient) kick(message string) error {
+func (client *Client) kick(message string) error {
 	err := client.Close()
 	group.DelClient(client)
 	return err
 }
 
-func (client *diskClient) PushConn(id string, up conn.Up, tracks []conn.UpTrack, label string) error {
+func (client *Client) PushConn(id string, up conn.Up, tracks []conn.UpTrack, label string) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -102,7 +104,7 @@ func (client *diskClient) PushConn(id string, up conn.Up, tracks []conn.UpTrack,
 		return nil
 	}
 
-	directory := filepath.Join(recordingsDir, client.group.Name())
+	directory := filepath.Join(Directory, client.group.Name())
 	err := os.MkdirAll(directory, 0700)
 	if err != nil {
 		return err
