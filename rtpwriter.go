@@ -7,6 +7,7 @@ import (
 
 	"github.com/pion/rtp"
 
+	"sfu/conn"
 	"sfu/packetcache"
 	"sfu/rtptime"
 )
@@ -43,7 +44,7 @@ func sqrt(n int) int {
 }
 
 // add adds or removes a track from a writer pool
-func (wp *rtpWriterPool) add(track downTrack, add bool) error {
+func (wp *rtpWriterPool) add(track conn.DownTrack, add bool) error {
 	n := 4
 	if wp.count > 16 {
 		n = sqrt(wp.count)
@@ -166,7 +167,7 @@ var ErrUnknownTrack = errors.New("unknown track")
 
 type writerAction struct {
 	add       bool
-	track     downTrack
+	track     conn.DownTrack
 	maxTracks int
 	ch        chan error
 }
@@ -192,7 +193,7 @@ func newRtpWriter(conn *rtpUpConnection, track *rtpUpTrack) *rtpWriter {
 }
 
 // add adds or removes a track from a writer.
-func (writer *rtpWriter) add(track downTrack, add bool, max int) error {
+func (writer *rtpWriter) add(track conn.DownTrack, add bool, max int) error {
 	ch := make(chan error, 1)
 	select {
 	case writer.action <- writerAction{add, track, max, ch}:
@@ -208,13 +209,13 @@ func (writer *rtpWriter) add(track downTrack, add bool, max int) error {
 }
 
 // rtpWriterLoop is the main loop of an rtpWriter.
-func rtpWriterLoop(writer *rtpWriter, conn *rtpUpConnection, track *rtpUpTrack) {
+func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 	defer close(writer.done)
 
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 
-	local := make([]downTrack, 0)
+	local := make([]conn.DownTrack, 0)
 
 	// reset whenever a new track is inserted
 	firSent := false
@@ -239,10 +240,10 @@ func rtpWriterLoop(writer *rtpWriter, conn *rtpUpConnection, track *rtpUpTrack) 
 				cname := track.cname
 				track.mu.Unlock()
 				if ntp != 0 {
-					action.track.setTimeOffset(ntp, rtp)
+					action.track.SetTimeOffset(ntp, rtp)
 				}
 				if cname != "" {
-					action.track.setCname(cname)
+					action.track.SetCname(cname)
 				}
 			} else {
 				found := false
@@ -283,7 +284,7 @@ func rtpWriterLoop(writer *rtpWriter, conn *rtpUpConnection, track *rtpUpTrack) 
 			for _, l := range local {
 				err := l.WriteRTP(&packet)
 				if err != nil {
-					if err == ErrKeyframeNeeded {
+					if err == conn.ErrKeyframeNeeded {
 						kfNeeded = true
 					}
 					continue
@@ -292,9 +293,9 @@ func rtpWriterLoop(writer *rtpWriter, conn *rtpUpConnection, track *rtpUpTrack) 
 			}
 
 			if kfNeeded {
-				err := conn.sendFIR(track, !firSent)
+				err := up.sendFIR(track, !firSent)
 				if err == ErrUnsupportedFeedback {
-					conn.sendPLI(track)
+					up.sendPLI(track)
 				}
 				firSent = true
 			}

@@ -14,10 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"sfu/estimator"
-
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
+
+	"sfu/conn"
+	"sfu/estimator"
 )
 
 var iceConf webrtc.Configuration
@@ -300,7 +301,7 @@ func getConn(c *webClient, id string) iceConnection {
 	return nil
 }
 
-func addDownConn(c *webClient, id string, remote upConnection) (*rtpDownConnection, error) {
+func addDownConn(c *webClient, id string, remote conn.Up) (*rtpDownConnection, error) {
 	conn, err := newDownConn(c, id, remote)
 	if err != nil {
 		return nil, err
@@ -333,7 +334,7 @@ func addDownConn(c *webClient, id string, remote upConnection) (*rtpDownConnecti
 		}
 	})
 
-	err = remote.addLocal(conn)
+	err = remote.AddLocal(conn)
 	if err != nil {
 		conn.pc.Close()
 		return nil, err
@@ -355,18 +356,18 @@ func delDownConn(c *webClient, id string) bool {
 		return false
 	}
 
-	conn.remote.delLocal(conn)
+	conn.remote.DelLocal(conn)
 	for _, track := range conn.tracks {
 		// we only insert the track after we get an answer, so
 		// ignore errors here.
-		track.remote.delLocal(track)
+		track.remote.DelLocal(track)
 	}
 	conn.pc.Close()
 	delete(c.down, id)
 	return true
 }
 
-func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack upTrack, remoteConn upConnection) (*webrtc.RTPSender, error) {
+func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrack, remoteConn conn.Up) (*webrtc.RTPSender, error) {
 	var pt uint8
 	var ssrc uint32
 	var id, label string
@@ -524,7 +525,7 @@ func gotAnswer(c *webClient, id string, answer webrtc.SessionDescription) error 
 	}
 
 	for _, t := range down.tracks {
-		t.remote.addLocal(t)
+		t.remote.AddLocal(t)
 	}
 	return nil
 }
@@ -568,7 +569,7 @@ func (c *webClient) isRequested(label string) bool {
 	return c.requested[label] != 0
 }
 
-func addDownConnTracks(c *webClient, remote upConnection, tracks []upTrack) (*rtpDownConnection, error) {
+func addDownConnTracks(c *webClient, remote conn.Up, tracks []conn.UpTrack) (*rtpDownConnection, error) {
 	requested := false
 	for _, t := range tracks {
 		if c.isRequested(t.Label()) {
@@ -601,13 +602,13 @@ func addDownConnTracks(c *webClient, remote upConnection, tracks []upTrack) (*rt
 	return down, nil
 }
 
-func (c *webClient) pushConn(id string, conn upConnection, tracks []upTrack, label string) error {
-	err := c.action(pushConnAction{id, conn, tracks})
+func (c *webClient) pushConn(id string, up conn.Up, tracks []conn.UpTrack, label string) error {
+	err := c.action(pushConnAction{id, up, tracks})
 	if err != nil {
 		return err
 	}
-	if conn != nil && label != "" {
-		err := c.action(addLabelAction{conn.Id(), conn.Label()})
+	if up != nil && label != "" {
+		err := c.action(addLabelAction{up.Id(), up.Label()})
 		if err != nil {
 			return err
 		}
@@ -726,8 +727,8 @@ func startClient(conn *websocket.Conn) (err error) {
 
 type pushConnAction struct {
 	id     string
-	conn   upConnection
-	tracks []upTrack
+	conn   conn.Up
+	tracks []conn.UpTrack
 }
 
 type addLabelAction struct {
@@ -749,9 +750,9 @@ type kickAction struct {
 	message string
 }
 
-func clientLoop(c *webClient, conn *websocket.Conn) error {
+func clientLoop(c *webClient, ws *websocket.Conn) error {
 	read := make(chan interface{}, 1)
-	go clientReader(conn, read, c.done)
+	go clientReader(ws, read, c.done)
 
 	defer func() {
 		c.setRequested(map[string]uint32{})
@@ -848,7 +849,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 			case pushConnsAction:
 				for _, u := range c.up {
 					tracks := u.getTracks()
-					ts := make([]upTrack, len(tracks))
+					ts := make([]conn.UpTrack, len(tracks))
 					for i, t := range tracks {
 						ts[i] = t
 					}
@@ -861,7 +862,7 @@ func clientLoop(c *webClient, conn *websocket.Conn) error {
 						return err
 					}
 					tracks := make(
-						[]upTrack, len(down.tracks),
+						[]conn.UpTrack, len(down.tracks),
 					)
 					for i, t := range down.tracks {
 						tracks[i] = t.remote

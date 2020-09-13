@@ -1,5 +1,9 @@
 package main
 
+import (
+	"sfu/conn"
+)
+
 type clientCredentials struct {
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
@@ -16,7 +20,7 @@ type client interface {
 	Id() string
 	Credentials() clientCredentials
 	SetPermissions(clientPermissions)
-	pushConn(id string, conn upConnection, tracks []upTrack, label string) error
+	pushConn(id string, conn conn.Up, tracks []conn.UpTrack, label string) error
 	pushClient(id, username string, add bool) error
 }
 

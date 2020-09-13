@@ -14,6 +14,8 @@ import (
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media/samplebuilder"
+
+	"sfu/conn"
 )
 
 type diskClient struct {
@@ -81,7 +83,7 @@ func (client *diskClient) kick(message string) error {
 	return err
 }
 
-func (client *diskClient) pushConn(id string, conn upConnection, tracks []upTrack, label string) error {
+func (client *diskClient) pushConn(id string, up conn.Up, tracks []conn.UpTrack, label string) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -95,7 +97,7 @@ func (client *diskClient) pushConn(id string, conn upConnection, tracks []upTrac
 		delete(client.down, id)
 	}
 
-	if conn == nil {
+	if up == nil {
 		return nil
 	}
 
@@ -109,12 +111,12 @@ func (client *diskClient) pushConn(id string, conn upConnection, tracks []upTrac
 		client.down = make(map[string]*diskConn)
 	}
 
-	down, err := newDiskConn(directory, label, conn, tracks)
+	down, err := newDiskConn(directory, label, up, tracks)
 	if err != nil {
 		return err
 	}
 
-	client.down[conn.Id()] = down
+	client.down[up.Id()] = down
 	return nil
 }
 
@@ -125,7 +127,7 @@ type diskConn struct {
 
 	mu            sync.Mutex
 	file          *os.File
-	remote        upConnection
+	remote        conn.Up
 	tracks        []*diskTrack
 	width, height uint32
 }
@@ -150,7 +152,7 @@ func (conn *diskConn) reopen() error {
 }
 
 func (conn *diskConn) Close() error {
-	conn.remote.delLocal(conn)
+	conn.remote.DelLocal(conn)
 
 	conn.mu.Lock()
 	tracks := make([]*diskTrack, 0, len(conn.tracks))
@@ -164,7 +166,7 @@ func (conn *diskConn) Close() error {
 	conn.mu.Unlock()
 
 	for _, t := range tracks {
-		t.remote.delLocal(t)
+		t.remote.DelLocal(t)
 	}
 	return nil
 }
@@ -196,7 +198,7 @@ func openDiskFile(directory, label string) (*os.File, error) {
 }
 
 type diskTrack struct {
-	remote upTrack
+	remote conn.UpTrack
 	conn   *diskConn
 
 	writer  webm.BlockWriteCloser
@@ -206,7 +208,7 @@ type diskTrack struct {
 	origin uint64
 }
 
-func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrack) (*diskConn, error) {
+func newDiskConn(directory, label string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
 	conn := diskConn{
 		directory: directory,
 		label:     label,
@@ -231,10 +233,10 @@ func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrac
 			conn:    &conn,
 		}
 		conn.tracks = append(conn.tracks, track)
-		remote.addLocal(track)
+		remote.AddLocal(track)
 	}
 
-	err := up.addLocal(&conn)
+	err := up.AddLocal(&conn)
 	if err != nil {
 		return nil, err
 	}
@@ -242,10 +244,10 @@ func newDiskConn(directory, label string, up upConnection, remoteTracks []upTrac
 	return &conn, nil
 }
 
-func (t *diskTrack) setTimeOffset(ntp uint64, rtp uint32) {
+func (t *diskTrack) SetTimeOffset(ntp uint64, rtp uint32) {
 }
 
-func (t *diskTrack) setCname(string) {
+func (t *diskTrack) SetCname(string) {
 }
 
 func clonePacket(packet *rtp.Packet) *rtp.Packet {
@@ -310,7 +312,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 		if t.writer == nil {
 			if !keyframe {
-				return ErrKeyframeNeeded
+				return conn.ErrKeyframeNeeded
 			}
 			return nil
 		}
