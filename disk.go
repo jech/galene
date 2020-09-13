@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -22,6 +23,24 @@ type diskClient struct {
 	mu     sync.Mutex
 	down   map[string]*diskConn
 	closed bool
+}
+
+var idCounter struct {
+	mu      sync.Mutex
+	counter int
+}
+
+func newId() string {
+	idCounter.mu.Lock()
+	defer idCounter.mu.Unlock()
+
+	s := strconv.FormatInt(int64(idCounter.counter), 16)
+	idCounter.counter++
+	return s
+}
+
+func NewDiskClient(g *group) *diskClient {
+	return &diskClient{group: g, id: newId()}
 }
 
 func (client *diskClient) Group() *group {

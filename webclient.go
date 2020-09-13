@@ -1078,10 +1078,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 					return c.error(userError("already recording"))
 				}
 			}
-			disk := &diskClient{
-				group: c.group,
-				id:    "recording",
-			}
+			disk := NewDiskClient(c.group)
 			_, err := addClient(c.group.name, disk)
 			if err != nil {
 				disk.Close()
