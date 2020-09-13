@@ -87,7 +87,7 @@ type webClient struct {
 	group       *group
 	id          string
 	credentials clientCredentials
-	permissions clientPermission
+	permissions clientPermissions
 	requested   map[string]uint32
 	done        chan struct{}
 	writeCh     chan interface{}
@@ -109,6 +109,10 @@ func (c *webClient) Id() string {
 
 func (c *webClient) Credentials() clientCredentials {
 	return c.credentials
+}
+
+func (c *webClient) SetPermissions(perms clientPermissions) {
+	c.permissions = perms
 }
 
 func (c *webClient) pushClient(id, username string, add bool) error {
@@ -177,7 +181,7 @@ type clientMessage struct {
 	Id          string                     `json:"id,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
-	Permissions clientPermission           `json:"permissions,omitempty"`
+	Permissions clientPermissions          `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`

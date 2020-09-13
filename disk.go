@@ -36,6 +36,10 @@ func (client *diskClient) Credentials() clientCredentials {
 	return clientCredentials{"RECORDING", ""}
 }
 
+func (client *diskClient) SetPermissions(perms clientPermissions) {
+	return
+}
+
 func (client *diskClient) pushClient(id, username string, add bool) error {
 	return nil
 }

@@ -190,10 +190,8 @@ func addClient(name string, c client) (*group, error) {
 	if err != nil {
 		return nil, err
 	}
-	w, ok := c.(*webClient)
-	if ok {
-		w.permissions = perms
-	}
+
+	c.SetPermissions(perms)
 
 	if !perms.Op && atomic.LoadUint32(&g.locked) != 0 {
 		return nil, userError("group is locked")
@@ -396,14 +394,8 @@ func getDescription(name string) (*groupDescription, error) {
 	return &desc, nil
 }
 
-type clientPermission struct {
-	Op      bool `json:"op,omitempty"`
-	Present bool `json:"present,omitempty"`
-	Record  bool `json:"record,omitempty"`
-}
-
-func getPermission(desc *groupDescription, creds clientCredentials) (clientPermission, error) {
-	var p clientPermission
+func getPermission(desc *groupDescription, creds clientCredentials) (clientPermissions, error) {
+	var p clientPermissions
 	if !desc.AllowAnonymous && creds.Username == "" {
 		return p, userError("anonymous users not allowed in this group, please choose a username")
 	}
