@@ -400,7 +400,6 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 
 	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
 		conn.mu.Lock()
-		defer conn.mu.Unlock()
 
 		mid := getTrackMid(pc, remote)
 		if mid == "" {
@@ -435,11 +434,19 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 
 		go rtcpUpListener(conn, track, receiver)
 
-		if conn.complete() {
-			tracks := make([]upTrack, len(conn.tracks))
+		complete := conn.complete()
+		var tracks []upTrack
+		if(complete) {
+			tracks = make([]upTrack, len(conn.tracks))
 			for i, t := range conn.tracks {
 				tracks[i] = t
 			}
+		}
+
+		// pushConn might need to take the lock
+		conn.mu.Unlock()
+
+		if complete {
 			clients := c.Group().getClients(c)
 			for _, cc := range clients {
 				cc.pushConn(conn.id, conn, tracks, conn.label)
