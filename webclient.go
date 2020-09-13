@@ -12,7 +12,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"sfu/estimator"
@@ -713,10 +712,10 @@ func startClient(conn *websocket.Conn) (err error) {
 		}
 		return
 	}
-	if g.description.Redirect != "" {
+	if redirect := g.Redirect(); redirect != "" {
 		// We normally redirect at the HTTP level, but the group
 		// description could have been edited in the meantime.
-		err = userError("group is now at " + g.description.Redirect)
+		err = userError("group is now at " + redirect)
 		return
 	}
 	c.group = g
@@ -940,10 +939,7 @@ func failConnection(c *webClient, id string, message string) error {
 }
 
 func setPermissions(g *group, id string, perm string) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	client := g.getClientUnlocked(id)
+	client := g.getClient(id)
 	if client == nil {
 		return userError("no such user")
 	}
@@ -956,7 +952,7 @@ func setPermissions(g *group, id string, perm string) error {
 	switch perm {
 	case "op":
 		c.permissions.Op = true
-		if g.description.AllowRecording {
+		if g.AllowRecording() {
 			c.permissions.Record = true
 		}
 	case "unop":
@@ -1071,11 +1067,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(userError("not authorised"))
 			}
-			var locked uint32
-			if m.Kind == "lock" {
-				locked = 1
-			}
-			atomic.StoreUint32(&c.group.locked, locked)
+			c.group.SetLocked(m.Kind == "lock")
 		case "record":
 			if !c.permissions.Record {
 				return c.error(userError("not authorised"))

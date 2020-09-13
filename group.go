@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/pion/webrtc/v3"
@@ -31,14 +30,45 @@ const (
 )
 
 type group struct {
-	name        string
-	dead        bool
-	description *groupDescription
-	locked      uint32
+	name string
 
-	mu      sync.Mutex
+	mu          sync.Mutex
+	description *groupDescription
+	// indicates that the group no longer exists, but it still has clients
+	dead    bool
+	locked  bool
 	clients map[string]client
 	history []chatHistoryEntry
+}
+
+func (g *group) Locked() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.locked
+}
+
+func (g *group) SetLocked(locked bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.locked = locked
+}
+
+func (g *group) Public() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.description.Public
+}
+
+func (g *group) Redirect() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.description.Redirect
+}
+
+func (g *group) AllowRecording() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.description.AllowRecording
 }
 
 var groups struct {
@@ -94,9 +124,19 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 			clients:     make(map[string]client),
 		}
 		groups.groups[name] = g
-	} else if desc != nil {
+		return g, nil
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if desc != nil {
 		g.description = desc
-	} else if g.dead || time.Since(g.description.loadTime) > 5*time.Second {
+		g.dead = false
+		return g, nil
+	}
+
+	if g.dead || time.Since(g.description.loadTime) > 5*time.Second {
 		changed, err := descriptionChanged(name, g.description)
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -176,6 +216,9 @@ func addClient(name string, c client) (*group, error) {
 		return nil, err
 	}
 
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	perms, err := getPermission(g.description, c.Credentials())
 	if err != nil {
 		return nil, err
@@ -183,12 +226,9 @@ func addClient(name string, c client) (*group, error) {
 
 	c.SetPermissions(perms)
 
-	if !perms.Op && atomic.LoadUint32(&g.locked) != 0 {
+	if !perms.Op && g.locked {
 		return nil, userError("group is locked")
 	}
-
-	g.mu.Lock()
-	defer g.mu.Unlock()
 
 	if !perms.Op && g.description.MaxClients > 0 {
 		if len(g.clients) >= g.description.MaxClients {
@@ -423,8 +463,8 @@ type publicGroup struct {
 
 func getPublicGroups() []publicGroup {
 	gs := make([]publicGroup, 0)
-	rangeGroups(func (g *group) bool {
-		if g.description.Public {
+	rangeGroups(func(g *group) bool {
+		if g.Public() {
 			gs = append(gs, publicGroup{
 				Name:        g.name,
 				ClientCount: len(g.clients),

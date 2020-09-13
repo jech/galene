@@ -151,8 +151,8 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if g.description.Redirect != "" {
-		http.Redirect(w, r, g.description.Redirect,
+	if redirect := g.Redirect(); redirect != "" {
+		http.Redirect(w, r, redirect,
 			http.StatusPermanentRedirect)
 		return
 	}
