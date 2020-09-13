@@ -20,6 +20,7 @@ import (
 
 	"sfu/conn"
 	"sfu/estimator"
+	"sfu/group"
 	"sfu/jitter"
 	"sfu/packetcache"
 	"sfu/rtptime"
@@ -110,8 +111,8 @@ type rtpDownConnection struct {
 	iceCandidates  []*webrtc.ICECandidateInit
 }
 
-func newDownConn(c client, id string, remote conn.Up) (*rtpDownConnection, error) {
-	pc, err := c.Group().API().NewPeerConnection(iceConfiguration())
+func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
+	pc, err := c.Group().API().NewPeerConnection(group.IceConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -371,8 +372,8 @@ func (up *rtpUpConnection) complete() bool {
 	return true
 }
 
-func newUpConn(c client, id string) (*rtpUpConnection, error) {
-	pc, err := c.Group().API().NewPeerConnection(iceConfiguration())
+func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
+	pc, err := c.Group().API().NewPeerConnection(group.IceConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -448,9 +449,9 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 		up.mu.Unlock()
 
 		if complete {
-			clients := c.Group().getClients(c)
+			clients := c.Group().GetClients(c)
 			for _, cc := range clients {
-				cc.pushConn(up.id, up, tracks, up.label)
+				cc.PushConn(up.id, up, tracks, up.label)
 			}
 			go rtcpUpSender(up)
 		}
@@ -750,8 +751,8 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 			rate = r
 		}
 	}
-	if rate < minBitrate {
-		rate = minBitrate
+	if rate < group.MinBitrate {
+		rate = group.MinBitrate
 	}
 
 	var ssrcs []uint32

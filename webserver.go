@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"sfu/group"
 )
 
 var server *http.Server
@@ -47,8 +49,8 @@ func webserver() {
 		IdleTimeout:       120 * time.Second,
 	}
 	server.RegisterOnShutdown(func() {
-		rangeGroups(func (g *group) bool {
-			go g.shutdown("server is shutting down")
+		group.Range(func (g *group.Group) bool {
+			go g.Shutdown("server is shutting down")
 			return true
 		})
 	})
@@ -139,7 +141,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g, err := addGroup(name, nil)
+	g, err := group.Add(name, nil)
 	if err != nil {
 		if os.IsNotExist(err) {
 			notFound(w)
@@ -168,7 +170,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g := getPublicGroups()
+	g := group.GetPublic()
 	e := json.NewEncoder(w)
 	e.Encode(g)
 	return
@@ -409,8 +411,8 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 	}
 }
 
-func checkGroupPermissions(w http.ResponseWriter, r *http.Request, group string) bool {
-	desc, err := getDescription(group)
+func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname string) bool {
+	desc, err := group.GetDescription(groupname)
 	if err != nil {
 		return false
 	}
@@ -420,7 +422,7 @@ func checkGroupPermissions(w http.ResponseWriter, r *http.Request, group string)
 		return false
 	}
 
-	p, err := getPermission(desc, clientCredentials{user, pass})
+	p, err := desc.GetPermission(group.ClientCredentials{user, pass})
 	if err != nil || !p.Record {
 		return false
 	}

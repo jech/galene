@@ -3,7 +3,7 @@
 // This is not open source software.  Copy it, and I'll break into your
 // house and tell your three year-old that Santa doesn't exist.
 
-package main
+package group
 
 import (
 	"encoding/json"
@@ -18,18 +18,60 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-type chatHistoryEntry struct {
-	id    string
-	user  string
-	kind  string
-	value string
+var Directory string
+
+type UserError string
+
+func (err UserError) Error() string {
+	return string(err)
+}
+
+type ProtocolError string
+
+func (err ProtocolError) Error() string {
+	return string(err)
+}
+
+var IceFilename string
+
+var iceConf webrtc.Configuration
+var iceOnce sync.Once
+
+func IceConfiguration() webrtc.Configuration {
+	iceOnce.Do(func() {
+		var iceServers []webrtc.ICEServer
+		file, err := os.Open(IceFilename)
+		if err != nil {
+			log.Printf("Open %v: %v", IceFilename, err)
+			return
+		}
+		defer file.Close()
+		d := json.NewDecoder(file)
+		err = d.Decode(&iceServers)
+		if err != nil {
+			log.Printf("Get ICE configuration: %v", err)
+			return
+		}
+		iceConf = webrtc.Configuration{
+			ICEServers: iceServers,
+		}
+	})
+
+	return iceConf
+}
+
+type ChatHistoryEntry struct {
+	Id    string
+	User  string
+	Kind  string
+	Value string
 }
 
 const (
-	minBitrate = 200000
+	MinBitrate = 200000
 )
 
-type group struct {
+type Group struct {
 	name string
 
 	mu          sync.Mutex
@@ -37,64 +79,60 @@ type group struct {
 	// indicates that the group no longer exists, but it still has clients
 	dead    bool
 	locked  bool
-	clients map[string]client
-	history []chatHistoryEntry
+	clients map[string]Client
+	history []ChatHistoryEntry
 }
 
-func (g *group) Locked() bool {
+func (g *Group) Name() string {
+	return g.name
+}
+
+func (g *Group) Locked() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.locked
 }
 
-func (g *group) SetLocked(locked bool) {
+func (g *Group) SetLocked(locked bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.locked = locked
 }
 
-func (g *group) Public() bool {
+func (g *Group) Public() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.description.Public
 }
 
-func (g *group) Redirect() string {
+func (g *Group) Redirect() string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.description.Redirect
 }
 
-func (g *group) AllowRecording() bool {
+func (g *Group) AllowRecording() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.description.AllowRecording
-}
-
-func (g *group) Redirect() string {
-	return g.description.Redirect
-}
-
-func (g *group) AllowRecording() bool {
 	return g.description.AllowRecording
 }
 
 var groups struct {
 	mu     sync.Mutex
-	groups map[string]*group
+	groups map[string]*Group
 	api    *webrtc.API
 }
 
-func (g *group) API() *webrtc.API {
+func (g *Group) API() *webrtc.API {
 	return groups.api
 }
 
-func addGroup(name string, desc *groupDescription) (*group, error) {
+func Add(name string, desc *groupDescription) (*Group, error) {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
 	if groups.groups == nil {
-		groups.groups = make(map[string]*group)
+		groups.groups = make(map[string]*Group)
 		s := webrtc.SettingEngine{}
 		m := webrtc.MediaEngine{}
 		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
@@ -121,15 +159,15 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	g := groups.groups[name]
 	if g == nil {
 		if desc == nil {
-			desc, err = getDescription(name)
+			desc, err = GetDescription(name)
 			if err != nil {
 				return nil, err
 			}
 		}
-		g = &group{
+		g = &Group{
 			name:        name,
 			description: desc,
-			clients:     make(map[string]client),
+			clients:     make(map[string]Client),
 		}
 		groups.groups[name] = g
 		return g, nil
@@ -155,7 +193,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 			return nil, err
 		}
 		if changed {
-			desc, err := getDescription(name)
+			desc, err := GetDescription(name)
 			if err != nil {
 				if !os.IsNotExist(err) {
 					log.Printf("Reading group %v: %v",
@@ -175,7 +213,7 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	return g, nil
 }
 
-func rangeGroups(f func(g *group) bool) {
+func Range(f func(g *Group) bool) {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -187,17 +225,17 @@ func rangeGroups(f func(g *group) bool) {
 	}
 }
 
-func getGroupNames() []string {
+func GetNames() []string {
 	names := make([]string, 0)
 
-	rangeGroups(func(g *group) bool {
+	Range(func(g *Group) bool {
 		names = append(names, g.name)
 		return true
 	})
 	return names
 }
 
-func getGroup(name string) *group {
+func Get(name string) *Group {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -218,8 +256,8 @@ func delGroupUnlocked(name string) bool {
 	return true
 }
 
-func addClient(name string, c client) (*group, error) {
-	g, err := addGroup(name, nil)
+func AddClient(name string, c Client) (*Group, error) {
+	g, err := Add(name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +265,7 @@ func addClient(name string, c client) (*group, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	perms, err := getPermission(g.description, c.Credentials())
+	perms, err := g.description.GetPermission(c.Credentials())
 	if err != nil {
 		return nil, err
 	}
@@ -235,37 +273,34 @@ func addClient(name string, c client) (*group, error) {
 	c.SetPermissions(perms)
 
 	if !perms.Op && g.locked {
-		return nil, userError("group is locked")
+		return nil, UserError("group is locked")
 	}
 
 	if !perms.Op && g.description.MaxClients > 0 {
 		if len(g.clients) >= g.description.MaxClients {
-			return nil, userError("too many users")
+			return nil, UserError("too many users")
 		}
 	}
 	if g.clients[c.Id()] != nil {
-		return nil, protocolError("duplicate client id")
+		return nil, ProtocolError("duplicate client id")
 	}
 
 	g.clients[c.Id()] = c
 
-	go func(clients []client) {
+	go func(clients []Client) {
 		u := c.Credentials().Username
-		c.pushClient(c.Id(), u, true)
+		c.PushClient(c.Id(), u, true)
 		for _, cc := range clients {
 			uu := cc.Credentials().Username
-			err := c.pushClient(cc.Id(), uu, true)
-			if err == ErrClientDead {
-				return
-			}
-			cc.pushClient(c.Id(), u, true)
+			c.PushClient(cc.Id(), uu, true)
+			cc.PushClient(c.Id(), u, true)
 		}
 	}(g.getClientsUnlocked(c))
 
 	return g, nil
 }
 
-func delClient(c client) {
+func DelClient(c Client) {
 	g := c.Group()
 	if g == nil {
 		return
@@ -279,21 +314,21 @@ func delClient(c client) {
 	}
 	delete(g.clients, c.Id())
 
-	go func(clients []client) {
+	go func(clients []Client) {
 		for _, cc := range clients {
-			cc.pushClient(c.Id(), c.Credentials().Username, false)
+			cc.PushClient(c.Id(), c.Credentials().Username, false)
 		}
 	}(g.getClientsUnlocked(nil))
 }
 
-func (g *group) getClients(except client) []client {
+func (g *Group) GetClients(except Client) []Client {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.getClientsUnlocked(except)
 }
 
-func (g *group) getClientsUnlocked(except client) []client {
-	clients := make([]client, 0, len(g.clients))
+func (g *Group) getClientsUnlocked(except Client) []Client {
+	clients := make([]Client, 0, len(g.clients))
 	for _, c := range g.clients {
 		if c != except {
 			clients = append(clients, c)
@@ -302,13 +337,13 @@ func (g *group) getClientsUnlocked(except client) []client {
 	return clients
 }
 
-func (g *group) getClient(id string) client {
+func (g *Group) GetClient(id string) Client {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.getClientUnlocked(id)
 }
 
-func (g *group) getClientUnlocked(id string) client {
+func (g *Group) getClientUnlocked(id string) Client {
 	for idd, c := range g.clients {
 		if idd == id {
 			return c
@@ -317,7 +352,7 @@ func (g *group) getClientUnlocked(id string) client {
 	return nil
 }
 
-func (g *group) Range(f func(c client) bool) {
+func (g *Group) Range(f func(c Client) bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for _, c := range g.clients {
@@ -328,11 +363,11 @@ func (g *group) Range(f func(c client) bool) {
 	}
 }
 
-func (g *group) shutdown(message string) {
-	g.Range(func(c client) bool {
-		cc, ok := c.(kickable)
+func (g *Group) Shutdown(message string) {
+	g.Range(func(c Client) bool {
+		cc, ok := c.(Kickable)
 		if ok {
-			cc.kick(message)
+			cc.Kick(message)
 		}
 		return true
 	})
@@ -340,13 +375,13 @@ func (g *group) shutdown(message string) {
 
 const maxChatHistory = 20
 
-func (g *group) clearChatHistory() {
+func (g *Group) ClearChatHistory() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.history = nil
 }
 
-func (g *group) addToChatHistory(id, user, kind, value string) {
+func (g *Group) AddToChatHistory(id, user, kind, value string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -355,20 +390,20 @@ func (g *group) addToChatHistory(id, user, kind, value string) {
 		g.history = g.history[:len(g.history)-1]
 	}
 	g.history = append(g.history,
-		chatHistoryEntry{id: id, user: user, kind: kind, value: value},
+		ChatHistoryEntry{Id: id, User: user, Kind: kind, Value: value},
 	)
 }
 
-func (g *group) getChatHistory() []chatHistoryEntry {
+func (g *Group) GetChatHistory() []ChatHistoryEntry {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	h := make([]chatHistoryEntry, len(g.history))
+	h := make([]ChatHistoryEntry, len(g.history))
 	copy(h, g.history)
 	return h
 }
 
-func matchUser(user clientCredentials, users []clientCredentials) (bool, bool) {
+func matchUser(user ClientCredentials, users []ClientCredentials) (bool, bool) {
 	for _, u := range users {
 		if u.Username == "" {
 			if u.Password == "" || u.Password == user.Password {
@@ -391,13 +426,13 @@ type groupDescription struct {
 	MaxClients     int                 `json:"max-clients,omitempty"`
 	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
 	AllowRecording bool                `json:"allow-recording,omitempty"`
-	Op             []clientCredentials `json:"op,omitempty"`
-	Presenter      []clientCredentials `json:"presenter,omitempty"`
-	Other          []clientCredentials `json:"other,omitempty"`
+	Op             []ClientCredentials `json:"op,omitempty"`
+	Presenter      []ClientCredentials `json:"presenter,omitempty"`
+	Other          []ClientCredentials `json:"other,omitempty"`
 }
 
 func descriptionChanged(name string, old *groupDescription) (bool, error) {
-	fi, err := os.Stat(filepath.Join(groupsDir, name+".json"))
+	fi, err := os.Stat(filepath.Join(Directory, name+".json"))
 	if err != nil {
 		return false, err
 	}
@@ -407,8 +442,8 @@ func descriptionChanged(name string, old *groupDescription) (bool, error) {
 	return false, err
 }
 
-func getDescription(name string) (*groupDescription, error) {
-	r, err := os.Open(filepath.Join(groupsDir, name+".json"))
+func GetDescription(name string) (*groupDescription, error) {
+	r, err := os.Open(filepath.Join(Directory, name+".json"))
 	if err != nil {
 		return nil, err
 	}
@@ -432,10 +467,10 @@ func getDescription(name string) (*groupDescription, error) {
 	return &desc, nil
 }
 
-func getPermission(desc *groupDescription, creds clientCredentials) (clientPermissions, error) {
-	var p clientPermissions
+func (desc *groupDescription) GetPermission (creds ClientCredentials) (ClientPermissions, error) {
+	var p ClientPermissions
 	if !desc.AllowAnonymous && creds.Username == "" {
-		return p, userError("anonymous users not allowed in this group, please choose a username")
+		return p, UserError("anonymous users not allowed in this group, please choose a username")
 	}
 	if found, good := matchUser(creds, desc.Op); found {
 		if good {
@@ -446,34 +481,34 @@ func getPermission(desc *groupDescription, creds clientCredentials) (clientPermi
 			}
 			return p, nil
 		}
-		return p, userError("not authorised")
+		return p, UserError("not authorised")
 	}
 	if found, good := matchUser(creds, desc.Presenter); found {
 		if good {
 			p.Present = true
 			return p, nil
 		}
-		return p, userError("not authorised")
+		return p, UserError("not authorised")
 	}
 	if found, good := matchUser(creds, desc.Other); found {
 		if good {
 			return p, nil
 		}
-		return p, userError("not authorised")
+		return p, UserError("not authorised")
 	}
-	return p, userError("not authorised")
+	return p, UserError("not authorised")
 }
 
-type publicGroup struct {
+type Public struct {
 	Name        string `json:"name"`
 	ClientCount int    `json:"clientCount"`
 }
 
-func getPublicGroups() []publicGroup {
-	gs := make([]publicGroup, 0)
-	rangeGroups(func(g *group) bool {
+func GetPublic() []Public {
+	gs := make([]Public, 0)
+	Range(func(g *Group) bool {
 		if g.Public() {
-			gs = append(gs, publicGroup{
+			gs = append(gs, Public{
 				Name:        g.name,
 				ClientCount: len(g.clients),
 			})
@@ -486,8 +521,8 @@ func getPublicGroups() []publicGroup {
 	return gs
 }
 
-func readPublicGroups() {
-	dir, err := os.Open(groupsDir)
+func ReadPublicGroups() {
+	dir, err := os.Open(Directory)
 	if err != nil {
 		return
 	}
@@ -504,7 +539,7 @@ func readPublicGroups() {
 			continue
 		}
 		name := fi.Name()[:len(fi.Name())-5]
-		desc, err := getDescription(name)
+		desc, err := GetDescription(name)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				log.Printf("Reading group %v: %v", name, err)
@@ -512,7 +547,7 @@ func readPublicGroups() {
 			continue
 		}
 		if desc.Public {
-			addGroup(name, desc)
+			Add(name, desc)
 		}
 	}
 }

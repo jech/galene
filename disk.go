@@ -16,10 +16,11 @@ import (
 	"github.com/pion/webrtc/v3/pkg/media/samplebuilder"
 
 	"sfu/conn"
+	"sfu/group"
 )
 
 type diskClient struct {
-	group *group
+	group *group.Group
 	id    string
 
 	mu     sync.Mutex
@@ -41,11 +42,11 @@ func newId() string {
 	return s
 }
 
-func NewDiskClient(g *group) *diskClient {
+func NewDiskClient(g *group.Group) *diskClient {
 	return &diskClient{group: g, id: newId()}
 }
 
-func (client *diskClient) Group() *group {
+func (client *diskClient) Group() *group.Group {
 	return client.group
 }
 
@@ -53,15 +54,15 @@ func (client *diskClient) Id() string {
 	return client.id
 }
 
-func (client *diskClient) Credentials() clientCredentials {
-	return clientCredentials{"RECORDING", ""}
+func (client *diskClient) Credentials() group.ClientCredentials {
+	return group.ClientCredentials{"RECORDING", ""}
 }
 
-func (client *diskClient) SetPermissions(perms clientPermissions) {
+func (client *diskClient) SetPermissions(perms group.ClientPermissions) {
 	return
 }
 
-func (client *diskClient) pushClient(id, username string, add bool) error {
+func (client *diskClient) PushClient(id, username string, add bool) error {
 	return nil
 }
 
@@ -79,11 +80,11 @@ func (client *diskClient) Close() error {
 
 func (client *diskClient) kick(message string) error {
 	err := client.Close()
-	delClient(client)
+	group.DelClient(client)
 	return err
 }
 
-func (client *diskClient) pushConn(id string, up conn.Up, tracks []conn.UpTrack, label string) error {
+func (client *diskClient) PushConn(id string, up conn.Up, tracks []conn.UpTrack, label string) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -101,7 +102,7 @@ func (client *diskClient) pushConn(id string, up conn.Up, tracks []conn.UpTrack,
 		return nil
 	}
 
-	directory := filepath.Join(recordingsDir, client.group.name)
+	directory := filepath.Join(recordingsDir, client.group.Name())
 	err := os.MkdirAll(directory, 0700)
 	if err != nil {
 		return err

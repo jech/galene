@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"sfu/group"
 	"sfu/rtptime"
 )
 
@@ -33,15 +34,15 @@ type trackStats struct {
 }
 
 func getGroupStats() []groupStats {
-	names := getGroupNames()
+	names := group.GetNames()
 
 	gs := make([]groupStats, 0, len(names))
 	for _, name := range names {
-		g := getGroup(name)
+		g := group.Get(name)
 		if g == nil {
 			continue
 		}
-		clients := g.getClients(nil)
+		clients := g.GetClients(nil)
 		stats := groupStats{
 			name:    name,
 			clients: make([]clientStats, 0, len(clients)),
