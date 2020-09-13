@@ -47,11 +47,10 @@ func webserver() {
 		IdleTimeout:       120 * time.Second,
 	}
 	server.RegisterOnShutdown(func() {
-		groups.mu.Lock()
-		defer groups.mu.Unlock()
-		for _, g := range groups.groups {
+		rangeGroups(func (g *group) bool {
 			go g.shutdown("server is shutting down")
-		}
+			return true
+		})
 	})
 	go func() {
 		var err error

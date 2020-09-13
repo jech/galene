@@ -123,14 +123,25 @@ func addGroup(name string, desc *groupDescription) (*group, error) {
 	return g, nil
 }
 
-func getGroupNames() []string {
+func rangeGroups(f func(g *group) bool) {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
-	names := make([]string, 0, len(groups.groups))
-	for name := range groups.groups {
-		names = append(names, name)
+	for _, g := range groups.groups {
+		ok := f(g)
+		if !ok {
+			break
+		}
 	}
+}
+
+func getGroupNames() []string {
+	names := make([]string, 0)
+
+	rangeGroups(func(g *group) bool {
+		names = append(names, g.name)
+		return true
+	})
 	return names
 }
 
@@ -408,16 +419,15 @@ type publicGroup struct {
 
 func getPublicGroups() []publicGroup {
 	gs := make([]publicGroup, 0)
-	groups.mu.Lock()
-	defer groups.mu.Unlock()
-	for _, g := range groups.groups {
+	rangeGroups(func (g *group) bool {
 		if g.description.Public {
 			gs = append(gs, publicGroup{
 				Name:        g.name,
 				ClientCount: len(g.clients),
 			})
 		}
-	}
+		return true
+	})
 	sort.Slice(gs, func(i, j int) bool {
 		return gs[i].Name < gs[j].Name
 	})
