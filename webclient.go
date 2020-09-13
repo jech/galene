@@ -302,7 +302,7 @@ func getConn(c *webClient, id string) iceConnection {
 }
 
 func addDownConn(c *webClient, id string, remote upConnection) (*rtpDownConnection, error) {
-	conn, err := newDownConn(id, remote)
+	conn, err := newDownConn(c, id, remote)
 	if err != nil {
 		return nil, err
 	}

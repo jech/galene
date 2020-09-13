@@ -47,6 +47,10 @@ var groups struct {
 	api    *webrtc.API
 }
 
+func (g *group) API() *webrtc.API {
+	return groups.api
+}
+
 func addGroup(name string, desc *groupDescription) (*group, error) {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()

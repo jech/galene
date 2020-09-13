@@ -109,8 +109,8 @@ type rtpDownConnection struct {
 	iceCandidates  []*webrtc.ICECandidateInit
 }
 
-func newDownConn(id string, remote upConnection) (*rtpDownConnection, error) {
-	pc, err := groups.api.NewPeerConnection(iceConfiguration())
+func newDownConn(c client, id string, remote upConnection) (*rtpDownConnection, error) {
+	pc, err := c.Group().API().NewPeerConnection(iceConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +371,7 @@ func (up *rtpUpConnection) complete() bool {
 }
 
 func newUpConn(c client, id string) (*rtpUpConnection, error) {
-	pc, err := groups.api.NewPeerConnection(iceConfiguration())
+	pc, err := c.Group().API().NewPeerConnection(iceConfiguration())
 	if err != nil {
 		return nil, err
 	}
