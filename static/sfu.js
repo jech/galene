@@ -166,7 +166,7 @@ function gotDownStream(c) {
         setMediaStatus(c);
     }
     c.onstats = gotDownStats;
-    if(document.getElementById('activitybox').value)
+    if(document.getElementById('activitybox').checked)
         c.setStatsInterval(activityDetectionInterval);
 }
 
@@ -309,14 +309,14 @@ document.getElementById('requestselect').onchange = function(e) {
     serverConnection.request(this.value);
 };
 
-const activityDetectionInterval = 100;
+const activityDetectionInterval = 200;
 const activityDetectionPeriod = 700;
 const activityDetectionThreshold = 0.2;
 
 document.getElementById('activitybox').onchange = function(e) {
     for(let id in serverConnection.down) {
         let c = serverConnection.down[id];
-        if(this.value)
+        if(this.checked)
             c.setStatsInterval(activityDetectionInterval);
         else {
             setActive(c, false);
@@ -357,7 +357,7 @@ function setActive(c, value) {
 }
 
 function gotDownStats(stats) {
-    if(!document.getElementById('activitybox').value)
+    if(!document.getElementById('activitybox').checked)
         return;
 
     let c = this;
