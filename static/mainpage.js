@@ -10,7 +10,7 @@ document.getElementById('groupform').onsubmit = function(e) {
     let group = document.getElementById('group').value.trim();
     if(group !== '')
         location.href = '/group/' + group;
-}
+};
 
 async function listPublicGroups() {
     let div = document.getElementById('public-groups');

@@ -286,7 +286,7 @@ ServerConnection.prototype.connect = function(url) {
                 break;
             case 'usermessage':
                 if(sc.onusermessage)
-                    sc.onusermessage.call(sc, m.kind, m.value)
+                    sc.onusermessage.call(sc, m.kind, m.value);
                 break;
             default:
                 console.warn('Unexpected server message', m.type);
@@ -308,7 +308,7 @@ ServerConnection.prototype.login = function(username, password) {
         id: this.id,
         username: username,
         password: password,
-    })
+    });
 }
 
 /**
@@ -320,7 +320,7 @@ ServerConnection.prototype.join = function(group) {
     this.send({
         type: 'join',
         group: group,
-    })
+    });
 }
 
 /**
@@ -350,7 +350,7 @@ ServerConnection.prototype.request = function(what) {
         type: 'request',
         request: request,
     });
-}
+};
 
 /**
  * newUpStream requests the creation of a new up stream.
@@ -378,7 +378,7 @@ ServerConnection.prototype.newUpStream = function(id) {
 
     pc.onnegotiationneeded = async e => {
             await c.negotiate();
-    }
+    };
 
     pc.onicecandidate = e => {
         if(!e.candidate)
@@ -394,7 +394,7 @@ ServerConnection.prototype.newUpStream = function(id) {
             c.onstatus.call(c, pc.iceConnectionState);
         if(pc.iceConnectionState === 'failed')
             c.restartIce();
-    }
+    };
 
     pc.ontrack = console.error;
 
@@ -417,7 +417,7 @@ ServerConnection.prototype.chat = function(username, kind, message) {
         kind: kind,
         value: message,
     });
-}
+};
 
 /**
  * groupAction sends a request to act on the current group.
@@ -430,7 +430,7 @@ ServerConnection.prototype.groupAction = function(kind) {
         type: 'groupaction',
         kind: kind,
     });
-}
+};
 
 /**
  * userAction sends a request to act on a user.
@@ -446,7 +446,7 @@ ServerConnection.prototype.userAction = function(kind, id, message) {
         id: id,
         value: message,
     });
-}
+};
 
 /**
  * Called when we receive an offer from the server.  Don't call this.
@@ -464,7 +464,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
         // SDP is rather inflexible as to what can be renegotiated.
         // Unless the server indicates that this is a renegotiation with
         // all parameters unchanged, tear down the existing connection.
-        delete(sc.down[id])
+        delete(sc.down[id]);
         c.close(false);
         c = null;
     }
@@ -493,7 +493,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
                          id: id,
                         });
             }
-        }
+        };
 
         c.pc.ontrack = function(e) {
             let label = e.transceiver && c.labelsByMid[e.transceiver.mid];
@@ -537,7 +537,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
     });
     if(c.onnegotiationcompleted)
         c.onnegotiationcompleted.call(c);
-}
+};
 
 /**
  * Called when we receive a stream label from the server.  Don't call this.
@@ -553,7 +553,7 @@ ServerConnection.prototype.gotLabel = function(id, label) {
     c.label = label;
     if(c.onlabel)
         c.onlabel.call(c, label);
-}
+};
 
 /**
  * Called when we receive an answer from the server.  Don't call this.
@@ -576,7 +576,7 @@ ServerConnection.prototype.gotAnswer = async function(id, answer) {
     await c.flushIceCandidates();
     if(c.onnegotiationcompleted)
         c.onnegotiationcompleted.call(c);
-}
+};
 
 /**
  * Called when we receive a renegotiation request from the server.  Don't
@@ -590,7 +590,7 @@ ServerConnection.prototype.gotRenegotiate = async function(id) {
     if(!c)
         throw new Error('unknown up stream');
     c.restartIce();
-}
+};
 
 /**
  * Called when we receive a close request from the server.  Don't call this.
@@ -605,7 +605,7 @@ ServerConnection.prototype.gotClose = function(id) {
     c.close(false);
     if(c.onclose)
         c.onclose.call(c);
-}
+};
 
 /**
  * Called when we receive an abort message from the server.  Don't call this.
@@ -618,7 +618,7 @@ ServerConnection.prototype.gotAbort = function(id) {
         throw new Error('unknown up stream');
     if(c.onabort)
         c.onabort.call(c);
-}
+};
 
 /**
  * Called when we receive an ICE candidate from the server.  Don't call this.
@@ -637,7 +637,7 @@ ServerConnection.prototype.gotICE = async function(id, candidate) {
         await c.pc.addIceCandidate(candidate).catch(console.warn);
     else
         c.iceCandidates.push(candidate);
-}
+};
 
 /**
  * Stream encapsulates a MediaStream, a set of tracks.
@@ -840,7 +840,7 @@ Stream.prototype.flushIceCandidates = async function () {
     });
     this.iceCandidates = [];
     return await Promise.all(promises);
-}
+};
 
 /**
  * negotiate negotiates or renegotiates an up stream.  It is called
@@ -881,7 +881,7 @@ Stream.prototype.negotiate = async function (restartIce) {
         offer: offer,
     });
     this.renegotiate = true;
-}
+};
 
 /**
  * restartIce causes an ICE restart on an up stream.  It is called
@@ -905,7 +905,7 @@ Stream.prototype.restartIce = function () {
 
     // negotiate is async, but this returns immediately.
     c.negotiate(true);
-}
+};
 
 /**
  * updateStats is called periodically, if requested by setStatsInterval,
@@ -982,7 +982,7 @@ Stream.prototype.updateStats = async function() {
 
     if(c.onstats)
         c.onstats.call(c, c.stats);
-}
+};
 
 /**
  * setStatsInterval sets the interval in milliseconds at which the onstats
@@ -1003,5 +1003,4 @@ Stream.prototype.setStatsInterval = function(ms) {
     c.statsHandler = setInterval(() => {
         c.updateStats();
     }, ms);
-}
-
+};
