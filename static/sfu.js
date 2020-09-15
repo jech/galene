@@ -1298,14 +1298,8 @@ function start() {
 
     setLocalMute(localMute);
 
-
-    let userpass = getUserPass();
-    if(userpass)
-        serverConnect();
-    else {
-      document.getElementById("user").classList.add('invisible');
-      document.getElementById("login-container").classList.remove('invisible');
-    }
+    document.getElementById("user").classList.add('invisible');
+    document.getElementById("login-container").classList.remove('invisible');
 }
 
 start();
