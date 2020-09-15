@@ -322,6 +322,10 @@ textarea.form-reply {
     text-shadow: none;
 }
 
+.message-me-asterisk, .message-me-user {
+    margin-right: 0.33em;
+}
+
 .video-container {
     height: calc(var(--vh, 1vh) * 100 - 64px);
     position: relative;
