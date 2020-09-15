@@ -992,6 +992,40 @@ function clearChat() {
     document.getElementById('box').textContent = '';
 }
 
+/**
+ * parseCommand splits a string into two space-separated parts.  The first
+ * part may be quoted and may include backslash escapes.
+ *
+ * @param {string} line
+ * @returns {Array.<string>}
+ */
+function parseCommand(line) {
+    let i = 0;
+    while(i < line.length && line[i] === ' ')
+        i++;
+    let start = ' ';
+    if(i < line.length && line[i] === '"' || line[i] === "'") {
+        start = line[i];
+        i++;
+    }
+    let first = "";
+    while(i < line.length) {
+        if(line[i] === start) {
+            if(start !== ' ')
+                i++;
+            break;
+        }
+        if(line[i] === '\\' && i < line.length - 1)
+            i++;
+        first = first + line[i];
+        i++;
+    }
+
+    while(i < line.length && line[i] === ' ')
+        i++;
+    return [first, line.slice(i)];
+}
+
 function handleInput() {
     let input = document.getElementById('input');
     let data = input.value;
@@ -1002,8 +1036,8 @@ function handleInput() {
     if(data === '')
         return;
 
-    if(data.charAt(0) === '/') {
-        if(data.charAt(1) === '/') {
+    if(data[0] === '/') {
+        if(data.length > 1 && data[1] === '/') {
             message = data.substring(1);
             me = false;
         } else {
@@ -1057,31 +1091,23 @@ function handleInput() {
                     displayError("You're not an operator");
                     return;
                 }
-                let username, message;
-                let space = rest.indexOf(' ');
-                if(space < 0) {
-                    username = rest;
-                    message = null;
-                } else {
-                    username = rest.slice(0, space);
-                    message = rest.slice(space + 1).trim();
-                }
+                let parsed = parseCommand(rest);
                 let id;
-                if(username in users) {
-                    id = rest;
+                if(parsed[0] in users) {
+                    id = parsed[0];
                 } else {
                     for(let i in users) {
-                        if(users[i] === username) {
+                        if(users[i] === parsed[0]) {
                             id = i;
                             break;
                         }
                     }
                 }
                 if(!id) {
-                    displayError('Unknown user ' + username);
+                    displayError('Unknown user ' + parsed[0]);
                     return;
                 }
-                serverConnection.userAction(cmd.slice(1), id, message);
+                serverConnection.userAction(cmd.slice(1), id, parsed[1]);
                 return;
             }
             default:

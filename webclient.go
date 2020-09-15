@@ -10,7 +10,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -639,24 +638,6 @@ func startClient(conn *websocket.Conn) (err error) {
 			websocket.FormatCloseMessage(
 				websocket.CloseProtocolError,
 				"you must login first",
-			),
-		)
-		conn.Close()
-		return
-	}
-
-	if strings.ContainsRune(m.Username, ' ') {
-		// at this point, the writer is not running yet, so format
-		// the message ourselves
-		conn.WriteJSON(clientMessage{
-			Type:  "usermessage",
-			Kind:  "error",
-			Value: "don't put spaces in your username",
-		})
-		conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(
-				websocket.CloseProtocolError,
-				"don't put spaces in your username",
 			),
 		)
 		conn.Close()
