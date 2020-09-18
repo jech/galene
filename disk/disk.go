@@ -73,7 +73,7 @@ func (client *Client) Close() error {
 	return nil
 }
 
-func (client *Client) kick(message string) error {
+func (client *Client) Kick(message string) error {
 	err := client.Close()
 	group.DelClient(client)
 	return err

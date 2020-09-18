@@ -909,7 +909,7 @@ func setPermissions(g *group.Group, id string, perm string) error {
 	return c.action(permissionsChangedAction{})
 }
 
-func (c *webClient) kick(message string) error {
+func (c *webClient) Kick(message string) error {
 	return c.action(kickAction{message})
 }
 
