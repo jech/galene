@@ -1,4 +1,4 @@
-package main
+package webserver
 
 import (
 	"bufio"
@@ -27,8 +27,10 @@ import (
 
 var server *http.Server
 
-func webserver() {
-	http.Handle("/", mungeHandler{http.FileServer(http.Dir(staticRoot))})
+var StaticRoot string
+
+func Serve(address string, dataDir string) {
+	http.Handle("/", mungeHandler{http.FileServer(http.Dir(StaticRoot))})
 	http.HandleFunc("/group/", groupHandler)
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -44,10 +46,12 @@ func webserver() {
 				filepath.Join(dataDir, "ice-servers.json"))
 		})
 	http.HandleFunc("/public-groups.json", publicHandler)
-	http.HandleFunc("/stats", statsHandler)
+	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		statsHandler(w, r, dataDir)
+	})
 
 	server = &http.Server{
-		Addr:              httpAddr,
+		Addr:              address,
 		ReadHeaderTimeout: 60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
@@ -100,7 +104,7 @@ func notFound(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 
-	f, err := os.Open(path.Join(staticRoot, "404.html"))
+	f, err := os.Open(path.Join(StaticRoot, "404.html"))
 	if err != nil {
 		fmt.Fprintln(w, "<p>Not found</p>")
 		return
@@ -162,7 +166,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.ServeFile(w, r, filepath.Join(staticRoot, "sfu.html"))
+	http.ServeFile(w, r, filepath.Join(StaticRoot, "sfu.html"))
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +183,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func getPassword() (string, string, error) {
+func getPassword(dataDir string) (string, string, error) {
 	f, err := os.Open(filepath.Join(dataDir, "passwd"))
 	if err != nil {
 		return "", "", err
@@ -207,8 +211,8 @@ func failAuthentication(w http.ResponseWriter, realm string) {
 	http.Error(w, "Haha!", http.StatusUnauthorized)
 }
 
-func statsHandler(w http.ResponseWriter, r *http.Request) {
-	u, p, err := getPassword()
+func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
+	u, p, err := getPassword(dataDir)
 	if err != nil {
 		log.Printf("Passwd: %v", err)
 		failAuthentication(w, "stats")
@@ -472,7 +476,7 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 	fmt.Fprintf(w, "</body></html>\n")
 }
 
-func shutdown() {
+func Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	server.Shutdown(ctx)

@@ -17,17 +17,14 @@ import (
 
 	"sfu/disk"
 	"sfu/group"
+	"sfu/webserver"
 )
 
-var httpAddr string
-var staticRoot string
-var dataDir string
-
 func main() {
-	var cpuprofile, memprofile, mutexprofile string
+	var cpuprofile, memprofile, mutexprofile, httpAddr, dataDir string
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
-	flag.StringVar(&staticRoot, "static", "./static/",
+	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
 		"web server root `directory`")
 	flag.StringVar(&dataDir, "data", "./data/",
 		"data `directory`")
@@ -84,10 +81,10 @@ func main() {
 	group.IceFilename = filepath.Join(dataDir, "ice-servers.json")
 
 	go group.ReadPublicGroups()
-	webserver()
+	webserver.Serve(httpAddr, dataDir)
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 	<-terminate
-	shutdown()
+	webserver.Shutdown()
 }
