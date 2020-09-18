@@ -42,7 +42,7 @@ func Serve(address string, dataDir string) {
 	http.HandleFunc("/ice-servers.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			mungeHeader(w)
-			http.ServeFile(w, r,
+			serveFile(w, r,
 				filepath.Join(dataDir, "ice-servers.json"))
 		})
 	http.HandleFunc("/public-groups.json", publicHandler)
@@ -113,6 +113,21 @@ type fileHandler struct {
 	root http.FileSystem
 }
 
+func makeEtag(d os.FileInfo) string {
+	return fmt.Sprintf("\"%v-%v\"", d.Size(), d.ModTime().UnixNano())
+}
+
+const (
+	normalCacheControl       = "max-age=1800"
+	veryCachableCacheControl = "max-age=86400"
+)
+
+func isVeryCachable(p string) bool {
+	return strings.HasPrefix(p, "/fonts/") ||
+		strings.HasPrefix(p, "/scripts/") ||
+		strings.HasPrefix(p, "/css/")
+}
+
 func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mungeHeader(w)
 	p := r.URL.Path
@@ -165,6 +180,47 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p = index
 	}
 
+	etag := makeEtag(d)
+	if etag != "" {
+		w.Header().Add("ETag", etag)
+	}
+
+	cc := normalCacheControl
+	if isVeryCachable(p) {
+		cc = veryCachableCacheControl
+	}
+	w.Header().Add("Cache-Control", cc)
+
+	http.ServeContent(w, r, d.Name(), d.ModTime(), f)
+}
+
+// serveFile is similar to http.ServeFile, except that it doesn't check
+// for .. and adds cachability headers.
+func serveFile(w http.ResponseWriter, r *http.Request, p string) {
+	f, err := os.Open(p)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	defer f.Close()
+	d, err := f.Stat()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+
+	if d.IsDir() {
+		httpError(w, ErrIsDirectory)
+		return
+	}
+
+	etag := makeEtag(d)
+	if etag != "" {
+		w.Header().Add("ETag", etag)
+	}
+
+	w.Header().Add("Cache-Control", normalCacheControl)
+
 	http.ServeContent(w, r, d.Name(), d.ModTime(), f)
 }
 
@@ -210,7 +266,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.ServeFile(w, r, filepath.Join(StaticRoot, "sfu.html"))
+	serveFile(w, r, filepath.Join(StaticRoot, "sfu.html"))
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {
