@@ -385,7 +385,7 @@ func (g *Group) Shutdown(message string) {
 	})
 }
 
-const maxChatHistory = 20
+const maxChatHistory = 50
 
 func (g *Group) ClearChatHistory() {
 	g.mu.Lock()
