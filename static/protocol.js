@@ -204,9 +204,7 @@ ServerConnection.prototype.connect = function(url) {
     }
 
     try {
-        sc.socket = new WebSocket(
-            `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`,
-        );
+        sc.socket = new WebSocket(url);
     } catch(e) {
         return Promise.reject(e);
     }
