@@ -30,7 +30,7 @@ var server *http.Server
 var StaticRoot string
 
 func Serve(address string, dataDir string) {
-	http.Handle("/", mungeHandler{http.FileServer(http.Dir(StaticRoot))})
+	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
 	http.HandleFunc("/group/", groupHandler)
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -78,28 +78,6 @@ func mungeHeader(w http.ResponseWriter) {
 		"connect-src ws: wss: 'self'; img-src data: 'self'; default-src 'self'")
 }
 
-// mungeResponseWriter redirects 404 replies to our custom 404 page.
-type mungeResponseWriter struct {
-	http.ResponseWriter
-	active bool
-}
-
-func (w *mungeResponseWriter) WriteHeader(status int) {
-	if status == http.StatusNotFound {
-		w.active = true
-		notFound(w.ResponseWriter)
-		return
-	}
-	w.ResponseWriter.WriteHeader(status)
-}
-
-func (w *mungeResponseWriter) Write(p []byte) (int, error) {
-	if w.active {
-		return len(p), nil
-	}
-	return w.ResponseWriter.Write(p)
-}
-
 func notFound(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
@@ -114,14 +92,80 @@ func notFound(w http.ResponseWriter) {
 	io.Copy(w, f)
 }
 
-// mungeHandler adds our custom headers and redirects 404 replies
-type mungeHandler struct {
-	h http.Handler
+var ErrIsDirectory = errors.New("is a directory")
+
+func httpError(w http.ResponseWriter, err error) {
+	if os.IsNotExist(err) {
+		notFound(w)
+		return
+	}
+	if os.IsPermission(err) {
+		http.Error(w, "403 forbidden", http.StatusForbidden)
+		return
+	}
+	http.Error(w, "500 Internal Server Error",
+		http.StatusInternalServerError)
+	return
 }
 
-func (h mungeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// fileHandler is our custom reimplementation of http.FileServer
+type fileHandler struct {
+	root http.FileSystem
+}
+
+func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mungeHeader(w)
-	h.h.ServeHTTP(&mungeResponseWriter{ResponseWriter: w}, r)
+	p := r.URL.Path
+	// this ensures any leading .. are removed by path.Clean below
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+		r.URL.Path = p
+	}
+	p = path.Clean(p)
+
+	f, err := fh.root.Open(p)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	defer f.Close()
+	d, err := f.Stat()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+
+	if d.IsDir() {
+		u := r.URL.Path
+		if u[len(u)-1] != '/' {
+			http.Redirect(w, r, u+"/", http.StatusPermanentRedirect)
+			return
+		}
+
+		index := path.Join(p, "index.html")
+		ff, err := fh.root.Open(index)
+		if err != nil {
+			if os.IsNotExist(err) {
+				err = os.ErrPermission
+			}
+			httpError(w, err)
+			return
+		}
+		defer ff.Close()
+		dd, err := ff.Stat()
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		if dd.IsDir() {
+			httpError(w, ErrIsDirectory)
+			return
+		}
+		f, d = ff, dd
+		p = index
+	}
+
+	http.ServeContent(w, r, d.Name(), d.ModTime(), f)
 }
 
 func parseGroupName(path string) string {
