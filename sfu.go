@@ -81,10 +81,22 @@ func main() {
 	group.IceFilename = filepath.Join(dataDir, "ice-servers.json")
 
 	go group.ReadPublicGroups()
-	webserver.Serve(httpAddr, dataDir)
+
+	serverDone := make(chan struct{})
+	go func() {
+		err := webserver.Serve(httpAddr, dataDir)
+		if err != nil {
+			log.Printf("Server: %v", err)
+		}
+		close(serverDone)
+	}()
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
-	<-terminate
-	webserver.Shutdown()
+	select {
+	case <-terminate:
+		webserver.Shutdown()
+	case <-serverDone:
+		os.Exit(1)
+	}
 }

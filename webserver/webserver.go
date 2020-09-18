@@ -29,7 +29,7 @@ var server *http.Server
 
 var StaticRoot string
 
-func Serve(address string, dataDir string) {
+func Serve(address string, dataDir string) error {
 	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
 	http.HandleFunc("/group/", groupHandler)
 	http.HandleFunc("/recordings",
@@ -61,16 +61,15 @@ func Serve(address string, dataDir string) {
 			return true
 		})
 	})
-	go func() {
-		var err error
-		err = server.ListenAndServeTLS(
-			filepath.Join(dataDir, "cert.pem"),
-			filepath.Join(dataDir, "key.pem"),
-		)
-		if err != nil && err != http.ErrServerClosed {
-			log.Printf("ListenAndServeTLS: %v", err)
-		}
-	}()
+
+	err := server.ListenAndServeTLS(
+		filepath.Join(dataDir, "cert.pem"),
+		filepath.Join(dataDir, "key.pem"),
+	)
+	if err == http.ErrServerClosed {
+		return nil
+	}
+	return err
 }
 
 func mungeHeader(w http.ResponseWriter) {
