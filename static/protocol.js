@@ -321,12 +321,15 @@ ServerConnection.prototype.join = function(group) {
 /**
  * request sets the list of requested media types.
  *
- * @param {string} what - One of "audio", "screenshare" or "everything".
+ * @param {string} what - One of '', 'audio', 'screenshare' or 'everything'.
  */
 ServerConnection.prototype.request = function(what) {
     /** @type {Object.<string,boolean>} */
     let request = {};
     switch(what) {
+    case '':
+        request = {};
+        break;
     case 'audio':
         request = {audio: true};
         break;
