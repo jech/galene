@@ -1,11 +1,12 @@
 package disk
 
 import (
+	crand "crypto/rand"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
+	"encoding/hex"
 	"sync"
 	"time"
 
@@ -30,18 +31,10 @@ type Client struct {
 	closed bool
 }
 
-var idCounter struct {
-	mu      sync.Mutex
-	counter int
-}
-
 func newId() string {
-	idCounter.mu.Lock()
-	defer idCounter.mu.Unlock()
-
-	s := strconv.FormatInt(int64(idCounter.counter), 16)
-	idCounter.counter++
-	return s
+	b := make([]byte, 16)
+	crand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 func New(g *group.Group) *Client {
