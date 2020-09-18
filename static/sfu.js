@@ -1296,7 +1296,7 @@ window.onclick = function(event) {
   }
 };
 
-function serverConnect() {
+async function serverConnect() {
     serverConnection = new ServerConnection();
     serverConnection.onconnected = gotConnected;
     serverConnection.onclose = gotClose;
@@ -1311,7 +1311,13 @@ function serverConnect() {
         else
             displayWarning(`The server said: ${message}`);
     }
-    return serverConnection.connect(`ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`);
+    let url = `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`;
+    try {
+        await serverConnection.connect(url);
+    } catch(e) {
+        console.error(e);
+        displayError(e.message ? e.message : "Couldn't connect to " + url);
+    }
 }
 
 function start() {

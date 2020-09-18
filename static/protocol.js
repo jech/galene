@@ -187,8 +187,9 @@ ServerConnection.prototype.getIceServers = async function() {
  *
  * @param {string} url - The URL to connect to.
  * @returns {Promise<ServerConnection>}
+ * @function
  */
-ServerConnection.prototype.connect = function(url) {
+ServerConnection.prototype.connect = async function(url) {
     let sc = this;
     if(sc.socket) {
         sc.socket.close(1000, 'Reconnecting');
@@ -197,19 +198,15 @@ ServerConnection.prototype.connect = function(url) {
 
     if(!sc.iceServers) {
         try {
-            sc.getIceServers();
+            await sc.getIceServers();
         } catch(e) {
-            console.error(e);
+            console.warn(e);
         }
     }
 
-    try {
-        sc.socket = new WebSocket(url);
-    } catch(e) {
-        return Promise.reject(e);
-    }
+    sc.socket = new WebSocket(url);
 
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
         this.socket.onerror = function(e) {
             reject(e);
         };
