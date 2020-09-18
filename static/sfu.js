@@ -29,7 +29,7 @@ let fallbackUserPass = null;
  * @param {string} username
  * @param {string} password
  */
-function setUserPass(username, password) {
+function storeUserPass(username, password) {
     let userpass = {username: username, password: password};
     try {
         window.sessionStorage.setItem('userpass', JSON.stringify(userpass));
@@ -41,9 +41,12 @@ function setUserPass(username, password) {
 }
 
 /**
+ * Returns null if the user hasn't logged in yet.
+ *
  * @returns {userpass}
  */
 function getUserPass() {
+    /** @type{userpass} */
     let userpass;
     try {
         let json = window.sessionStorage.getItem('userpass');
@@ -56,6 +59,8 @@ function getUserPass() {
 }
 
 /**
+ * Return null if the user hasn't logged in yet.
+ *
  * @returns {string}
  */
 function getUsername() {
@@ -63,6 +68,104 @@ function getUsername() {
     if(!userpass)
         return null;
     return userpass.username;
+}
+
+/**
+ * @typedef {Object} settings
+ * @property {boolean} [localMute]
+ * @property {string} [video]
+ * @property {string} [audio]
+ * @property {string} [send]
+ * @property {string} [request]
+ * @property {boolean} [activityDetection]
+ */
+
+/** @type{settings} */
+let fallbackSettings = null;
+
+/**
+ * @param {settings} settings
+ */
+function storeSettings(settings) {
+    try {
+        window.sessionStorage.setItem('settings', JSON.stringify(settings));
+        fallbackSettings = null;
+    } catch(e) {
+        console.warn("Couldn't store password:", e);
+        fallbackSettings = settings;
+    }
+}
+
+/**
+ * This always returns a dictionary.
+ *
+ * @returns {settings}
+ */
+
+function getSettings() {
+    /** @type{settings} */
+    let settings;
+    try {
+        let json = window.sessionStorage.getItem('settings');
+        settings = JSON.parse(json);
+    } catch(e) {
+        console.warn("Couldn't retrieve password:", e);
+        settings = fallbackSettings;
+    }
+    return settings || {};
+}
+
+/**
+ * @param {settings} settings
+ */
+function updateSettings(settings) {
+    let s = getSettings();
+    for(let key in settings)
+        s[key] = settings[key];
+    storeSettings(s);
+}
+
+function reflectSettings() {
+    let settings = getSettings();
+    let store = false;
+
+    setLocalMute(settings.localMute);
+
+    let videoselect =
+        /** @type {HTMLSelectElement} */(document.getElementById('videoselect'));
+    if(!settings.video || !selectOptionAvailable(videoselect, settings.video)) {
+        settings.video = selectOptionDefault(videoselect);
+        store = true;
+    }
+    videoselect.value = settings.video;
+
+    let audioselect =
+        /** @type {HTMLSelectElement} */(document.getElementById('audioselect'));
+    if(!settings.audio || !selectOptionAvailable(audioselect, settings.audio)) {
+        settings.audio = selectOptionDefault(audioselect);
+        store = true;
+    }
+    audioselect.value = settings.audio;
+
+    if(settings.request)
+        document.getElementById('requestselect').value = settings.request;
+    else {
+        settings.request = document.getElementById('requestselect').value;
+        store = true;
+    }
+
+    if(settings.send)
+        document.getElementById('sendselect').value = settings.send;
+    else {
+        settings.send = document.getElementById('sendselect').value;
+        store = true;
+    }
+
+    document.getElementById('activitybox').checked = settings.activityDetection;
+
+    if(store)
+        storeSettings(settings);
+
 }
 
 function showVideo() {
@@ -130,7 +233,7 @@ function gotConnected() {
     let up = getUserPass();
     this.login(up.username, up.password);
     this.join(group);
-    this.request(document.getElementById('requestselect').value);
+    this.request(getSettings().request);
 }
 
 /**
@@ -166,7 +269,7 @@ function gotDownStream(c) {
         setMediaStatus(c);
     }
     c.onstats = gotDownStats;
-    if(document.getElementById('activitybox').checked)
+    if(getSettings().activityDetection)
         c.setStatsInterval(activityDetectionInterval);
 }
 
@@ -226,22 +329,14 @@ function setButtonsVisibility() {
     setVisibility('mediaoptions', permissions.present);
 }
 
-/** @type {boolean} */
-let localMute = false;
-
-function toggleLocalMute() {
-    setLocalMute(!localMute);
-}
-
 /**
  * @param {boolean} mute
  */
 function setLocalMute(mute) {
-    localMute = mute;
-    muteLocalTracks(localMute);
+    muteLocalTracks(mute);
     let button = document.getElementById('mutebutton');
     let icon = button.querySelector("span .fa");
-    if(localMute){
+    if(mute){
         icon.classList.add('fa-microphone-slash');
         icon.classList.remove('fa-microphone');
         button.classList.add('muted');
@@ -254,17 +349,22 @@ function setLocalMute(mute) {
 
 document.getElementById('videoselect').onchange = function(e) {
     e.preventDefault();
+    updateSettings({video: this.value});
     changePresentation();
 };
 
 document.getElementById('audioselect').onchange = function(e) {
     e.preventDefault();
+    updateSettings({audio: this.value});
     changePresentation();
 };
 
 document.getElementById('mutebutton').onclick = function(e) {
     e.preventDefault();
-    toggleLocalMute();
+    let localMute = getSettings().localMute;
+    localMute = !localMute;
+    updateSettings({localMute: localMute})
+    setLocalMute(localMute);
 }
 
 document.getElementById('sharebutton').onclick = function(e) {
@@ -279,7 +379,7 @@ document.getElementById('unsharebutton').onclick = function(e) {
 
 /** @returns {number} */
 function getMaxVideoThroughput() {
-    let v = document.getElementById('sendselect').value;
+    let v = getSettings().send;
     switch(v) {
     case 'lowest':
         return 150000;
@@ -296,6 +396,7 @@ function getMaxVideoThroughput() {
 }
 
 document.getElementById('sendselect').onchange = async function(e) {
+    updateSettings({send: this.value});
     let t = getMaxVideoThroughput();
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
@@ -306,6 +407,7 @@ document.getElementById('sendselect').onchange = async function(e) {
 
 document.getElementById('requestselect').onchange = function(e) {
     e.preventDefault();
+    updateSettings({request: this.value});
     serverConnection.request(this.value);
 };
 
@@ -314,13 +416,14 @@ const activityDetectionPeriod = 700;
 const activityDetectionThreshold = 0.2;
 
 document.getElementById('activitybox').onchange = function(e) {
+    updateSettings({activityDetection: this.checked});
     for(let id in serverConnection.down) {
         let c = serverConnection.down[id];
         if(this.checked)
             c.setStatsInterval(activityDetectionInterval);
         else {
-            setActive(c, false);
             c.setStatsInterval(0);
+            setActive(c, false);
         }
     }
 }
@@ -385,24 +488,19 @@ function gotDownStats(stats) {
 }
 
 /**
- * @param {string} value
+ * @param {HTMLSelectElement} select
+ * @param {string} label
+ * @param {string} [value]
  */
-function mapMediaOption(value) {
-    switch(value) {
-    case 'default':
-        return true;
-    case 'off':
-        return false;
-    default:
-        return {deviceId: value};
-    }
-}
-
 function addSelectOption(select, label, value) {
     if(!value)
         value = label;
     for(let i = 0; i < select.children.length; i++) {
-        if(select.children[i].value === value) {
+        let child = /** @type {HTMLOptionElement} */ (select.children[i]);
+        if(child.value === value) {
+            if(child.label !== label) {
+                child.label = label;
+            }
             return;
         }
     }
@@ -413,12 +511,46 @@ function addSelectOption(select, label, value) {
     select.appendChild(option);
 }
 
-// media names might not be available before we call getDisplayMedia.  So
-// we call this lazily.
+/**
+ * @param {HTMLSelectElement} select
+ * @param {string} value
+ */
+function selectOptionAvailable(select, value) {
+    let children = select.children;
+    for(let i = 0; i < children.length; i++) {
+        let child = /** @type {HTMLOptionElement} */ (select.children[i]);
+        if(child.value === value) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @param {HTMLSelectElement} select
+ * @returns {string}
+ */
+function selectOptionDefault(select) {
+    /* First non-empty option. */
+    for(let i = 0; i < select.children.length; i++) {
+        let child = /** @type {HTMLOptionElement} */ (select.children[i]);
+        if(child.value)
+            return child.value;
+    }
+    /* The empty option is always available. */
+    return '';
+}
+
+/* media names might not be available before we call getDisplayMedia.  So
+   we call this twice, the second time to update the menu with user-readable
+   labels. */
 /** @type {boolean} */
 let mediaChoicesDone = false;
 
-async function setMediaChoices() {
+/**
+ * @param{boolean} done
+ */
+async function setMediaChoices(done) {
     if(mediaChoicesDone)
         return;
 
@@ -449,8 +581,9 @@ async function setMediaChoices() {
         }
     });
 
-    mediaChoicesDone = true;
+    mediaChoicesDone = done;
 }
+
 
 /**
  * @param {string} [id]
@@ -508,8 +641,10 @@ async function addLocalMedia(id) {
     if(!getUserPass())
         return;
 
-    let audio = mapMediaOption(document.getElementById('audioselect').value);
-    let video = mapMediaOption(document.getElementById('videoselect').value);
+    let settings = getSettings();
+
+    let audio = settings.audio ? {deviceId: settings.audio} : false;
+    let video = settings.video ? {deviceId: settings.video} : false;
 
     let old = id && serverConnection.up[id];
 
@@ -534,15 +669,16 @@ async function addLocalMedia(id) {
         return;
     }
 
-    setMediaChoices();
+    setMediaChoices(true);
 
     let c = newUpStream(id);
 
     c.kind = 'local';
     c.stream = stream;
+    let mute = getSettings().localMute;
     stream.getTracks().forEach(t => {
         c.labels[t.id] = t.kind
-        if(t.kind == 'audio' && localMute)
+        if(t.kind == 'audio' && mute)
             t.enabled = false;
         let sender = c.pc.addTrack(t, stream);
     });
@@ -1212,7 +1348,7 @@ document.getElementById('userform').onsubmit = function(e) {
     e.preventDefault();
     let username = document.getElementById('username').value.trim();
     let password = document.getElementById('password').value;
-    setUserPass(username, password);
+    storeUserPass(username, password);
     serverConnect();
 };
 
@@ -1222,7 +1358,6 @@ document.getElementById('disconnectbutton').onclick = function(e) {
     if (user_box.classList.contains("show")) {
       user_box.classList.toggle("show");
     }
-    
 };
 
 function openNav() {
@@ -1328,7 +1463,7 @@ function start() {
         document.getElementById('title').textContent = title;
     }
 
-    setLocalMute(localMute);
+    setMediaChoices(false).then(e => reflectSettings());
 
     document.getElementById("user").classList.add('invisible');
     document.getElementById("login-container").classList.remove('invisible');
