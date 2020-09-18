@@ -3,3 +3,4 @@ data/*.pem
 sfu
 passwd
 groups/*.json
+static/*.d.ts
