@@ -1,9 +1,4 @@
-// Copyright (c) 2020 by Juliusz Chroboczek.
-
-// This is not open source software.  Copy it, and I'll break into your
-// house and tell your three year-old that Santa doesn't exist.
-
-package main
+package rtpconn
 
 import (
 	"errors"
@@ -14,14 +9,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"sfu/estimator"
-	"sfu/jitter"
-	"sfu/packetcache"
-	"sfu/rtptime"
-
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
+
+	"sfu/conn"
+	"sfu/estimator"
+	"sfu/group"
+	"sfu/jitter"
+	"sfu/packetcache"
+	"sfu/rtptime"
 )
 
 type bitrate struct {
@@ -71,7 +68,7 @@ type iceConnection interface {
 
 type rtpDownTrack struct {
 	track         *webrtc.Track
-	remote        upTrack
+	remote        conn.UpTrack
 	maxBitrate    *bitrate
 	rate          *estimator.Estimator
 	stats         *receiverStats
@@ -91,26 +88,26 @@ func (down *rtpDownTrack) Accumulate(bytes uint32) {
 	down.rate.Accumulate(bytes)
 }
 
-func (down *rtpDownTrack) setTimeOffset(ntp uint64, rtp uint32) {
+func (down *rtpDownTrack) SetTimeOffset(ntp uint64, rtp uint32) {
 	atomic.StoreUint64(&down.remoteNTPTime, ntp)
 	atomic.StoreUint32(&down.remoteRTPTime, rtp)
 }
 
-func (down *rtpDownTrack) setCname(cname string) {
+func (down *rtpDownTrack) SetCname(cname string) {
 	down.cname.Store(cname)
 }
 
 type rtpDownConnection struct {
 	id             string
 	pc             *webrtc.PeerConnection
-	remote         upConnection
+	remote         conn.Up
 	tracks         []*rtpDownTrack
 	maxREMBBitrate *bitrate
 	iceCandidates  []*webrtc.ICECandidateInit
 }
 
-func newDownConn(c client, id string, remote upConnection) (*rtpDownConnection, error) {
-	pc, err := c.Group().API().NewPeerConnection(iceConfiguration())
+func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
+	pc, err := c.Group().API().NewPeerConnection(group.IceConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +190,7 @@ type rtpUpTrack struct {
 
 	mu        sync.Mutex
 	cname     string
-	local     []downTrack
+	local     []conn.DownTrack
 	srTime    uint64
 	srNTPTime uint64
 	srRTPTime uint32
@@ -201,17 +198,17 @@ type rtpUpTrack struct {
 
 type localTrackAction struct {
 	add   bool
-	track downTrack
+	track conn.DownTrack
 }
 
-func (up *rtpUpTrack) notifyLocal(add bool, track downTrack) {
+func (up *rtpUpTrack) notifyLocal(add bool, track conn.DownTrack) {
 	select {
 	case up.localCh <- localTrackAction{add, track}:
 	case <-up.readerDone:
 	}
 }
 
-func (up *rtpUpTrack) addLocal(local downTrack) error {
+func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 	up.mu.Lock()
 	for _, t := range up.local {
 		if t == local {
@@ -226,7 +223,7 @@ func (up *rtpUpTrack) addLocal(local downTrack) error {
 	return nil
 }
 
-func (up *rtpUpTrack) delLocal(local downTrack) bool {
+func (up *rtpUpTrack) DelLocal(local conn.DownTrack) bool {
 	up.mu.Lock()
 	for i, l := range up.local {
 		if l == local {
@@ -240,15 +237,15 @@ func (up *rtpUpTrack) delLocal(local downTrack) bool {
 	return false
 }
 
-func (up *rtpUpTrack) getLocal() []downTrack {
+func (up *rtpUpTrack) getLocal() []conn.DownTrack {
 	up.mu.Lock()
 	defer up.mu.Unlock()
-	local := make([]downTrack, len(up.local))
+	local := make([]conn.DownTrack, len(up.local))
 	copy(local, up.local)
 	return local
 }
 
-func (up *rtpUpTrack) getRTP(seqno uint16, result []byte) uint16 {
+func (up *rtpUpTrack) GetRTP(seqno uint16, result []byte) uint16 {
 	return up.cache.Get(seqno, result)
 }
 
@@ -278,7 +275,7 @@ type rtpUpConnection struct {
 
 	mu     sync.Mutex
 	tracks []*rtpUpTrack
-	local  []downConnection
+	local  []conn.Down
 }
 
 func (up *rtpUpConnection) getTracks() []*rtpUpTrack {
@@ -297,7 +294,7 @@ func (up *rtpUpConnection) Label() string {
 	return up.label
 }
 
-func (up *rtpUpConnection) addLocal(local downConnection) error {
+func (up *rtpUpConnection) AddLocal(local conn.Down) error {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	for _, t := range up.local {
@@ -309,7 +306,7 @@ func (up *rtpUpConnection) addLocal(local downConnection) error {
 	return nil
 }
 
-func (up *rtpUpConnection) delLocal(local downConnection) bool {
+func (up *rtpUpConnection) DelLocal(local conn.Down) bool {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	for i, l := range up.local {
@@ -321,10 +318,10 @@ func (up *rtpUpConnection) delLocal(local downConnection) bool {
 	return false
 }
 
-func (up *rtpUpConnection) getLocal() []downConnection {
+func (up *rtpUpConnection) getLocal() []conn.Down {
 	up.mu.Lock()
 	defer up.mu.Unlock()
-	local := make([]downConnection, len(up.local))
+	local := make([]conn.Down, len(up.local))
 	copy(local, up.local)
 	return local
 }
@@ -370,8 +367,8 @@ func (up *rtpUpConnection) complete() bool {
 	return true
 }
 
-func newUpConn(c client, id string) (*rtpUpConnection, error) {
-	pc, err := c.Group().API().NewPeerConnection(iceConfiguration())
+func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
+	pc, err := c.Group().API().NewPeerConnection(group.IceConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -396,10 +393,10 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 		return nil, err
 	}
 
-	conn := &rtpUpConnection{id: id, pc: pc}
+	up := &rtpUpConnection{id: id, pc: pc}
 
 	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
-		conn.mu.Lock()
+		up.mu.Lock()
 
 		mid := getTrackMid(pc, remote)
 		if mid == "" {
@@ -407,7 +404,7 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 			return
 		}
 
-		label, ok := conn.labels[mid]
+		label, ok := up.labels[mid]
 		if !ok {
 			log.Printf("Couldn't get track's label")
 			isvideo := remote.Kind() == webrtc.RTPCodecTypeVideo
@@ -428,34 +425,34 @@ func newUpConn(c client, id string) (*rtpUpConnection, error) {
 			readerDone: make(chan struct{}),
 		}
 
-		conn.tracks = append(conn.tracks, track)
+		up.tracks = append(up.tracks, track)
 
-		go readLoop(conn, track)
+		go readLoop(up, track)
 
-		go rtcpUpListener(conn, track, receiver)
+		go rtcpUpListener(up, track, receiver)
 
-		complete := conn.complete()
-		var tracks []upTrack
-		if(complete) {
-			tracks = make([]upTrack, len(conn.tracks))
-			for i, t := range conn.tracks {
+		complete := up.complete()
+		var tracks []conn.UpTrack
+		if complete {
+			tracks = make([]conn.UpTrack, len(up.tracks))
+			for i, t := range up.tracks {
 				tracks[i] = t
 			}
 		}
 
 		// pushConn might need to take the lock
-		conn.mu.Unlock()
+		up.mu.Unlock()
 
 		if complete {
-			clients := c.Group().getClients(c)
+			clients := c.Group().GetClients(c)
 			for _, cc := range clients {
-				cc.pushConn(conn.id, conn, tracks, conn.label)
+				cc.PushConn(up.id, up, tracks, up.label)
 			}
-			go rtcpUpSender(conn)
+			go rtcpUpSender(up)
 		}
 	})
 
-	return conn, nil
+	return up, nil
 }
 
 func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
@@ -606,7 +603,7 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
 		for _, seqno := range nack.PacketList() {
-			l := track.remote.getRTP(seqno, buf)
+			l := track.remote.GetRTP(seqno, buf)
 			if l == 0 {
 				continue
 			}
@@ -650,7 +647,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 				track.srRTPTime = p.RTPTime
 				track.mu.Unlock()
 				for _, l := range local {
-					l.setTimeOffset(p.NTPTime, p.RTPTime)
+					l.SetTimeOffset(p.NTPTime, p.RTPTime)
 				}
 			case *rtcp.SourceDescription:
 				for _, c := range p.Chunks {
@@ -665,7 +662,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 						track.cname = i.Text
 						track.mu.Unlock()
 						for _, l := range local {
-							l.setCname(i.Text)
+							l.SetCname(i.Text)
 						}
 					}
 				}
@@ -749,8 +746,8 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 			rate = r
 		}
 	}
-	if rate < minBitrate {
-		rate = minBitrate
+	if rate < group.MinBitrate {
+		rate = group.MinBitrate
 	}
 
 	var ssrcs []uint32

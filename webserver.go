@@ -18,6 +18,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"sfu/disk"
+	"sfu/group"
+	"sfu/rtpconn"
+	"sfu/stats"
 )
 
 var server *http.Server
@@ -47,8 +52,8 @@ func webserver() {
 		IdleTimeout:       120 * time.Second,
 	}
 	server.RegisterOnShutdown(func() {
-		rangeGroups(func (g *group) bool {
-			go g.shutdown("server is shutting down")
+		group.Range(func(g *group.Group) bool {
+			go g.Shutdown("server is shutting down")
 			return true
 		})
 	})
@@ -139,7 +144,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g, err := addGroup(name, nil)
+	g, err := group.Add(name, nil)
 	if err != nil {
 		if os.IsNotExist(err) {
 			notFound(w)
@@ -168,7 +173,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g := getPublicGroups()
+	g := group.GetPublic()
 	e := json.NewEncoder(w)
 	e.Encode(g)
 	return
@@ -222,7 +227,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats := getGroupStats()
+	ss := stats.GetGroups()
 
 	fmt.Fprintf(w, "<!DOCTYPE html>\n<html><head>\n")
 	fmt.Fprintf(w, "<title>Stats</title>\n")
@@ -239,51 +244,51 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 		return err
 	}
 
-	printTrack := func(w io.Writer, t trackStats) {
+	printTrack := func(w io.Writer, t stats.Track) {
 		fmt.Fprintf(w, "<tr><td></td><td></td><td></td>")
 		fmt.Fprintf(w, "<td>")
-		printBitrate(w, t.bitrate, t.maxBitrate)
+		printBitrate(w, t.Bitrate, t.MaxBitrate)
 		fmt.Fprintf(w, "</td>")
 		fmt.Fprintf(w, "<td>%d%%</td>",
-			t.loss,
+			t.Loss,
 		)
 		fmt.Fprintf(w, "<td>")
-		if t.rtt > 0 {
-			fmt.Fprintf(w, "%v", t.rtt)
+		if t.Rtt > 0 {
+			fmt.Fprintf(w, "%v", t.Rtt)
 		}
-		if t.jitter > 0 {
-			fmt.Fprintf(w, "&#177;%v", t.jitter)
+		if t.Jitter > 0 {
+			fmt.Fprintf(w, "&#177;%v", t.Jitter)
 		}
 		fmt.Fprintf(w, "</td>")
 		fmt.Fprintf(w, "</tr>")
 	}
 
-	for _, gs := range stats {
-		fmt.Fprintf(w, "<p>%v</p>\n", html.EscapeString(gs.name))
+	for _, gs := range ss {
+		fmt.Fprintf(w, "<p>%v</p>\n", html.EscapeString(gs.Name))
 		fmt.Fprintf(w, "<table>")
-		for _, cs := range gs.clients {
-			fmt.Fprintf(w, "<tr><td>%v</td></tr>\n", cs.id)
-			for _, up := range cs.up {
+		for _, cs := range gs.Clients {
+			fmt.Fprintf(w, "<tr><td>%v</td></tr>\n", cs.Id)
+			for _, up := range cs.Up {
 				fmt.Fprintf(w, "<tr><td></td><td>Up</td><td>%v</td>",
-					up.id)
-				if up.maxBitrate > 0 {
+					up.Id)
+				if up.MaxBitrate > 0 {
 					fmt.Fprintf(w, "<td>%v</td>",
-						up.maxBitrate)
+						up.MaxBitrate)
 				}
 				fmt.Fprintf(w, "</tr>\n")
-				for _, t := range up.tracks {
+				for _, t := range up.Tracks {
 					printTrack(w, t)
 				}
 			}
-			for _, down := range cs.down {
+			for _, down := range cs.Down {
 				fmt.Fprintf(w, "<tr><td></td><td>Down</td><td> %v</td>",
-					down.id)
-				if down.maxBitrate > 0 {
+					down.Id)
+				if down.MaxBitrate > 0 {
 					fmt.Fprintf(w, "<td>%v</td>",
-						down.maxBitrate)
+						down.MaxBitrate)
 				}
 				fmt.Fprintf(w, "</tr>\n")
-				for _, t := range down.tracks {
+				for _, t := range down.Tracks {
 					printTrack(w, t)
 				}
 			}
@@ -302,7 +307,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		err := startClient(conn)
+		err := rtpconn.StartClient(conn)
 		if err != nil {
 			log.Printf("client: %v", err)
 		}
@@ -322,7 +327,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := os.Open(filepath.Join(recordingsDir, pth))
+	f, err := os.Open(filepath.Join(disk.Directory, pth))
 	if err != nil {
 		if os.IsNotExist(err) {
 			notFound(w)
@@ -389,7 +394,7 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 			return
 		}
 		err := os.Remove(
-			filepath.Join(recordingsDir, group+"/"+filename),
+			filepath.Join(disk.Directory, group+"/"+filename),
 		)
 		if err != nil {
 			if os.IsPermission(err) {
@@ -409,8 +414,8 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 	}
 }
 
-func checkGroupPermissions(w http.ResponseWriter, r *http.Request, group string) bool {
-	desc, err := getDescription(group)
+func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname string) bool {
+	desc, err := group.GetDescription(groupname)
 	if err != nil {
 		return false
 	}
@@ -420,7 +425,7 @@ func checkGroupPermissions(w http.ResponseWriter, r *http.Request, group string)
 		return false
 	}
 
-	p, err := getPermission(desc, clientCredentials{user, pass})
+	p, err := desc.GetPermission(group.ClientCredentials{user, pass})
 	if err != nil || !p.Record {
 		return false
 	}
