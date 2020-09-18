@@ -419,11 +419,13 @@ ServerConnection.prototype.chat = function(username, kind, message) {
  *
  * @param {string} kind - One of "clearchat", "lock", "unlock", "record or
  * "unrecord".
+ * @param {string} [message]
  */
-ServerConnection.prototype.groupAction = function(kind) {
+ServerConnection.prototype.groupAction = function(kind, message) {
     this.send({
         type: 'groupaction',
         kind: kind,
+        value: message,
     });
 };
 

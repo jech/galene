@@ -78,7 +78,7 @@ type Group struct {
 	description *groupDescription
 	// indicates that the group no longer exists, but it still has clients
 	dead    bool
-	locked  bool
+	locked  *string
 	clients map[string]Client
 	history []ChatHistoryEntry
 }
@@ -87,16 +87,24 @@ func (g *Group) Name() string {
 	return g.name
 }
 
-func (g *Group) Locked() bool {
+func (g *Group) Locked() (bool, string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.locked
+	if(g.locked != nil) {
+		return true, *g.locked
+	} else {
+		return false, ""
+	}
 }
 
-func (g *Group) SetLocked(locked bool) {
+func (g *Group) SetLocked(locked bool, message string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.locked = locked
+	if locked {
+		g.locked = &message
+	} else {
+		g.locked = nil
+	}
 }
 
 func (g *Group) Public() bool {
@@ -272,8 +280,12 @@ func AddClient(name string, c Client) (*Group, error) {
 
 	c.SetPermissions(perms)
 
-	if !perms.Op && g.locked {
-		return nil, UserError("group is locked")
+	if !perms.Op && g.locked != nil {
+		m := *g.locked
+		if m == "" {
+			m = "group is locked"
+		}
+		return nil, UserError(m)
 	}
 
 	if !perms.Op && g.description.MaxClients > 0 {

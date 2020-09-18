@@ -114,7 +114,7 @@ The following commands are only available to users with operator
 privileges:
 
  - `/clear`: clears the chat history for all users;
- - `/lock`: prevents any new users from connecting to the group unless
+ - `/lock message`: prevents any new users from connecting to the group unless
    they have operator privileges;
  - `/unlock`: reverts the effect of `/lock`;
  - `/record`: start recording;

@@ -1008,7 +1008,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			c.group.SetLocked(m.Kind == "lock")
+			c.group.SetLocked(m.Kind == "lock", m.Value)
 		case "record":
 			if !c.permissions.Record {
 				return c.error(group.UserError("not authorised"))

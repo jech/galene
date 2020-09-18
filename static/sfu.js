@@ -1072,7 +1072,7 @@ function handleInput() {
                     displayError("You're not an operator");
                     return;
                 }
-                serverConnection.groupAction(cmd.slice(1));
+                serverConnection.groupAction(cmd.slice(1), rest);
                 return;
             case '/record':
             case '/unrecord':
