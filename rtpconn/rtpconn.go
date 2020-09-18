@@ -1,9 +1,4 @@
-// Copyright (c) 2020 by Juliusz Chroboczek.
-
-// This is not open source software.  Copy it, and I'll break into your
-// house and tell your three year-old that Santa doesn't exist.
-
-package main
+package rtpconn
 
 import (
 	"errors"

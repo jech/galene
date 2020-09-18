@@ -1,9 +1,4 @@
-// Copyright (c) 2020 by Juliusz Chroboczek.
-
-// This is not open source software.  Copy it, and I'll break into your
-// house and tell your three year-old that Santa doesn't exist.
-
-package main
+package rtpconn
 
 import (
 	"encoding/json"
@@ -580,7 +575,7 @@ func (c *webClient) PushConn(id string, up conn.Up, tracks []conn.UpTrack, label
 	return nil
 }
 
-func startClient(conn *websocket.Conn) (err error) {
+func StartClient(conn *websocket.Conn) (err error) {
 	var m clientMessage
 
 	err = conn.SetReadDeadline(time.Now().Add(15 * time.Second))

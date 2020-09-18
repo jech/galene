@@ -21,6 +21,7 @@ import (
 
 	"sfu/disk"
 	"sfu/group"
+	"sfu/rtpconn"
 	"sfu/stats"
 )
 
@@ -306,7 +307,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		err := startClient(conn)
+		err := rtpconn.StartClient(conn)
 		if err != nil {
 			log.Printf("client: %v", err)
 		}
