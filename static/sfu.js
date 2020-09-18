@@ -78,6 +78,8 @@ function getUsername() {
  * @property {string} [send]
  * @property {string} [request]
  * @property {boolean} [activityDetection]
+ * @property {boolean} [blackboardMode]
+ * @property {boolean} [studioMode]
  */
 
 /** @type{settings} */
@@ -162,6 +164,10 @@ function reflectSettings() {
     }
 
     document.getElementById('activitybox').checked = settings.activityDetection;
+
+    document.getElementById('blackboardbox').checked = settings.blackboardMode;
+
+    document.getElementById('studiobox').checked = settings.studioMode;
 
     if(store)
         storeSettings(settings);
@@ -358,6 +364,18 @@ document.getElementById('audioselect').onchange = function(e) {
     updateSettings({audio: this.value});
     changePresentation();
 };
+
+document.getElementById('blackboardbox').onchange = function(e) {
+    e.preventDefault();
+    updateSettings({blackboardMode: this.checked});
+    changePresentation();
+}
+
+document.getElementById('studiobox').onchange = function(e) {
+    e.preventDefault();
+    updateSettings({studioMode: this.checked});
+    changePresentation();
+}
 
 document.getElementById('mutebutton').onclick = function(e) {
     e.preventDefault();
@@ -646,6 +664,23 @@ async function addLocalMedia(id) {
     let audio = settings.audio ? {deviceId: settings.audio} : false;
     let video = settings.video ? {deviceId: settings.video} : false;
 
+    if(audio) {
+        if(settings.studioMode) {
+            audio.echoCancellation = false;
+            audio.noiseSuppression = false;
+            audio.channelCount = 2;
+            audio.latency = 0.01;
+            audio.autoGainControl = false;
+        }
+    }
+
+    if(video) {
+        if(settings.blackboardMode) {
+            video.width = { min: 640, ideal: 1920 };
+            video.height = { min: 400, ideal: 1080 };
+        }
+    }
+
     let old = id && serverConnection.up[id];
 
     if(!audio && !video) {
@@ -662,7 +697,6 @@ async function addLocalMedia(id) {
     try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch(e) {
-        console.error(e);
         displayError(e);
         if(old)
             delUpMedia(old);
@@ -678,8 +712,15 @@ async function addLocalMedia(id) {
     let mute = getSettings().localMute;
     stream.getTracks().forEach(t => {
         c.labels[t.id] = t.kind
-        if(t.kind == 'audio' && mute)
-            t.enabled = false;
+        if(t.kind == 'audio') {
+            if(mute)
+                t.enabled = false;
+        } else if(t.kind == 'video') {
+            if(settings.blackboardMode) {
+                if('contentHint' in t)
+                    t.contentHint = 'detail';
+            }
+        }
         let sender = c.pc.addTrack(t, stream);
     });
 
