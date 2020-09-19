@@ -107,24 +107,32 @@ func httpError(w http.ResponseWriter, err error) {
 	return
 }
 
-// fileHandler is our custom reimplementation of http.FileServer
-type fileHandler struct {
-	root http.FileSystem
-}
-
-func makeEtag(d os.FileInfo) string {
-	return fmt.Sprintf("\"%v-%v\"", d.Size(), d.ModTime().UnixNano())
-}
-
 const (
 	normalCacheControl       = "max-age=1800"
 	veryCachableCacheControl = "max-age=86400"
 )
 
-func isVeryCachable(p string) bool {
-	return strings.HasPrefix(p, "/fonts/") ||
+func makeCachable(w http.ResponseWriter, p string, fi os.FileInfo, cachable bool) {
+	etag := fmt.Sprintf("\"%v-%v\"", fi.Size(), fi.ModTime().UnixNano())
+	w.Header().Set("ETag", etag)
+	if !cachable {
+		w.Header().Set("cache-control", "no-cache")
+		return
+	}
+
+	cc := normalCacheControl
+	if strings.HasPrefix(p, "/fonts/") ||
 		strings.HasPrefix(p, "/scripts/") ||
-		strings.HasPrefix(p, "/css/")
+		strings.HasPrefix(p, "/css/") {
+		cc = veryCachableCacheControl
+	}
+
+	w.Header().Set("Cache-Control", cc)
+}
+
+// fileHandler is our custom reimplementation of http.FileServer
+type fileHandler struct {
+	root http.FileSystem
 }
 
 func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -143,13 +151,13 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	d, err := f.Stat()
+	fi, err := f.Stat()
 	if err != nil {
 		httpError(w, err)
 		return
 	}
 
-	if d.IsDir() {
+	if fi.IsDir() {
 		u := r.URL.Path
 		if u[len(u)-1] != '/' {
 			http.Redirect(w, r, u+"/", http.StatusPermanentRedirect)
@@ -175,22 +183,12 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			httpError(w, ErrIsDirectory)
 			return
 		}
-		f, d = ff, dd
+		f, fi = ff, dd
 		p = index
 	}
 
-	etag := makeEtag(d)
-	if etag != "" {
-		w.Header().Add("ETag", etag)
-	}
-
-	cc := normalCacheControl
-	if isVeryCachable(p) {
-		cc = veryCachableCacheControl
-	}
-	w.Header().Add("Cache-Control", cc)
-
-	http.ServeContent(w, r, d.Name(), d.ModTime(), f)
+	makeCachable(w, p, fi, true)
+	http.ServeContent(w, r, fi.Name(), fi.ModTime(), f)
 }
 
 // serveFile is similar to http.ServeFile, except that it doesn't check
@@ -202,25 +200,19 @@ func serveFile(w http.ResponseWriter, r *http.Request, p string) {
 		return
 	}
 	defer f.Close()
-	d, err := f.Stat()
+	fi, err := f.Stat()
 	if err != nil {
 		httpError(w, err)
 		return
 	}
 
-	if d.IsDir() {
+	if fi.IsDir() {
 		httpError(w, ErrIsDirectory)
 		return
 	}
 
-	etag := makeEtag(d)
-	if etag != "" {
-		w.Header().Add("ETag", etag)
-	}
-
-	w.Header().Add("Cache-Control", normalCacheControl)
-
-	http.ServeContent(w, r, d.Name(), d.ModTime(), f)
+	makeCachable(w, p, fi, true)
+	http.ServeContent(w, r, fi.Name(), fi.ModTime(), f)
 }
 
 func parseGroupName(path string) string {
@@ -423,55 +415,64 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pth := r.URL.Path[12:]
+	p := "/" + r.URL.Path[12:]
 
-	if pth == "" {
-		http.Error(w, "nothing to see", http.StatusNotImplemented)
+	if filepath.Separator != '/' &&
+		strings.ContainsRune(p, filepath.Separator) {
+		http.Error(w, "bad character in filename",
+			http.StatusBadRequest)
 		return
 	}
 
-	f, err := os.Open(filepath.Join(disk.Directory, pth))
+	if p == "/" {
+		http.Error(w, "nothing to see", http.StatusForbidden)
+		return
+	}
+
+	p = path.Clean(p)
+
+	f, err := os.Open(filepath.Join(disk.Directory, p))
 	if err != nil {
-		if os.IsNotExist(err) {
-			notFound(w)
-		} else {
-			http.Error(w, "server error",
-				http.StatusInternalServerError)
-		}
+		httpError(w, err)
 		return
 	}
 	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		httpError(w, err)
+		return
+	}
+
+	group := path.Dir(p[1:])
+	if fi.IsDir() {
+		u := r.URL.Path
+		if u[len(u)-1] != '/' {
+			http.Redirect(w, r, u+"/", http.StatusPermanentRedirect)
+			return
+		}
+		group = p[1:]
+	}
+
+	ok := checkGroupPermissions(w, r, group)
+	if !ok {
+		failAuthentication(w, "recordings/"+group)
 		return
 	}
 
 	if fi.IsDir() {
-		if pth[len(pth)-1] != '/' {
-			http.Redirect(w, r,
-				r.URL.Path+"/", http.StatusPermanentRedirect)
-			return
-		}
-		ok := checkGroupPermissions(w, r, path.Dir(pth))
-		if !ok {
-			failAuthentication(w, "recordings/"+path.Dir(pth))
-			return
-		}
 		if r.Method == "POST" {
-			handleGroupAction(w, r, path.Dir(pth))
+			handleGroupAction(w, r, group)
 		} else {
-			serveGroupRecordings(w, r, f, path.Dir(pth))
+			serveGroupRecordings(w, r, f, group)
 		}
-	} else {
-		ok := checkGroupPermissions(w, r, path.Dir(pth))
-		if !ok {
-			failAuthentication(w, "recordings/"+path.Dir(pth))
-			return
-		}
-		http.ServeContent(w, r, r.URL.Path, fi.ModTime(), f)
+		return
 	}
+
+	// Ensure the file is uncachable if it's still recording
+	cachable := time.Since(fi.ModTime()) > time.Minute
+	makeCachable(w, path.Join("/recordings/", p), fi, cachable)
+	http.ServeContent(w, r, fi.Name(), fi.ModTime(), f)
 }
 
 func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
@@ -496,17 +497,21 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 				http.StatusBadRequest)
 			return
 		}
+		if strings.ContainsRune(filename, '/') ||
+			strings.ContainsRune(filename, filepath.Separator) {
+			http.Error(w, "bad character in filename",
+				http.StatusBadRequest)
+			return
+		}
 		err := os.Remove(
-			filepath.Join(disk.Directory, group+"/"+filename),
+			filepath.Join(disk.Directory,
+				filepath.Join(group,
+					path.Clean("/"+filename),
+				),
+			),
 		)
 		if err != nil {
-			if os.IsPermission(err) {
-				http.Error(w, "unauthorized",
-					http.StatusForbidden)
-			} else {
-				http.Error(w, "server error",
-					http.StatusInternalServerError)
-			}
+			httpError(w, err)
 			return
 		}
 		http.Redirect(w, r, "/recordings/"+group+"/",
@@ -553,7 +558,7 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 	fmt.Fprintf(w, "<!DOCTYPE html>\n<html><head>\n")
 	fmt.Fprintf(w, "<title>Recordings for group %v</title>\n", group)
 	fmt.Fprintf(w, "<link rel=\"stylesheet\" type=\"text/css\" href=\"/common.css\"/>")
-	fmt.Fprintf(w, "<head><body>\n")
+	fmt.Fprintf(w, "</head><body>\n")
 
 	fmt.Fprintf(w, "<table>\n")
 	for _, fi := range fis {
@@ -566,8 +571,9 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 			fi.Size(),
 		)
 		fmt.Fprintf(w,
-			"<td><form action=\"/recordings/%v/?q=delete\" method=\"post\">"+
-				"<button type=\"submit\" name=\"filename\" value=\"%v\">Delete</button>"+
+			"<td><form action=\"/recordings/%v/\" method=\"post\">"+
+				"<input type=\"hidden\" name=\"filename\" value=\"%v\">"+
+				"<button type=\"submit\" name=\"q\" value=\"delete\">Delete</button>"+
 				"</form></td></tr>\n",
 			url.PathEscape(group), fi.Name())
 	}
