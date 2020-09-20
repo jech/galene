@@ -7,7 +7,8 @@
 
 /**
  * toHex formats an array as a hexadecimal string.
- * @returns {string}
+ * @param {number[]|Uint8Array} array - the array to format
+ * @returns {string} - the hexadecimal representation of array
  */
 function toHex(array) {
     let a = new Uint8Array(array);
@@ -37,43 +38,52 @@ function randomid() {
 function ServerConnection() {
     /**
      * The id of this connection.
+     *
      * @type {string}
+     * @const
      */
     this.id = randomid();
     /**
      * The group that we have joined, or nil if we haven't joined yet.
+     *
      * @type {string}
      */
     this.group = null;
     /**
      * The underlying websocket.
+     *
      * @type {WebSocket}
      */
     this.socket = null;
     /**
      * The set of all up streams, indexed by their id.
-     * @type {Object.<string,Stream>}
+     *
+     * @type {Object<string,Stream>}
      */
     this.up = {};
     /**
      * The set of all down streams, indexed by their id.
-     * @type {Object.<string,Stream>}
+     *
+     * @type {Object<string,Stream>}
      */
     this.down = {};
     /**
      * The ICE configuration used by all associated streams.
-     * @type {Array.<RTCIceServer>}
+     *
+     * @type {RTCIceServer[]}
      */
     this.iceServers = null;
     /**
      * The permissions granted to this connection.
-     * @type {Object.<string,boolean>}
+     *
+     * @type {Object<string,boolean>}
      */
     this.permissions = {};
     /**
      * clientdata is a convenient place to attach data to a ServerConnection.
      * It is not used by the library.
-     * @type{Object.<string,any>}
+     *
+     * @type{Object<any,any>}
      */
     this.userdata = {};
 
@@ -81,46 +91,54 @@ function ServerConnection() {
 
     /**
      * onconnected is called when the connection has been established
-     * @type{function(): any}
+     *
+     * @type{(this: ServerConnection) => any}
      */
     this.onconnected = null;
     /**
      * onclose is called when the connection is closed
-     * @type{function(number, string): any}
+     *
+     * @type{(this: ServerConnection, code: number, reason: string) => any}
      */
     this.onclose = null;
     /**
      * onuser is called whenever a user is added or removed from the group
-     * @type{function(string, string, string): any}
+     *
+     * @type{(this: ServerConnection, id: string, kind: string, username: string) => any}
      */
     this.onuser = null;
     /**
      * onpermissions is called whenever the current user's permissions change
-     * @type{function(Object.<string,boolean>): any}
+     *
+     * @type{(this: ServerConnection, permissions: Object<string,boolean>) => any}
      */
     this.onpermissions = null;
     /**
      * ondownstream is called whenever a new down stream is added.  It
      * should set up the stream's callbacks; actually setting up the UI
      * should be done in the stream's ondowntrack callback.
-     * @type{function(Stream): any}
+     *
+     * @type{(this: ServerConnection, stream: Stream) => any}
      */
     this.ondownstream = null;
     /**
      * onchat is called whenever a new chat message is received.
-     * @type {function(string, string, string, string): any}
+     *
+     * @type {(this: ServerConnection, id: string, username: string, kind: string, message: string) => any}
      */
     this.onchat = null;
     /**
      * onclearchat is called whenever the server requests that the chat
      * be cleared.
-     * @type{function(): any}
+     *
+     * @type{(this: ServerConnection) => any}
      */
     this.onclearchat = null;
     /**
      * onusermessage is called when the server sends an error or warning
      * message that should be displayed to the user.
-     * @type{function(string, string): any}
+     *
+     * @type{(this: ServerConnection, kind: string, message: string) => any}
      */
     this.onusermessage = null;
 }
@@ -132,14 +150,14 @@ function ServerConnection() {
   * @property {string} [id]
   * @property {string} [username]
   * @property {string} [password]
-  * @property {Object.<string,boolean>} [permissions]
+  * @property {Object<string,boolean>} [permissions]
   * @property {string} [group]
   * @property {string} [value]
   * @property {RTCSessionDescriptionInit} [offer]
   * @property {RTCSessionDescriptionInit} [answer]
   * @property {RTCIceCandidate} [candidate]
-  * @property {Object.<string,string>} [labels]
-  * @property {Object.<string,(boolean|number)>} [request]
+  * @property {Object<string,string>} [labels]
+  * @property {Object<string,(boolean|number)>} [request]
   */
 
 /**
@@ -157,17 +175,18 @@ ServerConnection.prototype.close = function() {
   */
 ServerConnection.prototype.send = function(m) {
     if(!this.socket || this.socket.readyState !== this.socket.OPEN) {
-        // send on a closed connection doesn't throw
+        // send on a closed socket doesn't throw
         throw(new Error('Connection is not open'));
     }
     return this.socket.send(JSON.stringify(m));
 }
 
-/** getIceServers fetches an ICE configuration from the server and
+/**
+ * getIceServers fetches an ICE configuration from the server and
  * populates the iceServers field of a ServerConnection.  It is called
  * lazily by connect.
  *
- * @returns {Promise<Array.<Object>>}
+ * @returns {Promise<RTCIceServer[]>}
  * @function
  */
 ServerConnection.prototype.getIceServers = async function() {
@@ -294,8 +313,8 @@ ServerConnection.prototype.connect = async function(url) {
 /**
  * login authenticates with the server.
  *
- * @param {string} username
- * @param {string} password
+ * @param {string} username - the username to login as.
+ * @param {string} password - the password.
  */
 ServerConnection.prototype.login = function(username, password) {
     this.send({
@@ -324,7 +343,7 @@ ServerConnection.prototype.join = function(group) {
  * @param {string} what - One of '', 'audio', 'screenshare' or 'everything'.
  */
 ServerConnection.prototype.request = function(what) {
-    /** @type {Object.<string,boolean>} */
+    /** @type {Object<string,boolean>} */
     let request = {};
     switch(what) {
     case '':
@@ -422,7 +441,7 @@ ServerConnection.prototype.chat = function(username, kind, message) {
  *
  * @param {string} kind - One of "clearchat", "lock", "unlock", "record or
  * "unrecord".
- * @param {string} [message]
+ * @param {string} [message] - An optional user-readable message.
  */
 ServerConnection.prototype.groupAction = function(kind, message) {
     this.send({
@@ -436,8 +455,8 @@ ServerConnection.prototype.groupAction = function(kind, message) {
  * userAction sends a request to act on a user.
  *
  * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
- * @param {string} id
- * @param {string} [message]
+ * @param {string} id - The id of the user to act upon.
+ * @param {string} [message] - An optional user-readable message.
  */
 ServerConnection.prototype.userAction = function(kind, id, message) {
     this.send({
@@ -452,7 +471,7 @@ ServerConnection.prototype.userAction = function(kind, id, message) {
  * Called when we receive an offer from the server.  Don't call this.
  *
  * @param {string} id
- * @param {Object.<string, string>} labels
+ * @param {Object<string, string>} labels
  * @param {RTCSessionDescriptionInit} offer
  * @param {boolean} renegotiate
  * @function
@@ -656,13 +675,15 @@ function Stream(sc, id, pc) {
      * The associated ServerConnection.
      *
      * @type {ServerConnection}
-    */
+     * @const
+     */
     this.sc = sc;
     /**
      * The id of this stream.
      *
      * @type {string}
-    */
+     * @const
+     */
     this.id = id;
     /**
      * For up streams, one of "local" or "screenshare".
@@ -693,20 +714,20 @@ function Stream(sc, id, pc) {
     /**
      * Track labels, indexed by track id.
      *
-     * @type {Object.<string,string>}
+     * @type {Object<string,string>}
      */
     this.labels = {};
     /**
      * Track labels, indexed by mid.
      *
-     * @type {Object.<string,string>}
+     * @type {Object<string,string>}
      */
     this.labelsByMid = {};
     /**
      * Buffered ICE candidates.  This will be flushed by flushIceCandidates
      * when the PC becomes stable.
      *
-     * @type {Array.<RTCIceCandidate>}
+     * @type {RTCIceCandidate[]}
      */
     this.iceCandidates = [];
     /**
@@ -721,7 +742,7 @@ function Stream(sc, id, pc) {
      * a dictionary indexed by track id, with each value a disctionary of
      * statistics.
      *
-     * @type {Object.<string,any>}
+     * @type {Object<string,any>}
      */
     this.stats = {};
     /**
@@ -734,7 +755,7 @@ function Stream(sc, id, pc) {
     /**
      * clientdata is a convenient place to attach data to a Stream.
      * It is not used by the library.
-     * @type{Object.<string,any>}
+     * @type{Object<any,any>}
      */
     this.userdata = {};
 
@@ -743,21 +764,21 @@ function Stream(sc, id, pc) {
     /**
      * onclose is called when the stream is closed.
      *
-     * @type{function(): any}
+     * @type{(this: Stream) => any}
      */
     this.onclose = null;
     /**
      * onerror is called whenever an error occurs.  If the error is
      * fatal, then onclose will be called afterwards.
      *
-     * @type{function(any): any}
+     * @type{(this: Stream, error: any) => any}
      */
     this.onerror = null;
     /**
      * onnegotiationcompleted is called whenever negotiation or
      * renegotiation has completed.
      *
-     * @type{function(): any}
+     * @type{(this: Stream) => any}
      */
     this.onnegotiationcompleted = null;
     /**
@@ -765,32 +786,32 @@ function Stream(sc, id, pc) {
      * If the stream parameter differs from its previous value, then it
      * indicates that the old stream has been discarded.
      *
-     * @type{function(MediaStreamTrack, RTCRtpTransceiver, string, MediaStream): any}
+     * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, label: string, stream: MediaStream) => any}
      */
     this.ondowntrack = null;
     /**
      * onlabel is called whenever the server sets a new label for the stream.
      *
-     * @type{function(string): any}
+     * @type{(this: Stream, label: string) => any}
      */
     this.onlabel = null;
     /**
      * onstatus is called whenever the status of the stream changes.
      *
-     * @type{function(string): any}
+     * @type{(this: Stream, status: string) => any}
      */
     this.onstatus = null;
     /**
      * onabort is called when the server requested that an up stream be
      * closed.  It is the resposibility of the client to close the stream.
      *
-     * @type{function(): any}
+     * @type{(this: Stream) => any}
      */
     this.onabort = null;
     /**
      * onstats is called when we have new statistics about the connection
      *
-     * @type{function(Object.<string,any>): any}
+     * @type{(this: Stream, stats: Object<any,any>) => any}
      */
     this.onstats = null;
 }
@@ -834,6 +855,7 @@ Stream.prototype.close = function(sendclose) {
  * @function
  */
 Stream.prototype.flushIceCandidates = async function () {
+    /** @type {Promise<any>[]} */
     let promises = [];
     this.iceCandidates.forEach(c => {
         promises.push(this.pc.addIceCandidate(c).catch(console.warn));
@@ -845,16 +867,16 @@ Stream.prototype.flushIceCandidates = async function () {
 /**
  * negotiate negotiates or renegotiates an up stream.  It is called
  * automatically when required.  If the client requires renegotiation, it
- * is probably more effective to call restartIce on the underlying PC
- * rather than invoking this function directly.
+ * is probably better to call restartIce which will cause negotiate to be
+ * called asynchronously.
  *
  * @function
- * @param {boolean} [restartIce]
+ * @param {boolean} [restartIce] - Whether to restart ICE.
  */
 Stream.prototype.negotiate = async function (restartIce) {
     let c = this;
 
-    let options = null;
+    let options = {};
     if(restartIce)
         options = {iceRestart: true};
     let offer = await c.pc.createOffer(options);
@@ -892,8 +914,7 @@ Stream.prototype.negotiate = async function (restartIce) {
 Stream.prototype.restartIce = function () {
     let c = this;
 
-    /** @ts-ignore */
-    if(typeof c.pc.restartIce === 'function') {
+    if('restartIce' in c.pc) {
         try {
             /** @ts-ignore */
             c.pc.restartIce();
@@ -988,7 +1009,7 @@ Stream.prototype.updateStats = async function() {
  * setStatsInterval sets the interval in milliseconds at which the onstats
  * handler will be called.  This is only useful for up streams.
  *
- * @param {number} ms
+ * @param {number} ms - The interval in milliseconds.
  */
 Stream.prototype.setStatsInterval = function(ms) {
     let c = this;

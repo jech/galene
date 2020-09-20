@@ -4,10 +4,16 @@
         "allowJs": true,
         "checkJs": true,
         "declaration": true,
+        "noImplicitThis": true,
         "emitDeclarationOnly": true,
-        "strictBindCallApply": true
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true
     },
     "files": [
-        "protocol.js"
+        "protocol.js",
+        "sfu.js"
     ]
 }

@@ -103,9 +103,8 @@ function storeSettings(settings) {
  *
  * @returns {settings}
  */
-
 function getSettings() {
-    /** @type{settings} */
+    /** @type {settings} */
     let settings;
     try {
         let json = window.sessionStorage.getItem('settings');
@@ -127,22 +126,50 @@ function updateSettings(settings) {
     storeSettings(s);
 }
 
+/**
+ * @param {string} id
+ */
+function getSelectElement(id) {
+    let elt = document.getElementById(id);
+    if(!elt || !(elt instanceof HTMLSelectElement))
+        throw new Error(`Couldn't find ${id}`);
+    return elt;
+}
+
+/**
+ * @param {string} id
+ */
+function getInputElement(id) {
+    let elt = document.getElementById(id);
+    if(!elt || !(elt instanceof HTMLInputElement))
+        throw new Error(`Couldn't find ${id}`);
+    return elt;
+}
+
+/**
+ * @param {string} id
+ */
+function getButtonElement(id) {
+    let elt = document.getElementById(id);
+    if(!elt || !(elt instanceof HTMLButtonElement))
+        throw new Error(`Couldn't find ${id}`);
+    return elt;
+}
+
 function reflectSettings() {
     let settings = getSettings();
     let store = false;
 
     setLocalMute(settings.localMute);
 
-    let videoselect =
-        /** @type {HTMLSelectElement} */(document.getElementById('videoselect'));
+    let videoselect = getSelectElement('videoselect');
     if(!settings.video || !selectOptionAvailable(videoselect, settings.video)) {
         settings.video = selectOptionDefault(videoselect);
         store = true;
     }
     videoselect.value = settings.video;
 
-    let audioselect =
-        /** @type {HTMLSelectElement} */(document.getElementById('audioselect'));
+    let audioselect = getSelectElement('audioselect');
     if(!settings.audio || !selectOptionAvailable(audioselect, settings.audio)) {
         settings.audio = selectOptionDefault(audioselect);
         store = true;
@@ -150,24 +177,24 @@ function reflectSettings() {
     audioselect.value = settings.audio;
 
     if(settings.request)
-        document.getElementById('requestselect').value = settings.request;
+        getSelectElement('requestselect').value = settings.request;
     else {
-        settings.request = document.getElementById('requestselect').value;
+        settings.request = getSelectElement('requestselect').value;
         store = true;
     }
 
     if(settings.send)
-        document.getElementById('sendselect').value = settings.send;
+        getSelectElement('sendselect').value = settings.send;
     else {
-        settings.send = document.getElementById('sendselect').value;
+        settings.send = getSelectElement('sendselect').value;
         store = true;
     }
 
-    document.getElementById('activitybox').checked = settings.activityDetection;
+    getInputElement('activitybox').checked = settings.activityDetection;
 
-    document.getElementById('blackboardbox').checked = settings.blackboardMode;
+    getInputElement('blackboardbox').checked = settings.blackboardMode;
 
-    document.getElementById('studiobox').checked = settings.studioMode;
+    getInputElement('studiobox').checked = settings.studioMode;
 
     if(store)
         storeSettings(settings);
@@ -218,9 +245,9 @@ function setConnected(connected) {
     } else {
         resetUsers();
         let userpass = getUserPass();
-        document.getElementById('username').value =
+        getInputElement('username').value =
             userpass ? userpass.username : '';
-        document.getElementById('password').value =
+        getInputElement('password').value =
             userpass ? userpass.password : '';
         statspan.textContent = 'Disconnected';
         statspan.classList.remove('connected');
@@ -234,6 +261,7 @@ function setConnected(connected) {
     }
 }
 
+/** @this {ServerConnection} */
 function gotConnected() {
     setConnected(true);
     let up = getUserPass();
@@ -243,6 +271,7 @@ function gotConnected() {
 }
 
 /**
+ * @this {ServerConnection}
  * @param {number} code
  * @param {string} reason
  */
@@ -255,6 +284,7 @@ function gotClose(code, reason) {
 }
 
 /**
+ * @this {ServerConnection}
  * @param {Stream} c
  */
 function gotDownStream(c) {
@@ -291,12 +321,12 @@ setViewportHeight();
 addEventListener('resize', setViewportHeight);
 addEventListener('orientationchange', setViewportHeight);
 
-document.getElementById('presentbutton').onclick = function(e) {
+getButtonElement('presentbutton').onclick = function(e) {
     e.preventDefault();
     addLocalMedia();
 };
 
-document.getElementById('unpresentbutton').onclick = function(e) {
+getButtonElement('unpresentbutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('local');
     resizePeers();
@@ -353,26 +383,34 @@ function setLocalMute(mute) {
     }
 }
 
-document.getElementById('videoselect').onchange = function(e) {
+getSelectElement('videoselect').onchange = function(e) {
     e.preventDefault();
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
     updateSettings({video: this.value});
     changePresentation();
 };
 
-document.getElementById('audioselect').onchange = function(e) {
+getSelectElement('audioselect').onchange = function(e) {
     e.preventDefault();
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
     updateSettings({audio: this.value});
     changePresentation();
 };
 
-document.getElementById('blackboardbox').onchange = function(e) {
+getInputElement('blackboardbox').onchange = function(e) {
     e.preventDefault();
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
     updateSettings({blackboardMode: this.checked});
     changePresentation();
 }
 
-document.getElementById('studiobox').onchange = function(e) {
+getInputElement('studiobox').onchange = function(e) {
     e.preventDefault();
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
     updateSettings({studioMode: this.checked});
     changePresentation();
 }
@@ -413,7 +451,9 @@ function getMaxVideoThroughput() {
     }
 }
 
-document.getElementById('sendselect').onchange = async function(e) {
+getSelectElement('sendselect').onchange = async function(e) {
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
     updateSettings({send: this.value});
     let t = getMaxVideoThroughput();
     for(let id in serverConnection.up) {
@@ -423,8 +463,10 @@ document.getElementById('sendselect').onchange = async function(e) {
     }
 }
 
-document.getElementById('requestselect').onchange = function(e) {
+getSelectElement('requestselect').onchange = function(e) {
     e.preventDefault();
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
     updateSettings({request: this.value});
     serverConnection.request(this.value);
 };
@@ -433,7 +475,9 @@ const activityDetectionInterval = 200;
 const activityDetectionPeriod = 700;
 const activityDetectionThreshold = 0.2;
 
-document.getElementById('activitybox').onchange = function(e) {
+getInputElement('activitybox').onchange = function(e) {
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
     updateSettings({activityDetection: this.checked});
     for(let id in serverConnection.down) {
         let c = serverConnection.down[id];
@@ -446,6 +490,10 @@ document.getElementById('activitybox').onchange = function(e) {
     }
 }
 
+/**
+ * @this {Stream}
+ * @param {Object<string,any>} stats
+ */
 function gotUpStats(stats) {
     let c = this;
 
@@ -477,8 +525,12 @@ function setActive(c, value) {
         peer.classList.remove('peer-active');
 }
 
+/**
+ * @this {Stream}
+ * @param {Object<string,any>} stats
+ */
 function gotDownStats(stats) {
-    if(!document.getElementById('activitybox').checked)
+    if(!getInputElement('activitybox').checked)
         return;
 
     let c = this;
@@ -514,7 +566,11 @@ function addSelectOption(select, label, value) {
     if(!value)
         value = label;
     for(let i = 0; i < select.children.length; i++) {
-        let child = /** @type {HTMLOptionElement} */ (select.children[i]);
+        let child = select.children[i];
+        if(!(child instanceof HTMLOptionElement)) {
+            console.warn('Unexpected select child');
+            continue;
+        }
         if(child.value === value) {
             if(child.label !== label) {
                 child.label = label;
@@ -536,10 +592,13 @@ function addSelectOption(select, label, value) {
 function selectOptionAvailable(select, value) {
     let children = select.children;
     for(let i = 0; i < children.length; i++) {
-        let child = /** @type {HTMLOptionElement} */ (select.children[i]);
-        if(child.value === value) {
-            return true;
+        let child = select.children[i];
+        if(!(child instanceof HTMLOptionElement)) {
+            console.warn('Unexpected select child');
+            continue;
         }
+        if(child.value === value)
+            return true;
     }
     return false;
 }
@@ -551,7 +610,11 @@ function selectOptionAvailable(select, value) {
 function selectOptionDefault(select) {
     /* First non-empty option. */
     for(let i = 0; i < select.children.length; i++) {
-        let child = /** @type {HTMLOptionElement} */ (select.children[i]);
+        let child = select.children[i];
+        if(!(child instanceof HTMLOptionElement)) {
+            console.warn('Unexpected select child');
+            continue;
+        }
         if(child.value)
             return child.value;
     }
@@ -587,13 +650,13 @@ async function setMediaChoices(done) {
         if(d.kind === 'videoinput') {
             if(!label)
                 label = `Camera ${cn}`;
-            addSelectOption(document.getElementById('videoselect'),
+            addSelectOption(getSelectElement('videoselect'),
                             label, d.deviceId);
             cn++;
         } else if(d.kind === 'audioinput') {
             if(!label)
                 label = `Microphone ${mn}`;
-            addSelectOption(document.getElementById('audioselect'),
+            addSelectOption(getSelectElement('audioselect'),
                             label, d.deviceId);
             mn++;
         }
@@ -693,6 +756,7 @@ async function addLocalMedia(id) {
         stopUpMedia(old);
 
     let constraints = {audio: audio, video: video};
+    /** @type {MediaStream} */
     let stream = null;
     try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -717,11 +781,11 @@ async function addLocalMedia(id) {
                 t.enabled = false;
         } else if(t.kind == 'video') {
             if(settings.blackboardMode) {
-                if('contentHint' in t)
-                    t.contentHint = 'detail';
+                /** @ts-ignore */
+                t.contentHint = 'detail';
             }
         }
-        let sender = c.pc.addTrack(t, stream);
+        c.pc.addTrack(t, stream);
     });
 
     c.onstats = gotUpStats;
@@ -730,12 +794,16 @@ async function addLocalMedia(id) {
     setButtonsVisibility();
 }
 
-async function addShareMedia(setup) {
+async function addShareMedia() {
     if(!getUserPass())
         return;
 
+    /** @type {MediaStream} */
     let stream = null;
     try {
+        if(!('getDisplayMedia' in navigator.mediaDevices))
+            throw new Error('Your browser does not support screen sharing');
+        /** @ts-ignore */
         stream = await navigator.mediaDevices.getDisplayMedia({video: true});
     } catch(e) {
         console.error(e);
@@ -747,7 +815,7 @@ async function addShareMedia(setup) {
     c.kind = 'screenshare';
     c.stream = stream;
     stream.getTracks().forEach(t => {
-        let sender = c.pc.addTrack(t, stream);
+        c.pc.addTrack(t, stream);
         t.onended = e => {
             delUpMedia(c);
         };
@@ -807,6 +875,9 @@ function delUpMediaKind(kind) {
     hideVideo();
 }
 
+/**
+ * @param {string} kind
+ */
 function findUpMedia(kind) {
     for(let id in serverConnection.up) {
         if(serverConnection.up[id].kind === kind)
@@ -815,6 +886,9 @@ function findUpMedia(kind) {
     return null;
 }
 
+/**
+ * @param {boolean} mute
+ */
 function muteLocalTracks(mute) {
     if(!serverConnection)
         return;
@@ -846,12 +920,14 @@ function setMedia(c, isUp) {
         peersdiv.appendChild(div);
     }
 
-    let media = document.getElementById('media-' + c.id);
+    let media = /** @type {HTMLVideoElement} */
+        (document.getElementById('media-' + c.id));
     if(!media) {
         media = document.createElement('video');
         media.id = 'media-' + c.id;
         media.classList.add('media');
         media.autoplay = true;
+        /** @ts-ignore */
         media.playsinline = true;
         media.controls = true;
         if(isUp)
@@ -883,7 +959,9 @@ function delMedia(id) {
     let peer = document.getElementById('peer-' + id);
     if(!peer)
         throw new Error('Removing unknown media');
-    let media = document.getElementById('media-' + id);
+
+    let media = /** @type{HTMLVideoElement} */
+        (document.getElementById('media-' + id));
 
     media.srcObject = null;
     mediadiv.removeChild(peer);
@@ -941,14 +1019,19 @@ function resizePeers() {
     if (!count)
         // No video, nothing to resize.
         return;
-    let size = 100 / columns;
     let container = document.getElementById("video-container")
     // Peers div has total padding of 30px, we remove 30 on offsetHeight
     let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
 
     let media_list = document.getElementsByClassName("media");
-    for(let i = 0; i < media_list.length; i++)
-        media_list[i].style['max_height'] = max_video_height + "px";
+    for(let i = 0; i < media_list.length; i++) {
+        let media = media_list[i];
+        if(!(media instanceof HTMLMediaElement)) {
+            console.warn('Unexpected media');
+            continue;
+        }
+        media.style['max_height'] = max_video_height + "px";
+    }
 
     if (count <= 2 && container.offsetHeight > container.offsetWidth) {
         peers.style['grid-template-columns'] = "repeat(1, 1fr)";
@@ -957,7 +1040,7 @@ function resizePeers() {
     }
 }
 
-/** @type{Object.<string,string>} */
+/** @type{Object<string,string>} */
 let users = {};
 
 /**
@@ -1051,7 +1134,7 @@ function clearUsername() {
 }
 
 /**
- * @param {Object.<string,boolean>} perms
+ * @param {Object<string,boolean>} perms
  */
 function gotPermissions(perms) {
     displayUsername();
@@ -1064,7 +1147,7 @@ const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#=?]+[-a-zA-Z0-9@:%/_\\+~#=]/
 
 /**
  * @param {string} line
- * @returns {Array.<Text|HTMLElement>}
+ * @returns {(Text|HTMLElement)[]}
  */
 function formatLine(line) {
     let r = new RegExp(urlRegexp);
@@ -1088,7 +1171,7 @@ function formatLine(line) {
 }
 
 /**
- * @param {Array.<string>} lines
+ * @param {string[]} lines
  * @returns {HTMLElement}
  */
 function formatLines(lines) {
@@ -1113,6 +1196,12 @@ function formatLines(lines) {
 /** @type {lastMessage} */
 let lastMessage = {};
 
+/**
+ * @param {string} peerId
+ * @param {string} nick
+ * @param {string} kind
+ * @param {string} message
+ */
 function addToChatbox(peerId, nick, kind, message){
     let userpass = getUserPass();
     let row = document.createElement('div');
@@ -1174,7 +1263,7 @@ function clearChat() {
  * part may be quoted and may include backslash escapes.
  *
  * @param {string} line
- * @returns {Array.<string>}
+ * @returns {string[]}
  */
 function parseCommand(line) {
     let i = 0;
@@ -1204,7 +1293,8 @@ function parseCommand(line) {
 }
 
 function handleInput() {
-    let input = document.getElementById('input');
+    let input = /** @type {HTMLTextAreaElement} */
+        (document.getElementById('input'));
     let data = input.value;
     input.value = '';
 
@@ -1356,39 +1446,66 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
+/** @enum {string} */
+const MessageLevel = {
+    info: 'info',
+    warning: 'warning',
+    error: 'error',
+}
 
-function displayError(message, level, position, gravity) {
-    var background = "linear-gradient(to right, #e20a0a, #df2d2d)";
-    if (level === "info") {
-      background = "linear-gradient(to right, #529518, #96c93d)";
+/**
+ * @param {string} message
+ * @param {MessageLevel} [level]
+ */
+function displayError(message, level) {
+    if(!level)
+        level = MessageLevel.error;
+
+    var background = 'linear-gradient(to right, #e20a0a, #df2d2d)';
+    var position = 'center';
+    var gravity = 'top';
+
+    switch(level) {
+    case MessageLevel.info:
+        background = 'linear-gradient(to right, #529518, #96c93d)';
+        position = 'right';
+        gravity = 'bottom';
+        break;
+    case MessageLevel.warning:
+        background = "linear-gradient(to right, #edd800, #c9c200)";
+        break;
     }
-    if (level === "warning") {
-      background = "linear-gradient(to right, #edd800, #c9c200)";
-    }
+
+    /** @ts-ignore */
     Toastify({
-      text: message,
-      duration: 4000,
-      close: true,
-      position: position ? position: 'center',
-      gravity: gravity ? gravity : 'top',
-      backgroundColor: background,
-      className: level,
+        text: message,
+        duration: 4000,
+        close: true,
+        position: position,
+        gravity: gravity,
+        backgroundColor: background,
+        className: level,
     }).showToast();
 }
 
+/**
+ * @param {string} message
+ */
 function displayWarning(message) {
-    let level = "warning";
-    return displayError(message, level);
+    return displayError(message, MessageLevel.warning);
 }
 
+/**
+ * @param {string} message
+ */
 function displayMessage(message) {
-    return displayError(message, "info", "right", "bottom");
+    return displayError(message, MessageLevel.info);
 }
 
 document.getElementById('userform').onsubmit = function(e) {
     e.preventDefault();
-    let username = document.getElementById('username').value.trim();
-    let password = document.getElementById('password').value;
+    let username = getInputElement('username').value.trim();
+    let password = getInputElement('password').value;
     storeUserPass(username, password);
     serverConnect();
 };
@@ -1438,6 +1555,8 @@ document.getElementById('clodeside').onclick = function(e) {
 
 document.getElementById('collapse-video').onclick = function(e) {
     e.preventDefault();
+    if(!(this instanceof HTMLElement))
+        throw new Error('Unexpected type for this');
     let width = window.innerWidth;
     if (width <= 768) {
       let user_box = document.getElementById('userDropdown');
@@ -1453,6 +1572,8 @@ document.getElementById('collapse-video').onclick = function(e) {
 
 document.getElementById('switch-video').onclick = function(e) {
     e.preventDefault();
+    if(!(this instanceof HTMLElement))
+        throw new Error('Unexpected type for this');
     showVideo();
     this.style.display = "";
     document.getElementById('collapse-video').style.display = "block";
