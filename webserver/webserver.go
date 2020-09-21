@@ -565,7 +565,7 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 		if fi.IsDir() {
 			continue
 		}
-		fmt.Fprintf(w, "<tr><td><a href=\"%v\">%v</a></td><td>%d</td>",
+		fmt.Fprintf(w, "<tr><td><a href=\"./%v\">%v</a></td><td>%d</td>",
 			html.EscapeString(fi.Name()),
 			html.EscapeString(fi.Name()),
 			fi.Size(),
