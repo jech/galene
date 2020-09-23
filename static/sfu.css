@@ -297,6 +297,11 @@ textarea.form-reply {
     background: #ececec;
 }
 
+.message-system {
+    font-size: 10px;
+    background: #ececec;
+}
+
 .message-row:after, .message-row:before {
     display: table;
     content: " ";

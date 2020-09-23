@@ -127,6 +127,27 @@ function updateSettings(settings) {
 }
 
 /**
+ * @param {string} key
+ * @param {any} value
+ */
+function updateSetting(key, value) {
+    let s = {};
+    s[key] = value;
+    updateSettings(s);
+}
+
+/**
+ * @param {string} key
+ */
+function delSetting(key) {
+    let s = getSettings();
+    if(!(key in s))
+        return;
+    delete(s[key]);
+    storeSettings(s)
+}
+
+/**
  * @param {string} id
  */
 function getSelectElement(id) {
@@ -1209,8 +1230,10 @@ function addToChatbox(peerId, nick, kind, message){
     let container = document.createElement('div');
     container.classList.add('message');
     row.appendChild(container);
-    if (userpass.username === nick) {
-      container.classList.add('message-sender');
+    if(!peerId)
+        container.classList.add('message-system');
+    else if(userpass.username === nick) {
+        container.classList.add('message-sender');
     }
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
@@ -1332,6 +1355,33 @@ function handleInput() {
                     return;
                 }
                 serverConnection.groupAction('clearchat');
+                return;
+            case '/set':
+                if(!rest) {
+                    let settings = getSettings();
+                    let s = "";
+                    for(let key in settings)
+                        s = s + `${key}: ${JSON.stringify(settings[key])}\n`
+                    addToChatbox(null, null, null, s);
+                    return;
+                }
+                let parsed = parseCommand(rest);
+                let value;
+                if(parsed[1]) {
+                    try {
+                        value = JSON.parse(parsed[1])
+                    } catch(e) {
+                        displayError(e);
+                        return;
+                    }
+                } else {
+                    value = true;
+                }
+                updateSetting(parsed[0], value);
+                reflectSettings();
+                return;
+            case '/unset':
+                delSetting(rest.trim());
                 return;
             case '/lock':
             case '/unlock':

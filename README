@@ -109,6 +109,9 @@ to all users:
 
  - `/me text`: sends a chat message starting with the sender's username;
  - `/leave`: equivalent to clicking the *Disconnect* button.
+ - `/set var val`: sets the value of a configuration variable without any
+   error checking.  Without parameters, displays the current configuration.
+ - `/unset var`: removes a configuration variable.
  
 The following commands are only available to users with operator
 privileges:
