@@ -1437,6 +1437,11 @@ function handleInput() {
         me = false;
     }
 
+    if(!serverConnection || !serverConnection.socket) {
+        displayError("Not connected.");
+        return;
+    }
+
     let username = getUsername();
     if(!username) {
         displayError("Sorry, you're anonymous, you cannot chat");
