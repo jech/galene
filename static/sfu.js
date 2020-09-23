@@ -376,11 +376,14 @@ function setButtonsVisibility() {
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('local');
     let share = !!findUpMedia('screenshare')
+
     // don't allow multiple presentations
     setVisibility('presentbutton', permissions.present && !local);
     setVisibility('unpresentbutton', local);
+
     // allow multiple shared documents
-    setVisibility('sharebutton', permissions.present);
+    setVisibility('sharebutton', permissions.present &&
+                  ('getDisplayMedia' in navigator.mediaDevices))
     setVisibility('unsharebutton', share);
 
     setVisibility('mediaoptions', permissions.present);

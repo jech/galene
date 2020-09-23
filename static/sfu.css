@@ -1013,10 +1013,6 @@ header .collapse {
         border-right: none;
     }
 
-    #sharebutton {
-        display: none;
-    }
-
     .dropdown-content {
         margin-top: 10px;
     }
