@@ -53,7 +53,7 @@ options are described below.
 
 Assuming you have set up a user *sfu*:
 
-    rsync -a sfu static data sfu@groups server.example.org:/home/sfu/
+    rsync -a sfu static data groups sfu@server.example.org:
 
 ## Run the server binary:
 
