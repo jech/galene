@@ -1,23 +1,43 @@
 # Installation
 
-Build the server binary:
+## Build the server binary
 
     CGO_ENABLED=0 go build -ldflags='-s -w'
 
-Create a server certificate:
+## Create a server certificate
 
     mkdir data
     openssl req -newkey rsa:2048 -nodes -keyout data/key.pem -x509 -days 365 -out data/cert.pem
 
-Set the server administrator's username and password (optional):
+## Set the server administrator credentials
+
+This step is optional.
 
     echo 'god:topsecret' > data/passwd
 
-Configure the list of STUN and TURN servers (optional):
+## Set up a TURN server
 
-    vi data/ice-servers.json
+This step is optional, but unless you set up a TURN server, your server
+will be inaccessible from most enterprise and many university networks.
+For best results, set up TURN over TCP on port 443 (HTTPS); if port 443 is
+not available, port 1194 (OpenVPN) is a good choice.
 
-Set up a group
+The address of the TURN server is configured in the file
+`data/ice-servers.json`.  It should look like this:
+
+    [{
+      "urls":["turn:turn.example.com:443?transport=tcp"],
+      "username":"username",
+      "credential":"password"
+    }]
+
+The *username* and *password* should be the same as the ones in your TURN
+server's configuration.
+
+## Set up a group
+
+A group is set up by creating a file `groups/name.json`.  The available
+options are described below.
 
     mkdir groups
     vi groups/public.json
@@ -29,16 +49,25 @@ Set up a group
       "max-users":100
     }
 
-Copy the necessary files to your server:
+## Copy the necessary files to your server:
 
-    rsync -a sfu static data groups server.example.org:/home/sfu/
+Assuming you have set up a user *sfu*:
 
-Run the server binary:
+    rsync -a sfu static data sfu@groups server.example.org:/home/sfu/
 
-    ssh server.example.org
-    cd /home/sfu/
+## Run the server binary:
+
+    ssh sfu@server.example.org
     nohup ./sfu &
 
+If you are using *runit*, use a script like the following:
+
+    #!/bin/sh
+    exec 2>&1
+    cd ~sfu
+    exec setuidgid sfu ./sfu
+
+If you are using *systemd*, use `Type=simple` in your service file.
 
 # Locations
 
@@ -98,7 +127,7 @@ specifies that any username will do.  The empty dictionary
 
     {}
     
-specifies that any username will do and that password are not verified.
+specifies that any username will do and that passwords are not verified.
 
 
 # Commands
