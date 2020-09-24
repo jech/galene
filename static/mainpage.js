@@ -44,8 +44,12 @@ async function listPublicGroups() {
         td.appendChild(a);
         tr.appendChild(td);
         let td2 = document.createElement('td');
-        td2.textContent = `(${group.clientCount} clients)`;
+        if(group.description)
+            td2.textContent = group.description;
         tr.appendChild(td2);
+        let td3 = document.createElement('td');
+        td3.textContent = `(${group.clientCount} clients)`;
+        tr.appendChild(td3);
         table.appendChild(tr);
     }
 }

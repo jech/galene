@@ -75,7 +75,7 @@ type Group struct {
 	name string
 
 	mu          sync.Mutex
-	description *groupDescription
+	description *description
 	// indicates that the group no longer exists, but it still has clients
 	dead    bool
 	locked  *string
@@ -90,7 +90,7 @@ func (g *Group) Name() string {
 func (g *Group) Locked() (bool, string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if(g.locked != nil) {
+	if g.locked != nil {
 		return true, *g.locked
 	} else {
 		return false, ""
@@ -135,7 +135,7 @@ func (g *Group) API() *webrtc.API {
 	return groups.api
 }
 
-func Add(name string, desc *groupDescription) (*Group, error) {
+func Add(name string, desc *description) (*Group, error) {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -429,10 +429,11 @@ func matchUser(user ClientCredentials, users []ClientCredentials) (bool, bool) {
 	return false, false
 }
 
-type groupDescription struct {
+type description struct {
 	loadTime       time.Time           `json:"-"`
 	modTime        time.Time           `json:"-"`
 	fileSize       int64               `json:"-"`
+	Description    string              `json:"description,omitempty"`
 	Redirect       string              `json:"redirect,omitempty"`
 	Public         bool                `json:"public,omitempty"`
 	MaxClients     int                 `json:"max-clients,omitempty"`
@@ -443,7 +444,7 @@ type groupDescription struct {
 	Other          []ClientCredentials `json:"other,omitempty"`
 }
 
-func descriptionChanged(name string, old *groupDescription) (bool, error) {
+func descriptionChanged(name string, old *description) (bool, error) {
 	fi, err := os.Stat(filepath.Join(Directory, name+".json"))
 	if err != nil {
 		return false, err
@@ -454,14 +455,14 @@ func descriptionChanged(name string, old *groupDescription) (bool, error) {
 	return false, err
 }
 
-func GetDescription(name string) (*groupDescription, error) {
+func GetDescription(name string) (*description, error) {
 	r, err := os.Open(filepath.Join(Directory, name+".json"))
 	if err != nil {
 		return nil, err
 	}
 	defer r.Close()
 
-	var desc groupDescription
+	var desc description
 
 	fi, err := r.Stat()
 	if err != nil {
@@ -479,7 +480,7 @@ func GetDescription(name string) (*groupDescription, error) {
 	return &desc, nil
 }
 
-func (desc *groupDescription) GetPermission (creds ClientCredentials) (ClientPermissions, error) {
+func (desc *description) GetPermission(creds ClientCredentials) (ClientPermissions, error) {
 	var p ClientPermissions
 	if !desc.AllowAnonymous && creds.Username == "" {
 		return p, UserError("anonymous users not allowed in this group, please choose a username")
@@ -513,6 +514,7 @@ func (desc *groupDescription) GetPermission (creds ClientCredentials) (ClientPer
 
 type Public struct {
 	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 	ClientCount int    `json:"clientCount"`
 }
 
@@ -522,6 +524,7 @@ func GetPublic() []Public {
 		if g.Public() {
 			gs = append(gs, Public{
 				Name:        g.name,
+				Description: g.description.Description,
 				ClientCount: len(g.clients),
 			})
 		}

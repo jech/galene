@@ -99,6 +99,8 @@ fields, all of which are optional.
    respectively with operator privileges, with presenter privileges, and
    as passive listeners;
  - `public`: if true, then the group is visible on the landing page;
+ - `description`: a human-readable description of the group; this is
+   displayed on the landing page for public groups;
  - `max-clients`: the maximum number of clients that may join the group at
    a time;
  - `allow-recording`: if true, then recording is allowed in this group;
