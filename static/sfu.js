@@ -1504,32 +1504,25 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
-/** @enum {string} */
-const MessageLevel = {
-    info: 'info',
-    warning: 'warning',
-    error: 'error',
-}
-
 /**
- * @param {string} message
- * @param {MessageLevel} [level]
+ * @param {unknown} message
+ * @param {string} [level]
  */
 function displayError(message, level) {
     if(!level)
-        level = MessageLevel.error;
+        level = "error";
 
     var background = 'linear-gradient(to right, #e20a0a, #df2d2d)';
     var position = 'center';
     var gravity = 'top';
 
     switch(level) {
-    case MessageLevel.info:
+    case "info":
         background = 'linear-gradient(to right, #529518, #96c93d)';
         position = 'right';
         gravity = 'bottom';
         break;
-    case MessageLevel.warning:
+    case "warning":
         background = "linear-gradient(to right, #edd800, #c9c200)";
         break;
     }
@@ -1547,17 +1540,17 @@ function displayError(message, level) {
 }
 
 /**
- * @param {string} message
+ * @param {unknown} message
  */
 function displayWarning(message) {
-    return displayError(message, MessageLevel.warning);
+    return displayError(message, "warning");
 }
 
 /**
- * @param {string} message
+ * @param {unknown} message
  */
 function displayMessage(message) {
-    return displayError(message, MessageLevel.info);
+    return displayError(message, "info");
 }
 
 document.getElementById('userform').onsubmit = function(e) {

@@ -83,7 +83,7 @@ function ServerConnection() {
      * clientdata is a convenient place to attach data to a ServerConnection.
      * It is not used by the library.
      *
-     * @type{Object<any,any>}
+     * @type{Object<unknown,unknown>}
      */
     this.userdata = {};
 
@@ -92,25 +92,25 @@ function ServerConnection() {
     /**
      * onconnected is called when the connection has been established
      *
-     * @type{(this: ServerConnection) => any}
+     * @type{(this: ServerConnection) => void}
      */
     this.onconnected = null;
     /**
      * onclose is called when the connection is closed
      *
-     * @type{(this: ServerConnection, code: number, reason: string) => any}
+     * @type{(this: ServerConnection, code: number, reason: string) => void}
      */
     this.onclose = null;
     /**
      * onuser is called whenever a user is added or removed from the group
      *
-     * @type{(this: ServerConnection, id: string, kind: string, username: string) => any}
+     * @type{(this: ServerConnection, id: string, kind: string, username: string) => void}
      */
     this.onuser = null;
     /**
      * onpermissions is called whenever the current user's permissions change
      *
-     * @type{(this: ServerConnection, permissions: Object<string,boolean>) => any}
+     * @type{(this: ServerConnection, permissions: Object<string,boolean>) => void}
      */
     this.onpermissions = null;
     /**
@@ -118,27 +118,27 @@ function ServerConnection() {
      * should set up the stream's callbacks; actually setting up the UI
      * should be done in the stream's ondowntrack callback.
      *
-     * @type{(this: ServerConnection, stream: Stream) => any}
+     * @type{(this: ServerConnection, stream: Stream) => void}
      */
     this.ondownstream = null;
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, username: string, kind: string, message: string) => any}
+     * @type {(this: ServerConnection, id: string, username: string, kind: string, message: string) => void}
      */
     this.onchat = null;
     /**
      * onclearchat is called whenever the server requests that the chat
      * be cleared.
      *
-     * @type{(this: ServerConnection) => any}
+     * @type{(this: ServerConnection) => void}
      */
     this.onclearchat = null;
     /**
      * onusermessage is called when the server sends an error or warning
      * message that should be displayed to the user.
      *
-     * @type{(this: ServerConnection, kind: string, message: string) => any}
+     * @type{(this: ServerConnection, kind: string, message: string) => void}
      */
     this.onusermessage = null;
 }
@@ -739,10 +739,10 @@ function Stream(sc, id, pc) {
     this.renegotiate = false;
     /**
      * The statistics last computed by the stats handler.  This is
-     * a dictionary indexed by track id, with each value a disctionary of
+     * a dictionary indexed by track id, with each value a dictionary of
      * statistics.
      *
-     * @type {Object<string,any>}
+     * @type {Object<string,unknown>}
      */
     this.stats = {};
     /**
@@ -755,7 +755,7 @@ function Stream(sc, id, pc) {
     /**
      * clientdata is a convenient place to attach data to a Stream.
      * It is not used by the library.
-     * @type{Object<any,any>}
+     * @type{Object<unknown,unknown>}
      */
     this.userdata = {};
 
@@ -764,21 +764,21 @@ function Stream(sc, id, pc) {
     /**
      * onclose is called when the stream is closed.
      *
-     * @type{(this: Stream) => any}
+     * @type{(this: Stream) => void}
      */
     this.onclose = null;
     /**
      * onerror is called whenever an error occurs.  If the error is
      * fatal, then onclose will be called afterwards.
      *
-     * @type{(this: Stream, error: any) => any}
+     * @type{(this: Stream, error: unknown) => void}
      */
     this.onerror = null;
     /**
      * onnegotiationcompleted is called whenever negotiation or
      * renegotiation has completed.
      *
-     * @type{(this: Stream) => any}
+     * @type{(this: Stream) => void}
      */
     this.onnegotiationcompleted = null;
     /**
@@ -786,32 +786,32 @@ function Stream(sc, id, pc) {
      * If the stream parameter differs from its previous value, then it
      * indicates that the old stream has been discarded.
      *
-     * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, label: string, stream: MediaStream) => any}
+     * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, label: string, stream: MediaStream) => void}
      */
     this.ondowntrack = null;
     /**
      * onlabel is called whenever the server sets a new label for the stream.
      *
-     * @type{(this: Stream, label: string) => any}
+     * @type{(this: Stream, label: string) => void}
      */
     this.onlabel = null;
     /**
      * onstatus is called whenever the status of the stream changes.
      *
-     * @type{(this: Stream, status: string) => any}
+     * @type{(this: Stream, status: string) => void}
      */
     this.onstatus = null;
     /**
      * onabort is called when the server requested that an up stream be
      * closed.  It is the resposibility of the client to close the stream.
      *
-     * @type{(this: Stream) => any}
+     * @type{(this: Stream) => void}
      */
     this.onabort = null;
     /**
      * onstats is called when we have new statistics about the connection
      *
-     * @type{(this: Stream, stats: Object<any,any>) => any}
+     * @type{(this: Stream, stats: Object<unknown,unknown>) => void}
      */
     this.onstats = null;
 }
@@ -855,7 +855,7 @@ Stream.prototype.close = function(sendclose) {
  * @function
  */
 Stream.prototype.flushIceCandidates = async function () {
-    /** @type {Promise<any>[]} */
+    /** @type {Promise<void>[]} */
     let promises = [];
     this.iceCandidates.forEach(c => {
         promises.push(this.pc.addIceCandidate(c).catch(console.warn));
@@ -937,6 +937,7 @@ Stream.prototype.restartIce = function () {
 Stream.prototype.updateStats = async function() {
     let c = this;
     let old = c.stats;
+    /** @type{Object<string,unknown>} */
     let stats = {};
 
     let transceivers = c.pc.getTransceivers();
