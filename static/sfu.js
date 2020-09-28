@@ -953,7 +953,7 @@ function setMedia(c, isUp) {
         media.autoplay = true;
         /** @ts-ignore */
         media.playsinline = true;
-        media.controls = true;
+        media.controls = false;
         if(isUp)
             media.muted = true;
         div.appendChild(media);
@@ -967,13 +967,98 @@ function setMedia(c, isUp) {
         div.appendChild(label);
     }
 
+    let template = document.getElementById('videocontrols-template').firstElementChild;
+    let controls = document.getElementById('controls-' + c.id);
+    if (template && !controls) {
+      controls = template.cloneNode(true);
+      controls.id = 'controls-' + c.id;
+      div.appendChild(controls);
+      if(media.muted) {
+        let volume = controls.querySelector(".fa-volume-up");
+        if (volume) {
+          volume.classList.remove("fa-volume-up");
+          volume.classList.add("fa-volume-off");
+        }
+      }
+    }
+
     media.srcObject = c.stream;
     setLabel(c);
     setMediaStatus(c);
 
     showVideo();
     resizePeers();
+    registerControlEvent(div.id);
 }
+
+/**
+ * @param {HTMLVideoElement} video
+ */
+async function videoPIP(video) {
+    if (video.requestPictureInPicture) {
+        await video.requestPictureInPicture();
+    } else {
+        displayWarning("Video PIP Mode not supported!");
+    }
+}
+
+/**
+ * @param {HTMLElement} target
+ */
+function getParentVideo(target) {
+    // target is the <i> element, parent the div <div><span><i/></span></div>
+    let control = target.parentElement.parentElement;
+    let hash = control.id.split('-')[1];
+    let media = /** @type {HTMLVideoElement} */
+        (document.getElementById('media-' + hash));
+    if (!media) {
+        displayWarning("Cannot find media!");
+    }
+    return media;
+}
+
+/**
+ * @param {string} peerid
+ */
+function registerControlEvent(peerid) {
+  let peer = document.getElementById(peerid);
+  let control_list = peer.querySelectorAll("span");
+
+  function control_event(event) {
+      event.preventDefault();
+      let control_type = event.target.getAttribute("data-type");
+      let video = getParentVideo(event.target);
+      switch (control_type) {
+          case "bt-volume":
+              if (event.target.className.indexOf("fa-volume-off") !== -1) {
+                  event.target.classList.remove("fa-volume-off");
+                  event.target.classList.add("fa-volume-up");
+                  video.muted = false;
+              } else {
+                  event.target.classList.remove("fa-volume-up");
+                  event.target.classList.add("fa-volume-off");
+                  // mute video sound
+                  video.muted = true;
+              }
+              break;
+          case "bt-pip":
+              videoPIP(video);
+              break;
+          case "bt-fullscreen":
+              if (video.requestFullscreen) {
+                  video.requestFullscreen();
+              } else {
+                  displayWarning("Video Fullscreen not supported!");
+              }
+              break;
+      }
+  }
+
+  for (let i = 0; i < control_list.length; i += 1) {
+    control_list[i].onclick = control_event;
+  }
+}
+
 
 /**
  * @param {string} id

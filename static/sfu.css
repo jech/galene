@@ -12,7 +12,7 @@
 
 .topnav {
     padding-left: 0;
-    height: 4rem;
+    height: 3.5rem;
     z-index: 1039;
 }
 
@@ -61,7 +61,7 @@
 }
 .navbar {
     position: relative;
-    padding: .5rem;
+    padding: .1rem;
 }
 
 .topnav .navbar-brand {
@@ -192,7 +192,7 @@
 
 .full-width {
     width: calc(100vw - 200px);
-    height: calc(var(--vh, 1vh) * 100 - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 56px);
 }
 
 .full-width-active {
@@ -204,7 +204,7 @@
 }
 
 .users-header {
-    height: 4rem;
+    height: 3.5rem;
     padding: 10px;
     background: #610a86;
     font-size: .95rem;
@@ -221,7 +221,7 @@
 }
 
 .reply {
-    height: 60px;
+    height: 53px;
     width: 100%;
     background-color: #eae7e5;
     padding: 10px 5px 10px 5px;
@@ -242,7 +242,7 @@
 }
 
 textarea.form-reply {
-    height: 2.6em;
+    height: 2.1em;
     margin-right: .5em;
 }
 
@@ -290,7 +290,7 @@ textarea.form-reply {
     word-wrap: break-word;
     display: inline-block;
     margin: 1em 0 0;
-    max-width: 80%;
+    max-width: 90%;
 }
 
 .message-sender {
@@ -345,7 +345,7 @@ textarea.form-reply {
 }
 
 .video-container {
-    height: calc(var(--vh, 1vh) * 100 - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;
     background: rgba(0, 0, 0, 0.91);
     /* Display only when showing video */
@@ -376,12 +376,52 @@ textarea.form-reply {
     opacity: 0;
 }
 
+.video-controls {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    bottom: 40px;
+    text-align: center;
+    color: #e1e1e1;
+    font-size: 2.3em;
+    transition: all .5s ease-out;
+    opacity: 0;
+}
+
+.peer:hover > .video-controls {
+    opacity: 1;
+    transition: all .7s ease-out;
+}
+
+.video-controls span {
+    margin-right: 30px;
+    transition: all .5s ease-out;
+    opacity: .5;
+    cursor: pointer;
+    text-shadow: 2px 2px 4px rgba(123, 123, 123, 0.65);
+}
+
+.video-controls span:last-child {
+    margin-right: 0;
+}
+
+.video-controls span:hover {
+    opacity: 1;
+    transition: opacity .5s ease-out;
+}
+
+.video-controls .volume {
+    width: 44px;
+    display: inline-block;
+    text-align: center;
+}
+
 .mobile-container {
     display: block !important;
 }
 
 .login-container {
-    height: calc(var(--vh, 1vh) * 100 - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;
     display: block;
 }
@@ -566,6 +606,7 @@ h1 {
     /* force to fill height */
     height: 100% !important;
     min-width: 300px;
+    overflow: hidden;
 }
 
 #inputform {
@@ -574,7 +615,7 @@ h1 {
 
 #box {
     overflow: auto;
-    height: calc(100% - 60px);
+    height: calc(100% - 53px);
     padding: 10px;
 }
 
@@ -641,7 +682,8 @@ h1 {
 
 .media {
     width: 100%;
-    max-height: calc(var(--vh, 1vh) * 100 - 84px);
+    min-width: 220px; /* min-size for controls buttons */
+    max-height: calc(var(--vh, 1vh) * 100 - 76px);
     padding-bottom: 20px;
     object-fit: contain;
 }
@@ -672,13 +714,13 @@ h1 {
 }
 
 .sidenav a {
-    padding: 10px;
+    padding: 10px 20px;
     text-decoration: none;
     font-size: 30px;
     color: #dbd9d9;
     display: block;
     transition: 0.3s;
-    line-height: 1.2;
+    line-height: 1.0;
 }
 
 .sidenav a:hover {
@@ -689,7 +731,8 @@ h1 {
     cursor: pointer;
     position: absolute;
     top: 0;
-    right: 5px;
+    right: 0;
+    height: 56px;
 }
 
 .sidenav label{
@@ -702,12 +745,16 @@ h1 {
     margin-top: 15px;
 }
 
+.sidenav-header {
+    height: 56px;
+}
+
 .sidenav-header h2{
     color: #fff;
     padding: 10px;
     margin: 0;
     max-width: 70%;
-    line-height: 44px;
+    line-height: 36px;
 }
 
 .sidenav-content {
@@ -841,13 +888,14 @@ header .collapse {
     cursor: pointer;
     padding-top: 5px;
     margin-right: 20px;
+    margin-left: 5px;
 }
 
 .sfu-header {
     font-size: 1.3rem;
     font-weight: 900;
     color: #dbd9d9;
-    line-height: 44px;
+    line-height: 34px;
 }
 
 .header-sep {
@@ -934,14 +982,6 @@ header .collapse {
         display: none;
     }
 
-    .topnav {
-        height: 3.5rem;
-    }
-
-    .users-header {
-        height: 3.5rem;
-    }
-
     .full-width {
         height: calc(var(--vh, 1vh) * 100 - 56px);
     }
@@ -953,6 +993,10 @@ header .collapse {
         right: 0;
         left: 0;
         margin-bottom: 60px;
+    }
+
+    .video-controls {
+        opacity: 1;
     }
 
     .login-container {
@@ -1009,6 +1053,8 @@ header .collapse {
     #left-sidebar.active .sidebar-header strong {
         display: block;
     }
+
+    .sidenav a {padding: 10px 5px;}
 
     .sidenav-header h2 {
         line-height: 36px;
