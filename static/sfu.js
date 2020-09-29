@@ -1212,6 +1212,18 @@ function formatLines(lines) {
 }
 
 /**
+ * @param {number} time
+ * @returns {string}
+ */
+function formatTime(time) {
+    let delta = Date.now() - time;
+    let date = new Date(time);
+    if(delta >= 0)
+        return date.toTimeString().slice(null, 8);
+    return date.toLocaleString();
+}
+
+/**
  * @typedef {Object} lastMessage
  * @property {string} [nick]
  * @property {string} [peerId]
@@ -1223,10 +1235,11 @@ let lastMessage = {};
 /**
  * @param {string} peerId
  * @param {string} nick
+ * @param {number} time
  * @param {string} kind
  * @param {string} message
  */
-function addToChatbox(peerId, nick, kind, message){
+function addToChatbox(peerId, nick, time, kind, message){
     let userpass = getUserPass();
     let row = document.createElement('div');
     row.classList.add('message-row');
@@ -1241,10 +1254,19 @@ function addToChatbox(peerId, nick, kind, message){
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
         if (lastMessage.nick !== nick || lastMessage.peerId !== peerId) {
-            let user = document.createElement('p');
+            let header = document.createElement('p');
+            let user = document.createElement('span');
             user.textContent = nick;
             user.classList.add('message-user');
-            container.appendChild(user);
+            header.appendChild(user);
+            if(time) {
+                let tm = document.createElement('span');
+                tm.textContent = formatTime(time);
+                tm.classList.add('message-time');
+                header.appendChild(tm);
+            }
+            header.classList.add('message-header');
+            container.appendChild(header);
         }
         p.classList.add('message-content');
         container.appendChild(p);
@@ -1365,7 +1387,7 @@ function handleInput() {
                     let s = "";
                     for(let key in settings)
                         s = s + `${key}: ${JSON.stringify(settings[key])}\n`
-                    addToChatbox(null, null, null, s);
+                    addToChatbox(null, null, Date.now(), null, s);
                     return;
                 }
                 let parsed = parseCommand(rest);

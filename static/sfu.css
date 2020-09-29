@@ -321,10 +321,14 @@ textarea.form-reply {
     color: #202035;
 }
 
-.message-user {
+.message-header {
     margin: 0;
     font-style: italic;
     text-shadow: none;
+}
+
+.message-time {
+    margin-left: 1em;
 }
 
 .message-me-asterisk, .message-me-user {

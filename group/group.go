@@ -63,6 +63,7 @@ func IceConfiguration() webrtc.Configuration {
 type ChatHistoryEntry struct {
 	Id    string
 	User  string
+	Time  uint64
 	Kind  string
 	Value string
 }
@@ -393,7 +394,7 @@ func (g *Group) ClearChatHistory() {
 	g.history = nil
 }
 
-func (g *Group) AddToChatHistory(id, user, kind, value string) {
+func (g *Group) AddToChatHistory(id, user string, time uint64, kind, value string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -402,7 +403,7 @@ func (g *Group) AddToChatHistory(id, user, kind, value string) {
 		g.history = g.history[:len(g.history)-1]
 	}
 	g.history = append(g.history,
-		ChatHistoryEntry{Id: id, User: user, Kind: kind, Value: value},
+		ChatHistoryEntry{Id: id, User: user, Time: time, Kind: kind, Value: value},
 	)
 }
 

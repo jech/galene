@@ -124,7 +124,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, username: string, kind: string, message: string) => void}
+     * @type {(this: ServerConnection, id: string, username: string, time: number, kind: string, message: string) => void}
      */
     this.onchat = null;
     /**
@@ -284,7 +284,9 @@ ServerConnection.prototype.connect = async function(url) {
                 break;
             case 'chat':
                 if(sc.onchat)
-                    sc.onchat.call(sc, m.id, m.username, m.kind, m.value);
+                    sc.onchat.call(
+                        sc, m.id, m.username, m.time, m.kind, m.value,
+                    );
                 break;
             case 'clearchat':
                 if(sc.onclearchat)
