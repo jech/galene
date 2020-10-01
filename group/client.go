@@ -20,6 +20,7 @@ type Client interface {
 	Id() string
 	Credentials() ClientCredentials
 	SetPermissions(ClientPermissions)
+	OverridePermissions(*Group) bool
 	PushConn(id string, conn conn.Up, tracks []conn.UpTrack, label string) error
 	PushClient(id, username string, add bool) error
 }

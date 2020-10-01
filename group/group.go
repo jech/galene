@@ -271,29 +271,34 @@ func AddClient(name string, c Client) (*Group, error) {
 		return nil, err
 	}
 
+	override := c.OverridePermissions(g)
+
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	perms, err := g.description.GetPermission(c.Credentials())
-	if err != nil {
+	if !override && err != nil {
 		return nil, err
 	}
 
 	c.SetPermissions(perms)
 
-	if !perms.Op && g.locked != nil {
-		m := *g.locked
-		if m == "" {
-			m = "group is locked"
+	if !override {
+		if !perms.Op && g.locked != nil {
+			m := *g.locked
+			if m == "" {
+				m = "group is locked"
+			}
+			return nil, UserError(m)
 		}
-		return nil, UserError(m)
+
+		if !perms.Op && g.description.MaxClients > 0 {
+			if len(g.clients) >= g.description.MaxClients {
+				return nil, UserError("too many users")
+			}
+		}
 	}
 
-	if !perms.Op && g.description.MaxClients > 0 {
-		if len(g.clients) >= g.description.MaxClients {
-			return nil, UserError("too many users")
-		}
-	}
 	if g.clients[c.Id()] != nil {
 		return nil, ProtocolError("duplicate client id")
 	}

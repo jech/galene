@@ -73,6 +73,10 @@ func (c *webClient) SetPermissions(perms group.ClientPermissions) {
 	c.permissions = perms
 }
 
+func (c *webClient) OverridePermissions(g *group.Group) bool {
+	return false
+}
+
 func (c *webClient) PushClient(id, username string, add bool) error {
 	kind := "add"
 	if !add {

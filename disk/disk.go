@@ -53,6 +53,10 @@ func (client *Client) Credentials() group.ClientCredentials {
 	return group.ClientCredentials{"RECORDING", ""}
 }
 
+func (client *Client) OverridePermissions(g *group.Group) bool {
+	return true
+}
+
 func (client *Client) SetPermissions(perms group.ClientPermissions) {
 	return
 }
