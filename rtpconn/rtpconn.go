@@ -622,17 +622,24 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
 }
 
 func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPReceiver) {
+	buf := make([]byte, 1500)
+
 	for {
 		firstSR := false
-		ps, err := r.ReadRTCP()
+		n, err := r.Read(buf)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("ReadRTCP: %v", err)
+				log.Printf("Read RTCP: %v", err)
 			}
 			return
 		}
+		ps, err := rtcp.Unmarshal(buf[:n])
+		if err != nil {
+			log.Printf("Unmarshal RTCP: %v", err)
+			continue
+		}
 
-		now := rtptime.Jiffies()
+		jiffies := rtptime.Jiffies()
 
 		for _, p := range ps {
 			local := track.getLocal()
@@ -642,7 +649,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 				if track.srTime == 0 {
 					firstSR = true
 				}
-				track.srTime = now
+				track.srTime = jiffies
 				track.srNTPTime = p.NTPTime
 				track.srRTPTime = p.RTPTime
 				track.mu.Unlock()
@@ -904,14 +911,22 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 	var gotFir bool
 	lastFirSeqno := uint8(0)
 
+	buf := make([]byte, 1500)
+
 	for {
-		ps, err := s.ReadRTCP()
+		n, err := s.Read(buf)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("ReadRTCP: %v", err)
+				log.Printf("Read RTCP: %v", err)
 			}
 			return
 		}
+		ps, err := rtcp.Unmarshal(buf[:n])
+		if err != nil {
+			log.Printf("Unmarshal RTCP: %v", err)
+			continue
+		}
+
 		jiffies := rtptime.Jiffies()
 
 		for _, p := range ps {
