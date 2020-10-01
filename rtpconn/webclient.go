@@ -486,10 +486,12 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 	})
 }
 
+var ErrUnknownId = errors.New("unknown id")
+
 func gotAnswer(c *webClient, id string, answer webrtc.SessionDescription) error {
 	down := getDownConn(c, id)
 	if down == nil {
-		return group.ProtocolError("unknown id in answer")
+		return ErrUnknownId
 	}
 	err := down.pc.SetRemoteDescription(answer)
 	if err != nil {
@@ -790,7 +792,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					if err != nil {
 						log.Printf("Negotiate: %v", err)
 						delDownConn(c, down.id)
-						err = failConnection(
+						err = failUpConnection(
 							c, down.id,
 							"negotiation failed",
 						)
@@ -851,7 +853,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					for _, u := range up {
 						found := delUpConn(c, u.id)
 						if found {
-							failConnection(
+							failUpConnection(
 								c, u.id,
 								"permission denied",
 							)
@@ -880,10 +882,29 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 	}
 }
 
-func failConnection(c *webClient, id string, message string) error {
+func failUpConnection(c *webClient, id string, message string) error {
 	if id != "" {
 		err := c.write(clientMessage{
 			Type: "abort",
+			Id:   id,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if message != "" {
+		err := c.error(group.UserError(message))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func failDownConnection(c *webClient, id string, message string) error {
+	if id != "" {
+		err := c.write(clientMessage{
+			Type: "close",
 			Id:   id,
 		})
 		if err != nil {
@@ -970,7 +991,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
-			return failConnection(c, m.Id, "negotiation failed")
+			return failUpConnection(c, m.Id, "negotiation failed")
 		}
 	case "answer":
 		if m.Answer == nil {
@@ -978,14 +999,20 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 		err := gotAnswer(c, m.Id, *m.Answer)
 		if err != nil {
-			return err
+			log.Printf("gotAnswer: %v", err)
+			message := ""
+			if err != ErrUnknownId {
+				message = "negotiation failed"
+			}
+			return failDownConnection(c, m.Id, message)
 		}
 	case "renegotiate":
 		down := getDownConn(c, m.Id)
 		if down != nil {
 			err := negotiate(c, down, true, true)
 			if err != nil {
-				return err
+				return failDownConnection(c, m.Id,
+					"renegotiation failed")
 			}
 		} else {
 			log.Printf("Trying to renegotiate unknown connection")
