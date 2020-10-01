@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -25,7 +26,7 @@ import (
 	"sfu/stats"
 )
 
-var server *http.Server
+var server atomic.Value
 
 var StaticRoot string
 
@@ -50,19 +51,21 @@ func Serve(address string, dataDir string) error {
 		statsHandler(w, r, dataDir)
 	})
 
-	server = &http.Server{
+	s := &http.Server{
 		Addr:              address,
 		ReadHeaderTimeout: 60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	server.RegisterOnShutdown(func() {
+	s.RegisterOnShutdown(func() {
 		group.Range(func(g *group.Group) bool {
 			go g.Shutdown("server is shutting down")
 			return true
 		})
 	})
 
-	err := server.ListenAndServeTLS(
+	server.Store(s)
+
+	err := s.ListenAndServeTLS(
 		filepath.Join(dataDir, "cert.pem"),
 		filepath.Join(dataDir, "key.pem"),
 	)
@@ -582,7 +585,12 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 }
 
 func Shutdown() {
+	v := server.Load()
+	if v == nil {
+		return
+	}
+	s := v.(*http.Server)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	server.Shutdown(ctx)
+	s.Shutdown(ctx)
 }
