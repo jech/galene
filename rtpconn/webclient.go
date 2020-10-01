@@ -284,53 +284,70 @@ func addDownConn(c *webClient, id string, remote conn.Up) (*rtpDownConnection, e
 		return nil, err
 	}
 
+	err = addDownConnHelper(c, conn, remote)
+	if err != nil {
+		conn.pc.Close()
+		return nil, err
+	}
+	return conn, err
+}
+
+func addDownConnHelper(c *webClient, conn *rtpDownConnection, remote conn.Up) (error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.up != nil && c.up[id] != nil {
-		conn.pc.Close()
-		return nil, errors.New("Adding duplicate connection")
+	if c.up != nil && c.up[conn.id] != nil {
+		return errors.New("Adding duplicate connection")
 	}
 
 	if c.down == nil {
 		c.down = make(map[string]*rtpDownConnection)
 	}
 
-	old := c.down[id]
+	old := c.down[conn.id]
 	if old != nil {
-		old.pc.Close()
+		// Avoid calling Close under a lock
+		go old.pc.Close()
 	}
 
 	conn.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
-		sendICE(c, id, candidate)
+		sendICE(c, conn.id, candidate)
 	})
 
 	conn.pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
 		if state == webrtc.ICEConnectionStateFailed {
-			c.action(connectionFailedAction{id: id})
+			c.action(connectionFailedAction{id: conn.id})
 		}
 	})
 
-	err = remote.AddLocal(conn)
+	err := remote.AddLocal(conn)
 	if err != nil {
-		conn.pc.Close()
-		return nil, err
+		return err
 	}
 
-	c.down[id] = conn
-	return conn, nil
+	c.down[conn.id] = conn
+	return nil
 }
 
 func delDownConn(c *webClient, id string) bool {
+	conn := delDownConnHelper(c, id)
+	if conn != nil {
+		conn.pc.Close()
+		return true
+	}
+	return false
+}
+
+func delDownConnHelper(c *webClient, id string) *rtpDownConnection {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.down == nil {
-		return false
+		return nil
 	}
 	conn := c.down[id]
 	if conn == nil {
-		return false
+		return nil
 	}
 
 	conn.remote.DelLocal(conn)
@@ -339,9 +356,8 @@ func delDownConn(c *webClient, id string) bool {
 		// ignore errors here.
 		track.remote.DelLocal(track)
 	}
-	conn.pc.Close()
 	delete(c.down, id)
-	return true
+	return conn
 }
 
 func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrack, remoteConn conn.Up) (*webrtc.RTPSender, error) {
