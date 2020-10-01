@@ -297,6 +297,15 @@ textarea.form-reply {
     background: #ececec;
 }
 
+.message-private {
+    background: white;
+}
+
+.message-private .message-header:after {
+    content: "(private)";
+    margin-left: 1em;
+}
+
 .message-system {
     font-size: 10px;
     background: #ececec;

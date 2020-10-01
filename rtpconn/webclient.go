@@ -141,6 +141,7 @@ type clientMessage struct {
 	Type        string                     `json:"type"`
 	Kind        string                     `json:"kind,omitempty"`
 	Id          string                     `json:"id,omitempty"`
+	Dest        string                     `json:"dest,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
 	Permissions group.ClientPermissions    `json:"permissions,omitempty"`
@@ -158,14 +159,14 @@ func fromJSTime(tm uint64) time.Time {
 	if tm == 0 {
 		return time.Time{}
 	}
-	return time.Unix(int64(tm)/1000, (int64(tm)%1000) * 1000000)
+	return time.Unix(int64(tm)/1000, (int64(tm)%1000)*1000000)
 }
 
 func toJSTime(tm time.Time) uint64 {
 	if tm.Before(time.Unix(0, 0)) {
 		return 0
 	}
-	return uint64((tm.Sub(time.Unix(0, 0)) + time.Millisecond / 2) / time.Millisecond)
+	return uint64((tm.Sub(time.Unix(0, 0)) + time.Millisecond/2) / time.Millisecond)
 }
 
 type closeMessage struct {
@@ -292,7 +293,7 @@ func addDownConn(c *webClient, id string, remote conn.Up) (*rtpDownConnection, e
 	return conn, err
 }
 
-func addDownConnHelper(c *webClient, conn *rtpDownConnection, remote conn.Up) (error) {
+func addDownConnHelper(c *webClient, conn *rtpDownConnection, remote conn.Up) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1048,23 +1049,38 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 	case "chat":
 		tm := toJSTime(time.Now())
-		c.group.AddToChatHistory(
-			m.Id, m.Username, tm, m.Kind, m.Value,
-		)
+		if m.Dest == "" {
+			c.group.AddToChatHistory(
+				m.Id, m.Username, tm, m.Kind, m.Value,
+			)
+		}
 		mm := clientMessage{
 			Type:     "chat",
 			Id:       m.Id,
+			Dest:     m.Dest,
 			Username: m.Username,
 			Time:     tm,
 			Kind:     m.Kind,
 			Value:    m.Value,
 		}
-		clients := c.group.GetClients(nil)
-		for _, cc := range clients {
-			cc, ok := cc.(*webClient)
-			if ok {
-				cc.write(mm)
+		if m.Dest == "" {
+			clients := c.group.GetClients(nil)
+			for _, cc := range clients {
+				ccc, ok := cc.(*webClient)
+				if ok {
+					ccc.write(mm)
+				}
 			}
+		} else {
+			cc := c.group.GetClient(m.Dest)
+			if cc == nil {
+				return c.error(group.UserError("user unknown"))
+			}
+			ccc, ok := cc.(*webClient)
+			if !ok {
+				return c.error(group.UserError("this user doesn't chat"))
+			}
+			ccc.write(mm)
 		}
 	case "groupaction":
 		switch m.Kind {

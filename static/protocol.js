@@ -124,7 +124,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, username: string, time: number, kind: string, message: string) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, kind: string, message: string) => void}
      */
     this.onchat = null;
     /**
@@ -148,6 +148,7 @@ function ServerConnection() {
   * @property {string} type
   * @property {string} [kind]
   * @property {string} [id]
+  * @property {string} [dest]
   * @property {string} [username]
   * @property {string} [password]
   * @property {Object<string,boolean>} [permissions]
@@ -285,7 +286,7 @@ ServerConnection.prototype.connect = async function(url) {
             case 'chat':
                 if(sc.onchat)
                     sc.onchat.call(
-                        sc, m.id, m.username, m.time, m.kind, m.value,
+                        sc, m.id, m.dest, m.username, m.time, m.kind, m.value,
                     );
                 break;
             case 'clearchat':
@@ -428,10 +429,11 @@ ServerConnection.prototype.newUpStream = function(id) {
  * @param {string} kind - The kind of message, either "" or "me".
  * @param {string} message - The text of the message.
  */
-ServerConnection.prototype.chat = function(username, kind, message) {
+ServerConnection.prototype.chat = function(username, kind, dest, message) {
     this.send({
         type: 'chat',
         id: this.id,
+        dest: dest,
         username: username,
         kind: kind,
         value: message,

@@ -1227,6 +1227,7 @@ function formatTime(time) {
  * @typedef {Object} lastMessage
  * @property {string} [nick]
  * @property {string} [peerId]
+ * @property {string} [dest]
  */
 
 /** @type {lastMessage} */
@@ -1239,7 +1240,7 @@ let lastMessage = {};
  * @param {string} kind
  * @param {string} message
  */
-function addToChatbox(peerId, nick, time, kind, message){
+function addToChatbox(peerId, dest, nick, time, kind, message) {
     let userpass = getUserPass();
     let row = document.createElement('div');
     row.classList.add('message-row');
@@ -1248,12 +1249,16 @@ function addToChatbox(peerId, nick, time, kind, message){
     row.appendChild(container);
     if(!peerId)
         container.classList.add('message-system');
-    else if(userpass.username === nick) {
+    if(userpass.username === nick)
         container.classList.add('message-sender');
-    }
+    if(dest)
+        container.classList.add('message-private');
+
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
-        if (lastMessage.nick !== nick || lastMessage.peerId !== peerId) {
+        if(lastMessage.nick !== nick ||
+           lastMessage.peerId !== peerId ||
+           lastMessage.dest !== (dest || null)) {
             let header = document.createElement('p');
             let user = document.createElement('span');
             user.textContent = nick;
@@ -1272,6 +1277,7 @@ function addToChatbox(peerId, nick, time, kind, message){
         container.appendChild(p);
         lastMessage.nick = nick;
         lastMessage.peerId = peerId;
+        lastMessage.dest = (dest || null);
     } else {
         let asterisk = document.createElement('span');
         asterisk.textContent = '*';
@@ -1288,8 +1294,7 @@ function addToChatbox(peerId, nick, time, kind, message){
         container.appendChild(user);
         container.appendChild(content);
         container.classList.add('message-me');
-        delete(lastMessage.nick);
-        delete(lastMessage.peerId);
+        lastMessage = {};
     }
 
     let box = document.getElementById('box');
@@ -1387,7 +1392,7 @@ function handleInput() {
                     let s = "";
                     for(let key in settings)
                         s = s + `${key}: ${JSON.stringify(settings[key])}\n`
-                    addToChatbox(null, null, Date.now(), null, s);
+                    addToChatbox(null, null, null, Date.now(), null, s);
                     return;
                 }
                 let parsed = parseCommand(rest);
@@ -1424,15 +1429,12 @@ function handleInput() {
                 }
                 serverConnection.groupAction(cmd.slice(1));
                 return;
+            case '/msg':
             case '/op':
             case '/unop':
             case '/kick':
             case '/present':
             case '/unpresent': {
-                if(!serverConnection.permissions.op) {
-                    displayError("You're not an operator");
-                    return;
-                }
                 let parsed = parseCommand(rest);
                 let id;
                 if(parsed[0] in users) {
@@ -1449,7 +1451,18 @@ function handleInput() {
                     displayError('Unknown user ' + parsed[0]);
                     return;
                 }
-                serverConnection.userAction(cmd.slice(1), id, parsed[1]);
+                if(cmd === '/msg') {
+                    let username = getUsername();
+                    if(!username) {
+                        displayError("Sorry, you're anonymous, you cannot chat");
+                        return;
+                    }
+                    serverConnection.chat(username, '', id, parsed[1]);
+                    addToChatbox(serverConnection.id,
+                                 id, username, Date.now(), '', parsed[1]);
+                } else {
+                    serverConnection.userAction(cmd.slice(1), id, parsed[1]);
+                }
                 return;
             }
             default:
@@ -1474,7 +1487,7 @@ function handleInput() {
     }
 
     try {
-        serverConnection.chat(username, me ? 'me' : '', message);
+        serverConnection.chat(username, me ? 'me' : '', '', message);
     } catch(e) {
         console.error(e);
         displayError(e);

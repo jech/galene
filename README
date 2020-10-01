@@ -138,6 +138,7 @@ Typing a line starting with a slash `/` in the chat dialogue causes
 a command to be sent to the server.  The following commands are available
 to all users:
 
+ - `/msg user text`: sends a private message;
  - `/me text`: sends a chat message starting with the sender's username;
  - `/leave`: equivalent to clicking the *Disconnect* button.
  - `/set var val`: sets the value of a configuration variable without any
