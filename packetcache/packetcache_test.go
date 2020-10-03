@@ -20,8 +20,8 @@ func TestCache(t *testing.T) {
 	buf1 := randomBuf()
 	buf2 := randomBuf()
 	cache := New(16)
-	_, i1 := cache.Store(13, buf1)
-	_, i2 := cache.Store(17, buf2)
+	_, i1 := cache.Store(13, 0, false, buf1)
+	_, i2 := cache.Store(17, 0, false, buf2)
 
 	buf := make([]byte, BufSize)
 
@@ -62,7 +62,7 @@ func TestCacheOverflow(t *testing.T) {
 	cache := New(16)
 
 	for i := 0; i < 32; i++ {
-		cache.Store(uint16(i), []byte{uint8(i)})
+		cache.Store(uint16(i), 0, false, []byte{uint8(i)})
 	}
 
 	for i := 0; i < 32; i++ {
@@ -84,7 +84,7 @@ func TestCacheGrow(t *testing.T) {
 	cache := New(16)
 
 	for i := 0; i < 24; i++ {
-		cache.Store(uint16(i), []byte{uint8(i)})
+		cache.Store(uint16(i), 0, false, []byte{uint8(i)})
 	}
 
 	cache.Resize(32)
@@ -107,7 +107,7 @@ func TestCacheShrink(t *testing.T) {
 	cache := New(16)
 
 	for i := 0; i < 24; i++ {
-		cache.Store(uint16(i), []byte{uint8(i)})
+		cache.Store(uint16(i), 0, false, []byte{uint8(i)})
 	}
 
 	cache.Resize(12)
@@ -150,6 +150,65 @@ func TestCacheGrowCond(t *testing.T) {
 	}
 }
 
+func TestKeyframe(t *testing.T) {
+	cache := New(16)
+	packet := make([]byte, 1)
+	buf := make([]byte, BufSize)
+
+	cache.Store(7, 57, true, packet)
+	cache.Store(8, 57, true, packet)
+
+	ts, kf := cache.Keyframe()
+	if ts != 57 || len(kf) != 2 {
+		t.Errorf("Got %v %v, expected %v %v", ts, len(kf), 57, 2)
+	}
+	for _, i := range kf {
+		l := cache.Get(i, buf)
+		if int(l) != len(packet) {
+			t.Errorf("Couldn't get %v", i)
+		}
+	}
+
+	for i := 0; i < 32; i++ {
+		cache.Store(uint16(9 + i), uint32(58 + i), false, packet)
+	}
+
+	ts, kf = cache.Keyframe()
+	if ts != 57 || len(kf) != 2 {
+		t.Errorf("Got %v %v, expected %v %v", ts, len(kf), 57, 2)
+	}
+	for _, i := range kf {
+		l := cache.Get(i, buf)
+		if int(l) != len(packet) {
+			t.Errorf("Couldn't get %v", i)
+		}
+	}
+}
+
+func TestKeyframeUnsorted(t *testing.T) {
+	cache := New(16)
+	packet := make([]byte, 1)
+
+	cache.Store(7, 57, true, packet)
+	cache.Store(9, 57, true, packet)
+	cache.Store(8, 57, true, packet)
+	cache.Store(10, 57, true, packet)
+	cache.Store(6, 57, true, packet)
+	cache.Store(8, 57, true, packet)
+
+	_, kf := cache.Keyframe()
+	if len(kf) != 5 {
+		t.Errorf("Got length %v, expected 5", len(kf))
+	}
+	for i, v := range kf {
+		if v != uint16(i + 6) {
+			t.Errorf("Position %v, expected %v, got %v\n",
+				i, i + 6, v)
+		}
+	}
+}
+
+
 func TestBitmap(t *testing.T) {
 	value := uint64(0xcdd58f1e035379c0)
 	packet := make([]byte, 1)
@@ -159,7 +218,7 @@ func TestBitmap(t *testing.T) {
 	var first uint16
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			first, _ = cache.Store(uint16(42+i), packet)
+			first, _ = cache.Store(uint16(42+i), 0, false, packet)
 		}
 	}
 
@@ -175,13 +234,13 @@ func TestBitmapWrap(t *testing.T) {
 
 	cache := New(16)
 
-	cache.Store(0x7000, packet)
-	cache.Store(0xA000, packet)
+	cache.Store(0x7000, 0, false, packet)
+	cache.Store(0xA000, 0, false, packet)
 
 	var first uint16
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			first, _ = cache.Store(uint16(42+i), packet)
+			first, _ = cache.Store(uint16(42+i), 0, false, packet)
 		}
 	}
 
@@ -199,7 +258,7 @@ func TestBitmapGet(t *testing.T) {
 
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			cache.Store(uint16(42+i), packet)
+			cache.Store(uint16(42+i), 0, false, packet)
 		}
 	}
 
@@ -241,7 +300,7 @@ func TestBitmapPacket(t *testing.T) {
 
 	for i := 0; i < 64; i++ {
 		if (value & (1 << i)) != 0 {
-			cache.Store(uint16(42+i), packet)
+			cache.Store(uint16(42+i), 0, false, packet)
 		}
 	}
 
@@ -299,7 +358,7 @@ func BenchmarkCachePutGet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		seqno := uint16(i)
-		cache.Store(seqno, buf)
+		cache.Store(seqno, 0, false, buf)
 		for _, ch := range chans {
 			ch <- seqno
 		}
@@ -350,7 +409,7 @@ func BenchmarkCachePutGetAt(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		seqno := uint16(i)
-		_, index := cache.Store(seqno, buf)
+		_, index := cache.Store(seqno, 0, false, buf)
 		for _, ch := range chans {
 			ch <- is{index, seqno}
 		}

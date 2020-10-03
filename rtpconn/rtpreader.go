@@ -5,11 +5,23 @@ import (
 	"log"
 
 	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3"
 
 	"sfu/packetcache"
 	"sfu/rtptime"
 )
+
+func isVP8Keyframe(packet *rtp.Packet) bool {
+	var vp8 codecs.VP8Packet
+	_, err := vp8.Unmarshal(packet.Payload)
+	if err != nil {
+		return false
+	}
+
+	return vp8.S != 0 && vp8.PID == 0 &&
+		len(vp8.Payload) > 0 && (vp8.Payload[0]&0x1) == 0
+}
 
 func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 	writers := rtpWriterPool{conn: conn, track: track}
@@ -19,6 +31,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 	}()
 
 	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
+	codec := track.track.Codec().Name
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	for {
@@ -39,8 +52,14 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 		track.jitter.Accumulate(packet.Timestamp)
 
-		first, index :=
-			track.cache.Store(packet.SequenceNumber, buf[:bytes])
+		kf := false
+		if isvideo && codec == webrtc.VP8 {
+			kf = isVP8Keyframe(&packet)
+		}
+
+		first, index := track.cache.Store(
+			packet.SequenceNumber, packet.Timestamp, kf, buf[:bytes],
+		)
 		if packet.SequenceNumber-first > 24 {
 			found, first, bitmap := track.cache.BitmapGet()
 			if found {

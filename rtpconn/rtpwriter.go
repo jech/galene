@@ -138,7 +138,7 @@ func (wp *rtpWriterPool) write(seqno uint16, index uint16, delay uint32, isvideo
 				continue
 			}
 			// audio, try again with a delay
-			d := delay/uint32(2*len(wp.writers))
+			d := delay / uint32(2*len(wp.writers))
 			timer := time.NewTimer(rtptime.ToDuration(
 				uint64(d), rtptime.JiffiesPerSec,
 			))
@@ -208,6 +208,31 @@ func (writer *rtpWriter) add(track conn.DownTrack, add bool, max int) error {
 	}
 }
 
+func sendKeyframe(track conn.DownTrack, cache *packetcache.Cache) {
+	_, kf := cache.Keyframe()
+	if len(kf) == 0 {
+		return
+	}
+
+	buf := make([]byte, packetcache.BufSize)
+	var packet rtp.Packet
+	for _, seqno := range kf {
+		bytes := cache.Get(seqno, buf)
+		if(bytes == 0) {
+			return
+		}
+		err := packet.Unmarshal(buf[:bytes])
+		if err != nil {
+			return
+		}
+		err = track.WriteRTP(&packet)
+		if err != nil && err != conn.ErrKeyframeNeeded {
+			return
+		}
+		track.Accumulate(uint32(bytes))
+	}
+}
+
 // rtpWriterLoop is the main loop of an rtpWriter.
 func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 	defer close(writer.done)
@@ -245,6 +270,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				if cname != "" {
 					action.track.SetCname(cname)
 				}
+				go sendKeyframe(action.track, track.cache)
 			} else {
 				found := false
 				for i, t := range local {
@@ -286,8 +312,9 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				if err != nil {
 					if err == conn.ErrKeyframeNeeded {
 						kfNeeded = true
+					} else {
+						continue
 					}
-					continue
 				}
 				l.Accumulate(uint32(bytes))
 			}

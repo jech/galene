@@ -5,6 +5,7 @@ import (
 )
 
 const BufSize = 1500
+const maxKeyframe = 1024
 
 type entry struct {
 	seqno  uint16
@@ -24,6 +25,9 @@ type Cache struct {
 	// bitmap
 	first  uint16
 	bitmap uint32
+	// buffered keyframe
+	kfTimestamp uint32
+	kfEntries   []entry
 	// packet cache
 	tail    uint16
 	entries []entry
@@ -75,7 +79,7 @@ func (cache *Cache) set(seqno uint16) {
 }
 
 // Store a packet, setting bitmap at the same time
-func (cache *Cache) Store(seqno uint16, buf []byte) (uint16, uint16) {
+func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, buf []byte) (uint16, uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -97,8 +101,38 @@ func (cache *Cache) Store(seqno uint16, buf []byte) (uint16, uint16) {
 			}
 		}
 	}
-
 	cache.set(seqno)
+
+	doit := false
+	if keyframe {
+		if cache.kfTimestamp != timestamp {
+			cache.kfTimestamp = timestamp
+			cache.kfEntries = cache.kfEntries[:0]
+		}
+		doit = true
+	} else if len(cache.kfEntries) > 0 {
+		doit = cache.kfTimestamp == timestamp
+	}
+	if doit {
+		i := 0
+		for i < len(cache.kfEntries) {
+			if cache.kfEntries[i].seqno >= seqno {
+				break
+			}
+			i++
+		}
+
+		if i >= len(cache.kfEntries) || cache.kfEntries[i].seqno != seqno {
+			if len(cache.kfEntries) >= maxKeyframe {
+				cache.kfEntries = cache.kfEntries[:maxKeyframe-1]
+			}
+			cache.kfEntries = append(cache.kfEntries, entry{})
+			copy(cache.kfEntries[i+1:], cache.kfEntries[i:])
+		}
+		cache.kfEntries[i].seqno = seqno
+		cache.kfEntries[i].length = uint16(len(buf))
+		copy(cache.kfEntries[i].buf[:], buf)
+	}
 
 	i := cache.tail
 	cache.entries[i].seqno = seqno
@@ -118,20 +152,33 @@ func (cache *Cache) Expect(n int) {
 	cache.expected += uint32(n)
 }
 
+func get(seqno uint16, entries []entry, result []byte) uint16 {
+	for i := range entries {
+		if entries[i].length == 0 || entries[i].seqno != seqno {
+			continue
+		}
+		return uint16(copy(
+			result[:entries[i].length],
+			entries[i].buf[:]),
+		)
+	}
+	return 0
+}
+
 func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	for i := range cache.entries {
-		if cache.entries[i].length == 0 ||
-			cache.entries[i].seqno != seqno {
-			continue
-		}
-		return uint16(copy(
-			result[:cache.entries[i].length],
-			cache.entries[i].buf[:]),
-		)
+	n := get(seqno, cache.kfEntries, result)
+	if n > 0 {
+		return n
 	}
+
+	n = get(seqno, cache.entries, result)
+	if n > 0 {
+		return n
+	}
+
 	return 0
 }
 
@@ -149,6 +196,17 @@ func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 		result[:cache.entries[index].length],
 		cache.entries[index].buf[:]),
 	)
+}
+
+func (cache *Cache) Keyframe() (uint32, []uint16) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	seqnos := make([]uint16, len(cache.kfEntries))
+	for i := range cache.kfEntries {
+		seqnos[i] = cache.kfEntries[i].seqno
+	}
+	return cache.kfTimestamp, seqnos
 }
 
 func (cache *Cache) resize(capacity int) {
