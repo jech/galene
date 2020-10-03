@@ -418,7 +418,7 @@ func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
 		track := &rtpUpTrack{
 			track:      remote,
 			label:      label,
-			cache:      packetcache.New(32),
+			cache:      packetcache.New(minPacketCache(remote)),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
 			localCh:    make(chan localTrackAction, 2),
@@ -972,6 +972,13 @@ func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport, jiffies uint
 	}
 }
 
+func minPacketCache(track *webrtc.Track) int {
+	if track.Kind() == webrtc.RTPCodecTypeVideo {
+		return 128
+	}
+	return 24
+}
+
 func updateUpTrack(track *rtpUpTrack) {
 	now := rtptime.Jiffies()
 
@@ -993,11 +1000,12 @@ func updateUpTrack(track *rtpUpTrack) {
 	}
 	_, r := track.rate.Estimate()
 	packets := int((uint64(r) * maxrto * 4) / rtptime.JiffiesPerSec)
-	if packets < 32 {
-		packets = 32
+	min := minPacketCache(track.track)
+	if packets < min {
+		packets = min
 	}
-	if packets > 256 {
-		packets = 256
+	if packets > 1024 {
+		packets = 1024
 	}
 	track.cache.ResizeCond(packets)
 }
