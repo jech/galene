@@ -1,6 +1,7 @@
 package packetcache
 
 import (
+	"math/bits"
 	"sync"
 )
 
@@ -23,8 +24,9 @@ type Cache struct {
 	lost      uint32
 	totalLost uint32
 	// bitmap
-	first  uint16
-	bitmap uint32
+	bitmapValid bool
+	first       uint16
+	bitmap      uint32
 	// buffered keyframe
 	kfTimestamp uint32
 	kfEntries   []entry
@@ -56,9 +58,10 @@ func seqnoInvalid(seqno, reference uint16) bool {
 
 // Set a bit in the bitmap, shifting first if necessary.
 func (cache *Cache) set(seqno uint16) {
-	if cache.bitmap == 0 || seqnoInvalid(seqno, cache.first) {
+	if !cache.bitmapValid || seqnoInvalid(seqno, cache.first) {
 		cache.first = seqno
 		cache.bitmap = 1
+		cache.bitmapValid = true
 		return
 	}
 
@@ -66,14 +69,18 @@ func (cache *Cache) set(seqno uint16) {
 		return
 	}
 
-	if seqno-cache.first < 32 {
-		cache.bitmap |= (1 << uint16(seqno-cache.first))
-		return
+	if seqno-cache.first >= 32 {
+		shift := seqno - cache.first - 31
+		cache.bitmap >>= shift
+		cache.first += shift
 	}
 
-	shift := seqno - cache.first - 31
-	cache.bitmap >>= shift
-	cache.first += shift
+	if (cache.bitmap & 1) == 1 {
+		ones := bits.TrailingZeros32(^cache.bitmap)
+		cache.bitmap >>= ones
+		cache.first += uint16(ones)
+	}
+
 	cache.bitmap |= (1 << uint16(seqno-cache.first))
 	return
 }
@@ -262,25 +269,34 @@ func (cache *Cache) ResizeCond(capacity int) bool {
 	return true
 }
 
-// Shift 17 bits out of the bitmap.  Return a boolean indicating if any
-// were 0, the index of the first 0 bit, and a bitmap indicating any
+// Shift up to 17 bits out of the bitmap.  Return a boolean indicating if
+// any were 0, the index of the first 0 bit, and a bitmap indicating any
 // 0 bits after the first one.
-func (cache *Cache) BitmapGet() (bool, uint16, uint16) {
+func (cache *Cache) BitmapGet(next uint16) (bool, uint16, uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
 	first := cache.first
-	bitmap := (^cache.bitmap) & 0x1FFFF
-	cache.bitmap >>= 17
-	cache.first += 17
+	count := next - first
+	if (count&0x8000) != 0 || count == 0 {
+		// next is in the past
+		return false, first, 0
+	}
+	if count > 17 {
+		count = 17
+	}
+	bitmap := (^cache.bitmap) & ^((^uint32(0)) << count)
+	cache.bitmap >>= count
+	cache.first += count
 
 	if bitmap == 0 {
 		return false, first, 0
 	}
 
-	for bitmap&1 == 0 {
-		bitmap >>= 1
-		first++
+	if (bitmap & 1) == 0 {
+		count := bits.TrailingZeros32(bitmap)
+		bitmap >>= count
+		first += uint16(count)
 	}
 
 	return true, first, uint16(bitmap >> 1)

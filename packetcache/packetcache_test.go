@@ -264,7 +264,7 @@ func TestBitmapGet(t *testing.T) {
 
 	pos := uint16(42)
 	for cache.bitmap != 0 {
-		found, first, bitmap := cache.BitmapGet()
+		found, first, bitmap := cache.BitmapGet(42 + 65)
 		if first < pos || first >= pos+64 {
 			t.Errorf("First is %v, pos is %v", first, pos)
 		}
@@ -304,7 +304,7 @@ func TestBitmapPacket(t *testing.T) {
 		}
 	}
 
-	found, first, bitmap := cache.BitmapGet()
+	found, first, bitmap := cache.BitmapGet(42 + 65)
 
 	if !found {
 		t.Fatalf("Didn't find any 0 bits")

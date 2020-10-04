@@ -61,7 +61,8 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 			packet.SequenceNumber, packet.Timestamp, kf, buf[:bytes],
 		)
 		if packet.SequenceNumber-first > 24 {
-			found, first, bitmap := track.cache.BitmapGet()
+			found, first, bitmap :=
+				track.cache.BitmapGet(packet.SequenceNumber - 4)
 			if found {
 				err := conn.sendNACK(track, first, bitmap)
 				if err != nil {
