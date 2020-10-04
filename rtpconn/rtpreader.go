@@ -58,11 +58,35 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 		}
 
 		first, index := track.cache.Store(
-			packet.SequenceNumber, packet.Timestamp, kf, buf[:bytes],
+			packet.SequenceNumber, packet.Timestamp,
+			kf, buf[:bytes],
 		)
-		if packet.SequenceNumber-first > 24 {
-			found, first, bitmap :=
-				track.cache.BitmapGet(packet.SequenceNumber - 4)
+
+		_, rate := track.rate.Estimate()
+
+		delta := packet.SequenceNumber - first
+		if (delta & 0x8000) != 0 {
+			delta = 0
+		}
+		// send a NACK if a packet is late by 65ms or 2 packets,
+		// whichever is more
+		packets := rate / 16
+		if packets > 24 {
+			packets = 24
+		}
+		if packets < 2 {
+			packets = 2
+		}
+		// send NACKs for more recent packets, this makes better
+		// use of the NACK bitmap
+		unnacked := uint16(4)
+		if unnacked > uint16(packets) {
+			unnacked = uint16(packets)
+		}
+		if uint32(delta) > packets {
+			found, first, bitmap := track.cache.BitmapGet(
+				packet.SequenceNumber - unnacked,
+			)
 			if found {
 				err := conn.sendNACK(track, first, bitmap)
 				if err != nil {
@@ -71,7 +95,6 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 			}
 		}
 
-		_, rate := track.rate.Estimate()
 		delay := uint32(rtptime.JiffiesPerSec / 1024)
 		if rate > 512 {
 			delay = rtptime.JiffiesPerSec / rate / 2
