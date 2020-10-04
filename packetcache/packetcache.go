@@ -6,12 +6,23 @@ import (
 )
 
 const BufSize = 1500
-const maxKeyframe = 1024
+const maxFrame = 1024
 
 type entry struct {
 	seqno  uint16
 	length uint16
 	buf    [BufSize]byte
+}
+
+type bitmap struct {
+	valid  bool
+	first  uint16
+	bitmap uint32
+}
+
+type frame struct {
+	timestamp uint32
+	entries   []entry
 }
 
 type Cache struct {
@@ -24,13 +35,10 @@ type Cache struct {
 	lost      uint32
 	totalLost uint32
 	// bitmap
-	bitmapValid bool
-	first       uint16
-	bitmap      uint32
+	bitmap bitmap
 	// buffered keyframe
-	kfTimestamp uint32
-	kfEntries   []entry
-	// packet cache
+	keyframe frame
+	// the actual cache
 	tail    uint16
 	entries []entry
 }
@@ -56,33 +64,116 @@ func seqnoInvalid(seqno, reference uint16) bool {
 	return false
 }
 
-// Set a bit in the bitmap, shifting first if necessary.
-func (cache *Cache) set(seqno uint16) {
-	if !cache.bitmapValid || seqnoInvalid(seqno, cache.first) {
-		cache.first = seqno
-		cache.bitmap = 1
-		cache.bitmapValid = true
+// set sets a bit in the bitmap, shifting if necessary
+func (bitmap *bitmap) set(seqno uint16) {
+	if !bitmap.valid || seqnoInvalid(seqno, bitmap.first) {
+		bitmap.first = seqno
+		bitmap.bitmap = 1
+		bitmap.valid = true
 		return
 	}
 
-	if ((seqno - cache.first) & 0x8000) != 0 {
+	if ((seqno - bitmap.first) & 0x8000) != 0 {
 		return
 	}
 
-	if seqno-cache.first >= 32 {
-		shift := seqno - cache.first - 31
-		cache.bitmap >>= shift
-		cache.first += shift
+	if seqno-bitmap.first >= 32 {
+		shift := seqno - bitmap.first - 31
+		bitmap.bitmap >>= shift
+		bitmap.first += shift
 	}
 
-	if (cache.bitmap & 1) == 1 {
-		ones := bits.TrailingZeros32(^cache.bitmap)
-		cache.bitmap >>= ones
-		cache.first += uint16(ones)
+	if (bitmap.bitmap & 1) == 1 {
+		ones := bits.TrailingZeros32(^bitmap.bitmap)
+		bitmap.bitmap >>= ones
+		bitmap.first += uint16(ones)
 	}
 
-	cache.bitmap |= (1 << uint16(seqno-cache.first))
+	bitmap.bitmap |= (1 << uint16(seqno-bitmap.first))
 	return
+}
+
+// BitmapGet shifts up to 17 bits out of the bitmap.  It returns a boolean
+// indicating if any were 0, the index of the first 0 bit, and a bitmap
+// indicating any 0 bits after the first one.
+func (cache *Cache) BitmapGet(next uint16) (bool, uint16, uint16) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	return cache.bitmap.get(next)
+}
+
+func (bitmap *bitmap) get(next uint16) (bool, uint16, uint16) {
+	first := bitmap.first
+	count := next - first
+	if (count&0x8000) != 0 || count == 0 {
+		// next is in the past
+		return false, first, 0
+	}
+	if count > 17 {
+		count = 17
+	}
+	bm := (^bitmap.bitmap) & ^((^uint32(0)) << count)
+	bitmap.bitmap >>= count
+	bitmap.first += count
+
+	if bm == 0 {
+		return false, first, 0
+	}
+
+	if (bm & 1) == 0 {
+		count := bits.TrailingZeros32(bm)
+		bm >>= count
+		first += uint16(count)
+	}
+
+	return true, first, uint16(bm >> 1)
+}
+
+func (frame *frame) store(seqno uint16, timestamp uint32, first bool, data []byte) {
+	if first {
+		if frame.timestamp != timestamp {
+			frame.timestamp = timestamp
+			frame.entries = frame.entries[:0]
+		}
+	} else if len(frame.entries) > 0 {
+		if frame.timestamp != timestamp {
+			return
+		}
+	} else {
+		return
+	}
+
+	i := 0
+	for i < len(frame.entries) {
+		if frame.entries[i].seqno >= seqno {
+			break
+		}
+		i++
+	}
+
+	if i < len(frame.entries) && frame.entries[i].seqno == seqno {
+		// duplicate
+		return
+	}
+
+	if len(frame.entries) >= maxFrame {
+		// overflow
+		return
+	}
+
+	e := entry{
+		seqno:  seqno,
+		length: uint16(len(data)),
+	}
+	copy(e.buf[:], data)
+
+	if i >= len(frame.entries) {
+		frame.entries = append(frame.entries, e)
+		return
+	}
+	frame.entries = append(frame.entries, entry{})
+	copy(frame.entries[i+1:], frame.entries[i:])
+	frame.entries[i] = e
 }
 
 // Store a packet, setting bitmap at the same time
@@ -108,38 +199,9 @@ func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, buf []b
 			}
 		}
 	}
-	cache.set(seqno)
+	cache.bitmap.set(seqno)
 
-	doit := false
-	if keyframe {
-		if cache.kfTimestamp != timestamp {
-			cache.kfTimestamp = timestamp
-			cache.kfEntries = cache.kfEntries[:0]
-		}
-		doit = true
-	} else if len(cache.kfEntries) > 0 {
-		doit = cache.kfTimestamp == timestamp
-	}
-	if doit {
-		i := 0
-		for i < len(cache.kfEntries) {
-			if cache.kfEntries[i].seqno >= seqno {
-				break
-			}
-			i++
-		}
-
-		if i >= len(cache.kfEntries) || cache.kfEntries[i].seqno != seqno {
-			if len(cache.kfEntries) >= maxKeyframe {
-				cache.kfEntries = cache.kfEntries[:maxKeyframe-1]
-			}
-			cache.kfEntries = append(cache.kfEntries, entry{})
-			copy(cache.kfEntries[i+1:], cache.kfEntries[i:])
-		}
-		cache.kfEntries[i].seqno = seqno
-		cache.kfEntries[i].length = uint16(len(buf))
-		copy(cache.kfEntries[i].buf[:], buf)
-	}
+	cache.keyframe.store(seqno, timestamp, keyframe, buf)
 
 	i := cache.tail
 	cache.entries[i].seqno = seqno
@@ -147,7 +209,7 @@ func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, buf []b
 	cache.entries[i].length = uint16(len(buf))
 	cache.tail = (i + 1) % uint16(len(cache.entries))
 
-	return cache.first, i
+	return cache.bitmap.first, i
 }
 
 func (cache *Cache) Expect(n int) {
@@ -176,7 +238,7 @@ func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	n := get(seqno, cache.kfEntries, result)
+	n := get(seqno, cache.keyframe.entries, result)
 	if n > 0 {
 		return n
 	}
@@ -209,11 +271,11 @@ func (cache *Cache) Keyframe() (uint32, []uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	seqnos := make([]uint16, len(cache.kfEntries))
-	for i := range cache.kfEntries {
-		seqnos[i] = cache.kfEntries[i].seqno
+	seqnos := make([]uint16, len(cache.keyframe.entries))
+	for i := range cache.keyframe.entries {
+		seqnos[i] = cache.keyframe.entries[i].seqno
 	}
-	return cache.kfTimestamp, seqnos
+	return cache.keyframe.timestamp, seqnos
 }
 
 func (cache *Cache) resize(capacity int) {
@@ -267,39 +329,6 @@ func (cache *Cache) ResizeCond(capacity int) bool {
 
 	cache.resize(capacity)
 	return true
-}
-
-// Shift up to 17 bits out of the bitmap.  Return a boolean indicating if
-// any were 0, the index of the first 0 bit, and a bitmap indicating any
-// 0 bits after the first one.
-func (cache *Cache) BitmapGet(next uint16) (bool, uint16, uint16) {
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
-
-	first := cache.first
-	count := next - first
-	if (count&0x8000) != 0 || count == 0 {
-		// next is in the past
-		return false, first, 0
-	}
-	if count > 17 {
-		count = 17
-	}
-	bitmap := (^cache.bitmap) & ^((^uint32(0)) << count)
-	cache.bitmap >>= count
-	cache.first += count
-
-	if bitmap == 0 {
-		return false, first, 0
-	}
-
-	if (bitmap & 1) == 0 {
-		count := bits.TrailingZeros32(bitmap)
-		bitmap >>= count
-		first += uint16(count)
-	}
-
-	return true, first, uint16(bitmap >> 1)
 }
 
 func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32, uint32) {

@@ -223,8 +223,8 @@ func TestBitmap(t *testing.T) {
 	}
 
 	value >>= uint16(first - 42)
-	if uint32(value) != cache.bitmap {
-		t.Errorf("Got %b, expected %b", cache.bitmap, value)
+	if uint32(value) != cache.bitmap.bitmap {
+		t.Errorf("Got %b, expected %b", cache.bitmap.bitmap, value)
 	}
 }
 
@@ -245,8 +245,8 @@ func TestBitmapWrap(t *testing.T) {
 	}
 
 	value >>= uint16(first - 42)
-	if uint32(value) != cache.bitmap {
-		t.Errorf("Got %b, expected %b", cache.bitmap, value)
+	if uint32(value) != cache.bitmap.bitmap {
+		t.Errorf("Got %b, expected %b", cache.bitmap.bitmap, value)
 	}
 }
 
@@ -263,7 +263,7 @@ func TestBitmapGet(t *testing.T) {
 	}
 
 	pos := uint16(42)
-	for cache.bitmap != 0 {
+	for cache.bitmap.bitmap != 0 {
 		found, first, bitmap := cache.BitmapGet(42 + 65)
 		if first < pos || first >= pos+64 {
 			t.Errorf("First is %v, pos is %v", first, pos)
