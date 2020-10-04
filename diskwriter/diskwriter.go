@@ -1,4 +1,4 @@
-package disk
+package diskwriter
 
 import (
 	crand "crypto/rand"

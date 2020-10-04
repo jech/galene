@@ -20,7 +20,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"sfu/disk"
+	"sfu/diskwriter"
 	"sfu/group"
 	"sfu/rtpconn"
 	"sfu/stats"
@@ -434,7 +434,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 
 	p = path.Clean(p)
 
-	f, err := os.Open(filepath.Join(disk.Directory, p))
+	f, err := os.Open(filepath.Join(diskwriter.Directory, p))
 	if err != nil {
 		httpError(w, err)
 		return
@@ -507,7 +507,7 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 			return
 		}
 		err := os.Remove(
-			filepath.Join(disk.Directory,
+			filepath.Join(diskwriter.Directory,
 				filepath.Join(group,
 					path.Clean("/"+filename),
 				),

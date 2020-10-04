@@ -15,7 +15,7 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	"sfu/disk"
+	"sfu/diskwriter"
 	"sfu/group"
 	"sfu/webserver"
 )
@@ -30,7 +30,7 @@ func main() {
 		"data `directory`")
 	flag.StringVar(&group.Directory, "groups", "./groups/",
 		"group description `directory`")
-	flag.StringVar(&disk.Directory, "recordings", "./recordings/",
+	flag.StringVar(&diskwriter.Directory, "recordings", "./recordings/",
 		"recordings `directory`")
 	flag.StringVar(&cpuprofile, "cpuprofile", "",
 		"store CPU profile in `file`")

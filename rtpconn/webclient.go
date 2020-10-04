@@ -12,7 +12,7 @@ import (
 	"github.com/pion/webrtc/v3"
 
 	"sfu/conn"
-	"sfu/disk"
+	"sfu/diskwriter"
 	"sfu/estimator"
 	"sfu/group"
 )
@@ -1104,12 +1104,12 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return c.error(group.UserError("not authorised"))
 			}
 			for _, cc := range c.group.GetClients(c) {
-				_, ok := cc.(*disk.Client)
+				_, ok := cc.(*diskwriter.Client)
 				if ok {
 					return c.error(group.UserError("already recording"))
 				}
 			}
-			disk := disk.New(c.group)
+			disk := diskwriter.New(c.group)
 			_, err := group.AddClient(c.group.Name(), disk)
 			if err != nil {
 				disk.Close()
@@ -1121,7 +1121,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return c.error(group.UserError("not authorised"))
 			}
 			for _, cc := range c.group.GetClients(c) {
-				disk, ok := cc.(*disk.Client)
+				disk, ok := cc.(*diskwriter.Client)
 				if ok {
 					disk.Close()
 					group.DelClient(disk)
