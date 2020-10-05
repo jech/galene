@@ -164,7 +164,7 @@
 }
 
 .app {
-    background-color: #f7f7f7;
+    background-color: #f4f4f4;
     overflow: hidden;
     margin: 0;
     padding: 0;
@@ -177,8 +177,13 @@
     margin: 0;
 }
 
+.coln-left-hide {
+  flex: 0;
+}
+
 .coln-right {
     flex: 70%;
+    position: relative;
 }
 
 /* Clear floats after the columns */
@@ -277,7 +282,6 @@ textarea.form-reply {
 
 .select-inline {
     display: inline-block;
-    width: inherit;
 }
 
 .message {
@@ -291,10 +295,11 @@ textarea.form-reply {
     display: inline-block;
     margin: 1em 0 0;
     max-width: 90%;
+    text-align: left;
 }
 
 .message-sender {
-    background: #ececec;
+    background: #e6e6e6;
 }
 
 .message-private {
@@ -321,12 +326,13 @@ textarea.form-reply {
 }
 
 .message-content {
-    margin: 0 !important;
-    padding: 5px !important;
+    margin: 0;
+    padding: 0;
+    padding-left: 5px;
     word-wrap: break-word;
+    word-break: break-word;
     font-weight: 400;
     font-size: 14px;
-    padding-bottom: 0 !important;
     color: #202035;
 }
 
@@ -334,6 +340,14 @@ textarea.form-reply {
     margin: 0;
     font-style: italic;
     text-shadow: none;
+}
+
+.message-footer {
+    margin: 0;
+    padding: 0;
+    margin-bottom: -5px;
+    line-height: .9;
+    text-align: right;
 }
 
 .message-time {
@@ -350,17 +364,16 @@ textarea.form-reply {
     background: rgba(0, 0, 0, 0.91);
     /* Display only when showing video */
     display: block;
-    transition: all 1s ease-out;
-    opacity: 1;
 }
 
 .collapse-video {
   display: none;
   /*on top of video peers*/
   z-index: 1002;
-  position: fixed;
-  top: 70px;
-  right: 10px;
+  position: absolute;
+  top: 5px;
+  left: 10px;
+  cursor: pointer;
 }
 
 .collapse-video .open-chat {
@@ -368,12 +381,11 @@ textarea.form-reply {
     height: 60px;
     fill: #fff;
     padding: 10px;
+    fill: #b8b8b8;
 }
 
 .no-video {
     display: none;
-    transition: opacity 1s ease-out;
-    opacity: 0;
 }
 
 .video-controls {
@@ -381,9 +393,9 @@ textarea.form-reply {
     width: 100%;
     left: 0;
     bottom: 40px;
-    text-align: center;
+    text-align: right;
     color: #e1e1e1;
-    font-size: 2.3em;
+    font-size: 1.8em;
     transition: all .5s ease-out;
     opacity: 0;
 }
@@ -394,7 +406,7 @@ textarea.form-reply {
 }
 
 .video-controls span {
-    margin-right: 30px;
+    margin-right: 20px;
     transition: all .5s ease-out;
     opacity: .5;
     cursor: pointer;
@@ -402,7 +414,7 @@ textarea.form-reply {
 }
 
 .video-controls span:last-child {
-    margin-right: 0;
+    /*margin-right: 0;*/
 }
 
 .video-controls span:hover {
@@ -411,7 +423,7 @@ textarea.form-reply {
 }
 
 .video-controls .volume {
-    width: 44px;
+    width: 25px;
     display: inline-block;
     text-align: center;
 }
@@ -598,14 +610,15 @@ h1 {
 #chat {
     padding: 0;
     margin: 0;
-    background-color: #f9f9f9;
+    background-color: #f4f4f4;
     background-size: cover;
     overflow-y: scroll;
     border: none;
     border-right: 4px solid #e6e6e6;
     /* force to fill height */
     height: 100% !important;
-    min-width: 300px;
+    width: 100%;
+    min-width: 200px;
     overflow: hidden;
 }
 
@@ -740,6 +753,10 @@ h1 {
     margin-top: 15px;
 }
 
+.sidenav .label-first {
+    margin-top: 0;
+}
+
 .sidenav form{
     display: block;
     margin-top: 15px;
@@ -758,13 +775,25 @@ h1 {
 }
 
 .sidenav-content {
-    padding: 20px;
+    padding: 10px;
     background: #fff;
     height: 100%;
 }
 
 .sidenav-content h2 {
     margin: 0;
+}
+
+fieldset {
+    margin: 0;
+    margin-top: 20px;
+    border: 1px solid #e9e8e8;
+    padding: 8px;
+    border-radius: 4px;
+}
+legend {
+    padding: 2px;
+    color: #4d4f51;
 }
 
 .nav-menu {
@@ -828,7 +857,7 @@ h1 {
     background-color: #fff;
     max-width: 300px;
     min-width: 200px;
-    margin-top: 11px;
+    margin-top: 7px;
     overflow: auto;
     right: 7px;
     box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
@@ -962,11 +991,6 @@ header .collapse {
 
 /* END Sidebar Left */
 
-@media screen and (max-height: 450px) {
-    .sidenav-content {padding: 10px;}
-    .sidenav a {font-size: 18px;}
-}
-
 /*@media only screen and (max-width: 768px) {*/
 @media only screen and (max-device-width: 768px) {
     .nav-link {
@@ -1019,6 +1043,7 @@ header .collapse {
 
     .coln-right {
         flex: none;
+        position: relative;
     }
 
     .full-width {

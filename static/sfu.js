@@ -1012,7 +1012,7 @@ function getParentVideo(target) {
     let media = /** @type {HTMLVideoElement} */
         (document.getElementById('media-' + hash));
     if (!media) {
-        displayWarning("Cannot find media!");
+        displayError("Cannot find media!");
     }
     return media;
 }
@@ -1022,41 +1022,38 @@ function getParentVideo(target) {
  */
 function registerControlEvent(peerid) {
   let peer = document.getElementById(peerid);
-  let control_list = peer.querySelectorAll("span");
-
-  function control_event(event) {
-      event.preventDefault();
-      let control_type = event.target.getAttribute("data-type");
+  //Add event listener when a video component is added to the DOM
+  peer.querySelector("span.volume").onclick = function(event) {
       let video = getParentVideo(event.target);
-      switch (control_type) {
-          case "bt-volume":
-              if (event.target.className.indexOf("fa-volume-off") !== -1) {
-                  event.target.classList.remove("fa-volume-off");
-                  event.target.classList.add("fa-volume-up");
-                  video.muted = false;
-              } else {
-                  event.target.classList.remove("fa-volume-up");
-                  event.target.classList.add("fa-volume-off");
-                  // mute video sound
-                  video.muted = true;
-              }
-              break;
-          case "bt-pip":
-              videoPIP(video);
-              break;
-          case "bt-fullscreen":
-              if (video.requestFullscreen) {
-                  video.requestFullscreen();
-              } else {
-                  displayWarning("Video Fullscreen not supported!");
-              }
-              break;
+      if (event.target.className.indexOf("fa-volume-off") !== -1) {
+          event.target.classList.remove("fa-volume-off");
+          event.target.classList.add("fa-volume-up");
+          video.muted = false;
+      } else {
+          event.target.classList.remove("fa-volume-up");
+          event.target.classList.add("fa-volume-off");
+          // mute video sound
+          video.muted = true;
       }
-  }
+  };
 
-  for (let i = 0; i < control_list.length; i += 1) {
-    control_list[i].onclick = control_event;
-  }
+  peer.querySelector("span.pip").onclick = function(event) {
+      let video = getParentVideo(event.target);
+      videoPIP(video);
+  };
+
+  peer.querySelector("span.fullscreen").onclick = function(event) {
+      let video = getParentVideo(event.target);
+      if (video.requestFullscreen) {
+          video.requestFullscreen();
+      } else {
+          displayWarning("Video Fullscreen not supported!");
+      }
+  };
+
+  peer.querySelector("span.expand").onclick = function(event) {
+      console.log("Not implemented for now!!");
+  };
 }
 
 
@@ -1370,12 +1367,6 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
                 (nick || '(anon)');
             user.classList.add('message-user');
             header.appendChild(user);
-            if(time) {
-                let tm = document.createElement('span');
-                tm.textContent = formatTime(time);
-                tm.classList.add('message-time');
-                header.appendChild(tm);
-            }
             header.classList.add('message-header');
             container.appendChild(header);
         }
@@ -1401,6 +1392,17 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
         container.appendChild(content);
         container.classList.add('message-me');
         lastMessage = {};
+    }
+
+    if(time) {
+        let tm = document.createElement('span');
+        let datetime = new Date(time);
+        tm.textContent = datetime.getHours() + ':' + datetime.getMinutes();
+        tm.classList.add('message-time');
+        let footer = document.createElement('p');
+        footer.classList.add('message-footer');
+        footer.appendChild(tm);
+        container.appendChild(footer);
     }
 
     let box = document.getElementById('box');
@@ -1614,6 +1616,13 @@ function chatResizer(e) {
 
     function start_drag(e) {
         let left_width = (start_width + e.clientX - start_x) * 100 / full_width;
+        // set min chat width to 200px
+        let min_left_width = 200 * 100 / full_width;
+        if (left_width < min_left_width) {
+          left.style.display = "none";
+          document.getElementById('collapse-video').style.display = "block";
+          return;
+        }
         left.style.flex = left_width.toString();
         right.style.flex = (100 - left_width).toString();
     }
@@ -1741,6 +1750,12 @@ document.getElementById('collapse-video').onclick = function(e) {
     if(!(this instanceof HTMLElement))
         throw new Error('Unexpected type for this');
     let width = window.innerWidth;
+    let left = document.getElementById("left");
+    if (left.style.display === "" || left.style.display === "none") {
+      //left chat is hidden, we show the chat and hide collapse button
+      left.style.display = "block";
+      this.style.display = "";
+    }
     if (width <= 768) {
       let user_box = document.getElementById('userDropdown');
       if (user_box.classList.contains("show")) {

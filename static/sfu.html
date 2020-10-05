@@ -114,7 +114,9 @@
                   </svg>
                 </div>
               <div class="video-container no-video" id="video-container">
-                <div id="peers"></div>
+                <div id="expand-video" class="expand-video">
+                  <div id="peers"></div>
+                </div>
               </div>
               <div class="login-container invisible" id="login-container">
                 <div class="login-box">
@@ -143,46 +145,51 @@
         <a class="closebtn" id="clodeside"><i class="fa fa-times" aria-hidden="true"></i></a>
       </div>
       <div class="sidenav-content" id="optionsdiv">
-        <div id="mediaoptions">
-          <label for="videoselect">Camera:</label>
-          <select id="videoselect" class="select select-inline">
-            <option value="">off</option>
-          </select>
-
-          <label for="audioselect">Microphone:</label>
-          <select id="audioselect" class="select select-inline">
-            <option value="">off</option>
-          </select>
-
-          <form>
-            <input id="blackboardbox" type="checkbox">Blackboard mode</input>
-          </form>
-
-          <form>
-            <input id="studiobox" type="checkbox">Studio mode</input>
-          </form>
-
+        <div id="mediaoptions" class="invisible">
+          <fieldset>
+            <legend>Media Options</legend>
+            <label for="videoselect" class="label-first">Camera:</label>
+            <select id="videoselect" class="select select-inline">
+              <option value="">off</option>
+            </select>
+  
+            <label for="audioselect">Microphone:</label>
+            <select id="audioselect" class="select select-inline">
+              <option value="">off</option>
+            </select>
+  
+            <form>
+              <input id="blackboardbox" type="checkbox">Blackboard mode</input>
+            </form>
+  
+            <form>
+              <input id="studiobox" type="checkbox">Studio mode</input>
+            </form>
+          </fieldset>
         </div>
 
-        <label for="sendselect">Send:</label>
-        <select id="sendselect" class="select select-inline">
-          <option value="lowest">lowest</option>
-          <option value="low">low</option>
-          <option value="normal" selected>normal</option>
-          <option value="unlimited">unlimited</option>
-        </select>
-
-        <label for="requestselect">Receive:</label>
-        <select id="requestselect" class="select select-inline">
-          <option value="">nothing</option>
-          <option value="audio">audio only</option>
-          <option value="screenshare">screen share</option>
-          <option value="everything" selected>everything</option>
-        </select>
-
-        <form>
-          <input id="activitybox" type="checkbox">Activity detection</input>
-        </form>
+        <fieldset>
+          <legend>Others Settings</legend>
+          <label for="sendselect" class="label-first">Send:</label>
+          <select id="sendselect" class="select select-inline">
+            <option value="lowest">lowest</option>
+            <option value="low">low</option>
+            <option value="normal" selected>normal</option>
+            <option value="unlimited">unlimited</option>
+          </select>
+  
+          <label for="requestselect">Receive:</label>
+          <select id="requestselect" class="select select-inline">
+            <option value="">nothing</option>
+            <option value="audio">audio only</option>
+            <option value="screenshare">screen share</option>
+            <option value="everything" selected>everything</option>
+          </select>
+  
+          <form>
+            <input id="activitybox" type="checkbox">Activity detection</input>
+          </form>
+        </fieldset>
       </div>
     </div>
 
@@ -190,7 +197,8 @@
       <div class="video-controls">
         <span class="volume"><i class="fa fa-volume-up" data-type="bt-volume" aria-hidden="true"></i></span>
         <span class="pip"><i class="fa fa-clone" data-type="bt-pip" aria-hidden="true"></i></span>
-        <span class="fullscreen"><i class="fa fa-arrows-alt" data-type="bt-fullscreen" aria-hidden="true"></i></span>
+        <span class="expand"><i class="fa fa-external-link" data-type="bt-expand" aria-hidden="true"></i></span>
+        <span class="fullscreen"><i class="fa fa-expand" data-type="bt-fullscreen" aria-hidden="true"></i></span>
       </div>
     </div>
 
