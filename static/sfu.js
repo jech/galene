@@ -1261,7 +1261,7 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
            lastMessage.dest !== (dest || null)) {
             let header = document.createElement('p');
             let user = document.createElement('span');
-            user.textContent = nick;
+            user.textContent = dest ? `${nick} \u2192 ${users[dest]}` : nick;
             user.classList.add('message-user');
             header.appendChild(user);
             if(time) {
