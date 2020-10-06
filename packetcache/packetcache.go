@@ -137,6 +137,10 @@ func (frame *frame) store(seqno uint16, timestamp uint32, first bool, data []byt
 		}
 	} else if len(frame.entries) > 0 {
 		if frame.timestamp != timestamp {
+			delta := seqno - frame.entries[0].seqno
+			if (delta & 0x8000) == 0 && delta > 0x4000 {
+				frame.entries = frame.entries[:0]
+			}
 			return
 		}
 	} else {
@@ -270,6 +274,10 @@ func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 func (cache *Cache) Keyframe() (uint32, []uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+
+	if len(cache.keyframe.entries) == 0 {
+		return 0, nil
+	}
 
 	seqnos := make([]uint16, len(cache.keyframe.entries))
 	for i := range cache.keyframe.entries {
