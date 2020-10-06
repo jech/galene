@@ -520,9 +520,21 @@ func gotAnswer(c *webClient, id string, answer webrtc.SessionDescription) error 
 		log.Printf("ICE: %v", err)
 	}
 
-	for _, t := range down.tracks {
-		t.remote.AddLocal(t)
+	add := func() {
+		down.pc.OnConnectionStateChange(nil)
+		for _, t := range down.tracks {
+			t.remote.AddLocal(t)
+		}
 	}
+	down.pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		if state == webrtc.PeerConnectionStateConnected {
+			add()
+		}
+	})
+	if down.pc.ConnectionState() == webrtc.PeerConnectionStateConnected {
+		add()
+	}
+
 	return nil
 }
 
