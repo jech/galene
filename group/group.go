@@ -15,10 +15,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pion/ice/v2"
 	"github.com/pion/webrtc/v3"
 )
 
 var Directory string
+var UseMDNS bool
 
 type UserError string
 
@@ -143,6 +145,9 @@ func Add(name string, desc *description) (*Group, error) {
 	if groups.groups == nil {
 		groups.groups = make(map[string]*Group)
 		s := webrtc.SettingEngine{}
+		if !UseMDNS {
+			s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
+		}
 		m := webrtc.MediaEngine{}
 		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
 			webrtc.DefaultPayloadTypeVP8, 90000,

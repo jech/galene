@@ -38,6 +38,7 @@ func main() {
 		"store memory profile in `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "",
 		"store mutex profile in `file`")
+	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.Parse()
 
 	if cpuprofile != "" {
