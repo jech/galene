@@ -1143,8 +1143,8 @@ function resizePeers() {
     let container = document.getElementById("video-container");
     // Peers div has total padding of 40px, we remove 40 on offsetHeight
     // Grid has row-gap of 5px
-    let margins = (columns - 1) * 5 + 40;
     let rows = Math.ceil(count / columns);
+    let margins = (rows - 1) * 5 + 40;
 
     if (count <= 2 && container.offsetHeight > container.offsetWidth) {
         peers.style['grid-template-columns'] = "repeat(1, 1fr)";
@@ -1152,7 +1152,7 @@ function resizePeers() {
     } else {
         peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
     }
-    if (rows === 1)
+    if (count === 1)
         return;
     let max_video_height = (peers.offsetHeight - margins) / rows;
     let media_list = peers.querySelectorAll(".media");
