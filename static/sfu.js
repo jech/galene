@@ -335,7 +335,9 @@ function setViewportHeight() {
     document.documentElement.style.setProperty(
         '--vh', `${window.innerHeight/100}px`,
     );
-};
+    // Ajust video component size
+    resizePeers();
+}
 setViewportHeight();
 
 // On resize and orientation change, we update viewport height
@@ -375,7 +377,7 @@ function setVisibility(id, visible) {
 function setButtonsVisibility() {
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('local');
-    let share = !!findUpMedia('screenshare')
+    let share = !!findUpMedia('screenshare');
 
     // don't allow multiple presentations
     setVisibility('presentbutton', permissions.present && !local);
@@ -383,7 +385,7 @@ function setButtonsVisibility() {
 
     // allow multiple shared documents
     setVisibility('sharebutton', permissions.present &&
-                  ('getDisplayMedia' in navigator.mediaDevices))
+                  ('getDisplayMedia' in navigator.mediaDevices));
     setVisibility('unsharebutton', share);
 
     setVisibility('mediaoptions', permissions.present);
@@ -967,7 +969,17 @@ function setMedia(c, isUp) {
         div.appendChild(label);
     }
 
-    let template = document.getElementById('videocontrols-template').firstElementChild;
+    let template = document.getElementById('videocontrols-template')
+        .firstElementChild;
+    let top_template = document.getElementById('top-videocontrols-template')
+        .firstElementChild;
+
+    let top_controls = document.getElementById('top-controls-' + c.id);
+    if (template && !top_controls) {
+      top_controls = top_template.cloneNode(true);
+      top_controls.id = 'top-controls-' + c.id;
+      div.appendChild(top_controls);
+    }
     let controls = document.getElementById('controls-' + c.id);
     if (template && !controls) {
       controls = template.cloneNode(true);
@@ -1117,6 +1129,9 @@ function setLabel(c, fallback) {
 }
 
 function resizePeers() {
+    // Window resize can call this method too early
+    if (!serverConnection)
+        return;
     let count =
         Object.keys(serverConnection.up).length +
         Object.keys(serverConnection.down).length;
@@ -1125,24 +1140,29 @@ function resizePeers() {
     if (!count)
         // No video, nothing to resize.
         return;
-    let container = document.getElementById("video-container")
-    // Peers div has total padding of 30px, we remove 30 on offsetHeight
-    let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
+    let container = document.getElementById("video-container");
+    // Peers div has total padding of 40px, we remove 40 on offsetHeight
+    // Grid has row-gap of 5px
+    let margins = (columns - 1) * 5 + 40;
+    let rows = Math.ceil(count / columns);
 
-    let media_list = document.getElementsByClassName("media");
+    if (count <= 2 && container.offsetHeight > container.offsetWidth) {
+        peers.style['grid-template-columns'] = "repeat(1, 1fr)";
+        rows = count;
+    } else {
+        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    }
+    if (rows === 1)
+        return;
+    let max_video_height = (peers.offsetHeight - margins) / rows;
+    let media_list = peers.querySelectorAll(".media");
     for(let i = 0; i < media_list.length; i++) {
         let media = media_list[i];
         if(!(media instanceof HTMLMediaElement)) {
             console.warn('Unexpected media');
             continue;
         }
-        media.style['max_height'] = max_video_height + "px";
-    }
-
-    if (count <= 2 && container.offsetHeight > container.offsetWidth) {
-        peers.style['grid-template-columns'] = "repeat(1, 1fr)";
-    } else {
-        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+        media.style['max-height'] = max_video_height + "px";
     }
 }
 
@@ -1616,11 +1636,9 @@ function chatResizer(e) {
 
     function start_drag(e) {
         let left_width = (start_width + e.clientX - start_x) * 100 / full_width;
-        // set min chat width to 200px
-        let min_left_width = 200 * 100 / full_width;
+        // set min chat width to 300px
+        let min_left_width = 300 * 100 / full_width;
         if (left_width < min_left_width) {
-          left.style.display = "none";
-          document.getElementById('collapse-video').style.display = "block";
           return;
         }
         left.style.flex = left_width.toString();
@@ -1775,6 +1793,12 @@ document.getElementById('switch-video').onclick = function(e) {
     showVideo();
     this.style.display = "";
     document.getElementById('collapse-video').style.display = "block";
+};
+
+document.getElementById('close-chat').onclick = function(e) {
+  e.preventDefault();
+  left.style.display = "none";
+  document.getElementById('collapse-video').style.display = "block";
 };
 
 window.onclick = function(event) {

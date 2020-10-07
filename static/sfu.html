@@ -92,6 +92,9 @@
             <div class="coln-left" id="left">
               <div id="chat">
                 <div id="chatbox">
+                  <div class="close-chat" id="close-chat">
+                    <span class="close-icon"></span>
+                  </div>
                   <div id="box"></div>
                   <div class="reply">
                     <form id="inputform">
@@ -195,10 +198,23 @@
 
     <div id="videocontrols-template" class="invisible">
       <div class="video-controls">
-        <span class="volume"><i class="fa fa-volume-up" data-type="bt-volume" aria-hidden="true"></i></span>
-        <span class="pip"><i class="fa fa-clone" data-type="bt-pip" aria-hidden="true"></i></span>
-        <span class="expand"><i class="fa fa-external-link" data-type="bt-expand" aria-hidden="true"></i></span>
-        <span class="fullscreen"><i class="fa fa-expand" data-type="bt-fullscreen" aria-hidden="true"></i></span>
+        <span class="volume" title="Volume">
+          <i class="fa fa-volume-up" data-type="bt-volume" aria-hidden="true"></i>
+        </span>
+        <span class="pip" title="Picture In Picture">
+          <i class="fa fa-clone" data-type="bt-pip" aria-hidden="true"></i>
+        </span>
+        <span class="fullscreen" title="Fullscreen">
+          <i class="fa fa-expand" data-type="bt-fullscreen" aria-hidden="true"></i>
+        </span>
+      </div>
+    </div>
+
+    <div id="top-videocontrols-template" class="invisible">
+      <div class="top-video-controls">
+        <span class="expand" title="Maximize">
+          <i class="fa fa-external-link" data-type="bt-expand" aria-hidden="true"></i>
+        </span>
       </div>
     </div>
 

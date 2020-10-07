@@ -367,13 +367,13 @@ textarea.form-reply {
 }
 
 .collapse-video {
-  display: none;
-  /*on top of video peers*/
-  z-index: 1002;
-  position: absolute;
-  top: 5px;
-  left: 10px;
-  cursor: pointer;
+    display: none;
+    /*on top of video peers*/
+    z-index: 1002;
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    cursor: pointer;
 }
 
 .collapse-video .open-chat {
@@ -388,24 +388,30 @@ textarea.form-reply {
     display: none;
 }
 
-.video-controls {
+.video-controls, .top-video-controls {
     position: absolute;
     width: 100%;
     left: 0;
-    bottom: 40px;
-    text-align: right;
+    bottom: 25px;
+    text-align: center;
     color: #e1e1e1;
-    font-size: 1.8em;
+    font-size: 1.5em;
     transition: all .5s ease-out;
     opacity: 0;
 }
 
-.peer:hover > .video-controls {
+.top-video-controls {
+  text-align: right;
+  bottom: inherit;
+  top: 0;
+}
+
+.peer:hover > .video-controls, .peer:hover > .top-video-controls {
     opacity: 1;
     transition: all .7s ease-out;
 }
 
-.video-controls span {
+.video-controls span, .top-video-controls span {
     margin-right: 20px;
     transition: all .5s ease-out;
     opacity: .5;
@@ -417,7 +423,7 @@ textarea.form-reply {
     /*margin-right: 0;*/
 }
 
-.video-controls span:hover {
+.video-controls span:hover, .top-video-controls span:hover {
     opacity: 1;
     transition: opacity .5s ease-out;
 }
@@ -462,7 +468,7 @@ textarea.form-reply {
     width: 100%;
     z-index: 1;
     text-align: center;
-    line-height: 25px;
+    line-height: 24px;
     color: #ffffff;
 }
 
@@ -605,12 +611,13 @@ h1 {
 
 #chatbox {
     height: 100%;
+    position: relative;
 }
 
 #chat {
     padding: 0;
     margin: 0;
-    background-color: #f4f4f4;
+    background-color: #f8f8f8;
     background-size: cover;
     overflow-y: scroll;
     border: none;
@@ -618,7 +625,7 @@ h1 {
     /* force to fill height */
     height: 100% !important;
     width: 100%;
-    min-width: 200px;
+    min-width: 300px;
     overflow: hidden;
 }
 
@@ -630,6 +637,24 @@ h1 {
     overflow: auto;
     height: calc(100% - 53px);
     padding: 10px;
+}
+
+.close-chat {
+    position: absolute;
+    top: 2px;
+    right: 14px;
+    width: 25px;
+    font-size: 1em;
+    text-align: center;
+    font-weight: 700;
+    color: #8f8f8f;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.close-chat:hover, .close-chat:active {
+    border: 1px solid #dfdfdf;
+    border-radius: 4px;
 }
 
 #disconnectbutton, #connectbutton {
@@ -667,7 +692,7 @@ h1 {
     display: grid;
     grid-template-columns: repeat(1, 1fr);
     grid-template-rows: repeat(1, auto);
-    row-gap: 0;
+    row-gap: 5px;
     column-gap: 10px;
     position: absolute;
     top: 0;
@@ -680,6 +705,7 @@ h1 {
     z-index: 1000;
     background-size: cover;
     overflow: hidden;
+    vertical-align: top!important;
 }
 
 .peer {
@@ -687,6 +713,7 @@ h1 {
     margin-bottom: auto;
     position: relative;
     border: 2px solid rgba(0,0,0,0);
+    background: #80808014;
 }
 
 .peer-active {
@@ -695,7 +722,6 @@ h1 {
 
 .media {
     width: 100%;
-    min-width: 220px; /* min-size for controls buttons */
     max-height: calc(var(--vh, 1vh) * 100 - 76px);
     padding-bottom: 20px;
     object-fit: contain;
@@ -989,6 +1015,13 @@ header .collapse {
     margin-right: 5px;
 }
 
+.close-icon {
+    font: normal 1em/1 Arial, sans-serif;
+    display: inline-block;
+}
+
+.close-icon:before{ content: "\2715"; }
+
 /* END Sidebar Left */
 
 /*@media only screen and (max-width: 768px) {*/
@@ -1008,6 +1041,15 @@ header .collapse {
 
     .full-width {
         height: calc(var(--vh, 1vh) * 100 - 56px);
+    }
+
+    .collapse-video {
+        left: inherit;
+        right: 10px;
+    }
+
+    .close-chat {
+        display: none;
     }
 
     .video-container {
