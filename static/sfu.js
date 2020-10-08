@@ -1068,6 +1068,25 @@ function resizePeers() {
 let users = {};
 
 /**
+ * Lexicographic order, with case differences secondary.
+ * @param{string} a
+ * @param{string} b
+ */
+function stringCompare(a, b) {
+    let la = a.toLowerCase()
+    let lb = b.toLowerCase()
+    if(la < lb)
+        return -1;
+    else if(la > lb)
+        return +1;
+    else if(a < b)
+        return -1;
+    else if(a > b)
+        return +1;
+    return 0
+}
+
+/**
  * @param {string} id
  * @param {string} name
  */
@@ -1088,8 +1107,8 @@ function addUser(id, name) {
         let us = div.children;
         for(let i = 0; i < us.length; i++) {
             let child = us[i];
-            let childname = users[child.id.slice('user-'.length)];
-            if(!childname || childname > name) {
+            let childname = users[child.id.slice('user-'.length)] || null;
+            if(!childname || stringCompare(childname, name) > 0) {
                 div.insertBefore(user, child);
                 return;
             }
