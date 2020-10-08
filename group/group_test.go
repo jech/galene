@@ -1,4 +1,4 @@
-package rtpconn
+package group
 
 import (
 	"testing"
@@ -7,9 +7,9 @@ import (
 
 func TestJSTime(t *testing.T) {
 	tm := time.Now()
-	js := toJSTime(tm)
-	tm2 := fromJSTime(js)
-	js2 := toJSTime(tm2)
+	js := ToJSTime(tm)
+	tm2 := FromJSTime(js)
+	js2 := ToJSTime(tm2)
 
 	if js != js2 {
 		t.Errorf("%v != %v", js, js2)

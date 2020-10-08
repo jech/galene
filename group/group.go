@@ -65,7 +65,7 @@ func IceConfiguration() webrtc.Configuration {
 type ChatHistoryEntry struct {
 	Id    string
 	User  string
-	Time  uint64
+	Time  int64
 	Kind  string
 	Value string
 }
@@ -396,6 +396,18 @@ func (g *Group) Shutdown(message string) {
 	})
 }
 
+func FromJSTime(tm int64) time.Time {
+	if tm == 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(tm)/1000, (int64(tm)%1000)*1000000)
+}
+
+func ToJSTime(tm time.Time) int64 {
+	return int64((tm.Sub(time.Unix(0, 0)) + time.Millisecond/2) /
+		time.Millisecond)
+}
+
 const maxChatHistory = 50
 
 func (g *Group) ClearChatHistory() {
@@ -404,7 +416,7 @@ func (g *Group) ClearChatHistory() {
 	g.history = nil
 }
 
-func (g *Group) AddToChatHistory(id, user string, time uint64, kind, value string) {
+func (g *Group) AddToChatHistory(id, user string, time int64, kind, value string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -417,9 +429,33 @@ func (g *Group) AddToChatHistory(id, user string, time uint64, kind, value strin
 	)
 }
 
+func discardObsoleteHistory(h []ChatHistoryEntry, seconds int) []ChatHistoryEntry {
+	now := time.Now()
+	d := 4 * time.Hour
+	if seconds > 0 {
+		d = time.Duration(seconds) * time.Second
+	}
+
+	i := 0
+	for i < len(h) {
+		log.Println(h[i].Time, FromJSTime(h[i].Time), now.Sub(FromJSTime(h[i].Time)))
+		if now.Sub(FromJSTime(h[i].Time)) <= d {
+			break
+		}
+		i++
+	}
+	if i > 0 {
+		copy(h, h[i:])
+		h = h[:len(h)-i]
+	}
+	return h
+}
+
 func (g *Group) GetChatHistory() []ChatHistoryEntry {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	g.history = discardObsoleteHistory(g.history, g.description.MaxHistoryAge)
 
 	h := make([]ChatHistoryEntry, len(g.history))
 	copy(h, g.history)
@@ -448,6 +484,7 @@ type description struct {
 	Redirect       string              `json:"redirect,omitempty"`
 	Public         bool                `json:"public,omitempty"`
 	MaxClients     int                 `json:"max-clients,omitempty"`
+	MaxHistoryAge  int                 `json:"max-history-age",omitempty`
 	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
 	AllowRecording bool                `json:"allow-recording,omitempty"`
 	Op             []ClientCredentials `json:"op,omitempty"`

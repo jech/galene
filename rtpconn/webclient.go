@@ -147,26 +147,12 @@ type clientMessage struct {
 	Permissions group.ClientPermissions    `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
-	Time        uint64                     `json:"time,omitempty"`
+	Time        int64                      `json:"time,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
 	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
 	Labels      map[string]string          `json:"labels,omitempty"`
 	Request     rateMap                    `json:"request,omitempty"`
-}
-
-func fromJSTime(tm uint64) time.Time {
-	if tm == 0 {
-		return time.Time{}
-	}
-	return time.Unix(int64(tm)/1000, (int64(tm)%1000)*1000000)
-}
-
-func toJSTime(tm time.Time) uint64 {
-	if tm.Before(time.Unix(0, 0)) {
-		return 0
-	}
-	return uint64((tm.Sub(time.Unix(0, 0)) + time.Millisecond/2) / time.Millisecond)
 }
 
 type closeMessage struct {
@@ -1060,7 +1046,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("ICE: %v", err)
 		}
 	case "chat":
-		tm := toJSTime(time.Now())
+		tm := group.ToJSTime(time.Now())
 		if m.Dest == "" {
 			c.group.AddToChatHistory(
 				m.Id, m.Username, tm, m.Kind, m.Value,
