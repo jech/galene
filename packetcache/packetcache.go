@@ -1,3 +1,6 @@
+// Package packetcache implement a packet cache that maintains a history
+// of recently seen packets, the last keyframe, and a number of statistics
+// that are needed for sending receiver reports.
 package packetcache
 
 import (
@@ -5,12 +8,17 @@ import (
 	"sync"
 )
 
-const BufSize = 1500
+// The maximum size of packets stored in the cache.  Chosen to be
+// a multiple of 8.
+const BufSize = 1504
+
+// The maximum number of packets that constitute a keyframe.
 const maxFrame = 1024
 
+// entry represents a cached packet.
 type entry struct {
 	seqno           uint16
-	lengthAndMarker uint16
+	lengthAndMarker uint16 // 1 bit of marker, 15 bits of length
 	timestamp       uint32
 	buf             [BufSize]byte
 }
@@ -23,12 +31,14 @@ func (e *entry) marker() bool {
 	return (e.lengthAndMarker & 0x8000) != 0
 }
 
+// bitmap keeps track of recent loss history
 type bitmap struct {
 	valid  bool
 	first  uint16
 	bitmap uint32
 }
 
+// frame is used for storing the last keyframe
 type frame struct {
 	timestamp uint32
 	complete  bool
@@ -53,6 +63,7 @@ type Cache struct {
 	entries []entry
 }
 
+// New creates a cache with the given capacity.
 func New(capacity int) *Cache {
 	if capacity > int(^uint16(0)) {
 		return nil
@@ -62,6 +73,7 @@ func New(capacity int) *Cache {
 	}
 }
 
+// compare performs comparison modulo 2^16.
 func compare(s1, s2 uint16) int {
 	if s1 == s2 {
 		return 0
@@ -72,6 +84,7 @@ func compare(s1, s2 uint16) int {
 	return -1
 }
 
+// seqnoInvalid returns true if seqno is unreasonably far in the past
 func seqnoInvalid(seqno, reference uint16) bool {
 	if compare(reference, seqno) < 0 {
 		return false
@@ -148,6 +161,7 @@ func (bitmap *bitmap) get(next uint16) (bool, uint16, uint16) {
 	return true, first, uint16(bm >> 1)
 }
 
+// insert inserts a packet into a frame.
 func (frame *frame) insert(seqno uint16, timestamp uint32, marker bool, data []byte) bool {
 	n := len(frame.entries)
 	i := 0
@@ -194,6 +208,8 @@ func (frame *frame) insert(seqno uint16, timestamp uint32, marker bool, data []b
 	return true
 }
 
+// store checks whether a packet is part of the current keyframe and, if
+// so, inserts it.
 func (frame *frame) store(seqno uint16, timestamp uint32, first bool, marker bool, data []byte) bool {
 	if first {
 		if frame.timestamp != timestamp {
@@ -233,7 +249,8 @@ func (frame *frame) store(seqno uint16, timestamp uint32, first bool, marker boo
 	return done
 }
 
-// Store a packet, setting bitmap at the same time
+// Store stores a packet in the cache.  It returns the first seqno in the
+// bitmap, and the index at which the packet was stored.
 func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, marker bool, buf []byte) (uint16, uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -277,6 +294,7 @@ func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, marker 
 	return cache.bitmap.first, i
 }
 
+// completeKeyFrame attempts to complete the current keyframe.
 func completeKeyframe(cache *Cache) {
 	l := len(cache.keyframe.entries)
 	if l == 0 {
@@ -328,6 +346,7 @@ func completeKeyframe(cache *Cache) {
 	}
 }
 
+// Expect records that we expect n packets.  It is used for loss statistics.
 func (cache *Cache) Expect(n int) {
 	if n <= 0 {
 		return
@@ -337,6 +356,7 @@ func (cache *Cache) Expect(n int) {
 	cache.expected += uint32(n)
 }
 
+// get retrieves a packet from a slice of entries.
 func get(seqno uint16, entries []entry, result []byte) (uint16, uint32, bool) {
 	for i := range entries {
 		if entries[i].lengthAndMarker == 0 || entries[i].seqno != seqno {
@@ -350,6 +370,7 @@ func get(seqno uint16, entries []entry, result []byte) (uint16, uint32, bool) {
 	return 0, 0, false
 }
 
+// Get retrieves a packet from the cache.
 func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -367,6 +388,7 @@ func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	return 0
 }
 
+// GetAt retrieves a packet from the cache assuming it is at the given index.
 func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -383,6 +405,8 @@ func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 	)
 }
 
+// Keyframe returns the last buffered keyframe.  It returns the frame's
+// timestamp and a boolean indicating if the frame is complete.
 func (cache *Cache) Keyframe() (uint32, bool, []uint16) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -423,6 +447,8 @@ func (cache *Cache) resize(capacity int) {
 	cache.entries = entries
 }
 
+// Resize resizes the cache to the given capacity.  This might invalidate
+// indices of recently stored packets.
 func (cache *Cache) Resize(capacity int) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -430,6 +456,7 @@ func (cache *Cache) Resize(capacity int) {
 	cache.resize(capacity)
 }
 
+// ResizeCond is like Resize, but avoids invalidating recent indices.
 func (cache *Cache) ResizeCond(capacity int) bool {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -451,6 +478,8 @@ func (cache *Cache) ResizeCond(capacity int) bool {
 	return true
 }
 
+// GetStats returns statistics about received packets.  If reset is true,
+// the statistics are reset.
 func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32, uint32) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
