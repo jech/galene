@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -550,6 +551,10 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
+
+	sort.Slice(fis, func(i, j int) bool {
+		return fis[i].Name() < fis[j].Name()
+	})
 
 	w.Header().Set("content-type", "text/html; charset=utf-8")
 	w.Header().Set("cache-control", "no-cache")
