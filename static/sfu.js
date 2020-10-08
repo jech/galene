@@ -1275,12 +1275,14 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
 
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
-        if(lastMessage.nick !== nick ||
+        if(lastMessage.nick !== (nick || null) ||
            lastMessage.peerId !== peerId ||
            lastMessage.dest !== (dest || null)) {
             let header = document.createElement('p');
             let user = document.createElement('span');
-            user.textContent = dest ? `${nick} \u2192 ${users[dest]}` : nick;
+            user.textContent = dest ?
+                `${nick||'(anon)'} \u2192 ${users[dest]||'(anon)'}` :
+                (nick || '(anon)');
             user.classList.add('message-user');
             header.appendChild(user);
             if(time) {
@@ -1294,7 +1296,7 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
         }
         p.classList.add('message-content');
         container.appendChild(p);
-        lastMessage.nick = nick;
+        lastMessage.nick = (nick || null);
         lastMessage.peerId = peerId;
         lastMessage.dest = (dest || null);
     } else {
@@ -1302,7 +1304,7 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
         asterisk.textContent = '*';
         asterisk.classList.add('message-me-asterisk');
         let user = document.createElement('span');
-        user.textContent = nick;
+        user.textContent = nick || '(anon)';
         user.classList.add('message-me-user');
         let content = document.createElement('span');
         formatLine(message).forEach(elt => {
@@ -1472,10 +1474,6 @@ function handleInput() {
                 }
                 if(cmd === '/msg') {
                     let username = getUsername();
-                    if(!username) {
-                        displayError("Sorry, you're anonymous, you cannot chat");
-                        return;
-                    }
                     serverConnection.chat(username, '', id, parsed[1]);
                     addToChatbox(serverConnection.id,
                                  id, username, Date.now(), '', parsed[1]);
@@ -1500,11 +1498,6 @@ function handleInput() {
     }
 
     let username = getUsername();
-    if(!username) {
-        displayError("Sorry, you're anonymous, you cannot chat");
-        return;
-    }
-
     try {
         serverConnection.chat(username, me ? 'me' : '', '', message);
     } catch(e) {
