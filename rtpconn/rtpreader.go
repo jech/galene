@@ -59,7 +59,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 		first, index := track.cache.Store(
 			packet.SequenceNumber, packet.Timestamp,
-			kf, buf[:bytes],
+			kf, packet.Marker, buf[:bytes],
 		)
 
 		_, rate := track.rate.Estimate()

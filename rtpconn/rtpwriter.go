@@ -209,7 +209,7 @@ func (writer *rtpWriter) add(track conn.DownTrack, add bool, max int) error {
 }
 
 func sendKeyframe(track conn.DownTrack, cache *packetcache.Cache) {
-	_, kf := cache.Keyframe()
+	_, _, kf := cache.Keyframe()
 	if len(kf) == 0 {
 		return
 	}
