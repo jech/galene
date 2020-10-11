@@ -2,11 +2,11 @@ package diskwriter
 
 import (
 	crand "crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"encoding/hex"
 	"sync"
 	"time"
 
@@ -206,6 +206,8 @@ type diskTrack struct {
 
 	// bit 32 is a boolean indicating that the origin is valid
 	origin uint64
+
+	lastKf uint32
 }
 
 func newDiskConn(directory, label string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
@@ -219,12 +221,12 @@ func newDiskConn(directory, label string, up conn.Up, remoteTracks []conn.UpTrac
 		var builder *samplebuilder.SampleBuilder
 		switch remote.Codec().Name {
 		case webrtc.Opus:
-			builder = samplebuilder.New(16, &codecs.OpusPacket{})
+			builder = samplebuilder.New(128, &codecs.OpusPacket{})
 		case webrtc.VP8:
 			if conn.hasVideo {
 				return nil, errors.New("multiple video tracks not supported")
 			}
-			builder = samplebuilder.New(32, &codecs.VP8Packet{})
+			builder = samplebuilder.New(128, &codecs.VP8Packet{})
 			conn.hasVideo = true
 		}
 		track := &diskTrack{
@@ -277,11 +279,16 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		return nil
 	}
 
+	kfNeeded := false
+
 	t.builder.Push(p)
 
 	for {
 		sample, ts := t.builder.PopWithTimestamp()
 		if sample == nil {
+			if kfNeeded {
+				return conn.ErrKeyframeNeeded
+			}
 			return nil
 		}
 
@@ -290,13 +297,21 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		switch t.remote.Codec().Name {
 		case webrtc.VP8:
 			if len(sample.Data) < 1 {
-				return nil
+				continue
 			}
 			keyframe = (sample.Data[0]&0x1 == 0)
 			if keyframe {
 				err := t.initWriter(sample.Data)
 				if err != nil {
 					return err
+				}
+				t.lastKf = ts
+			} else if t.writer != nil {
+				// Request a keyframe every 10s
+				delta := ts - t.lastKf
+				if (delta&0x80000000) == 0 &&
+					delta > 10*90000 {
+					kfNeeded = true
 				}
 			}
 		default:
