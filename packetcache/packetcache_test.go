@@ -20,8 +20,23 @@ func TestCache(t *testing.T) {
 	buf1 := randomBuf()
 	buf2 := randomBuf()
 	cache := New(16)
-	_, i1 := cache.Store(13, 0, false, false, buf1)
-	_, i2 := cache.Store(17, 0, false, false, buf2)
+
+	found, _, _ := cache.Last()
+	if found {
+		t.Errorf("Found in empty cache")
+	}
+
+	_, i1 := cache.Store(13, 42, false, false, buf1)
+	_, i2 := cache.Store(17, 42, false, false, buf2)
+
+	found, seqno, ts := cache.Last()
+	if !found {
+		t.Errorf("Not found")
+	}
+	if seqno != 17 || ts != 42 {
+		t.Errorf("Expected %v, %v, got %v, %v",
+			17, 42, seqno, ts)
+	}
 
 	buf := make([]byte, BufSize)
 

@@ -388,6 +388,20 @@ func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	return 0
 }
 
+func (cache *Cache) Last() (bool, uint16, uint32) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if !cache.lastValid {
+		return false, 0, 0
+	}
+	buf := make([]byte, BufSize)
+	len, ts, _ := get(cache.last, cache.entries, buf)
+	if len == 0 {
+		return false, 0, 0
+	}
+	return true, cache.last, ts
+}
+
 // GetAt retrieves a packet from the cache assuming it is at the given index.
 func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 	cache.mu.Lock()
