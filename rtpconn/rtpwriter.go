@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v3"
 
 	"sfu/conn"
 	"sfu/packetcache"
@@ -208,17 +209,12 @@ func (writer *rtpWriter) add(track conn.DownTrack, add bool, max int) error {
 	}
 }
 
-func sendKeyframe(track conn.DownTrack, cache *packetcache.Cache) {
-	_, _, kf := cache.Keyframe()
-	if len(kf) == 0 {
-		return
-	}
-
+func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	for _, seqno := range kf {
 		bytes := cache.Get(seqno, buf)
-		if(bytes == 0) {
+		if bytes == 0 {
 			return
 		}
 		err := packet.Unmarshal(buf[:bytes])
@@ -237,13 +233,16 @@ func sendKeyframe(track conn.DownTrack, cache *packetcache.Cache) {
 func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 	defer close(writer.done)
 
+	codec := track.track.Codec().Name
+
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 
 	local := make([]conn.DownTrack, 0)
 
-	// reset whenever a new track is inserted
-	firSent := false
+	// 3 means we want a new keyframe, 2 means we already sent FIR but
+	// haven't gotten a keyframe yet, 1 means we want a PLI.
+	kfNeeded := 0
 
 	for {
 		select {
@@ -258,7 +257,6 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				action.ch <- nil
 				close(action.ch)
 
-				firSent = false
 				track.mu.Lock()
 				ntp := track.srNTPTime
 				rtp := track.srRTPTime
@@ -270,7 +268,26 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				if cname != "" {
 					action.track.SetCname(cname)
 				}
-				go sendKeyframe(action.track, track.cache)
+
+				found, _, lts := track.cache.Last()
+				kts, _, kf := track.cache.Keyframe()
+				if codec == webrtc.VP8 && found && len(kf) > 0 {
+					if ((lts-kts)&0x80000000) != 0 ||
+						lts-kts < 2*90000 {
+						// we got a recent keyframe
+						go sendKeyframe(
+							kf,
+							action.track,
+							track.cache,
+						)
+					} else {
+						// Request a new keyframe
+						kfNeeded = 3
+					}
+				} else {
+					// no keyframe yet, one should
+					// arrive soon.  Do nothing.
+				}
 			} else {
 				found := false
 				for i, t := range local {
@@ -306,12 +323,11 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				continue
 			}
 
-			kfNeeded := false
 			for _, l := range local {
 				err := l.WriteRTP(&packet)
 				if err != nil {
 					if err == conn.ErrKeyframeNeeded {
-						kfNeeded = true
+						kfNeeded = 1
 					} else {
 						continue
 					}
@@ -319,12 +335,27 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				l.Accumulate(uint32(bytes))
 			}
 
-			if kfNeeded {
-				err := up.sendFIR(track, !firSent)
+			if kfNeeded > 0 {
+				kf := false
+				switch codec {
+				case webrtc.VP8:
+					kf = isVP8Keyframe(&packet)
+				default:
+					kf = true
+				}
+				if kf {
+					kfNeeded = 0
+				}
+			}
+
+			if kfNeeded >= 2 {
+				err := up.sendFIR(track, kfNeeded >= 3)
 				if err == ErrUnsupportedFeedback {
 					up.sendPLI(track)
 				}
-				firSent = true
+				kfNeeded = 2
+			} else if kfNeeded > 0 {
+				up.sendPLI(track)
 			}
 		}
 	}

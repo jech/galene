@@ -464,7 +464,7 @@ func (up *rtpUpConnection) sendPLI(track *rtpUpTrack) error {
 	}
 	last := atomic.LoadUint64(&track.lastPLI)
 	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec/5 {
+	if now >= last && now-last < rtptime.JiffiesPerSec/2 {
 		return ErrRateLimited
 	}
 	atomic.StoreUint64(&track.lastPLI, now)
@@ -492,7 +492,7 @@ func (up *rtpUpConnection) sendFIR(track *rtpUpTrack, increment bool) error {
 	}
 	last := atomic.LoadUint64(&track.lastFIR)
 	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec/5 {
+	if now >= last && now-last < rtptime.JiffiesPerSec/2 {
 		return ErrRateLimited
 	}
 	atomic.StoreUint64(&track.lastFIR, now)
