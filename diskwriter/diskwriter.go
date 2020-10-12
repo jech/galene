@@ -221,12 +221,22 @@ func newDiskConn(directory, label string, up conn.Up, remoteTracks []conn.UpTrac
 		var builder *samplebuilder.SampleBuilder
 		switch remote.Codec().Name {
 		case webrtc.Opus:
-			builder = samplebuilder.New(128, &codecs.OpusPacket{})
+			builder = samplebuilder.New(
+				16, &codecs.OpusPacket{},
+				samplebuilder.WithPartitionHeadChecker(
+					&codecs.OpusPartitionHeadChecker{},
+				),
+			)
 		case webrtc.VP8:
 			if conn.hasVideo {
 				return nil, errors.New("multiple video tracks not supported")
 			}
-			builder = samplebuilder.New(128, &codecs.VP8Packet{})
+			builder = samplebuilder.New(
+				128, &codecs.VP8Packet{},
+				samplebuilder.WithPartitionHeadChecker(
+					&codecs.VP8PartitionHeadChecker{},
+				),
+			)
 			conn.hasVideo = true
 		}
 		track := &diskTrack{
