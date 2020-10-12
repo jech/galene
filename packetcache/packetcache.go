@@ -362,15 +362,21 @@ func get(seqno uint16, entries []entry, result []byte) (uint16, uint32, bool) {
 		if entries[i].lengthAndMarker == 0 || entries[i].seqno != seqno {
 			continue
 		}
-		n := uint16(copy(
-			result[:entries[i].length()],
-			entries[i].buf[:]))
+		var n uint16
+		if len(result) > 0 {
+			n = uint16(copy(
+				result[:entries[i].length()],
+				entries[i].buf[:]))
+		} else {
+			n = entries[i].length()
+		}
 		return n, entries[i].timestamp, entries[i].marker()
 	}
 	return 0, 0, false
 }
 
-// Get retrieves a packet from the cache.
+// Get retrieves a packet from the cache, returns the number of bytes
+// copied.  If result is of length 0, returns the size of the packet.
 func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -394,8 +400,7 @@ func (cache *Cache) Last() (bool, uint16, uint32) {
 	if !cache.lastValid {
 		return false, 0, 0
 	}
-	buf := make([]byte, BufSize)
-	len, ts, _ := get(cache.last, cache.entries, buf)
+	len, ts, _ := get(cache.last, cache.entries, nil)
 	if len == 0 {
 		return false, 0, 0
 	}
@@ -434,6 +439,17 @@ func (cache *Cache) Keyframe() (uint32, bool, []uint16) {
 		seqnos[i] = cache.keyframe.entries[i].seqno
 	}
 	return cache.keyframe.timestamp, cache.keyframe.complete, seqnos
+}
+
+func (cache *Cache) KeyframeSeqno() (bool, uint16, uint32) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if len(cache.keyframe.entries) == 0 {
+		return false, 0, 0
+	}
+
+	return true, cache.keyframe.entries[0].seqno, cache.keyframe.timestamp
 }
 
 func (cache *Cache) resize(capacity int) {

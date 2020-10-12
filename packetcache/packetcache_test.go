@@ -44,6 +44,10 @@ func TestCache(t *testing.T) {
 	if !bytes.Equal(buf[:l], buf1) {
 		t.Errorf("Couldn't get 13")
 	}
+	l = cache.Get(13, nil)
+	if l != uint16(len(buf1)) {
+		t.Errorf("Couldn't retrieve length")
+	}
 	l = cache.GetAt(13, i1, buf)
 	if !bytes.Equal(buf[:l], buf1) {
 		t.Errorf("Couldn't get 13 at %v", i1)
@@ -170,6 +174,11 @@ func TestKeyframe(t *testing.T) {
 	packet := make([]byte, 1)
 	buf := make([]byte, BufSize)
 
+	found, _, _ := cache.KeyframeSeqno()
+	if found {
+		t.Errorf("Found keyframe in empty cache")
+	}
+
 	cache.Store(7, 57, true, false, packet)
 	if cache.keyframe.complete {
 		t.Errorf("Expected false, got true")
@@ -183,6 +192,12 @@ func TestKeyframe(t *testing.T) {
 	if ts != 57 || !c || len(kf) != 2 {
 		t.Errorf("Got %v %v %v, expected %v %v", ts, c, len(kf), 57, 2)
 	}
+
+	found, seqno, ts := cache.KeyframeSeqno()
+	if !found || seqno != 7 || ts != 57 {
+		t.Errorf("Got %v %v %v, expected %v %v", found, seqno, ts, 7, 57)
+	}
+
 	for _, i := range kf {
 		l := cache.Get(i, buf)
 		if int(l) != len(packet) {
