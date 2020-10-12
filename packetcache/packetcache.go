@@ -526,3 +526,21 @@ func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32, uint32) {
 	}
 	return expected, lost, totalLost, eseqno
 }
+
+// ToBitmap takes a non-empty sorted list of seqnos, and computes a bitmap
+// covering a prefix of the list.  It returns the part of the list that
+// couldn't be covered.
+func ToBitmap(seqnos []uint16) (first uint16, bitmap uint16, remain []uint16) {
+	first = seqnos[0]
+	bitmap = uint16(0)
+	remain = seqnos[1:]
+	for len(remain) > 0 {
+		delta := remain[0] - first - 1
+		if delta >= 16 {
+			break
+		}
+		bitmap = bitmap | (1 << delta)
+		remain = remain[1:]
+	}
+	return
+}

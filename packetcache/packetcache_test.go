@@ -3,6 +3,7 @@ package packetcache
 import (
 	"bytes"
 	"math/rand"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -456,4 +457,40 @@ func BenchmarkCachePutGetAt(b *testing.B) {
 		close(ch)
 	}
 	wg.Wait()
+}
+
+func TestToBitmap(t *testing.T) {
+	l := []uint16{18, 19, 32, 38}
+	bb := uint16(1 | 1<<(32-18-1))
+	f, b, r := ToBitmap(l)
+	if f != 18 || b != bb {
+		t.Errorf("Expected %v %v, Got %v %v", 18, bb, f, b)
+	}
+	if len(r) != 1 || r[0] != 38 {
+		t.Errorf("Expected [38], got %v", r)
+	}
+
+	f2, b2, r2 := ToBitmap(r)
+	if f2 != 38 || b2 != 0 || len(r2) != 0 {
+		t.Errorf("Expected 38 0, got %v %v %v", f2, b2, r2)
+	}
+}
+
+func TestToBitmapNack(t *testing.T) {
+	l := []uint16{18, 19, 32, 38}
+	var nacks []rtcp.NackPair
+	m := l
+	for len(m) > 0 {
+		var f, b uint16
+		f, b, m = ToBitmap(m)
+		nacks = append(nacks, rtcp.NackPair{f, rtcp.PacketBitmap(b)})
+	}
+	var n []uint16
+	for len(nacks) > 0 {
+		n = append(n, nacks[0].PacketList()...)
+		nacks = nacks[1:]
+	}
+	if !reflect.DeepEqual(l, n) {
+		t.Errorf("Expected %v, got %v", l, n)
+	}
 }
