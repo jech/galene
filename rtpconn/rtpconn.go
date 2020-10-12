@@ -515,25 +515,51 @@ func sendFIR(pc *webrtc.PeerConnection, ssrc uint32, seqno uint8) error {
 
 func (up *rtpUpConnection) sendNACK(track *rtpUpTrack, first uint16, bitmap uint16) error {
 	if !track.hasRtcpFb("nack", "") {
-		return nil
+		return ErrUnsupportedFeedback
 	}
-	err := sendNACK(up.pc, track.track.SSRC(), first, bitmap)
+
+	err := sendNACKs(up.pc, track.track.SSRC(),
+		[]rtcp.NackPair{{first, rtcp.PacketBitmap(bitmap)}},
+	)
 	if err == nil {
 		track.cache.Expect(1 + bits.OnesCount16(bitmap))
 	}
 	return err
 }
 
-func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint16) error {
+func (up *rtpUpConnection) sendNACKs(track *rtpUpTrack, seqnos []uint16) error {
+	count := len(seqnos)
+	if count == 0 {
+		return nil
+	}
+
+	if !track.hasRtcpFb("nack", "") {
+		return ErrUnsupportedFeedback
+	}
+
+	var nacks []rtcp.NackPair
+
+	for len(seqnos) > 0 {
+		if len(nacks) >= 240 {
+			log.Printf("NACK: packet overflow")
+			break
+		}
+		var f, b uint16
+		f, b, seqnos = packetcache.ToBitmap(seqnos)
+		nacks = append(nacks, rtcp.NackPair{f, rtcp.PacketBitmap(b)})
+	}
+	err := sendNACKs(up.pc, track.track.SSRC(), nacks)
+	if err == nil {
+		track.cache.Expect(count)
+	}
+	return err
+}
+
+func sendNACKs(pc *webrtc.PeerConnection, ssrc uint32, nacks []rtcp.NackPair) error {
 	packet := rtcp.Packet(
 		&rtcp.TransportLayerNack{
 			MediaSSRC: ssrc,
-			Nacks: []rtcp.NackPair{
-				{
-					first,
-					rtcp.PacketBitmap(bitmap),
-				},
-			},
+			Nacks:     nacks,
 		},
 	)
 	return pc.WriteRTCP([]rtcp.Packet{packet})

@@ -32,6 +32,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
 	codec := track.track.Codec().Name
+	sendNACK := track.hasRtcpFb("nack", "")
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	for {
@@ -87,7 +88,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 			found, first, bitmap := track.cache.BitmapGet(
 				packet.SequenceNumber - unnacked,
 			)
-			if found {
+			if found && sendNACK {
 				err := conn.sendNACK(track, first, bitmap)
 				if err != nil {
 					log.Printf("%v", err)

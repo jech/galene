@@ -374,6 +374,10 @@ func nackWriter(conn *rtpUpConnection, track *rtpUpTrack) {
 	track.bufferedNACKs = nil
 	track.mu.Unlock()
 
+	if !track.hasRtcpFb("nack", "") {
+		return
+	}
+
 	// drop any nacks before the last keyframe
 	var cutoff uint16
 	found, seqno, _ := track.cache.KeyframeSeqno()
@@ -409,7 +413,7 @@ func nackWriter(conn *rtpUpConnection, track *rtpUpTrack) {
 		return nacks[i]-cutoff < nacks[j]-cutoff
 	})
 
-	for _, nack := range nacks {
-		conn.sendNACK(track, nack, 0)
+	if len(nacks) > 0 {
+		conn.sendNACKs(track, nacks)
 	}
 }
