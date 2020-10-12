@@ -1380,8 +1380,9 @@ function formatLines(lines) {
 function formatTime(time) {
     let delta = Date.now() - time;
     let date = new Date(time);
+    let m = date.getMinutes();
     if(delta >= 0)
-        return date.toTimeString().slice(null, 8);
+        return date.getHours() + ':' + ((m < 10) ? '0' : '') + m;
     return date.toLocaleString();
 }
 
@@ -1409,6 +1410,8 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
     let container = document.createElement('div');
     container.classList.add('message');
     row.appendChild(container);
+    let footer = document.createElement('p');
+    footer.classList.add('message-footer');
     if(!peerId)
         container.classList.add('message-system');
     if(userpass.username === nick)
@@ -1430,12 +1433,19 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
             header.appendChild(user);
             header.classList.add('message-header');
             container.appendChild(header);
+            if(time) {
+                let tm = document.createElement('span');
+                tm.textContent = formatTime(time);
+                tm.classList.add('message-time');
+                footer.appendChild(tm);
+            }
         }
         p.classList.add('message-content');
         container.appendChild(p);
         lastMessage.nick = (nick || null);
         lastMessage.peerId = peerId;
         lastMessage.dest = (dest || null);
+        container.appendChild(footer);
     } else {
         let asterisk = document.createElement('span');
         asterisk.textContent = '*';
@@ -1453,17 +1463,6 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
         container.appendChild(content);
         container.classList.add('message-me');
         lastMessage = {};
-    }
-
-    if(time) {
-        let tm = document.createElement('span');
-        let datetime = new Date(time);
-        tm.textContent = datetime.getHours() + ':' + datetime.getMinutes();
-        tm.classList.add('message-time');
-        let footer = document.createElement('p');
-        footer.classList.add('message-footer');
-        footer.appendChild(tm);
-        container.appendChild(footer);
     }
 
     let box = document.getElementById('box');
