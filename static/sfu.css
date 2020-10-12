@@ -403,7 +403,7 @@ textarea.form-reply {
 .top-video-controls {
   text-align: right;
   bottom: inherit;
-  top: 0;
+  top: 5px;
 }
 
 .peer:hover > .video-controls, .peer:hover > .top-video-controls {
@@ -432,6 +432,11 @@ textarea.form-reply {
     width: 25px;
     display: inline-block;
     text-align: center;
+}
+
+.video-controls span.disabled, .video-controls span.disabled:hover, .top-video-controls span.disabled:hover{
+    opacity: .2;
+    color: #c8c8c8
 }
 
 .mobile-container {
@@ -1045,7 +1050,7 @@ header .collapse {
 
     .collapse-video {
         left: inherit;
-        right: 10px;
+        right: 60px;
     }
 
     .close-chat {

@@ -239,6 +239,11 @@ function hideVideo(force) {
         return;
     let video_container = document.getElementById('video-container');
     video_container.classList.add('no-video');
+    let left = document.getElementById("left");
+    if (left.style.display !== "none") {
+        // hide all video buttons used to switch video on mobile layout
+        closeVideoControls();
+    }
 }
 
 function closeVideoControls() {
@@ -743,15 +748,18 @@ async function setMaxVideoThroughput(c, bps) {
 
 /**
  * @param {string} [id]
+ * @param {boolean} [disableVideo]
  */
-async function addLocalMedia(id) {
+async function addLocalMedia(id, disableVideo) {
     if(!getUserPass())
         return;
 
     let settings = getSettings();
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
-    let video = settings.video ? {deviceId: settings.video} : false;
+    let video = false;
+    if (!disableVideo)
+        video = settings.video ? {deviceId: settings.video} : false;
 
     if(audio) {
         if(settings.studioMode) {
@@ -937,6 +945,14 @@ function muteLocalTracks(mute) {
  */
 function setMedia(c, isUp) {
     let peersdiv = document.getElementById('peers');
+    let settings = getSettings();
+    let local_media;
+
+    for(let id in serverConnection.up) {
+        if (id === c.id) {
+          local_media = serverConnection.up[id];
+        }
+    }
 
     let div = document.getElementById('peer-' + c.id);
     if(!div) {
@@ -974,24 +990,32 @@ function setMedia(c, isUp) {
     let top_template = document.getElementById('top-videocontrols-template')
         .firstElementChild;
 
-    let top_controls = document.getElementById('top-controls-' + c.id);
+    let top_controls = document.getElementById('topcontrols-' + c.id);
     if (template && !top_controls) {
-      top_controls = top_template.cloneNode(true);
-      top_controls.id = 'top-controls-' + c.id;
-      div.appendChild(top_controls);
+        top_controls = top_template.cloneNode(true);
+        top_controls.id = 'topcontrols-' + c.id;
+        div.appendChild(top_controls);
     }
     let controls = document.getElementById('controls-' + c.id);
     if (template && !controls) {
-      controls = template.cloneNode(true);
-      controls.id = 'controls-' + c.id;
-      div.appendChild(controls);
-      if(media.muted) {
-        let volume = controls.querySelector(".fa-volume-up");
-        if (volume) {
-          volume.classList.remove("fa-volume-up");
-          volume.classList.add("fa-volume-off");
+        controls = template.cloneNode(true);
+        controls.id = 'controls-' + c.id;
+        div.appendChild(controls);
+        if(media.muted) {
+            let volume = controls.querySelector(".fa-volume-up");
+            if (volume) {
+                volume.classList.remove("fa-volume-up");
+                volume.classList.add("fa-volume-off");
+            }
         }
-      }
+        let camera = controls.querySelector("span.camera");
+        if (local_media && local_media.kind === "local") {
+            if (!settings.video) {
+                if (camera)
+                    camera.classList.add("camera-off");
+            }
+        } else
+            camera.remove();
     }
 
     media.srcObject = c.stream;
@@ -1020,9 +1044,9 @@ async function videoPIP(video) {
 function getParentVideo(target) {
     // target is the <i> element, parent the div <div><span><i/></span></div>
     let control = target.parentElement.parentElement;
-    let hash = control.id.split('-')[1];
+    let id = control.id.split('-')[1];
     let media = /** @type {HTMLVideoElement} */
-        (document.getElementById('media-' + hash));
+        (document.getElementById('media-' + id));
     if (!media) {
         displayError("Cannot find media!");
     }
@@ -1033,9 +1057,11 @@ function getParentVideo(target) {
  * @param {string} peerid
  */
 function registerControlEvent(peerid) {
+  let settings = getSettings();
   let peer = document.getElementById(peerid);
   //Add event listener when a video component is added to the DOM
   peer.querySelector("span.volume").onclick = function(event) {
+      event.preventDefault();
       let video = getParentVideo(event.target);
       if (event.target.className.indexOf("fa-volume-off") !== -1) {
           event.target.classList.remove("fa-volume-off");
@@ -1050,11 +1076,13 @@ function registerControlEvent(peerid) {
   };
 
   peer.querySelector("span.pip").onclick = function(event) {
+      event.preventDefault();
       let video = getParentVideo(event.target);
       videoPIP(video);
   };
 
   peer.querySelector("span.fullscreen").onclick = function(event) {
+      event.preventDefault();
       let video = getParentVideo(event.target);
       if (video.requestFullscreen) {
           video.requestFullscreen();
@@ -1063,8 +1091,21 @@ function registerControlEvent(peerid) {
       }
   };
 
-  peer.querySelector("span.expand").onclick = function(event) {
-      console.log("Not implemented for now!!");
+  peer.querySelector("span.camera").onclick = function(event) {
+      event.preventDefault();
+      let video = getParentVideo(event.target);
+      let id = video.id.split("-")[1];
+      if (!settings.video)
+          return;
+      if (event.target.getAttribute("data-type") === "bt-camera") {
+          addLocalMedia(id, true);
+          event.target.setAttribute("data-type", "bt-camera-off");
+          event.target.parentElement.classList.add("disabled");
+      } else {
+          event.target.setAttribute("data-type", "bt-camera");
+          event.target.parentElement.classList.remove("disabled");
+          addLocalMedia(id);
+      }
   };
 }
 
@@ -1797,6 +1838,7 @@ document.getElementById('switch-video').onclick = function(e) {
 
 document.getElementById('close-chat').onclick = function(e) {
   e.preventDefault();
+  let left = document.getElementById("left");
   left.style.display = "none";
   document.getElementById('collapse-video').style.display = "block";
 };
