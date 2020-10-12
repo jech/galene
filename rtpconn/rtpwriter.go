@@ -3,6 +3,7 @@ package rtpconn
 import (
 	"errors"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/pion/rtp"
@@ -358,5 +359,57 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				up.sendPLI(track)
 			}
 		}
+	}
+}
+
+// nackWriter is called when bufferedNACKs becomes non-empty.  It decides
+// which nacks to ship out.
+func nackWriter(conn *rtpUpConnection, track *rtpUpTrack) {
+	// a client might send us a NACK for a packet that has already
+	// been nacked by the reader loop.  Give recovery a chance.
+	time.Sleep(100 * time.Millisecond)
+
+	track.mu.Lock()
+	nacks := track.bufferedNACKs
+	track.bufferedNACKs = nil
+	track.mu.Unlock()
+
+	// drop any nacks before the last keyframe
+	var cutoff uint16
+	found, seqno, _ := track.cache.KeyframeSeqno()
+	if found {
+		cutoff = seqno
+	} else {
+		last, lastSeqno, _ := track.cache.Last()
+		if !last {
+			// NACK on a fresh track?  Give up.
+			return
+		}
+		// no keyframe, use an arbitrary cutoff
+		cutoff = lastSeqno - 256
+	}
+
+	i := 0
+	for i < len(nacks) {
+		if ((nacks[i] - cutoff) & 0x8000) != 0 {
+			// earlier than the cutoff, drop
+			nacks = append(nacks[:i], nacks[i+1:]...)
+			continue
+		}
+		l := track.cache.Get(nacks[i], nil)
+		if l > 0 {
+			// the packet arrived in the meantime
+			nacks = append(nacks[:i], nacks[i+1:]...)
+			continue
+		}
+		i++
+	}
+
+	sort.Slice(nacks, func(i, j int) bool {
+		return nacks[i]-cutoff < nacks[j]-cutoff
+	})
+
+	for _, nack := range nacks {
+		conn.sendNACK(track, nack, 0)
 	}
 }

@@ -32,6 +32,7 @@ type UpTrack interface {
 	Codec() *webrtc.RTPCodec
 	// get a recent packet.  Returns 0 if the packet is not in cache.
 	GetRTP(seqno uint16, result []byte) uint16
+	Nack(conn Up, seqnos []uint16) error
 }
 
 // Type Down represents a connection in the server to client direction.

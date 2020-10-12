@@ -188,12 +188,13 @@ type rtpUpTrack struct {
 	localCh    chan localTrackAction
 	readerDone chan struct{}
 
-	mu        sync.Mutex
-	cname     string
-	local     []conn.DownTrack
-	srTime    uint64
-	srNTPTime uint64
-	srRTPTime uint32
+	mu            sync.Mutex
+	cname         string
+	srTime        uint64
+	srNTPTime     uint64
+	srRTPTime     uint32
+	local         []conn.DownTrack
+	bufferedNACKs []uint16
 }
 
 type localTrackAction struct {
@@ -538,13 +539,15 @@ func sendNACK(pc *webrtc.PeerConnection, ssrc uint32, first uint16, bitmap uint1
 	return pc.WriteRTCP([]rtcp.Packet{packet})
 }
 
-func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
+func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLayerNack) {
+	var unhandled []uint16
 	var packet rtp.Packet
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
 		for _, seqno := range nack.PacketList() {
 			l := track.remote.GetRTP(seqno, buf)
 			if l == 0 {
+				unhandled = append(unhandled, seqno)
 				continue
 			}
 			err := packet.Unmarshal(buf[:l])
@@ -559,6 +562,38 @@ func sendRecovery(p *rtcp.TransportLayerNack, track *rtpDownTrack) {
 			track.rate.Accumulate(uint32(l))
 		}
 	}
+	if len(unhandled) == 0 {
+		return
+	}
+
+	track.remote.Nack(conn.remote, unhandled)
+}
+
+func (track *rtpUpTrack) Nack(conn conn.Up, nacks []uint16) error {
+	track.mu.Lock()
+	defer track.mu.Unlock()
+
+	doit := len(track.bufferedNACKs) == 0
+
+outer:
+	for _, nack := range nacks {
+		for _, seqno := range track.bufferedNACKs {
+			if seqno == nack {
+				continue outer
+			}
+		}
+		track.bufferedNACKs = append(track.bufferedNACKs, nack)
+	}
+
+	if doit {
+		up, ok := conn.(*rtpUpConnection)
+		if !ok {
+			log.Printf("Nack: unexpected type %T", conn)
+			return errors.New("unexpected connection type")
+		}
+		go nackWriter(up, track)
+	}
+	return nil
 }
 
 func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPReceiver) {
@@ -938,7 +973,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					}
 				}
 			case *rtcp.TransportLayerNack:
-				sendRecovery(p, track)
+				gotNACK(conn, track, p)
 			}
 		}
 	}
