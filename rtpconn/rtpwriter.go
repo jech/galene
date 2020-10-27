@@ -230,6 +230,13 @@ func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
 	}
 }
 
+const (
+	kfUnneeded = iota
+	kfNeededPLI
+	kfNeededFIR
+	kfNeededNewFIR
+)
+
 // rtpWriterLoop is the main loop of an rtpWriter.
 func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 	defer close(writer.done)
@@ -241,9 +248,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 
 	local := make([]conn.DownTrack, 0)
 
-	// 3 means we want a new keyframe, 2 means we already sent FIR but
-	// haven't gotten a keyframe yet, 1 means we want a PLI.
-	kfNeeded := 0
+	kfNeeded := kfUnneeded
 
 	for {
 		select {
@@ -283,7 +288,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 						)
 					} else {
 						// Request a new keyframe
-						kfNeeded = 3
+						kfNeeded = kfNeededNewFIR
 					}
 				} else {
 					// no keyframe yet, one should
@@ -328,7 +333,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				err := l.WriteRTP(&packet)
 				if err != nil {
 					if err == conn.ErrKeyframeNeeded {
-						kfNeeded = 1
+						kfNeeded = kfNeededPLI
 					} else {
 						continue
 					}
@@ -336,27 +341,39 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				l.Accumulate(uint32(bytes))
 			}
 
-			if kfNeeded > 0 {
+			if kfNeeded > kfUnneeded {
 				kf := false
+				kfValid := false
 				switch codec {
 				case webrtc.VP8:
 					kf = isVP8Keyframe(&packet)
-				default:
-					kf = true
+					kfValid = true
 				}
 				if kf {
-					kfNeeded = 0
+					kfNeeded = kfUnneeded
 				}
-			}
 
-			if kfNeeded >= 2 {
-				err := up.sendFIR(track, kfNeeded >= 3)
-				if err == ErrUnsupportedFeedback {
+				if kfNeeded >= kfNeededFIR {
+					err := up.sendFIR(
+						track,
+						kfNeeded >= kfNeededNewFIR,
+					)
+					if err == ErrUnsupportedFeedback {
+						kfNeeded = kfNeededPLI
+					} else {
+						kfNeeded = kfNeededFIR
+					}
+				}
+
+				if kfNeeded == kfNeededPLI {
 					up.sendPLI(track)
 				}
-				kfNeeded = 2
-			} else if kfNeeded > 0 {
-				up.sendPLI(track)
+
+				if !kfValid {
+					// we cannot detect keyframes for
+					// this codec, reset our state
+					kfNeeded = kfUnneeded
+				}
 			}
 		}
 	}
