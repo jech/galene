@@ -534,7 +534,11 @@ func gotICE(c *webClient, candidate *webrtc.ICECandidateInit, id string) error {
 
 func (c *webClient) setRequested(requested map[string]uint32) error {
 	if c.down != nil {
+		down := make([]string, 0, len(c.down))
 		for id := range c.down {
+			down = append(down, id)
+		}
+		for _, id := range down {
 			c.write(clientMessage{
 				Type: "close",
 				Id:   id,
