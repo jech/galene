@@ -211,30 +211,33 @@ func (up *rtpUpTrack) notifyLocal(add bool, track conn.DownTrack) {
 
 func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 	up.mu.Lock()
+	defer up.mu.Unlock()
+
 	for _, t := range up.local {
 		if t == local {
-			up.mu.Unlock()
 			return nil
 		}
 	}
 	up.local = append(up.local, local)
-	up.mu.Unlock()
 
-	up.notifyLocal(true, local)
+	// do this asynchronously, to avoid deadlocks when multiple
+	// clients call this simultaneously.
+	go up.notifyLocal(true, local)
 	return nil
 }
 
 func (up *rtpUpTrack) DelLocal(local conn.DownTrack) bool {
 	up.mu.Lock()
+	defer up.mu.Unlock()
 	for i, l := range up.local {
 		if l == local {
 			up.local = append(up.local[:i], up.local[i+1:]...)
-			up.mu.Unlock()
-			up.notifyLocal(false, l)
+			// do this asynchronously, to avoid deadlocking when
+			// multiple clients call this simultaneously.
+			go up.notifyLocal(false, l)
 			return true
 		}
 	}
-	up.mu.Unlock()
 	return false
 }
 
