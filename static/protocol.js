@@ -269,7 +269,7 @@ ServerConnection.prototype.connect = async function(url) {
                 sc.gotAbort(m.id);
                 break;
             case 'ice':
-                sc.gotICE(m.id, m.candidate);
+                sc.gotRemoteIce(m.id, m.candidate);
                 break;
             case 'label':
                 sc.gotLabel(m.id, m.value);
@@ -403,10 +403,7 @@ ServerConnection.prototype.newUpStream = function(id) {
     pc.onicecandidate = e => {
         if(!e.candidate)
             return;
-        sc.send({type: 'ice',
-             id: id,
-             candidate: e.candidate,
-        });
+        c.gotLocalIce(e.candidate);
     };
 
     pc.oniceconnectionstatechange = e => {
@@ -502,10 +499,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
         c.pc.onicecandidate = function(e) {
             if(!e.candidate)
                 return;
-            sc.send({type: 'ice',
-                  id: id,
-                  candidate: e.candidate,
-                 });
+            c.gotLocalIce(e.candidate);
         };
 
         pc.oniceconnectionstatechange = e => {
@@ -650,7 +644,7 @@ ServerConnection.prototype.gotAbort = function(id) {
  * @param {RTCIceCandidate} candidate
  * @function
  */
-ServerConnection.prototype.gotICE = async function(id, candidate) {
+ServerConnection.prototype.gotRemoteIce = async function(id, candidate) {
     let c = this.up[id];
     if(!c)
         c = this.down[id];
@@ -659,7 +653,7 @@ ServerConnection.prototype.gotICE = async function(id, candidate) {
     if(c.pc.remoteDescription)
         await c.pc.addIceCandidate(candidate).catch(console.warn);
     else
-        c.iceCandidates.push(candidate);
+        c.remoteIceCandidates.push(candidate);
 };
 
 /**
@@ -728,12 +722,19 @@ function Stream(sc, id, pc) {
      */
     this.labelsByMid = {};
     /**
-     * Buffered ICE candidates.  This will be flushed by flushIceCandidates
-     * when the PC becomes stable.
+     * Buffered local ICE candidates.  This will be flushed by
+     * flushIceCandidates when the PC becomes stable.
      *
      * @type {RTCIceCandidate[]}
      */
-    this.iceCandidates = [];
+    this.localIceCandidates = [];
+    /**
+     * Buffered remote ICE candidates.  This will be flushed by
+     * flushIceCandidates when the PC becomes stable.
+     *
+     * @type {RTCIceCandidate[]}
+     */
+    this.remoteIceCandidates = [];
     /**
      * Indicates whether it is legal to renegotiate at this point.  If
      * this is false, a new connection must be negotiated.
@@ -854,17 +855,46 @@ Stream.prototype.close = function(sendclose) {
 };
 
 /**
+ * Called when we get a local ICE candidate.  Don't call this.
+ *
+ * @param {RTCIceCandidate} candidate
+ * @function
+ */
+Stream.prototype.gotLocalIce = function(candidate) {
+    let c = this;
+    if(c.pc.remoteDescription)
+        c.sc.send({type: 'ice',
+                   id: c.id,
+                   candidate: candidate,
+                  });
+    else
+        c.localIceCandidates.push(candidate);
+}
+
+/**
  * flushIceCandidates flushes any buffered ICE candidates.  It is called
  * automatically when the connection reaches a stable state.
  * @function
  */
 Stream.prototype.flushIceCandidates = async function () {
+    let c = this;
+    c.localIceCandidates.forEach(candidate => {
+        try {
+            c.sc.send({type: 'ice',
+                       id: c.id,
+                       candidate: candidate,
+                      });
+        } catch(e) {
+            console.warn(e);
+        }
+    });
+
     /** @type {Promise<void>[]} */
     let promises = [];
-    this.iceCandidates.forEach(c => {
-        promises.push(this.pc.addIceCandidate(c).catch(console.warn));
+    c.remoteIceCandidates.forEach(candidate => {
+        promises.push(this.pc.addIceCandidate(candidate).catch(console.warn));
     });
-    this.iceCandidates = [];
+    c.remoteIceCandidates = [];
     return await Promise.all(promises);
 };
 
