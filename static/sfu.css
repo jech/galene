@@ -406,6 +406,10 @@ textarea.form-reply {
   top: 5px;
 }
 
+.vc-overlay {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 7%) 0%, rgb(0 0 0 / 24%) 100%);
+}
+
 .peer:hover > .video-controls, .peer:hover > .top-video-controls {
     opacity: 1;
     transition: all .7s ease-out;
@@ -413,10 +417,9 @@ textarea.form-reply {
 
 .video-controls span, .top-video-controls span {
     margin-right: 20px;
-    transition: all .5s ease-out;
-    opacity: .5;
+    transition: all .7s ease-out;
+    opacity: 1;
     cursor: pointer;
-    text-shadow: 2px 2px 4px rgba(123, 123, 123, 0.65);
 }
 
 .video-controls span:last-child {
@@ -424,7 +427,7 @@ textarea.form-reply {
 }
 
 .video-controls span:hover, .top-video-controls span:hover {
-    opacity: 1;
+    opacity: .5;
     transition: opacity .5s ease-out;
 }
 
