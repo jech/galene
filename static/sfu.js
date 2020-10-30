@@ -1437,7 +1437,7 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
                 let tm = document.createElement('span');
                 tm.textContent = formatTime(time);
                 tm.classList.add('message-time');
-                footer.appendChild(tm);
+                header.appendChild(tm);
             }
         }
         p.classList.add('message-content');
