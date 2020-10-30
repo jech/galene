@@ -984,7 +984,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					if err != nil && err != ErrRateLimited {
 						log.Printf("sendPLI: %v", err)
 					}
-				} else if err != nil {
+				} else if err != nil && err != ErrRateLimited {
 					log.Printf("sendFIR: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
