@@ -818,6 +818,8 @@ async function addLocalMedia(id) {
     setButtonsVisibility();
 }
 
+let safariWarningDone = false;
+
 async function addShareMedia() {
     if(!getUserPass())
         return;
@@ -833,6 +835,15 @@ async function addShareMedia() {
         console.error(e);
         displayError(e);
         return;
+    }
+
+    if(!safariWarningDone) {
+        let ua = navigator.userAgent.toLowerCase();
+        if(ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0) {
+            displayWarning('Screen sharing under Safari is experimental.  ' +
+                           'Please use a different browser if possible.');
+        }
+        safariWarningDone = true;
     }
 
     let c = newUpStream();
