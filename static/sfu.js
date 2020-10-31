@@ -462,6 +462,7 @@ document.getElementById('sharebutton').onclick = function(e) {
 document.getElementById('unsharebutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('screenshare');
+    resizePeers();
 }
 
 /** @returns {number} */

@@ -1032,8 +1032,7 @@ header .collapse {
 
 /* END Sidebar Left */
 
-/*@media only screen and (max-width: 768px) {*/
-@media only screen and (max-device-width: 768px) {
+@media only screen and (max-device-width: 1024px) {
     .nav-link {
         margin: 0;
         line-height: 1.5;
