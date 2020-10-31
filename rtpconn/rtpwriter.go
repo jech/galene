@@ -384,16 +384,18 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 func nackWriter(conn *rtpUpConnection, track *rtpUpTrack) {
 	// a client might send us a NACK for a packet that has already
 	// been nacked by the reader loop.  Give recovery a chance.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	track.mu.Lock()
 	nacks := track.bufferedNACKs
 	track.bufferedNACKs = nil
 	track.mu.Unlock()
 
-	if !track.hasRtcpFb("nack", "") {
+	if len(nacks) == 0 || !track.hasRtcpFb("nack", "") {
 		return
 	}
+
+	time.Sleep(50 * time.Millisecond)
 
 	// drop any nacks before the last keyframe
 	var cutoff uint16
