@@ -145,6 +145,7 @@ func Add(name string, desc *description) (*Group, error) {
 	if groups.groups == nil {
 		groups.groups = make(map[string]*Group)
 		s := webrtc.SettingEngine{}
+		s.SetSRTPReplayProtectionWindow(512)
 		if !UseMDNS {
 			s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
 		}
