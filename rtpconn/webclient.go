@@ -829,6 +829,9 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				})
 			case pushConnsAction:
 				for _, u := range c.up {
+					if !u.complete() {
+						continue
+					}
 					tracks := u.getTracks()
 					ts := make([]conn.UpTrack, len(tracks))
 					for i, t := range tracks {
