@@ -1248,7 +1248,7 @@ function formatLines(lines) {
 function formatTime(time) {
     let delta = Date.now() - time;
     let date = new Date(time);
-    if(delta > -1000)
+    if(delta > -30000)
         return date.toTimeString().slice(null, 8);
     return date.toLocaleString();
 }
