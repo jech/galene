@@ -394,7 +394,7 @@ textarea.form-reply {
     left: 0;
     bottom: 25px;
     text-align: center;
-    color: #e1e1e1;
+    color: #fff;
     font-size: 1.5em;
     transition: all .5s ease-out;
     opacity: 0;
@@ -416,14 +416,14 @@ textarea.form-reply {
 }
 
 .video-controls span, .top-video-controls span {
-    margin-right: 20px;
+    margin-right: 10%;
     transition: all .7s ease-out;
     opacity: 1;
     cursor: pointer;
 }
 
 .video-controls span:last-child {
-    /*margin-right: 0;*/
+    margin-right: 0;
 }
 
 .video-controls span:hover, .top-video-controls span:hover {
