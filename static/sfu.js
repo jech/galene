@@ -1092,22 +1092,25 @@ function registerControlEvent(peerid) {
       }
   };
 
-  peer.querySelector("span.camera").onclick = function(event) {
-      event.preventDefault();
-      let video = getParentVideo(event.target);
-      let id = video.id.split("-")[1];
-      if (!settings.video)
-          return;
-      if (event.target.getAttribute("data-type") === "bt-camera") {
-          addLocalMedia(id, true);
-          event.target.setAttribute("data-type", "bt-camera-off");
-          event.target.parentElement.classList.add("disabled");
-      } else {
-          event.target.setAttribute("data-type", "bt-camera");
-          event.target.parentElement.classList.remove("disabled");
-          addLocalMedia(id);
-      }
-  };
+  let camera = peer.querySelector("span.camera");
+  if (camera) {
+      peer.querySelector("span.camera").onclick = function(event) {
+          event.preventDefault();
+          let video = getParentVideo(event.target);
+          let id = video.id.split("-")[1];
+          if (!settings.video)
+              return;
+          if (event.target.getAttribute("data-type") === "bt-camera") {
+              addLocalMedia(id, true);
+              event.target.setAttribute("data-type", "bt-camera-off");
+              event.target.parentElement.classList.add("disabled");
+          } else {
+              event.target.setAttribute("data-type", "bt-camera");
+              event.target.parentElement.classList.remove("disabled");
+              addLocalMedia(id);
+          }
+      };
+  }
 }
 
 
