@@ -1347,7 +1347,7 @@ function gotPermissions(perms) {
         displayMessage("Press Present to enable your camera or microphone");
 }
 
-const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#=?]+[-a-zA-Z0-9@:%/_\\+~#=]/g;
+const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#&()=?]+[-a-zA-Z0-9@:%/_\\+~#&()=]/g;
 
 /**
  * @param {string} line
