@@ -17,22 +17,34 @@ This step is optional.
 
 ## Set up a TURN server
 
-This step is optional, but unless you set up a TURN server, your server
-will be inaccessible from most enterprise and many university networks.
-For best results, set up TURN over TCP on port 443 (HTTPS); if port 443 is
-not available, port 1194 (OpenVPN) is a good choice.
+This step depends on your network setup and your user population.  If your
+server is accessible from the Internet (no firewall or NAT) and none of
+your users are behind restrictive firewalls, then no ICE servers are
+necessary.  If your server is behind a NAT, a STUN server is required.  If
+any of your users are behind restrictive firewalls (which is usually the
+case of Academic and Enterprise networks), then you will need a TURN
+server running on an innocent-looking TCP port.  This is the recommended
+setup.
 
-The address of the TURN server is configured in the file
-`data/ice-servers.json`.  It should look like this:
+You should probably be running your own TURN server — I use *coturn*.  The
+address of the TURN server is configured in the file `data/ice-servers.json`.
+It should look like this:
 
-    [{
-      "urls":["turn:turn.example.com:443?transport=tcp"],
-      "username":"username",
-      "credential":"password"
-    }]
+    [
+        {
+            "urls":["turn:turn.example.com:443"],
+            "username":"username",
+            "credential":"password"
+        },
+        {
+            "urls":["turn:turn.example.com:443?transport=tcp"],
+            "username":"username",
+            "credential":"password"
+        }
+    ]
 
-The *username* and *password* should be the same as the ones in your TURN
-server's configuration.
+The port number, username and password should be the same as the ones in
+your TURN server's configuration.
 
 ## Set up a group
 
