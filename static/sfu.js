@@ -239,6 +239,11 @@ function hideVideo(force) {
         return;
     let video_container = document.getElementById('video-container');
     video_container.classList.add('no-video');
+    let left = document.getElementById("left");
+    if (left.style.display !== "none") {
+        // hide all video buttons used to switch video on mobile layout
+        closeVideoControls();
+    }
 }
 
 function closeVideoControls() {
@@ -335,7 +340,9 @@ function setViewportHeight() {
     document.documentElement.style.setProperty(
         '--vh', `${window.innerHeight/100}px`,
     );
-};
+    // Ajust video component size
+    resizePeers();
+}
 setViewportHeight();
 
 // On resize and orientation change, we update viewport height
@@ -375,7 +382,7 @@ function setVisibility(id, visible) {
 function setButtonsVisibility() {
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('local');
-    let share = !!findUpMedia('screenshare')
+    let share = !!findUpMedia('screenshare');
 
     // don't allow multiple presentations
     setVisibility('presentbutton', permissions.present && !local);
@@ -383,7 +390,7 @@ function setButtonsVisibility() {
 
     // allow multiple shared documents
     setVisibility('sharebutton', permissions.present &&
-                  ('getDisplayMedia' in navigator.mediaDevices))
+                  ('getDisplayMedia' in navigator.mediaDevices));
     setVisibility('unsharebutton', share);
 
     setVisibility('mediaoptions', permissions.present);
@@ -455,6 +462,7 @@ document.getElementById('sharebutton').onclick = function(e) {
 document.getElementById('unsharebutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('screenshare');
+    resizePeers();
 }
 
 /** @returns {number} */
@@ -741,15 +749,18 @@ async function setMaxVideoThroughput(c, bps) {
 
 /**
  * @param {string} [id]
+ * @param {boolean} [disableVideo]
  */
-async function addLocalMedia(id) {
+async function addLocalMedia(id, disableVideo) {
     if(!getUserPass())
         return;
 
     let settings = getSettings();
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
-    let video = settings.video ? {deviceId: settings.video} : false;
+    let video = false;
+    if (!disableVideo)
+        video = settings.video ? {deviceId: settings.video} : false;
 
     if(audio) {
         if(settings.studioMode) {
@@ -946,6 +957,14 @@ function muteLocalTracks(mute) {
  */
 function setMedia(c, isUp) {
     let peersdiv = document.getElementById('peers');
+    let settings = getSettings();
+    let local_media;
+
+    for(let id in serverConnection.up) {
+        if (id === c.id) {
+          local_media = serverConnection.up[id];
+        }
+    }
 
     let div = document.getElementById('peer-' + c.id);
     if(!div) {
@@ -964,7 +983,7 @@ function setMedia(c, isUp) {
         media.autoplay = true;
         /** @ts-ignore */
         media.playsinline = true;
-        media.controls = true;
+        media.controls = false;
         if(isUp)
             media.muted = true;
         div.appendChild(media);
@@ -978,13 +997,133 @@ function setMedia(c, isUp) {
         div.appendChild(label);
     }
 
+    let template = document.getElementById('videocontrols-template')
+        .firstElementChild;
+    let top_template = document.getElementById('top-videocontrols-template')
+        .firstElementChild;
+
+    let top_controls = document.getElementById('topcontrols-' + c.id);
+    if (template && !top_controls) {
+        top_controls = top_template.cloneNode(true);
+        top_controls.id = 'topcontrols-' + c.id;
+        div.appendChild(top_controls);
+    }
+    let controls = document.getElementById('controls-' + c.id);
+    if (template && !controls) {
+        controls = template.cloneNode(true);
+        controls.id = 'controls-' + c.id;
+        div.appendChild(controls);
+        if(media.muted) {
+            let volume = controls.querySelector(".fa-volume-up");
+            if (volume) {
+                volume.classList.remove("fa-volume-up");
+                volume.classList.add("fa-volume-off");
+            }
+        }
+        let camera = controls.querySelector("span.camera");
+        if (local_media && local_media.kind === "local") {
+            if (!settings.video) {
+                if (camera)
+                    camera.classList.add("camera-off");
+            }
+        } else
+            camera.remove();
+    }
+
     media.srcObject = c.stream;
     setLabel(c);
     setMediaStatus(c);
 
     showVideo();
     resizePeers();
+    registerControlEvent(div.id);
 }
+
+/**
+ * @param {HTMLVideoElement} video
+ */
+async function videoPIP(video) {
+    if (video.requestPictureInPicture) {
+        await video.requestPictureInPicture();
+    } else {
+        displayWarning("Video PIP Mode not supported!");
+    }
+}
+
+/**
+ * @param {HTMLElement} target
+ */
+function getParentVideo(target) {
+    // target is the <i> element, parent the div <div><span><i/></span></div>
+    let control = target.parentElement.parentElement;
+    let id = control.id.split('-')[1];
+    let media = /** @type {HTMLVideoElement} */
+        (document.getElementById('media-' + id));
+    if (!media) {
+        displayError("Cannot find media!");
+    }
+    return media;
+}
+
+/**
+ * @param {string} peerid
+ */
+function registerControlEvent(peerid) {
+  let settings = getSettings();
+  let peer = document.getElementById(peerid);
+  //Add event listener when a video component is added to the DOM
+  peer.querySelector("span.volume").onclick = function(event) {
+      event.preventDefault();
+      let video = getParentVideo(event.target);
+      if (event.target.className.indexOf("fa-volume-off") !== -1) {
+          event.target.classList.remove("fa-volume-off");
+          event.target.classList.add("fa-volume-up");
+          video.muted = false;
+      } else {
+          event.target.classList.remove("fa-volume-up");
+          event.target.classList.add("fa-volume-off");
+          // mute video sound
+          video.muted = true;
+      }
+  };
+
+  peer.querySelector("span.pip").onclick = function(event) {
+      event.preventDefault();
+      let video = getParentVideo(event.target);
+      videoPIP(video);
+  };
+
+  peer.querySelector("span.fullscreen").onclick = function(event) {
+      event.preventDefault();
+      let video = getParentVideo(event.target);
+      if (video.requestFullscreen) {
+          video.requestFullscreen();
+      } else {
+          displayWarning("Video Fullscreen not supported!");
+      }
+  };
+
+  let camera = peer.querySelector("span.camera");
+  if (camera) {
+      peer.querySelector("span.camera").onclick = function(event) {
+          event.preventDefault();
+          let video = getParentVideo(event.target);
+          let id = video.id.split("-")[1];
+          if (!settings.video)
+              return;
+          if (event.target.getAttribute("data-type") === "bt-camera") {
+              addLocalMedia(id, true);
+              event.target.setAttribute("data-type", "bt-camera-off");
+              event.target.parentElement.classList.add("disabled");
+          } else {
+              event.target.setAttribute("data-type", "bt-camera");
+              event.target.parentElement.classList.remove("disabled");
+              addLocalMedia(id);
+          }
+      };
+  }
+}
+
 
 /**
  * @param {string} id
@@ -1046,6 +1185,9 @@ function setLabel(c, fallback) {
 }
 
 function resizePeers() {
+    // Window resize can call this method too early
+    if (!serverConnection)
+        return;
     let count =
         Object.keys(serverConnection.up).length +
         Object.keys(serverConnection.down).length;
@@ -1054,24 +1196,29 @@ function resizePeers() {
     if (!count)
         // No video, nothing to resize.
         return;
-    let container = document.getElementById("video-container")
-    // Peers div has total padding of 30px, we remove 30 on offsetHeight
-    let max_video_height = Math.trunc((peers.offsetHeight - 30) / columns);
+    let container = document.getElementById("video-container");
+    // Peers div has total padding of 40px, we remove 40 on offsetHeight
+    // Grid has row-gap of 5px
+    let rows = Math.ceil(count / columns);
+    let margins = (rows - 1) * 5 + 40;
 
-    let media_list = document.getElementsByClassName("media");
+    if (count <= 2 && container.offsetHeight > container.offsetWidth) {
+        peers.style['grid-template-columns'] = "repeat(1, 1fr)";
+        rows = count;
+    } else {
+        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+    }
+    if (count === 1)
+        return;
+    let max_video_height = (peers.offsetHeight - margins) / rows;
+    let media_list = peers.querySelectorAll(".media");
     for(let i = 0; i < media_list.length; i++) {
         let media = media_list[i];
         if(!(media instanceof HTMLMediaElement)) {
             console.warn('Unexpected media');
             continue;
         }
-        media.style['max_height'] = max_video_height + "px";
-    }
-
-    if (count <= 2 && container.offsetHeight > container.offsetWidth) {
-        peers.style['grid-template-columns'] = "repeat(1, 1fr)";
-    } else {
-        peers.style['grid-template-columns'] = `repeat(${columns}, 1fr)`;
+        media.style['max-height'] = max_video_height + "px";
     }
 }
 
@@ -1248,8 +1395,9 @@ function formatLines(lines) {
 function formatTime(time) {
     let delta = Date.now() - time;
     let date = new Date(time);
+    let m = date.getMinutes();
     if(delta > -30000)
-        return date.toTimeString().slice(null, 8);
+        return date.getHours() + ':' + ((m < 10) ? '0' : '') + m;
     return date.toLocaleString();
 }
 
@@ -1277,6 +1425,8 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
     let container = document.createElement('div');
     container.classList.add('message');
     row.appendChild(container);
+    let footer = document.createElement('p');
+    footer.classList.add('message-footer');
     if(!peerId)
         container.classList.add('message-system');
     if(userpass.username === nick)
@@ -1296,20 +1446,21 @@ function addToChatbox(peerId, dest, nick, time, kind, message) {
                 (nick || '(anon)');
             user.classList.add('message-user');
             header.appendChild(user);
+            header.classList.add('message-header');
+            container.appendChild(header);
             if(time) {
                 let tm = document.createElement('span');
                 tm.textContent = formatTime(time);
                 tm.classList.add('message-time');
                 header.appendChild(tm);
             }
-            header.classList.add('message-header');
-            container.appendChild(header);
         }
         p.classList.add('message-content');
         container.appendChild(p);
         lastMessage.nick = (nick || null);
         lastMessage.peerId = peerId;
         lastMessage.dest = (dest || null);
+        container.appendChild(footer);
     } else {
         let asterisk = document.createElement('span');
         asterisk.textContent = '*';
@@ -1540,6 +1691,11 @@ function chatResizer(e) {
 
     function start_drag(e) {
         let left_width = (start_width + e.clientX - start_x) * 100 / full_width;
+        // set min chat width to 300px
+        let min_left_width = 300 * 100 / full_width;
+        if (left_width < min_left_width) {
+          return;
+        }
         left.style.flex = left_width.toString();
         right.style.flex = (100 - left_width).toString();
     }
@@ -1667,6 +1823,12 @@ document.getElementById('collapse-video').onclick = function(e) {
     if(!(this instanceof HTMLElement))
         throw new Error('Unexpected type for this');
     let width = window.innerWidth;
+    let left = document.getElementById("left");
+    if (left.style.display === "" || left.style.display === "none") {
+      //left chat is hidden, we show the chat and hide collapse button
+      left.style.display = "block";
+      this.style.display = "";
+    }
     if (width <= 768) {
       let user_box = document.getElementById('userDropdown');
       if (user_box.classList.contains("show")) {
@@ -1686,6 +1848,13 @@ document.getElementById('switch-video').onclick = function(e) {
     showVideo();
     this.style.display = "";
     document.getElementById('collapse-video').style.display = "block";
+};
+
+document.getElementById('close-chat').onclick = function(e) {
+  e.preventDefault();
+  let left = document.getElementById("left");
+  left.style.display = "none";
+  document.getElementById('collapse-video').style.display = "block";
 };
 
 window.onclick = function(event) {

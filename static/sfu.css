@@ -12,7 +12,7 @@
 
 .topnav {
     padding-left: 0;
-    height: 4rem;
+    height: 3.5rem;
     z-index: 1039;
 }
 
@@ -61,7 +61,7 @@
 }
 .navbar {
     position: relative;
-    padding: .5rem;
+    padding: .1rem;
 }
 
 .topnav .navbar-brand {
@@ -164,7 +164,7 @@
 }
 
 .app {
-    background-color: #f7f7f7;
+    background-color: #f4f4f4;
     overflow: hidden;
     margin: 0;
     padding: 0;
@@ -177,8 +177,13 @@
     margin: 0;
 }
 
+.coln-left-hide {
+  flex: 0;
+}
+
 .coln-right {
     flex: 70%;
+    position: relative;
 }
 
 /* Clear floats after the columns */
@@ -192,7 +197,7 @@
 
 .full-width {
     width: calc(100vw - 200px);
-    height: calc(var(--vh, 1vh) * 100 - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 56px);
 }
 
 .full-width-active {
@@ -204,7 +209,7 @@
 }
 
 .users-header {
-    height: 4rem;
+    height: 3.5rem;
     padding: 10px;
     background: #610a86;
     font-size: .95rem;
@@ -221,7 +226,7 @@
 }
 
 .reply {
-    height: 60px;
+    height: 53px;
     width: 100%;
     background-color: #eae7e5;
     padding: 10px 5px 10px 5px;
@@ -242,7 +247,7 @@
 }
 
 textarea.form-reply {
-    height: 2.6em;
+    height: 2.1em;
     margin-right: .5em;
 }
 
@@ -277,7 +282,6 @@ textarea.form-reply {
 
 .select-inline {
     display: inline-block;
-    width: inherit;
 }
 
 .message {
@@ -290,11 +294,12 @@ textarea.form-reply {
     word-wrap: break-word;
     display: inline-block;
     margin: 1em 0 0;
-    max-width: 80%;
+    max-width: 90%;
+    text-align: left;
 }
 
 .message-sender {
-    background: #ececec;
+    background: #e6e6e6;
 }
 
 .message-private {
@@ -321,12 +326,13 @@ textarea.form-reply {
 }
 
 .message-content {
-    margin: 0 !important;
-    padding: 5px !important;
+    margin: 0;
+    padding: 0;
+    padding-left: 5px;
     word-wrap: break-word;
+    word-break: break-word;
     font-weight: 400;
     font-size: 14px;
-    padding-bottom: 0 !important;
     color: #202035;
 }
 
@@ -334,6 +340,14 @@ textarea.form-reply {
     margin: 0;
     font-style: italic;
     text-shadow: none;
+}
+
+.message-footer {
+    margin: 0;
+    padding: 0;
+    margin-bottom: -5px;
+    line-height: .9;
+    text-align: right;
 }
 
 .message-time {
@@ -345,22 +359,21 @@ textarea.form-reply {
 }
 
 .video-container {
-    height: calc(var(--vh, 1vh) * 100 - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;
     background: rgba(0, 0, 0, 0.91);
     /* Display only when showing video */
     display: block;
-    transition: all 1s ease-out;
-    opacity: 1;
 }
 
 .collapse-video {
-  display: none;
-  /*on top of video peers*/
-  z-index: 1002;
-  position: fixed;
-  top: 70px;
-  right: 10px;
+    display: none;
+    /*on top of video peers*/
+    z-index: 1002;
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    cursor: pointer;
 }
 
 .collapse-video .open-chat {
@@ -368,12 +381,65 @@ textarea.form-reply {
     height: 60px;
     fill: #fff;
     padding: 10px;
+    fill: #b8b8b8;
 }
 
 .no-video {
     display: none;
-    transition: opacity 1s ease-out;
+}
+
+.video-controls, .top-video-controls {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    bottom: 25px;
+    text-align: center;
+    color: #fff;
+    font-size: 1.5em;
+    transition: all .5s ease-out;
     opacity: 0;
+}
+
+.top-video-controls {
+  text-align: right;
+  bottom: inherit;
+  top: 5px;
+}
+
+.vc-overlay {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 7%) 0%, rgb(0 0 0 / 24%) 100%);
+}
+
+.peer:hover > .video-controls, .peer:hover > .top-video-controls {
+    opacity: 1;
+    transition: all .7s ease-out;
+}
+
+.video-controls span, .top-video-controls span {
+    margin-right: 10%;
+    transition: all .7s ease-out;
+    opacity: 1;
+    cursor: pointer;
+}
+
+.video-controls span:last-child {
+    margin-right: 0;
+}
+
+.video-controls span:hover, .top-video-controls span:hover {
+    opacity: .5;
+    transition: opacity .5s ease-out;
+}
+
+.video-controls .volume {
+    width: 25px;
+    display: inline-block;
+    text-align: center;
+}
+
+.video-controls span.disabled, .video-controls span.disabled:hover, .top-video-controls span.disabled:hover{
+    opacity: .2;
+    color: #c8c8c8
 }
 
 .mobile-container {
@@ -381,7 +447,7 @@ textarea.form-reply {
 }
 
 .login-container {
-    height: calc(var(--vh, 1vh) * 100 - 64px);
+    height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;
     display: block;
 }
@@ -410,7 +476,7 @@ textarea.form-reply {
     width: 100%;
     z-index: 1;
     text-align: center;
-    line-height: 25px;
+    line-height: 24px;
     color: #ffffff;
 }
 
@@ -553,19 +619,22 @@ h1 {
 
 #chatbox {
     height: 100%;
+    position: relative;
 }
 
 #chat {
     padding: 0;
     margin: 0;
-    background-color: #f9f9f9;
+    background-color: #f8f8f8;
     background-size: cover;
     overflow-y: scroll;
     border: none;
     border-right: 4px solid #e6e6e6;
     /* force to fill height */
     height: 100% !important;
+    width: 100%;
     min-width: 300px;
+    overflow: hidden;
 }
 
 #inputform {
@@ -574,8 +643,26 @@ h1 {
 
 #box {
     overflow: auto;
-    height: calc(100% - 60px);
+    height: calc(100% - 53px);
     padding: 10px;
+}
+
+.close-chat {
+    position: absolute;
+    top: 2px;
+    right: 14px;
+    width: 25px;
+    font-size: 1em;
+    text-align: center;
+    font-weight: 700;
+    color: #8f8f8f;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.close-chat:hover, .close-chat:active {
+    border: 1px solid #dfdfdf;
+    border-radius: 4px;
 }
 
 #disconnectbutton, #connectbutton {
@@ -613,7 +700,7 @@ h1 {
     display: grid;
     grid-template-columns: repeat(1, 1fr);
     grid-template-rows: repeat(1, auto);
-    row-gap: 0;
+    row-gap: 5px;
     column-gap: 10px;
     position: absolute;
     top: 0;
@@ -626,6 +713,7 @@ h1 {
     z-index: 1000;
     background-size: cover;
     overflow: hidden;
+    vertical-align: top!important;
 }
 
 .peer {
@@ -633,6 +721,7 @@ h1 {
     margin-bottom: auto;
     position: relative;
     border: 2px solid rgba(0,0,0,0);
+    background: #80808014;
 }
 
 .peer-active {
@@ -641,7 +730,7 @@ h1 {
 
 .media {
     width: 100%;
-    max-height: calc(var(--vh, 1vh) * 100 - 84px);
+    max-height: calc(var(--vh, 1vh) * 100 - 76px);
     padding-bottom: 20px;
     object-fit: contain;
 }
@@ -672,13 +761,13 @@ h1 {
 }
 
 .sidenav a {
-    padding: 10px;
+    padding: 10px 20px;
     text-decoration: none;
     font-size: 30px;
     color: #dbd9d9;
     display: block;
     transition: 0.3s;
-    line-height: 1.2;
+    line-height: 1.0;
 }
 
 .sidenav a:hover {
@@ -689,7 +778,8 @@ h1 {
     cursor: pointer;
     position: absolute;
     top: 0;
-    right: 5px;
+    right: 0;
+    height: 56px;
 }
 
 .sidenav label{
@@ -697,9 +787,17 @@ h1 {
     margin-top: 15px;
 }
 
+.sidenav .label-first {
+    margin-top: 0;
+}
+
 .sidenav form{
     display: block;
     margin-top: 15px;
+}
+
+.sidenav-header {
+    height: 56px;
 }
 
 .sidenav-header h2{
@@ -707,17 +805,29 @@ h1 {
     padding: 10px;
     margin: 0;
     max-width: 70%;
-    line-height: 44px;
+    line-height: 36px;
 }
 
 .sidenav-content {
-    padding: 20px;
+    padding: 10px;
     background: #fff;
     height: 100%;
 }
 
 .sidenav-content h2 {
     margin: 0;
+}
+
+fieldset {
+    margin: 0;
+    margin-top: 20px;
+    border: 1px solid #e9e8e8;
+    padding: 8px;
+    border-radius: 4px;
+}
+legend {
+    padding: 2px;
+    color: #4d4f51;
 }
 
 .nav-menu {
@@ -781,7 +891,7 @@ h1 {
     background-color: #fff;
     max-width: 300px;
     min-width: 200px;
-    margin-top: 11px;
+    margin-top: 7px;
     overflow: auto;
     right: 7px;
     box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
@@ -841,13 +951,14 @@ header .collapse {
     cursor: pointer;
     padding-top: 5px;
     margin-right: 20px;
+    margin-left: 5px;
 }
 
 .sfu-header {
     font-size: 1.3rem;
     font-weight: 900;
     color: #dbd9d9;
-    line-height: 44px;
+    line-height: 34px;
 }
 
 .header-sep {
@@ -912,15 +1023,16 @@ header .collapse {
     margin-right: 5px;
 }
 
-/* END Sidebar Left */
-
-@media screen and (max-height: 450px) {
-    .sidenav-content {padding: 10px;}
-    .sidenav a {font-size: 18px;}
+.close-icon {
+    font: normal 1em/1 Arial, sans-serif;
+    display: inline-block;
 }
 
-/*@media only screen and (max-width: 768px) {*/
-@media only screen and (max-device-width: 768px) {
+.close-icon:before{ content: "\2715"; }
+
+/* END Sidebar Left */
+
+@media only screen and (max-device-width: 1024px) {
     .nav-link {
         margin: 0;
         line-height: 1.5;
@@ -934,16 +1046,17 @@ header .collapse {
         display: none;
     }
 
-    .topnav {
-        height: 3.5rem;
-    }
-
-    .users-header {
-        height: 3.5rem;
-    }
-
     .full-width {
         height: calc(var(--vh, 1vh) * 100 - 56px);
+    }
+
+    .collapse-video {
+        left: inherit;
+        right: 60px;
+    }
+
+    .close-chat {
+        display: none;
     }
 
     .video-container {
@@ -975,6 +1088,7 @@ header .collapse {
 
     .coln-right {
         flex: none;
+        position: relative;
     }
 
     .full-width {
@@ -1009,6 +1123,8 @@ header .collapse {
     #left-sidebar.active .sidebar-header strong {
         display: block;
     }
+
+    .sidenav a {padding: 10px 5px;}
 
     .sidenav-header h2 {
         line-height: 36px;
