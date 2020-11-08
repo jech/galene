@@ -1090,11 +1090,17 @@ function registerControlEvent(peerid) {
         }
     };
 
-    peer.querySelector("span.pip").onclick = function(event) {
-        event.preventDefault();
-        let video = getParentVideo(event.target);
-        videoPIP(video);
-    };
+    let pip = /** @type {HTMLElement} */(peer.querySelector("span.pip"));
+    /** @ts-ignore */
+    if(HTMLVideoElement.prototype.requestPictureInPicture) {
+        pip.onclick = function(event) {
+            event.preventDefault();
+            let video = getParentVideo(event.target);
+            videoPIP(video);
+        };
+    } else {
+        pip.style.display = 'none';
+    }
 
     peer.querySelector("span.fullscreen").onclick = function(event) {
         event.preventDefault();
@@ -1106,7 +1112,7 @@ function registerControlEvent(peerid) {
         }
     };
 
-    let camera = peer.querySelector("span.camera");
+    let camera = /** @type {HTMLElement} */(peer.querySelector("span.camera"));
     if(camera) {
         peer.querySelector("span.camera").onclick = function(event) {
             event.preventDefault();
