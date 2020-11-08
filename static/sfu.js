@@ -758,9 +758,10 @@ async function addLocalMedia(id, disableVideo) {
     let settings = getSettings();
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
-    let video = false;
-    if (!disableVideo)
-        video = settings.video ? {deviceId: settings.video} : false;
+    let video =
+        disableVideo ? false :
+        settings.video ? {deviceId: settings.video} :
+        false;
 
     if(audio) {
         if(settings.studioMode) {
@@ -1003,14 +1004,14 @@ function setMedia(c, isUp) {
         .firstElementChild;
 
     let top_controls = document.getElementById('topcontrols-' + c.id);
-    if (template && !top_controls) {
-        top_controls = top_template.cloneNode(true);
+    if(template && !top_controls) {
+        top_controls = /** @type{HTMLElement} */(top_template.cloneNode(true));
         top_controls.id = 'topcontrols-' + c.id;
         div.appendChild(top_controls);
     }
     let controls = document.getElementById('controls-' + c.id);
-    if (template && !controls) {
-        controls = template.cloneNode(true);
+    if(template && !controls) {
+        controls = /** @type{HTMLElement} */(template.cloneNode(true));
         controls.id = 'controls-' + c.id;
         div.appendChild(controls);
         if(media.muted) {
@@ -1043,7 +1044,9 @@ function setMedia(c, isUp) {
  * @param {HTMLVideoElement} video
  */
 async function videoPIP(video) {
+    /** @ts-ignore */
     if (video.requestPictureInPicture) {
+        /** @ts-ignore */
         await video.requestPictureInPicture();
     } else {
         displayWarning("Video PIP Mode not supported!");
@@ -1069,59 +1072,59 @@ function getParentVideo(target) {
  * @param {string} peerid
  */
 function registerControlEvent(peerid) {
-  let settings = getSettings();
-  let peer = document.getElementById(peerid);
-  //Add event listener when a video component is added to the DOM
-  peer.querySelector("span.volume").onclick = function(event) {
-      event.preventDefault();
-      let video = getParentVideo(event.target);
-      if (event.target.className.indexOf("fa-volume-off") !== -1) {
-          event.target.classList.remove("fa-volume-off");
-          event.target.classList.add("fa-volume-up");
-          video.muted = false;
-      } else {
-          event.target.classList.remove("fa-volume-up");
-          event.target.classList.add("fa-volume-off");
-          // mute video sound
-          video.muted = true;
-      }
-  };
+    let settings = getSettings();
+    let peer = document.getElementById(peerid);
+    //Add event listener when a video component is added to the DOM
+    peer.querySelector("span.volume").onclick = function(event) {
+        event.preventDefault();
+        let video = getParentVideo(event.target);
+        if(event.target.className.indexOf("fa-volume-off") !== -1) {
+            event.target.classList.remove("fa-volume-off");
+            event.target.classList.add("fa-volume-up");
+            video.muted = false;
+        } else {
+            event.target.classList.remove("fa-volume-up");
+            event.target.classList.add("fa-volume-off");
+            // mute video sound
+            video.muted = true;
+        }
+    };
 
-  peer.querySelector("span.pip").onclick = function(event) {
-      event.preventDefault();
-      let video = getParentVideo(event.target);
-      videoPIP(video);
-  };
+    peer.querySelector("span.pip").onclick = function(event) {
+        event.preventDefault();
+        let video = getParentVideo(event.target);
+        videoPIP(video);
+    };
 
-  peer.querySelector("span.fullscreen").onclick = function(event) {
-      event.preventDefault();
-      let video = getParentVideo(event.target);
-      if (video.requestFullscreen) {
-          video.requestFullscreen();
-      } else {
-          displayWarning("Video Fullscreen not supported!");
-      }
-  };
+    peer.querySelector("span.fullscreen").onclick = function(event) {
+        event.preventDefault();
+        let video = getParentVideo(event.target);
+        if(video.requestFullscreen) {
+            video.requestFullscreen();
+        } else {
+            displayWarning("Video Fullscreen not supported!");
+        }
+    };
 
-  let camera = peer.querySelector("span.camera");
-  if (camera) {
-      peer.querySelector("span.camera").onclick = function(event) {
-          event.preventDefault();
-          let video = getParentVideo(event.target);
-          let id = video.id.split("-")[1];
-          if (!settings.video)
-              return;
-          if (event.target.getAttribute("data-type") === "bt-camera") {
-              addLocalMedia(id, true);
-              event.target.setAttribute("data-type", "bt-camera-off");
-              event.target.parentElement.classList.add("disabled");
-          } else {
-              event.target.setAttribute("data-type", "bt-camera");
-              event.target.parentElement.classList.remove("disabled");
-              addLocalMedia(id);
-          }
-      };
-  }
+    let camera = peer.querySelector("span.camera");
+    if(camera) {
+        peer.querySelector("span.camera").onclick = function(event) {
+            event.preventDefault();
+            let video = getParentVideo(event.target);
+            let id = video.id.split("-")[1];
+            if(!settings.video)
+                return;
+            if(event.target.getAttribute("data-type") === "bt-camera") {
+                addLocalMedia(id, true);
+                event.target.setAttribute("data-type", "bt-camera-off");
+                event.target.parentElement.classList.add("disabled");
+            } else {
+                event.target.setAttribute("data-type", "bt-camera");
+                event.target.parentElement.classList.remove("disabled");
+                addLocalMedia(id);
+            }
+        };
+    }
 }
 
 
