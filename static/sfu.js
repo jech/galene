@@ -1026,8 +1026,8 @@ function setMedia(c, isUp) {
         controls = /** @type{HTMLElement} */(template.cloneNode(true));
         controls.id = 'controls-' + c.id;
         div.appendChild(controls);
+        let volume = controls.querySelector(".fa-volume-up");
         if(media.muted) {
-            let volume = controls.querySelector(".fa-volume-up");
             if (volume) {
                 volume.classList.remove("fa-volume-up");
                 volume.classList.add("fa-volume-off");
@@ -1039,6 +1039,7 @@ function setMedia(c, isUp) {
                 if (camera)
                     camera.classList.add("camera-off");
             }
+            volume.parentElement.remove();
         } else
             camera.remove();
     }
@@ -1087,20 +1088,23 @@ function registerControlEvent(peerid) {
     let settings = getSettings();
     let peer = document.getElementById(peerid);
     //Add event listener when a video component is added to the DOM
-    peer.querySelector("span.volume").onclick = function(event) {
-        event.preventDefault();
-        let video = getParentVideo(event.target);
-        if(event.target.className.indexOf("fa-volume-off") !== -1) {
-            event.target.classList.remove("fa-volume-off");
-            event.target.classList.add("fa-volume-up");
-            video.muted = false;
-        } else {
-            event.target.classList.remove("fa-volume-up");
-            event.target.classList.add("fa-volume-off");
-            // mute video sound
-            video.muted = true;
-        }
-    };
+    let volume = /** @type {HTMLElement} */(peer.querySelector("span.volume"));
+    if (volume) {
+        volume.onclick = function(event) {
+            event.preventDefault();
+            let video = getParentVideo(event.target);
+            if(event.target.className.indexOf("fa-volume-off") !== -1) {
+                event.target.classList.remove("fa-volume-off");
+                event.target.classList.add("fa-volume-up");
+                video.muted = false;
+            } else {
+                event.target.classList.remove("fa-volume-up");
+                event.target.classList.add("fa-volume-off");
+                // mute video sound
+                video.muted = true;
+            }
+        };
+    }
 
     let pip = /** @type {HTMLElement} */(peer.querySelector("span.pip"));
     /** @ts-ignore */
