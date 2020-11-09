@@ -349,9 +349,21 @@ setViewportHeight();
 addEventListener('resize', setViewportHeight);
 addEventListener('orientationchange', setViewportHeight);
 
-getButtonElement('presentbutton').onclick = function(e) {
+getButtonElement('presentbutton').onclick = async function(e) {
     e.preventDefault();
-    addLocalMedia();
+    let button = this;
+    if(!(button instanceof HTMLButtonElement))
+        throw new Error('Unexpected type for this.');
+    // there's a potential race condition here: the user might click the
+    // button a second time before the stream is set up and the button hidden.
+    button.disabled = true;
+    try {
+        let id = findUpMedia('local');
+        if(!id)
+            await addLocalMedia();
+    } finally {
+        button.disabled = false;
+    }
 };
 
 getButtonElement('unpresentbutton').onclick = function(e) {
