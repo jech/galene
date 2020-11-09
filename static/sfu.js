@@ -414,7 +414,7 @@ function setButtonsVisibility() {
 function setLocalMute(mute) {
     muteLocalTracks(mute);
     let button = document.getElementById('mutebutton');
-    let icon = button.querySelector("span .fa");
+    let icon = button.querySelector("span .fas");
     if(mute){
         icon.classList.add('fa-microphone-slash');
         icon.classList.remove('fa-microphone');
