@@ -79,7 +79,6 @@ function getUsername() {
  * @property {string} [request]
  * @property {boolean} [activityDetection]
  * @property {boolean} [blackboardMode]
- * @property {boolean} [studioMode]
  */
 
 /** @type{settings} */
@@ -214,8 +213,6 @@ function reflectSettings() {
     getInputElement('activitybox').checked = settings.activityDetection;
 
     getInputElement('blackboardbox').checked = settings.blackboardMode;
-
-    getInputElement('studiobox').checked = settings.studioMode;
 
     if(store)
         storeSettings(settings);
@@ -447,14 +444,6 @@ getInputElement('blackboardbox').onchange = function(e) {
     if(!(this instanceof HTMLInputElement))
         throw new Error('Unexpected type for this');
     updateSettings({blackboardMode: this.checked});
-    changePresentation();
-}
-
-getInputElement('studiobox').onchange = function(e) {
-    e.preventDefault();
-    if(!(this instanceof HTMLInputElement))
-        throw new Error('Unexpected type for this');
-    updateSettings({studioMode: this.checked});
     changePresentation();
 }
 
@@ -774,16 +763,6 @@ async function addLocalMedia(id, disableVideo) {
         disableVideo ? false :
         settings.video ? {deviceId: settings.video} :
         false;
-
-    if(audio) {
-        if(settings.studioMode) {
-            audio.echoCancellation = false;
-            audio.noiseSuppression = false;
-            audio.channelCount = 2;
-            audio.latency = 0.01;
-            audio.autoGainControl = false;
-        }
-    }
 
     if(video) {
         if(settings.blackboardMode) {
