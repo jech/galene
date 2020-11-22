@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -198,16 +199,7 @@ func Add(name string, desc *description) (*Group, error) {
 	}
 
 	if g.dead || time.Since(g.description.loadTime) > 5*time.Second {
-		changed, err := descriptionChanged(name, g.description)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				log.Printf("Reading group %v: %v", name, err)
-			}
-			g.dead = true
-			delGroupUnlocked(name)
-			return nil, err
-		}
-		if changed {
+		if descriptionChanged(name, g.description) {
 			desc, err := GetDescription(name)
 			if err != nil {
 				if !os.IsNotExist(err) {
@@ -478,6 +470,7 @@ func matchUser(user ClientCredentials, users []ClientCredentials) (bool, bool) {
 }
 
 type description struct {
+	fileName       string              `json:"-"`
 	loadTime       time.Time           `json:"-"`
 	modTime        time.Time           `json:"-"`
 	fileSize       int64               `json:"-"`
@@ -485,27 +478,65 @@ type description struct {
 	Redirect       string              `json:"redirect,omitempty"`
 	Public         bool                `json:"public,omitempty"`
 	MaxClients     int                 `json:"max-clients,omitempty"`
-	MaxHistoryAge  int                 `json:"max-history-age",omitempty`
+	MaxHistoryAge  int                 `json:"max-history-age,omitempty"`
 	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
 	AllowRecording bool                `json:"allow-recording,omitempty"`
+	AllowSubgroups bool                `json:"allow-subgroups,omitempty"`
 	Op             []ClientCredentials `json:"op,omitempty"`
 	Presenter      []ClientCredentials `json:"presenter,omitempty"`
 	Other          []ClientCredentials `json:"other,omitempty"`
 }
 
-func descriptionChanged(name string, old *description) (bool, error) {
-	fi, err := os.Stat(filepath.Join(Directory, name+".json"))
-	if err != nil {
-		return false, err
+func openDescriptionFile(name string) (*os.File, string, bool, error) {
+	isParent := false
+	for name != "" {
+		fileName := filepath.Join(
+			Directory, path.Clean("/"+name)+".json",
+		)
+		r, err := os.Open(fileName)
+		if !os.IsNotExist(err) {
+			return r, fileName, isParent, err
+		}
+		isParent = true
+		name, _ = path.Split(name)
+		name = strings.TrimRight(name, "/")
 	}
-	if fi.Size() != old.fileSize || fi.ModTime() != old.modTime {
-		return true, err
+	return nil, "", false, os.ErrNotExist
+}
+
+func statDescriptionFile(name string) (os.FileInfo, string, bool, error) {
+	isParent := false
+	for name != "" {
+		fileName := filepath.Join(
+			Directory, path.Clean("/"+name)+".json",
+		)
+		fi, err := os.Stat(fileName)
+		if !os.IsNotExist(err) {
+			return fi, fileName, isParent, err
+		}
+		isParent = true
+		name, _ = path.Split(name)
+		name = strings.TrimRight(name, "/")
 	}
-	return false, err
+	return nil, "", false, os.ErrNotExist
+}
+
+// descriptionChanged returns true if a group's description may have
+// changed since it was last read.
+func descriptionChanged(name string, desc *description) bool {
+	fi, fileName, _, err := statDescriptionFile(name)
+	if err != nil || fileName != desc.fileName {
+		return true
+	}
+
+	if fi.Size() != desc.fileSize || fi.ModTime() != desc.modTime {
+		return true
+	}
+	return false
 }
 
 func GetDescription(name string) (*description, error) {
-	r, err := os.Open(filepath.Join(Directory, name+".json"))
+	r, fileName, isParent, err := openDescriptionFile(name)
 	if err != nil {
 		return nil, err
 	}
@@ -517,15 +548,25 @@ func GetDescription(name string) (*description, error) {
 	if err != nil {
 		return nil, err
 	}
-	desc.fileSize = fi.Size()
-	desc.modTime = fi.ModTime()
 
 	d := json.NewDecoder(r)
 	err = d.Decode(&desc)
 	if err != nil {
 		return nil, err
 	}
+	if isParent {
+		if !desc.AllowSubgroups {
+			return nil, os.ErrNotExist
+		}
+		desc.Public = false
+		desc.Description = ""
+	}
+
+	desc.fileName = fileName
+	desc.fileSize = fi.Size()
+	desc.modTime = fi.ModTime()
 	desc.loadTime = time.Now()
+
 	return &desc, nil
 }
 
