@@ -892,6 +892,7 @@ async function addFileMedia(file) {
     let url = URL.createObjectURL(file);
     let video = document.createElement('video');
     video.src = url;
+    video.controls = true;
     /** @ts-ignore */
     let stream = video.captureStream();
 
@@ -1042,42 +1043,43 @@ function setMedia(c, isUp, video) {
         div.appendChild(label);
     }
 
-    let template = document.getElementById('videocontrols-template')
-        .firstElementChild;
-    let top_template = document.getElementById('top-videocontrols-template')
-        .firstElementChild;
+    if(!video) {
+        let template = document.getElementById('videocontrols-template')
+            .firstElementChild;
+        let top_template = document.getElementById('top-videocontrols-template')
+            .firstElementChild;
 
-    let top_controls = document.getElementById('topcontrols-' + c.id);
-    if(template && !top_controls) {
-        top_controls = /** @type{HTMLElement} */(top_template.cloneNode(true));
-        top_controls.id = 'topcontrols-' + c.id;
-        div.appendChild(top_controls);
-    }
-    let controls = document.getElementById('controls-' + c.id);
-    if(template && !controls) {
-        controls = /** @type{HTMLElement} */(template.cloneNode(true));
-        controls.id = 'controls-' + c.id;
-        div.appendChild(controls);
-        let volume = controls.querySelector(".fa-volume-up");
-        if(media.muted) {
-            if (volume) {
-                volume.classList.remove("fa-volume-up");
-                volume.classList.add("fa-volume-off");
-            }
+        let top_controls = document.getElementById('topcontrols-' + c.id);
+        if(template && !top_controls) {
+            top_controls = /** @type{HTMLElement} */(top_template.cloneNode(true));
+            top_controls.id = 'topcontrols-' + c.id;
+            div.appendChild(top_controls);
         }
-        let camera = controls.querySelector("span.camera");
-        if (local_media && local_media.kind === "local") {
-            if (!settings.video) {
-                if (camera)
-                    camera.classList.add("camera-off");
+        let controls = document.getElementById('controls-' + c.id);
+        if(template && !controls) {
+            controls = /** @type{HTMLElement} */(template.cloneNode(true));
+            controls.id = 'controls-' + c.id;
+            div.appendChild(controls);
+            let volume = controls.querySelector(".fa-volume-up");
+            if(media.muted) {
+                if (volume) {
+                    volume.classList.remove("fa-volume-up");
+                    volume.classList.add("fa-volume-off");
+                }
             }
-            volume.parentElement.remove();
-        } else
-            camera.remove();
-    }
+            let camera = controls.querySelector("span.camera");
+            if (local_media && local_media.kind === "local") {
+                if (!settings.video) {
+                    if (camera)
+                        camera.classList.add("camera-off");
+                }
+                volume.parentElement.remove();
+            } else
+                camera.remove();
+        }
 
-    if(!video)
         media.srcObject = c.stream;
+    }
 
     setLabel(c);
     setMediaStatus(c);
@@ -1142,29 +1144,33 @@ function registerControlEvent(peerid) {
     }
 
     let pip = /** @type {HTMLElement} */(peer.querySelector("span.pip"));
-    /** @ts-ignore */
-    if(HTMLVideoElement.prototype.requestPictureInPicture) {
-        pip.onclick = function(event) {
-            event.preventDefault();
-            let pip = /** @type{HTMLElement} */(event.target);
-            let video = getParentVideo(pip);
-            videoPIP(video);
-        };
-    } else {
-        pip.style.display = 'none';
+    if(pip) {
+        /** @ts-ignore */
+        if(HTMLVideoElement.prototype.requestPictureInPicture) {
+            pip.onclick = function(event) {
+                event.preventDefault();
+                let pip = /** @type{HTMLElement} */(event.target);
+                let video = getParentVideo(pip);
+                videoPIP(video);
+            };
+        } else {
+            pip.style.display = 'none';
+        }
     }
 
     let fs = /** @type {HTMLElement} */(peer.querySelector("span.fullscreen"));
-    fs.onclick = function(event) {
-        event.preventDefault();
-        let fs = /** @type {HTMLElement} */(event.target);
-        let video = getParentVideo(fs);
-        if(video.requestFullscreen) {
-            video.requestFullscreen();
-        } else {
-            displayWarning("Video Fullscreen not supported!");
-        }
-    };
+    if(fs) {
+        fs.onclick = function(event) {
+            event.preventDefault();
+            let fs = /** @type {HTMLElement} */(event.target);
+            let video = getParentVideo(fs);
+            if(video.requestFullscreen) {
+                video.requestFullscreen();
+            } else {
+                displayWarning("Video Fullscreen not supported!");
+            }
+        };
+    }
 
     let camera = /** @type {HTMLElement} */(peer.querySelector("span.camera"));
     if(camera) {
