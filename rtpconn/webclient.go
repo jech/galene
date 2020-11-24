@@ -1151,7 +1151,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			message := m.Value
 			if message == "" {
-				message = "you have been kicked"
+				message = "you have been kicked out"
 			}
 			err := kickClient(c.group, m.Id, message)
 			if err != nil {
