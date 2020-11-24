@@ -1071,14 +1071,15 @@ function registerControlEvent(peerid) {
     if (volume) {
         volume.onclick = function(event) {
             event.preventDefault();
-            let video = getParentVideo(event.target);
-            if(event.target.className.indexOf("fa-volume-off") !== -1) {
-                event.target.classList.remove("fa-volume-off");
-                event.target.classList.add("fa-volume-up");
+            let volume = /** @type{HTMLElement} */(event.target);
+            let video = getParentVideo(volume);
+            if(volume.className.indexOf("fa-volume-off") !== -1) {
+                volume.classList.remove("fa-volume-off");
+                volume.classList.add("fa-volume-up");
                 video.muted = false;
             } else {
-                event.target.classList.remove("fa-volume-up");
-                event.target.classList.add("fa-volume-off");
+                volume.classList.remove("fa-volume-up");
+                volume.classList.add("fa-volume-off");
                 // mute video sound
                 video.muted = true;
             }
@@ -1090,16 +1091,19 @@ function registerControlEvent(peerid) {
     if(HTMLVideoElement.prototype.requestPictureInPicture) {
         pip.onclick = function(event) {
             event.preventDefault();
-            let video = getParentVideo(event.target);
+            let pip = /** @type{HTMLElement} */(event.target);
+            let video = getParentVideo(pip);
             videoPIP(video);
         };
     } else {
         pip.style.display = 'none';
     }
 
-    peer.querySelector("span.fullscreen").onclick = function(event) {
+    let fs = /** @type {HTMLElement} */(peer.querySelector("span.fullscreen"));
+    fs.onclick = function(event) {
         event.preventDefault();
-        let video = getParentVideo(event.target);
+        let fs = /** @type {HTMLElement} */(event.target);
+        let video = getParentVideo(fs);
         if(video.requestFullscreen) {
             video.requestFullscreen();
         } else {
@@ -1109,19 +1113,20 @@ function registerControlEvent(peerid) {
 
     let camera = /** @type {HTMLElement} */(peer.querySelector("span.camera"));
     if(camera) {
-        peer.querySelector("span.camera").onclick = function(event) {
+        camera.onclick = function(event) {
             event.preventDefault();
-            let video = getParentVideo(event.target);
+            let camera = /** @type {HTMLElement} */(event.target);
+            let video = getParentVideo(camera);
             let id = video.id.split("-")[1];
             if(!settings.video)
                 return;
-            if(event.target.getAttribute("data-type") === "bt-camera") {
+            if(camera.getAttribute("data-type") === "bt-camera") {
                 addLocalMedia(id, true);
-                event.target.setAttribute("data-type", "bt-camera-off");
-                event.target.parentElement.classList.add("disabled");
+                camera.setAttribute("data-type", "bt-camera-off");
+                camera.parentElement.classList.add("disabled");
             } else {
-                event.target.setAttribute("data-type", "bt-camera");
-                event.target.parentElement.classList.remove("disabled");
+                camera.setAttribute("data-type", "bt-camera");
+                camera.parentElement.classList.remove("disabled");
                 addLocalMedia(id);
             }
         };
