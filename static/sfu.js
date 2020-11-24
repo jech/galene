@@ -902,12 +902,24 @@ async function addFileMedia(file) {
     stream.onaddtrack = function(e) {
         let t = e.track;
         c.pc.addTrack(t, stream);
-        t.onended = e => {
-            delUpMedia(c);
-        }
         c.labels[t.id] = t.kind;
         c.onstats = gotUpStats;
         c.setStatsInterval(2000);
+    };
+    stream.onremovetrack = function(e) {
+        let t = e.track;
+        delete(c.labels[t.id]);
+
+        /** @type {RTCRtpSender} */
+        let sender;
+        c.pc.getSenders().forEach(s => {
+            if(s.track === t)
+                sender = s;
+        });
+        if(sender) {
+            c.pc.removeTrack(sender)
+        } else
+            console.warn('Removing unknown track');
     };
     setMedia(c, true, video);
     video.play();
