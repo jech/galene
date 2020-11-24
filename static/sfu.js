@@ -1499,6 +1499,144 @@ function clearChat() {
 }
 
 /**
+ * A command known to the command-line parser.
+ *
+ * @typedef {Object} command
+ * @property {string} [parameters]
+ *     - A user-readable list of parameters.
+ * @property {string} [description]
+ *     - A user-readable description, null if undocumented.
+ * @property {() => string} [predicate]
+ *     - Returns null if the command is available.
+ * @property {(c: string, r: string) => void} f
+ */
+
+/**
+ * The set of commands known to the command-line parser.
+ *
+ * @type {Object.<string,command>}
+ */
+let commands = {}
+
+function operatorPredicate() {
+    if(serverConnection.permissions.op)
+        return null;
+    return 'You are not an operator';
+}
+
+function recordingPredicate() {
+    if(serverConnection.permissions.record)
+        return null;
+    return 'You are not allowed to record';
+}
+
+commands.help = {
+    description: 'display this help',
+    f: (c, r) => {
+        /** @type {string[]} */
+        let cs = [];
+        for(let cmd in commands) {
+            let c = commands[cmd];
+            if(!c.description)
+                continue;
+            if(c.predicate && c.predicate())
+                continue;
+            cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
+        }
+        cs.sort();
+        let s = '';
+        for(let i = 0; i < cs.length; i++)
+            s = s + cs[i] + '\n';
+        addToChatbox(null, null, null, Date.now(), null, s);
+    }
+};
+
+commands.me = {
+    description: 'send action message',
+    f: (c, r) => {
+        // handled as a special case
+        throw new Error("this shouldn't happen");
+    }
+};
+
+commands.set = {
+    f: (c, r) => {
+        if(!r) {
+            let settings = getSettings();
+            let s = "";
+            for(let key in settings)
+                s = s + `${key}: ${JSON.stringify(settings[key])}\n`;
+            addToChatbox(null, null, null, Date.now(), null, s);
+            return;
+        }
+        let p = parseCommand(r);
+        let value;
+        if(p[1]) {
+            value = JSON.parse(p[1])
+        } else {
+            value = true;
+        }
+        updateSetting(p[0], value);
+        reflectSettings();
+    }
+};
+
+commands.unset = {
+    f: (c, r) => {
+        delSetting(r.trim());
+        return;
+    }
+};
+
+commands.leave = {
+    description: "leave group",
+    f: (c, r) => {
+        serverConnection.close();
+    }
+};
+
+commands.clear = {
+    predicate: operatorPredicate,
+    description: 'clear the chat history',
+    f: (c, r) => {
+        serverConnection.groupAction('clearchat');
+    }
+};
+
+commands.lock = {
+    predicate: operatorPredicate,
+    description: 'lock this group',
+    parameters: '[message]',
+    f: (c, r) => {
+        serverConnection.groupAction('lock', r);
+    }
+};
+
+commands.unlock = {
+    predicate: operatorPredicate,
+    description: 'unlock this group, revert the effect of /lock',
+    f: (c, r) => {
+        serverConnection.groupAction('unlock');
+    }
+};
+
+commands.record = {
+    predicate: recordingPredicate,
+    description: 'start recording',
+    f: (c, r) => {
+        serverConnection.groupAction('record');
+    }
+};
+
+commands.unrecord = {
+    predicate: recordingPredicate,
+    description: 'stop recording',
+    f: (c, r) => {
+        serverConnection.groupAction('unrecord');
+    }
+};
+
+/**
  * parseCommand splits a string into two space-separated parts.  The first
  * part may be quoted and may include backslash escapes.
  *
@@ -1532,6 +1670,86 @@ function parseCommand(line) {
     return [first, line.slice(i)];
 }
 
+/**
+ * @param {string} user
+ */
+function findUserId(user) {
+    if(user in users)
+        return user;
+
+    for(let id in users) {
+        if(users[id] === user)
+            return id;
+    }
+    return null;
+}
+
+commands.msg = {
+    parameters: 'user message',
+    description: 'send a private message',
+    f: (c, r) => {
+        let p = parseCommand(r);
+        if(!p[0])
+            throw new Error('/msg requires parameters');
+        let id = findUserId(p[0]);
+        if(!id)
+            throw new Error(`Unknown user ${p[0]}`);
+        let username = getUsername();
+        serverConnection.chat(username, '', id, p[1]);
+        addToChatbox(serverConnection.id, id, username, Date.now(), '', p[1]);
+    }
+};
+
+/**
+   @param {string} c
+   @param {string} r
+*/
+function userCommand(c, r) {
+    let p = parseCommand(r);
+    if(!p[0])
+        throw new Error(`/${c} requires parameters`);
+    let id = findUserId(p[0]);
+    if(!id)
+        throw new Error(`Unknown user ${p[0]}`);
+    serverConnection.userAction(c, id, p[1]);
+}
+
+
+commands.kick = {
+    parameters: 'user [message]',
+    description: 'kick out a user',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
+commands.op = {
+    parameters: 'user',
+    description: 'give operator status',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
+commands.unop = {
+    parameters: 'user',
+    description: 'revoke operator status',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
+commands.present = {
+    parameters: 'user',
+    description: 'give user the right to present',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
+commands.unpresent = {
+    parameters: 'user',
+    description: 'revoke the right to present',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
 function handleInput() {
     let input = /** @type {HTMLTextAreaElement} */
         (document.getElementById('input'));
@@ -1545,111 +1763,40 @@ function handleInput() {
 
     if(data[0] === '/') {
         if(data.length > 1 && data[1] === '/') {
-            message = data.substring(1);
+            message = data.slice(1);
             me = false;
         } else {
             let cmd, rest;
             let space = data.indexOf(' ');
             if(space < 0) {
-                cmd = data;
+                cmd = data.slice(1);
                 rest = '';
             } else {
-                cmd = data.slice(0, space);
+                cmd = data.slice(1, space);
                 rest = data.slice(space + 1);
             }
 
-            switch(cmd) {
-            case '/me':
+            if(cmd === 'me') {
                 message = rest;
                 me = true;
-                break;
-            case '/leave':
-                serverConnection.close();
-                return;
-            case '/clear':
-                if(!serverConnection.permissions.op) {
-                    displayError("You're not an operator");
+            } else {
+                let c = commands[cmd];
+                if(!c) {
+                    displayError(`Uknown command /${cmd}, type /help for help`);
                     return;
                 }
-                serverConnection.groupAction('clearchat');
-                return;
-            case '/set':
-                if(!rest) {
-                    let settings = getSettings();
-                    let s = "";
-                    for(let key in settings)
-                        s = s + `${key}: ${JSON.stringify(settings[key])}\n`
-                    addToChatbox(null, null, null, Date.now(), null, s);
-                    return;
-                }
-                let parsed = parseCommand(rest);
-                let value;
-                if(parsed[1]) {
-                    try {
-                        value = JSON.parse(parsed[1])
-                    } catch(e) {
-                        displayError(e);
+                if(c.predicate) {
+                    let s = c.predicate();
+                    if(s) {
+                        displayError(s);
                         return;
                     }
-                } else {
-                    value = true;
                 }
-                updateSetting(parsed[0], value);
-                reflectSettings();
-                return;
-            case '/unset':
-                delSetting(rest.trim());
-                return;
-            case '/lock':
-            case '/unlock':
-                if(!serverConnection.permissions.op) {
-                    displayError("You're not an operator");
-                    return;
+                try {
+                    c.f(cmd, rest);
+                } catch(e) {
+                    displayError(e);
                 }
-                serverConnection.groupAction(cmd.slice(1), rest);
-                return;
-            case '/record':
-            case '/unrecord':
-                if(!serverConnection.permissions.record) {
-                    displayError("You're not allowed to record");
-                    return;
-                }
-                serverConnection.groupAction(cmd.slice(1));
-                return;
-            case '/msg':
-            case '/op':
-            case '/unop':
-            case '/kick':
-            case '/present':
-            case '/unpresent': {
-                let parsed = parseCommand(rest);
-                let id;
-                if(parsed[0] in users) {
-                    id = parsed[0];
-                } else {
-                    for(let i in users) {
-                        if(users[i] === parsed[0]) {
-                            id = i;
-                            break;
-                        }
-                    }
-                }
-                if(!id) {
-                    displayError('Unknown user ' + parsed[0]);
-                    return;
-                }
-                if(cmd === '/msg') {
-                    let username = getUsername();
-                    serverConnection.chat(username, '', id, parsed[1]);
-                    addToChatbox(serverConnection.id,
-                                 id, username, Date.now(), '', parsed[1]);
-                } else {
-                    serverConnection.userAction(cmd.slice(1), id, parsed[1]);
-                }
-                return;
-            }
-            default:
-                displayError('Uknown command ' + cmd);
                 return;
             }
         }
