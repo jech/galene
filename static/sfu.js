@@ -492,8 +492,7 @@ getSelectElement('sendselect').onchange = async function(e) {
     let t = getMaxVideoThroughput();
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
-        if(c.kind === 'local')
-            await setMaxVideoThroughput(c, t);
+        await setMaxVideoThroughput(c, t);
     }
 }
 
