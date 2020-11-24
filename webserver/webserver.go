@@ -78,7 +78,7 @@ func Serve(address string, dataDir string) error {
 
 func mungeHeader(w http.ResponseWriter) {
 	w.Header().Add("Content-Security-Policy",
-		"connect-src ws: wss: 'self'; img-src data: 'self'; default-src 'self'")
+		"connect-src ws: wss: 'self'; img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
 }
 
 func notFound(w http.ResponseWriter) {

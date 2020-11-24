@@ -524,6 +524,13 @@ getInputElement('activitybox').onchange = function(e) {
     }
 }
 
+getInputElement('fileinput').onchange = function(e) {
+    let input = /** @type{HTMLInputElement} */(this);
+    let files = input.files;
+    for(let i = 0; i < files.length; i++)
+        addFileMedia(files[i]);
+}
+
 /**
  * @this {Stream}
  * @param {Object<string,any>} stats
@@ -867,6 +874,36 @@ async function addShareMedia() {
 }
 
 /**
+ * @param {File} file
+ */
+async function addFileMedia(file) {
+    if(!getUserPass())
+        return;
+
+    let url = URL.createObjectURL(file);
+    let video = document.createElement('video');
+    video.src = url;
+    /** @ts-ignore */
+    let stream = video.captureStream();
+
+    let c = newUpStream();
+    c.kind = 'video';
+    c.stream = stream;
+    stream.onaddtrack = function(e) {
+        let t = e.track;
+        c.pc.addTrack(t, stream);
+        t.onended = e => {
+            delUpMedia(c);
+        }
+        c.labels[t.id] = t.kind;
+        c.onstats = gotUpStats;
+        c.setStatsInterval(2000);
+    };
+    setMedia(c, true, video);
+    video.play();
+}
+
+/**
  * @param {Stream} c
  */
 function stopUpMedia(c) {
@@ -947,8 +984,9 @@ function muteLocalTracks(mute) {
 /**
  * @param {Stream} c
  * @param {boolean} isUp
+ * @param {HTMLVideoElement} [video]
  */
-function setMedia(c, isUp) {
+function setMedia(c, isUp, video) {
     let peersdiv = document.getElementById('peers');
     let settings = getSettings();
     let local_media;
@@ -970,15 +1008,19 @@ function setMedia(c, isUp) {
     let media = /** @type {HTMLVideoElement} */
         (document.getElementById('media-' + c.id));
     if(!media) {
-        media = document.createElement('video');
-        media.id = 'media-' + c.id;
+        if(video) {
+            media = video;
+        } else {
+            media = document.createElement('video');
+            media.controls = false;
+            if(isUp)
+                media.muted = true;
+        }
         media.classList.add('media');
         media.autoplay = true;
         /** @ts-ignore */
         media.playsinline = true;
-        media.controls = false;
-        if(isUp)
-            media.muted = true;
+        media.id = 'media-' + c.id;
         div.appendChild(media);
     }
 
@@ -1024,7 +1066,9 @@ function setMedia(c, isUp) {
             camera.remove();
     }
 
-    media.srcObject = c.stream;
+    if(!video)
+        media.srcObject = c.stream;
+
     setLabel(c);
     setMediaStatus(c);
 
