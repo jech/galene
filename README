@@ -149,30 +149,8 @@ specifies that any username will do and that passwords are not verified.
 # Commands
 
 Typing a line starting with a slash `/` in the chat dialogue causes
-a command to be sent to the server.  The following commands are available
-to all users:
-
- - `/msg user text`: sends a private message;
- - `/me text`: sends a chat message starting with the sender's username;
- - `/leave`: equivalent to clicking the *Disconnect* button.
- - `/set var val`: sets the value of a configuration variable without any
-   error checking.  Without parameters, displays the current configuration.
- - `/unset var`: removes a configuration variable.
- 
-The following commands are only available to users with operator
-privileges:
-
- - `/clear`: clears the chat history for all users;
- - `/lock message`: prevents any new users from connecting to the group unless
-   they have operator privileges;
- - `/unlock`: reverts the effect of `/lock`;
- - `/record`: start recording;
- - `/unrecord`: stop recording;
- - `/op user`: gives operator privileges to a user;
- - `/unop user`: takes away operator privileges;
- - `/present user`: gives presenter privileges to a user;
- - `/unpresent user`: takes away presenter privileges from a user and
-   forcibly closes any presentations from that user that may be taking place;
- - `/kick user`: forcibly disconnects a user from the group.
+a command to be sent to the server.  Type `/help` to get the list of
+available commands; the output depends on whether you are an operator or
+not.
 
 --- Juliusz Chroboczek <https://www.irif.fr/~jch/>
