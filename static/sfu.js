@@ -253,15 +253,11 @@ function closeVideoControls() {
   * @param{boolean} connected
   */
 function setConnected(connected) {
-    let statspan = document.getElementById('statspan');
-    let userbox = document.getElementById('user');
+    let userbox = document.getElementById('profile');
     let connectionbox = document.getElementById('login-container');
     if(connected) {
         resetUsers();
         clearChat();
-        statspan.textContent = 'Connected';
-        statspan.classList.remove('disconnected');
-        statspan.classList.add('connected');
         userbox.classList.remove('invisible');
         connectionbox.classList.add('invisible');
         displayUsername();
@@ -273,12 +269,8 @@ function setConnected(connected) {
         getInputElement('password').value =
             userpass ? userpass.password : '';
         getInputElement('presentoff').checked = true;
-        statspan.textContent = 'Disconnected';
-        statspan.classList.remove('connected');
-        statspan.classList.add('disconnected');
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
-        clearUsername();
         displayError("Disconnected!", "error");
         hideVideo();
         closeVideoControls();
@@ -1397,18 +1389,14 @@ function displayUsername() {
     let userpass = getUserPass();
     let text = '';
     if(userpass && userpass.username)
-        text = 'as ' + userpass.username;
+        document.getElementById('userspan').textContent = userpass.username;
     if(serverConnection.permissions.op && serverConnection.permissions.present)
-        text = text + ' (op, presenter)';
+        text = '(op, presenter)';
     else if(serverConnection.permissions.op)
-        text = text + ' (op)';
+        text = 'operator';
     else if(serverConnection.permissions.present)
-        text = text + ' (presenter)';
-    document.getElementById('userspan').textContent = text;
-}
-
-function clearUsername() {
-    document.getElementById('userspan').textContent = '';
+        text = 'presenter';
+    document.getElementById('permspan').textContent = text;
 }
 
 /**
@@ -2022,10 +2010,7 @@ document.getElementById('userform').onsubmit = async function(e) {
 
 document.getElementById('disconnectbutton').onclick = function(e) {
     serverConnection.close();
-    let user_box = document.getElementById('userDropdown');
-    if (user_box.classList.contains("show")) {
-      user_box.classList.toggle("show");
-    }
+    closeNav();
 };
 
 function openNav() {
@@ -2052,11 +2037,6 @@ document.getElementById('openside').onclick = function(e) {
       }
 };
 
-document.getElementById('user').onclick = function(e) {
-    e.preventDefault();
-    document.getElementById("userDropdown").classList.toggle("show");
-};
-
 
 document.getElementById('clodeside').onclick = function(e) {
     e.preventDefault();
@@ -2075,10 +2055,6 @@ document.getElementById('collapse-video').onclick = function(e) {
       this.style.display = "";
     }
     if (width <= 768) {
-      let user_box = document.getElementById('userDropdown');
-      if (user_box.classList.contains("show")) {
-        return;
-      }
       // fixed div for small screen
       this.style.display = "";
       hideVideo(true);
@@ -2100,20 +2076,6 @@ document.getElementById('close-chat').onclick = function(e) {
   let left = document.getElementById("left");
   left.style.display = "none";
   document.getElementById('collapse-video').style.display = "block";
-};
-
-window.onclick = function(event) {
-  let user_box = document.getElementById('userDropdown');
-  if (user_box.classList.contains("show") && event.target.id != "user") {
-      let parent = event.target;
-      while (parent.id !== "main" && parent.id !== "userDropdown" &&
-              parent.id !== "user" && parent.tagName !== "body") {
-          parent = parent.parentNode;
-      }
-      if (parent.id !="userDropdown" && parent.id !== "user") {
-          user_box.classList.toggle("show");
-      }
-  }
 };
 
 async function serverConnect() {
@@ -2152,7 +2114,6 @@ function start() {
 
     setMediaChoices(false).then(e => reflectSettings());
 
-    document.getElementById("user").classList.add('invisible');
     document.getElementById("login-container").classList.remove('invisible');
 }
 

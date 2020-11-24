@@ -48,6 +48,68 @@
     background-color: #eee;
 }
 
+.profile {
+    width: 230px;
+}
+
+.profile-logo {
+    float: left;
+    width: 50px;
+    height: 50px;
+    background: #b681c3;
+    border-radius: 25px;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 1.4em;
+    padding: 7px;
+    color: #f9f9f9;
+}
+
+.profile-info {
+    float: left;
+    margin-left: 10px;
+    margin-top: 8px;
+    color: #616263;
+    width: 120px;
+}
+
+.user-logout {
+    float: right;
+    text-align: center;
+}
+
+.logout-icon {
+    display: block;
+    font-size: 1.5em;
+}
+
+.logout-text {
+    font-size: .7em;
+}
+
+.profile-info span {
+    display: block;
+    line-height: 1.2;
+    text-transform: capitalize;
+}
+
+#permspan {
+    font-size: .9em;
+    color: #108e07;
+    font-style: italic;
+}
+
+.sidenav .user-logout a {
+    font-size: 1em;
+    padding: 7px 0 0;
+    color: #e4157e;
+    cursor: pointer;
+    line-height: .7;
+}
+
+.sidenav .user-logout a:hover {
+    color: #ab0659;
+}
 
 .navbar, .navbar .container, .navbar .container-fluid, .navbar .container-lg, .navbar .container-md, .navbar .container-sm, .navbar .container-xl {
     display: -webkit-box;
@@ -216,12 +278,12 @@
     font-weight: 500;
 }
 
-.users-header:after, .users-header:before {
+.users-header:after, .profile-user:after, .users-header:before {
     display: table;
     content: " ";
 }
 
-.users-header:after {
+.users-header:after, .profile-user:after {
     clear: both;
 }
 
@@ -665,7 +727,7 @@ h1 {
     border-radius: 4px;
 }
 
-#disconnectbutton, #connectbutton {
+#connectbutton {
     margin-left: 80px;
     margin-top: 15px;
 }

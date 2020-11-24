@@ -72,22 +72,6 @@
                   </div>
                 </li>
                 <li>
-                  <div class="nav-button nav-link invisible" id="user">
-                    <span><i class="fas fa-user dropbtn" aria-hidden="true"></i></span>
-                    <label>User</label>
-                  </div>
-                  <div id="userDropdown" class="dropdown-content">
-                    <div id="statdiv">
-                      <span id="statspan"></span>
-                      <span id="userspan"></span>
-                      <div class="clear"></div>
-                      <input id="disconnectbutton" class="btn btn-warn"
-                             type="submit" value="Disconnect"/>
-                      <span id="errspan"></span>
-                    </div>
-                </div>
-                </li>
-                <li>
                   <div class="nav-button nav-link" id="openside">
                     <span><i class="fas fa-cog" aria-hidden="true"></i></span>
                     <label>Settings</label>
@@ -156,6 +140,23 @@
         <a class="closebtn" id="clodeside"><i class="fas fa-times" aria-hidden="true"></i></a>
       </div>
       <div class="sidenav-content" id="optionsdiv">
+        <div id="profile" class="profile invisible">
+          <div class="profile-user">
+            <div class="profile-logo">
+              <span><i class="fas fa-user" aria-hidden="true"></i></span>
+            </div>
+            <div class="profile-info">
+              <span id="userspan"></span>
+              <span id="permspan"></span>
+            </div>
+            <div class="user-logout">
+              <a id="disconnectbutton">
+                <span class="logout-icon"><i class="fas fa-sign-out-alt"></i></span>
+                <span class="logout-text">Logout</span>
+              </a>
+            </div>
+          </div>
+        </div>
         <div id="mediaoptions" class="invisible">
           <fieldset>
             <legend>Media Options</legend>
