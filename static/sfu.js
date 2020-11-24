@@ -393,6 +393,7 @@ function setButtonsVisibility() {
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('local');
     let share = !!findUpMedia('screenshare');
+    let video = !!findUpMedia('video');
 
     // don't allow multiple presentations
     setVisibility('presentbutton', permissions.present && !local);
@@ -402,6 +403,8 @@ function setButtonsVisibility() {
     setVisibility('sharebutton', permissions.present &&
                   ('getDisplayMedia' in navigator.mediaDevices));
     setVisibility('unsharebutton', share);
+
+    setVisibility('stopvideobutton', video);
 
     setVisibility('mediaoptions', permissions.present);
 }
@@ -467,6 +470,12 @@ document.getElementById('unsharebutton').onclick = function(e) {
     resizePeers();
 }
 
+document.getElementById('stopvideobutton').onclick = function(e) {
+    e.preventDefault();
+    delUpMediaKind('video');
+    resizePeers();
+}
+
 /** @returns {number} */
 function getMaxVideoThroughput() {
     let v = getSettings().send;
@@ -528,6 +537,7 @@ getInputElement('fileinput').onchange = function(e) {
     let files = input.files;
     for(let i = 0; i < files.length; i++)
         addFileMedia(files[i]);
+    input.value = '';
 }
 
 /**
@@ -900,6 +910,7 @@ async function addFileMedia(file) {
     };
     setMedia(c, true, video);
     video.play();
+    setButtonsVisibility()
 }
 
 /**
@@ -1189,6 +1200,11 @@ function delMedia(id) {
 
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + id));
+
+    if(media.src) {
+        URL.revokeObjectURL(media.src);
+        media.src = null;
+    }
 
     media.srcObject = null;
     mediadiv.removeChild(peer);
