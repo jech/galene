@@ -272,6 +272,7 @@ function setConnected(connected) {
             userpass ? userpass.username : '';
         getInputElement('password').value =
             userpass ? userpass.password : '';
+        getInputElement('presentoff').checked = true;
         statspan.textContent = 'Disconnected';
         statspan.classList.remove('connected');
         statspan.classList.add('disconnected');
@@ -1936,6 +1937,19 @@ document.getElementById('userform').onsubmit = async function(e) {
         serverConnect();
     } finally {
         connecting = false;
+    }
+
+    let presentboth = getInputElement('presentboth').checked;
+    if(presentboth) {
+        let button = getButtonElement('presentbutton');
+        button.disabled = true;
+        try {
+            let id = findUpMedia('local');
+            if(!id)
+                await addLocalMedia();
+        } finally {
+            button.disabled = false;
+        }
     }
 };
 
