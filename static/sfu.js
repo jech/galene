@@ -1922,12 +1922,21 @@ function displayMessage(message) {
     return displayError(message, "info");
 }
 
-document.getElementById('userform').onsubmit = function(e) {
+let connecting = false;
+
+document.getElementById('userform').onsubmit = async function(e) {
     e.preventDefault();
-    let username = getInputElement('username').value.trim();
-    let password = getInputElement('password').value;
-    storeUserPass(username, password);
-    serverConnect();
+    if(connecting)
+        return;
+    connecting = true;
+    try {
+        let username = getInputElement('username').value.trim();
+        let password = getInputElement('password').value;
+        storeUserPass(username, password);
+        serverConnect();
+    } finally {
+        connecting = false;
+    }
 };
 
 document.getElementById('disconnectbutton').onclick = function(e) {
@@ -2027,6 +2036,8 @@ window.onclick = function(event) {
 };
 
 async function serverConnect() {
+    if(serverConnection && serverConnection.socket)
+        serverConnection.close();
     serverConnection = new ServerConnection();
     serverConnection.onconnected = gotConnected;
     serverConnection.onclose = gotClose;
