@@ -538,6 +538,7 @@ getInputElement('fileinput').onchange = function(e) {
     for(let i = 0; i < files.length; i++)
         addFileMedia(files[i]);
     input.value = '';
+    closeNav();
 }
 
 /**
