@@ -545,7 +545,7 @@ textarea.form-reply {
 .nav-link {
     padding: 0;
     color: #dbd9d9;
-    min-width: 32px;
+    min-width: 30px;
     display: block;
     text-align: center;
     margin: 0 10px;
@@ -582,6 +582,11 @@ textarea.form-reply {
 .nav-button {
     cursor: pointer;
     font-size: 25px;
+}
+
+.nav-more {
+    padding-top: 5px;
+    margin-left: 0;
 }
 
 .header-title {
@@ -1097,7 +1102,7 @@ header .collapse {
 
 @media only screen and (max-device-width: 1024px) {
     .nav-link {
-        margin: 0;
+        margin: 0 4px;
         line-height: 1.5;
     }
 
@@ -1107,6 +1112,11 @@ header .collapse {
 
     .nav-text {
         display: none;
+    }
+
+    .nav-more {
+        padding-top: 0;
+        margin-left: inherit;
     }
 
     .full-width {
@@ -1187,7 +1197,7 @@ header .collapse {
         display: block;
     }
 
-    .sidenav a {padding: 10px 5px;}
+    .sidenav a {padding: 10px 10px;}
 
     .sidenav-header h2 {
         line-height: 36px;
