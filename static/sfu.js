@@ -768,19 +768,15 @@ async function setMaxVideoThroughput(c, bps) {
 
 /**
  * @param {string} [id]
- * @param {boolean} [disableVideo]
  */
-async function addLocalMedia(id, disableVideo) {
+async function addLocalMedia(id) {
     if(!getUserPass())
         return;
 
     let settings = getSettings();
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
-    let video =
-        disableVideo ? false :
-        settings.video ? {deviceId: settings.video} :
-        false;
+    let video = settings.video ? {deviceId: settings.video} : false;
 
     if(video) {
         if(settings.blackboardMode) {
@@ -1012,7 +1008,6 @@ function muteLocalTracks(mute) {
  */
 function setMedia(c, isUp, video) {
     let peersdiv = document.getElementById('peers');
-    let settings = getSettings();
     let local_media;
 
     for(let id in serverConnection.up) {
@@ -1080,15 +1075,8 @@ function setMedia(c, isUp, video) {
                     volume.classList.add("fa-volume-off");
                 }
             }
-            let camera = controls.querySelector("span.camera");
-            if (local_media && local_media.kind === "local") {
-                if (!settings.video) {
-                    if (camera)
-                        camera.classList.add("camera-off");
-                }
+            if (local_media && local_media.kind === "local")
                 volume.parentElement.remove();
-            } else
-                camera.remove();
         }
 
         media.srcObject = c.stream;
@@ -1134,7 +1122,6 @@ function getParentVideo(target) {
  * @param {string} peerid
  */
 function registerControlEvent(peerid) {
-    let settings = getSettings();
     let peer = document.getElementById(peerid);
     //Add event listener when a video component is added to the DOM
     let volume = /** @type {HTMLElement} */(peer.querySelector("span.volume"));
@@ -1181,27 +1168,6 @@ function registerControlEvent(peerid) {
                 video.requestFullscreen();
             } else {
                 displayWarning("Video Fullscreen not supported!");
-            }
-        };
-    }
-
-    let camera = /** @type {HTMLElement} */(peer.querySelector("span.camera"));
-    if(camera) {
-        camera.onclick = function(event) {
-            event.preventDefault();
-            let camera = /** @type {HTMLElement} */(event.target);
-            let video = getParentVideo(camera);
-            let id = video.id.split("-")[1];
-            if(!settings.video)
-                return;
-            if(camera.getAttribute("data-type") === "bt-camera") {
-                addLocalMedia(id, true);
-                camera.setAttribute("data-type", "bt-camera-off");
-                camera.parentElement.classList.add("disabled");
-            } else {
-                camera.setAttribute("data-type", "bt-camera");
-                camera.parentElement.classList.remove("disabled");
-                addLocalMedia(id);
             }
         };
     }
