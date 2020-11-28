@@ -533,7 +533,9 @@ getInputElement('activitybox').onchange = function(e) {
 }
 
 getInputElement('fileinput').onchange = function(e) {
-    let input = /** @type{HTMLInputElement} */(this);
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
+    let input = this;
     let files = input.files;
     for(let i = 0; i < files.length; i++)
         addFileMedia(files[i]);
