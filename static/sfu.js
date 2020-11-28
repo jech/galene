@@ -1002,19 +1002,17 @@ function muteLocalTracks(mute) {
 }
 
 /**
+ * setMedia adds a new media element corresponding to stream c.
+ *
  * @param {Stream} c
  * @param {boolean} isUp
+ *     - indicates whether the stream goes in the up direction
  * @param {HTMLVideoElement} [video]
+ *     - the video element to add.  If null, a new element with custom
+ *       controls will be created.
  */
 function setMedia(c, isUp, video) {
     let peersdiv = document.getElementById('peers');
-    let local_media;
-
-    for(let id in serverConnection.up) {
-        if (id === c.id) {
-          local_media = serverConnection.up[id];
-        }
-    }
 
     let div = document.getElementById('peer-' + c.id);
     if(!div) {
@@ -1026,21 +1024,28 @@ function setMedia(c, isUp, video) {
 
     let media = /** @type {HTMLVideoElement} */
         (document.getElementById('media-' + c.id));
-    if(!media) {
+    if(media) {
+        if(video) {
+            throw new Error("Duplicate video");
+        }
+    } else {
         if(video) {
             media = video;
         } else {
             media = document.createElement('video');
-            media.controls = false;
             if(isUp)
                 media.muted = true;
+            media.srcObject = c.stream;
         }
+
         media.classList.add('media');
         media.autoplay = true;
         /** @ts-ignore */
         media.playsinline = true;
         media.id = 'media-' + c.id;
         div.appendChild(media);
+        if(!video)
+            addCustomControls(media, div, c);
     }
 
     let label = document.getElementById('label-' + c.id);
@@ -1051,128 +1056,128 @@ function setMedia(c, isUp, video) {
         div.appendChild(label);
     }
 
-    if(!video) {
-        let template = document.getElementById('videocontrols-template')
-            .firstElementChild;
-        let top_template = document.getElementById('top-videocontrols-template')
-            .firstElementChild;
-
-        let top_controls = document.getElementById('topcontrols-' + c.id);
-        if(template && !top_controls) {
-            top_controls = /** @type{HTMLElement} */(top_template.cloneNode(true));
-            top_controls.id = 'topcontrols-' + c.id;
-            div.appendChild(top_controls);
-        }
-        let controls = document.getElementById('controls-' + c.id);
-        if(template && !controls) {
-            controls = /** @type{HTMLElement} */(template.cloneNode(true));
-            controls.id = 'controls-' + c.id;
-            div.appendChild(controls);
-            let volume = controls.querySelector(".fa-volume-up");
-            if(media.muted) {
-                if (volume) {
-                    volume.classList.remove("fa-volume-up");
-                    volume.classList.add("fa-volume-off");
-                }
-            }
-            if (local_media && local_media.kind === "local")
-                volume.parentElement.remove();
-        }
-
-        media.srcObject = c.stream;
-    }
-
     setLabel(c);
     setMediaStatus(c);
 
     showVideo();
     resizePeers();
-    registerControlEvent(div.id);
 }
 
 /**
- * @param {HTMLVideoElement} video
+ * @param {Element} elt
  */
-async function videoPIP(video) {
-    /** @ts-ignore */
-    if (video.requestPictureInPicture) {
-        /** @ts-ignore */
-        await video.requestPictureInPicture();
+function cloneHTMLElement(elt) {
+    if(!(elt instanceof HTMLElement))
+        throw new Error('Unexpected element type');
+    return /** @type{HTMLElement} */(elt.cloneNode(true));
+}
+
+/**
+ * @param {HTMLVideoElement} media
+ * @param {HTMLElement} container
+ * @param {Stream} c
+ */
+function addCustomControls(media, container, c) {
+    media.controls = false;
+    let controls = document.getElementById('controls-' + c.id);
+    if(controls) {
+        console.warn('Attempted to add duplicate controls');
+        return;
+    }
+
+    let template =
+        document.getElementById('videocontrols-template').firstElementChild;
+    controls = cloneHTMLElement(template);
+    controls.id = 'controls-' + c.id;
+
+    let volume = getVideoButton(controls, 'volume');
+    if(c.kind === 'local') {
+        volume.remove();
     } else {
-        displayWarning("Video PIP Mode not supported!");
+        setVolumeButton(
+            /** @type{HTMLElement} */(volume.firstElementChild),
+            media.muted,
+        );
+    }
+
+    container.appendChild(controls);
+    registerControlHandlers(media, container);
+}
+
+/**
+ * @param {HTMLElement} container
+ * @param {string} name
+ */
+function getVideoButton(container, name) {
+    return /** @type {HTMLElement} */(container.getElementsByClassName(name)[0]);
+}
+
+/**
+ * @param {HTMLElement} button
+ * @param {boolean} muted
+ */
+function setVolumeButton(button, muted) {
+    if(!muted) {
+        button.classList.remove("fa-volume-off");
+        button.classList.add("fa-volume-up");
+    } else {
+        button.classList.remove("fa-volume-up");
+        button.classList.add("fa-volume-off");
     }
 }
 
 /**
- * @param {HTMLElement} target
+ * @param {HTMLVideoElement} media
+ * @param {HTMLElement} container
  */
-function getParentVideo(target) {
-    // target is the <i> element, parent the div <div><span><i/></span></div>
-    let control = target.parentElement.parentElement;
-    let id = control.id.split('-')[1];
-    let media = /** @type {HTMLVideoElement} */
-        (document.getElementById('media-' + id));
-    if (!media) {
-        displayError("Cannot find media!");
-    }
-    return media;
-}
-
-/**
- * @param {string} peerid
- */
-function registerControlEvent(peerid) {
-    let peer = document.getElementById(peerid);
-    //Add event listener when a video component is added to the DOM
-    let volume = /** @type {HTMLElement} */(peer.querySelector("span.volume"));
+function registerControlHandlers(media, container) {
+    let volume = getVideoButton(container, 'volume');
     if (volume) {
         volume.onclick = function(event) {
             event.preventDefault();
-            let volume = /** @type{HTMLElement} */(event.target);
-            let video = getParentVideo(volume);
-            if(volume.className.indexOf("fa-volume-off") !== -1) {
-                volume.classList.remove("fa-volume-off");
-                volume.classList.add("fa-volume-up");
-                video.muted = false;
-            } else {
-                volume.classList.remove("fa-volume-up");
-                volume.classList.add("fa-volume-off");
-                // mute video sound
-                video.muted = true;
-            }
+            media.muted = !media.muted;
+            setVolumeButton(
+                /** @type{HTMLElement} */(event.target),
+                media.muted,
+            );
         };
     }
 
-    let pip = /** @type {HTMLElement} */(peer.querySelector("span.pip"));
+    let pip = getVideoButton(container, 'pip');
     if(pip) {
         /** @ts-ignore */
         if(HTMLVideoElement.prototype.requestPictureInPicture) {
-            pip.onclick = function(event) {
-                event.preventDefault();
-                let pip = /** @type{HTMLElement} */(event.target);
-                let video = getParentVideo(pip);
-                videoPIP(video);
+            pip.onclick = function(e) {
+                e.preventDefault();
+                /** @ts-ignore */
+                if(media.requestPictureInPicture) {
+                    /** @ts-ignore */
+                    media.requestPictureInPicture();
+                } else {
+                    displayWarning('Picture in Picture not supported.');
+                }
             };
         } else {
             pip.style.display = 'none';
         }
     }
 
-    let fs = /** @type {HTMLElement} */(peer.querySelector("span.fullscreen"));
+    let fs = getVideoButton(container, 'fullscreen');
     if(fs) {
-        fs.onclick = function(event) {
-            event.preventDefault();
-            let fs = /** @type {HTMLElement} */(event.target);
-            let video = getParentVideo(fs);
-            if(video.requestFullscreen) {
-                video.requestFullscreen();
-            } else {
-                displayWarning("Video Fullscreen not supported!");
-            }
-        };
+        if(HTMLVideoElement.prototype.requestFullscreen) {
+            fs.onclick = function(e) {
+                e.preventDefault();
+                if(media.requestFullscreen) {
+                    media.requestFullscreen();
+                } else {
+                    displayWarning('Full screen not supported!');
+                }
+            };
+        } else {
+            fs.style.display = 'none';
+        }
     }
 }
-
 
 /**
  * @param {string} id
