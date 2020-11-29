@@ -263,8 +263,8 @@ func delGroupUnlocked(name string) bool {
 	return true
 }
 
-func AddClient(name string, c Client) (*Group, error) {
-	g, err := Add(name, nil)
+func AddClient(group string, c Client) (*Group, error) {
+	g, err := Add(group, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func AddClient(name string, c Client) (*Group, error) {
 	defer g.mu.Unlock()
 
 	if(!c.OverridePermissions(g)) {
-		perms, err := g.description.GetPermission(c.Credentials())
+		perms, err := g.description.GetPermission(group, c)
 		if err != nil {
 			return nil, err
 		}
@@ -302,10 +302,10 @@ func AddClient(name string, c Client) (*Group, error) {
 	g.clients[c.Id()] = c
 
 	go func(clients []Client) {
-		u := c.Credentials().Username
+		u := c.Username()
 		c.PushClient(c.Id(), u, true)
 		for _, cc := range clients {
-			uu := cc.Credentials().Username
+			uu := cc.Username()
 			c.PushClient(cc.Id(), uu, true)
 			cc.PushClient(c.Id(), u, true)
 		}
@@ -330,7 +330,7 @@ func DelClient(c Client) {
 
 	go func(clients []Client) {
 		for _, cc := range clients {
-			cc.PushClient(c.Id(), c.Credentials().Username, false)
+			cc.PushClient(c.Id(), c.Username(), false)
 		}
 	}(g.getClientsUnlocked(nil))
 }
@@ -453,15 +453,18 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 	return h
 }
 
-func matchUser(user ClientCredentials, users []ClientCredentials) (bool, bool) {
+func matchClient(group string, c Challengeable, users []ClientCredentials) (bool, bool) {
 	for _, u := range users {
 		if u.Username == "" {
-			if u.Password == "" || u.Password == user.Password {
+			if c.Challenge(group, u) {
 				return true, true
 			}
-		} else if u.Username == user.Username {
-			return true,
-				(u.Password == "" || u.Password == user.Password)
+		} else if u.Username == c.Username() {
+			if c.Challenge(group, u) {
+				return true, true
+			} else {
+				return true, false
+			}
 		}
 	}
 	return false, false
@@ -568,12 +571,12 @@ func GetDescription(name string) (*description, error) {
 	return &desc, nil
 }
 
-func (desc *description) GetPermission(creds ClientCredentials) (ClientPermissions, error) {
+func (desc *description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
 	var p ClientPermissions
-	if !desc.AllowAnonymous && creds.Username == "" {
+	if !desc.AllowAnonymous && c.Username() == "" {
 		return p, UserError("anonymous users not allowed in this group, please choose a username")
 	}
-	if found, good := matchUser(creds, desc.Op); found {
+	if found, good := matchClient(group, c, desc.Op); found {
 		if good {
 			p.Op = true
 			p.Present = true
@@ -584,14 +587,14 @@ func (desc *description) GetPermission(creds ClientCredentials) (ClientPermissio
 		}
 		return p, UserError("not authorised")
 	}
-	if found, good := matchUser(creds, desc.Presenter); found {
+	if found, good := matchClient(group, c, desc.Presenter); found {
 		if good {
 			p.Present = true
 			return p, nil
 		}
 		return p, UserError("not authorised")
 	}
-	if found, good := matchUser(creds, desc.Other); found {
+	if found, good := matchClient(group, c, desc.Other); found {
 		if good {
 			return p, nil
 		}

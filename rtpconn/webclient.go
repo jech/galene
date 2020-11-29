@@ -44,7 +44,8 @@ func isWSNormalError(err error) bool {
 type webClient struct {
 	group       *group.Group
 	id          string
-	credentials group.ClientCredentials
+	username    string
+	password    string
 	permissions group.ClientPermissions
 	requested   map[string]uint32
 	done        chan struct{}
@@ -65,8 +66,20 @@ func (c *webClient) Id() string {
 	return c.id
 }
 
-func (c *webClient) Credentials() group.ClientCredentials {
-	return c.credentials
+func (c *webClient) Username() string {
+	return c.username
+}
+
+func (c *webClient) Challenge(group string, creds group.ClientCredentials) bool {
+	if creds.Password == nil {
+		return true
+	}
+	m, err := creds.Password.Match(c.password)
+	if err != nil {
+		log.Printf("Password match: %v", err)
+		return false
+	}
+	return m
 }
 
 func (c *webClient) SetPermissions(perms group.ClientPermissions) {
@@ -452,7 +465,7 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 		return err
 	}
 
-	if u := c.Credentials().Username; u != "" {
+	if u := c.Username(); u != "" {
 		up.label = u
 	}
 	err = up.pc.SetRemoteDescription(offer)
@@ -645,11 +658,9 @@ func StartClient(conn *websocket.Conn) (err error) {
 	}
 
 	c := &webClient{
-		id: m.Id,
-		credentials: group.ClientCredentials{
-			m.Username,
-			m.Password,
-		},
+		id:       m.Id,
+		username: m.Username,
+		password: m.Password,
 		actionCh: make(chan interface{}, 10),
 		done:     make(chan struct{}),
 	}

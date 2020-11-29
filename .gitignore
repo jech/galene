@@ -1,6 +1,7 @@
 *~
 data/*.pem
 sfu
+sfu-password-generator/sfu-password-generator
 passwd
 groups/*.json
 static/*.d.ts

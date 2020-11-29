@@ -49,8 +49,12 @@ func (client *Client) Id() string {
 	return client.id
 }
 
-func (client *Client) Credentials() group.ClientCredentials {
-	return group.ClientCredentials{"RECORDING", ""}
+func (client *Client) Username() string {
+	return "RECORDING"
+}
+
+func (client *Client) Challenge(group string, cred group.ClientCredentials) bool {
+	return true
 }
 
 func (client *Client) OverridePermissions(g *group.Group) bool {
