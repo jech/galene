@@ -144,7 +144,7 @@ type clientMessage struct {
 	Dest        string                     `json:"dest,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
-	Permissions group.ClientPermissions    `json:"permissions,omitempty"`
+	Permissions *group.ClientPermissions   `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
 	Time        int64                      `json:"time,omitempty"`
@@ -743,9 +743,10 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 		}
 	}()
 
+	perms := c.permissions
 	c.write(clientMessage{
 		Type:        "permissions",
-		Permissions: c.permissions,
+		Permissions: &perms,
 	})
 
 	h := c.group.GetChatHistory()
@@ -866,9 +867,10 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				}
 
 			case permissionsChangedAction:
+				perms := c.permissions
 				c.write(clientMessage{
 					Type:        "permissions",
-					Permissions: c.permissions,
+					Permissions: &perms,
 				})
 				if !c.permissions.Present {
 					up := getUpConns(c)
