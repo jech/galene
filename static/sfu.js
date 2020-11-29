@@ -926,8 +926,15 @@ async function addFileMedia(file) {
         });
         if(sender) {
             c.pc.removeTrack(sender)
-        } else
+        } else {
             console.warn('Removing unknown track');
+        }
+
+        if(Object.keys(c.labels).length === 0) {
+            stream.onaddtrack = null;
+            stream.onremovetrack == null;
+            delUpMedia(c);
+        }
     };
     setMedia(c, true, video);
     video.play();
