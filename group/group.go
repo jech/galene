@@ -269,19 +269,17 @@ func AddClient(name string, c Client) (*Group, error) {
 		return nil, err
 	}
 
-	override := c.OverridePermissions(g)
-
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	perms, err := g.description.GetPermission(c.Credentials())
-	if !override && err != nil {
-		return nil, err
-	}
+	if(!c.OverridePermissions(g)) {
+		perms, err := g.description.GetPermission(c.Credentials())
+		if err != nil {
+			return nil, err
+		}
 
-	c.SetPermissions(perms)
+		c.SetPermissions(perms)
 
-	if !override {
 		if !perms.Op && g.locked != nil {
 			m := *g.locked
 			if m == "" {
