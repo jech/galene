@@ -900,6 +900,15 @@ async function addFileMedia(file) {
     c.stream = stream;
     stream.onaddtrack = function(e) {
         let t = e.track;
+        if(t.kind === 'audio') {
+            let presenting = !!findUpMedia('local');
+            let muted = getSettings().localMute;
+            if(presenting && !muted) {
+                setLocalMute(true);
+                updateSettings({localMute: true});
+                displayWarning('You have been muted');
+            }
+        }
         c.pc.addTrack(t, stream);
         c.labels[t.id] = t.kind;
         c.onstats = gotUpStats;
