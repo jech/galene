@@ -29,6 +29,23 @@ func (err UserError) Error() string {
 	return string(err)
 }
 
+type KickError struct {
+	Id       string
+	Username string
+	Message  string
+}
+
+func (err KickError) Error() string {
+	m := "kicked out"
+	if err.Message != "" {
+		m += "(" + err.Message + ")"
+	}
+	if err.Username != "" {
+		m += " by " + err.Username
+	}
+	return m
+}
+
 type ProtocolError string
 
 func (err ProtocolError) Error() string {
@@ -272,7 +289,7 @@ func AddClient(group string, c Client) (*Group, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if(!c.OverridePermissions(g)) {
+	if !c.OverridePermissions(g) {
 		perms, err := g.description.GetPermission(group, c)
 		if err != nil {
 			return nil, err
@@ -381,7 +398,7 @@ func (g *Group) Shutdown(message string) {
 	g.Range(func(c Client) bool {
 		cc, ok := c.(Kickable)
 		if ok {
-			cc.Kick(message)
+			cc.Kick("", "", message)
 		}
 		return true
 	})

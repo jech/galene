@@ -17,22 +17,31 @@ import (
 	"sfu/group"
 )
 
-func errorToWSCloseMessage(err error) (string, []byte) {
+func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
 	var code int
+	var m *clientMessage
 	var text string
 	switch e := err.(type) {
 	case *websocket.CloseError:
 		code = websocket.CloseNormalClosure
 	case group.ProtocolError:
 		code = websocket.CloseProtocolError
-		text = string(e)
-	case group.UserError:
+		m = &clientMessage{
+			Type:        "usermessage",
+			Kind:        "error",
+			Dest:        id,
+			Priviledged: true,
+			Value:       e.Error(),
+		}
+		text = e.Error()
+	case group.UserError, group.KickError:
 		code = websocket.CloseNormalClosure
-		text = string(e)
+		m = errorMessage(id, err)
+		text = e.Error()
 	default:
 		code = websocket.CloseInternalServerErr
 	}
-	return text, websocket.FormatCloseMessage(code, text)
+	return m, websocket.FormatCloseMessage(code, text)
 }
 
 func isWSNormalError(err error) bool {
@@ -674,15 +683,9 @@ func StartClient(conn *websocket.Conn) (err error) {
 			err = nil
 			c.close(nil)
 		} else {
-			m, e := errorToWSCloseMessage(err)
-			if m != "" {
-				c.write(clientMessage{
-					Type:        "usermessage",
-					Kind:        "error",
-					Dest:        c.id,
-					Priviledged: true,
-					Value:       m,
-				})
+			m, e := errorToWSCloseMessage(c.id, err)
+			if m != nil {
+				c.write(*m)
 			}
 			c.close(e)
 		}
@@ -741,7 +744,9 @@ type connectionFailedAction struct {
 type permissionsChangedAction struct{}
 
 type kickAction struct {
-	message string
+	id       string
+	username string
+	message  string
 }
 
 func clientLoop(c *webClient, ws *websocket.Conn) error {
@@ -899,7 +904,9 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					}
 				}
 			case kickAction:
-				return group.UserError(a.message)
+				return group.KickError{
+					a.id, a.username, a.message,
+				}
 			default:
 				log.Printf("unexpected action %T", a)
 				return errors.New("unexpected action")
@@ -988,12 +995,12 @@ func setPermissions(g *group.Group, id string, perm string) error {
 	return c.action(permissionsChangedAction{})
 }
 
-func (c *webClient) Kick(message string) error {
-	return c.action(kickAction{message})
+func (c *webClient) Kick(id, user, message string) error {
+	return c.action(kickAction{id, user, message})
 }
 
-func kickClient(g *group.Group, id string, message string) error {
-	client := g.GetClient(id)
+func kickClient(g *group.Group, id, user, dest string, message string) error {
+	client := g.GetClient(dest)
 	if client == nil {
 		return group.UserError("no such user")
 	}
@@ -1003,7 +1010,7 @@ func kickClient(g *group.Group, id string, message string) error {
 		return group.UserError("this client is not kickable")
 	}
 
-	return c.Kick(message)
+	return c.Kick(id, user, message)
 }
 
 func handleClientMessage(c *webClient, m clientMessage) error {
@@ -1187,11 +1194,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			message := m.Value
-			if message == "" {
-				message = "you have been kicked out"
-			}
-			err := kickClient(c.group, m.Dest, message)
+			err := kickClient(c.group, m.Id, m.Username, m.Dest, m.Value)
 			if err != nil {
 				return c.error(err)
 			}
@@ -1298,17 +1301,39 @@ func (c *webClient) close(data []byte) error {
 	}
 }
 
-func (c *webClient) error(err error) error {
+func errorMessage(id string, err error) *clientMessage {
 	switch e := err.(type) {
 	case group.UserError:
-		return c.write(clientMessage{
+		return &clientMessage{
 			Type:        "usermessage",
 			Kind:        "error",
-			Dest:        c.id,
+			Dest:        id,
 			Priviledged: true,
-			Value:       string(e),
-		})
+			Value:       e.Error(),
+		}
+	case group.KickError:
+		message := e.Message
+		if message == "" {
+			message = "you have been kicked out"
+		}
+		return &clientMessage{
+			Type:        "usermessage",
+			Kind:        "error",
+			Id:          e.Id,
+			Username:    e.Username,
+			Dest:        id,
+			Priviledged: true,
+			Value:       message,
+		}
 	default:
+		return nil
+	}
+}
+
+func (c *webClient) error(err error) error {
+	m := errorMessage(c.id, err)
+	if m == nil {
 		return err
 	}
+	return c.write(*m)
 }

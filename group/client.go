@@ -102,5 +102,5 @@ type Client interface {
 }
 
 type Kickable interface {
-	Kick(message string) error
+	Kick(id, user, message string) error
 }
