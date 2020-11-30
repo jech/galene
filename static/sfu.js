@@ -1660,7 +1660,7 @@ commands.clear = {
     predicate: operatorPredicate,
     description: 'clear the chat history',
     f: (c, r) => {
-        serverConnection.groupAction('clearchat');
+        serverConnection.groupAction(getUsername(), 'clearchat');
     }
 };
 
@@ -1669,7 +1669,7 @@ commands.lock = {
     description: 'lock this group',
     parameters: '[message]',
     f: (c, r) => {
-        serverConnection.groupAction('lock', r);
+        serverConnection.groupAction(getUsername(), 'lock', r);
     }
 };
 
@@ -1677,7 +1677,7 @@ commands.unlock = {
     predicate: operatorPredicate,
     description: 'unlock this group, revert the effect of /lock',
     f: (c, r) => {
-        serverConnection.groupAction('unlock');
+        serverConnection.groupAction(getUsername(), 'unlock');
     }
 };
 
@@ -1685,7 +1685,7 @@ commands.record = {
     predicate: recordingPredicate,
     description: 'start recording',
     f: (c, r) => {
-        serverConnection.groupAction('record');
+        serverConnection.groupAction(getUsername(), 'record');
     }
 };
 
@@ -1693,7 +1693,7 @@ commands.unrecord = {
     predicate: recordingPredicate,
     description: 'stop recording',
     f: (c, r) => {
-        serverConnection.groupAction('unrecord');
+        serverConnection.groupAction(getUsername(), 'unrecord');
     }
 };
 
@@ -1773,7 +1773,7 @@ function userCommand(c, r) {
     let id = findUserId(p[0]);
     if(!id)
         throw new Error(`Unknown user ${p[0]}`);
-    serverConnection.userAction(c, id, p[1]);
+    serverConnection.userAction(getUsername(), c, id, p[1]);
 }
 
 function userMessage(c, r) {
@@ -1783,7 +1783,7 @@ function userMessage(c, r) {
     let id = findUserId(p[0]);
     if(!id)
         throw new Error(`Unknown user ${p[0]}`);
-    serverConnection.userMessage(c, id, p[1]);
+    serverConnection.userMessage(getUsername(), c, id, p[1]);
 }
 
 commands.kick = {
@@ -2108,11 +2108,11 @@ async function serverConnect() {
     serverConnection.onchat = addToChatbox;
     serverConnection.onclearchat = clearChat;
     serverConnection.onusermessage = function(id, dest, username, time, priviledged, kind, message) {
-        let from = id ? (username || 'Anonymous') : 'The Server';
         switch(kind) {
         case 'error':
         case 'warning':
         case 'info':
+            let from = id ? (username || 'Anonymous') : 'The Server';
             if(priviledged)
                 displayError(`${from} said: ${message}`, kind);
             else

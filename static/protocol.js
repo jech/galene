@@ -451,15 +451,17 @@ ServerConnection.prototype.chat = function(username, kind, dest, value) {
 /**
  * userAction sends a request to act on a user.
  *
+ * @param {string} username - The sender's username.
  * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
  * @param {string} dest - The id of the user to act upon.
  * @param {string} [value] - An optional user-readable message.
  */
-ServerConnection.prototype.userAction = function(kind, dest, value) {
+ServerConnection.prototype.userAction = function(username, kind, dest, value) {
     this.send({
         type: 'useraction',
         id: this.id,
         dest: dest,
+        username: username,
         kind: kind,
         value: value,
     });
@@ -468,15 +470,17 @@ ServerConnection.prototype.userAction = function(kind, dest, value) {
 /**
  * userMessage sends an application-specific message to a user.
  *
+ * @param {string} username - The sender's username.
  * @param {string} kind - The kind of application-specific message.
  * @param {string} dest - The id of the user to send the message to.
  * @param {string} [value] - An optional parameter.
  */
-ServerConnection.prototype.userMessage = function(kind, dest, value) {
+ServerConnection.prototype.userMessage = function(username, kind, dest, value) {
     this.send({
         type: 'usermessage',
         id: this.id,
         dest: dest,
+        username: username,
         kind: kind,
         value: value,
     });
@@ -485,14 +489,17 @@ ServerConnection.prototype.userMessage = function(kind, dest, value) {
 /**
  * groupAction sends a request to act on the current group.
  *
+ * @param {string} username - The sender's username.
  * @param {string} kind - One of "clearchat", "lock", "unlock", "record or
  * "unrecord".
  * @param {string} [message] - An optional user-readable message.
  */
-ServerConnection.prototype.groupAction = function(kind, message) {
+ServerConnection.prototype.groupAction = function(username, kind, message) {
     this.send({
         type: 'groupaction',
+        id: this.id,
         kind: kind,
+        username: username,
         value: message,
     });
 };
