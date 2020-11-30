@@ -1114,6 +1114,12 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			ccc.write(mm)
 		}
 	case "groupaction":
+		if m.Id != c.id {
+			return group.UserError("wrong sender id")
+		}
+		if m.Username != "" && m.Username != c.username {
+			return group.UserError("wrong sender username")
+		}
 		switch m.Kind {
 		case "clearchat":
 			c.group.ClearChatHistory()
@@ -1162,6 +1168,12 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return group.ProtocolError("unknown group action")
 		}
 	case "useraction":
+		if m.Id != c.id {
+			return group.UserError("wrong sender id")
+		}
+		if m.Username != "" && m.Username != c.username {
+			return group.UserError("wrong sender username")
+		}
 		switch m.Kind {
 		case "op", "unop", "present", "unpresent":
 			if !c.permissions.Op {
