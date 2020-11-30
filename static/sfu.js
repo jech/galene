@@ -403,8 +403,9 @@ function setButtonsVisibility() {
 
 /**
  * @param {boolean} mute
+ * @param {boolean} [reflect]
  */
-function setLocalMute(mute) {
+function setLocalMute(mute, reflect) {
     muteLocalTracks(mute);
     let button = document.getElementById('mutebutton');
     let icon = button.querySelector("span .fas");
@@ -417,6 +418,8 @@ function setLocalMute(mute) {
         icon.classList.add('fa-microphone');
         button.classList.remove('muted');
     }
+    if(reflect)
+        updateSettings({localMute: mute});
 }
 
 getSelectElement('videoselect').onchange = function(e) {
@@ -447,8 +450,7 @@ document.getElementById('mutebutton').onclick = function(e) {
     e.preventDefault();
     let localMute = getSettings().localMute;
     localMute = !localMute;
-    updateSettings({localMute: localMute})
-    setLocalMute(localMute);
+    setLocalMute(localMute, true);
 }
 
 document.getElementById('sharebutton').onclick = function(e) {
@@ -896,8 +898,7 @@ async function addFileMedia(file) {
             let presenting = !!findUpMedia('local');
             let muted = getSettings().localMute;
             if(presenting && !muted) {
-                setLocalMute(true);
-                updateSettings({localMute: true});
+                setLocalMute(true, true);
                 displayWarning('You have been muted');
             }
         }
@@ -1775,6 +1776,15 @@ function userCommand(c, r) {
     serverConnection.userAction(c, id, p[1]);
 }
 
+function userMessage(c, r) {
+    let p = parseCommand(r);
+    if(!p[0])
+        throw new Error(`/${c} requires parameters`);
+    let id = findUserId(p[0]);
+    if(!id)
+        throw new Error(`Unknown user ${p[0]}`);
+    serverConnection.userMessage(c, id, p[1]);
+}
 
 commands.kick = {
     parameters: 'user [message]',
@@ -1809,6 +1819,13 @@ commands.unpresent = {
     description: 'revoke the right to present',
     predicate: operatorPredicate,
     f: userCommand,
+};
+
+commands.mute = {
+    parameters: 'user',
+    description: 'mute a remote user',
+    predicate: operatorPredicate,
+    f: userMessage,
 };
 
 function handleInput() {
@@ -2100,6 +2117,16 @@ async function serverConnect() {
                 displayError(`${from} said: ${message}`, kind);
             else
                 console.error(`Got unpriviledged message of kind ${kind}`);
+            break;
+        case 'mute':
+            console.log(id, dest, username);
+            if(priviledged) {
+                setLocalMute(true, true);
+                let by = username ? ' by ' + username : '';
+                displayWarning(`You have been muted${by}`);
+            } else {
+                console.error(`Got unpriviledged message of kind ${kind}`);
+            }
             break;
         default:
             console.warn(`Got unknown user message ${kind}`);
