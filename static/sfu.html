@@ -178,31 +178,37 @@
 
         <fieldset>
           <legend>Other Settings</legend>
-          <label for="sendselect" class="label-first">Send:</label>
-          <select id="sendselect" class="select select-inline">
-            <option value="lowest">lowest</option>
-            <option value="low">low</option>
-            <option value="normal" selected>normal</option>
-            <option value="unlimited">unlimited</option>
-          </select>
-  
-          <label for="requestselect">Receive:</label>
-          <select id="requestselect" class="select select-inline">
-            <option value="">nothing</option>
-            <option value="audio">audio only</option>
-            <option value="screenshare">screen share</option>
-            <option value="everything" selected>everything</option>
-          </select>
+
+          <form id="sendform">
+            <label for="sendselect" class="label-first">Send:</label>
+            <select id="sendselect" class="select select-inline">
+              <option value="lowest">lowest</option>
+              <option value="low">low</option>
+              <option value="normal" selected>normal</option>
+              <option value="unlimited">unlimited</option>
+            </select>
+          </form>
+
+          <form id="requestform">
+            <label for="requestselect">Receive:</label>
+            <select id="requestselect" class="select select-inline">
+              <option value="">nothing</option>
+              <option value="audio">audio only</option>
+              <option value="screenshare">screen share</option>
+              <option value="everything" selected>everything</option>
+            </select>
+          </form>
   
           <form>
             <input id="activitybox" type="checkbox">Activity detection</input>
           </form>
 
-          <form>
-            <label for="fileinput">Play local file:</label>
-            <input type="file" id="fileinput" accept="audio/*,video/*" multiple></input>
-          </form>
         </fieldset>
+
+        <form id="fileform">
+          <label for="fileinput">Play local file:</label>
+          <input type="file" id="fileinput" accept="audio/*,video/*" multiple></input>
+        </form>
       </div>
     </div>
 

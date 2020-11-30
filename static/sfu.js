@@ -401,6 +401,8 @@ function setButtonsVisibility() {
     setVisibility('stopvideobutton', video);
 
     setVisibility('mediaoptions', permissions.present);
+    setVisibility('sendform', permissions.present);
+    setVisibility('fileform', permissions.present);
 }
 
 /**
