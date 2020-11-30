@@ -391,6 +391,8 @@ function setButtonsVisibility() {
     setVisibility('presentbutton', permissions.present && !local);
     setVisibility('unpresentbutton', local);
 
+    setVisibility('mutebutton', permissions.present);
+
     // allow multiple shared documents
     setVisibility('sharebutton', permissions.present &&
                   ('getDisplayMedia' in navigator.mediaDevices));
