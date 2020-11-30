@@ -269,7 +269,6 @@ function setConnected(connected) {
             userpass ? userpass.username : '';
         getInputElement('password').value =
             userpass ? userpass.password : '';
-        getInputElement('presentoff').checked = true;
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         displayError("Disconnected!", "error");
@@ -2038,7 +2037,15 @@ document.getElementById('userform').onsubmit = async function(e) {
     }
 
     let presentboth = getInputElement('presentboth').checked;
-    if(presentboth) {
+    let presentmike = getInputElement('presentmike').checked;
+
+    if(presentmike)
+        updateSettings({video: ''});
+     else if(presentboth)
+         delSetting('video');
+    reflectSettings();
+
+    if(presentboth || presentmike) {
         let button = getButtonElement('presentbutton');
         button.disabled = true;
         try {
@@ -2049,6 +2056,8 @@ document.getElementById('userform').onsubmit = async function(e) {
             button.disabled = false;
         }
     }
+
+    getInputElement('presentoff').checked = true;
 };
 
 document.getElementById('disconnectbutton').onclick = function(e) {
