@@ -183,29 +183,31 @@ function reflectSettings() {
     setLocalMute(settings.localMute);
 
     let videoselect = getSelectElement('videoselect');
-    if(!settings.video || !selectOptionAvailable(videoselect, settings.video)) {
+    if(!settings.hasOwnProperty('video') ||
+       !selectOptionAvailable(videoselect, settings.video)) {
         settings.video = selectOptionDefault(videoselect);
         store = true;
     }
     videoselect.value = settings.video;
 
     let audioselect = getSelectElement('audioselect');
-    if(!settings.audio || !selectOptionAvailable(audioselect, settings.audio)) {
+    if(!settings.hasOwnProperty('audio') ||
+       !selectOptionAvailable(audioselect, settings.audio)) {
         settings.audio = selectOptionDefault(audioselect);
         store = true;
     }
     audioselect.value = settings.audio;
 
-    if(settings.request)
+    if(settings.hasOwnProperty('request')) {
         getSelectElement('requestselect').value = settings.request;
-    else {
+    } else {
         settings.request = getSelectElement('requestselect').value;
         store = true;
     }
 
-    if(settings.send)
+    if(settings.hasOwnProperty('send')) {
         getSelectElement('sendselect').value = settings.send;
-    else {
+    } else {
         settings.send = getSelectElement('sendselect').value;
         store = true;
     }
@@ -216,7 +218,6 @@ function reflectSettings() {
 
     if(store)
         storeSettings(settings);
-
 }
 
 function showVideo() {
