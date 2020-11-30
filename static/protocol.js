@@ -124,9 +124,21 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, kind: string, message: string) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, priviledged: boolean, kind: string, message: string) => void}
      */
     this.onchat = null;
+    /**
+     * onusermessage is called when an application-specific message is
+     * received.  Id is null when the message originated at the server,
+     * a user-id otherwise.
+     *
+     * 'kind' is typically one of 'error', 'warning', 'info' or 'mute'.  If
+     * 'id' is non-null, 'priviledged' indicates whether the message was
+     * sent by an operator.
+     *
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, priviledged: boolean, kind: string, message: string) => void}
+     */
+    this.onusermessage = null;
     /**
      * onclearchat is called whenever the server requests that the chat
      * be cleared.
@@ -134,13 +146,6 @@ function ServerConnection() {
      * @type{(this: ServerConnection) => void}
      */
     this.onclearchat = null;
-    /**
-     * onusermessage is called when the server sends an error or warning
-     * message that should be displayed to the user.
-     *
-     * @type{(this: ServerConnection, kind: string, message: string) => void}
-     */
-    this.onusermessage = null;
 }
 
 /**
@@ -151,6 +156,7 @@ function ServerConnection() {
   * @property {string} [dest]
   * @property {string} [username]
   * @property {string} [password]
+  * @property {boolean} [priviledged]
   * @property {Object<string,boolean>} [permissions]
   * @property {string} [group]
   * @property {string} [value]
@@ -286,7 +292,15 @@ ServerConnection.prototype.connect = async function(url) {
             case 'chat':
                 if(sc.onchat)
                     sc.onchat.call(
-                        sc, m.id, m.dest, m.username, m.time, m.kind, m.value,
+                        sc, m.id, m.dest, m.username, m.time,
+                        m.privileged, m.kind, m.value,
+                    );
+                break;
+            case 'usermessage':
+                if(sc.onusermessage)
+                    sc.onusermessage.call(
+                        sc, m.id, m.dest, m.username, m.time,
+                        m.priviledged, m.kind, m.value,
                     );
                 break;
             case 'clearchat':
@@ -300,10 +314,6 @@ ServerConnection.prototype.connect = async function(url) {
                 break;
             case 'pong':
                 /* nothing */
-                break;
-            case 'usermessage':
-                if(sc.onusermessage)
-                    sc.onusermessage.call(sc, m.kind, m.value);
                 break;
             default:
                 console.warn('Unexpected server message', m.type);
@@ -422,18 +432,53 @@ ServerConnection.prototype.newUpStream = function(id) {
  * chat sends a chat message to the server.  The server will normally echo
  * the message back to the client.
  *
- * @param {string} username - The username of the sending user.
+ * @param {string} username - The sender's username.
  * @param {string} kind - The kind of message, either "" or "me".
- * @param {string} message - The text of the message.
+ * @param {string} dest - The id to send the message to, empty for broadcast.
+ * @param {string} value - The text of the message.
  */
-ServerConnection.prototype.chat = function(username, kind, dest, message) {
+ServerConnection.prototype.chat = function(username, kind, dest, value) {
     this.send({
         type: 'chat',
         id: this.id,
         dest: dest,
         username: username,
         kind: kind,
-        value: message,
+        value: value,
+    });
+};
+
+/**
+ * userAction sends a request to act on a user.
+ *
+ * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
+ * @param {string} dest - The id of the user to act upon.
+ * @param {string} [value] - An optional user-readable message.
+ */
+ServerConnection.prototype.userAction = function(kind, dest, value) {
+    this.send({
+        type: 'useraction',
+        id: this.id,
+        dest: dest,
+        kind: kind,
+        value: value,
+    });
+};
+
+/**
+ * userMessage sends an application-specific message to a user.
+ *
+ * @param {string} kind - The kind of application-specific message.
+ * @param {string} dest - The id of the user to send the message to.
+ * @param {string} [value] - An optional parameter.
+ */
+ServerConnection.prototype.userMessage = function(kind, dest, value) {
+    this.send({
+        type: 'usermessage',
+        id: this.id,
+        dest: dest,
+        kind: kind,
+        value: value,
     });
 };
 
@@ -448,22 +493,6 @@ ServerConnection.prototype.groupAction = function(kind, message) {
     this.send({
         type: 'groupaction',
         kind: kind,
-        value: message,
-    });
-};
-
-/**
- * userAction sends a request to act on a user.
- *
- * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
- * @param {string} id - The id of the user to act upon.
- * @param {string} [message] - An optional user-readable message.
- */
-ServerConnection.prototype.userAction = function(kind, id, message) {
-    this.send({
-        type: 'useraction',
-        kind: kind,
-        id: id,
         value: message,
     });
 };

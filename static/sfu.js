@@ -1483,7 +1483,7 @@ let lastMessage = {};
  * @param {string} kind
  * @param {string} message
  */
-function addToChatbox(peerId, dest, nick, time, kind, message) {
+function addToChatbox(peerId, dest, nick, time, priviledged, kind, message) {
     let userpass = getUserPass();
     let row = document.createElement('div');
     row.classList.add('message-row');
@@ -1608,7 +1608,7 @@ commands.help = {
         let s = '';
         for(let i = 0; i < cs.length; i++)
             s = s + cs[i] + '\n';
-        addToChatbox(null, null, null, Date.now(), null, s);
+        addToChatbox(null, null, null, Date.now(), false, null, s);
     }
 };
 
@@ -1626,7 +1626,7 @@ commands.set = {
             let s = "";
             for(let key in settings)
                 s = s + `${key}: ${JSON.stringify(settings[key])}\n`;
-            addToChatbox(null, null, null, Date.now(), null, s);
+            addToChatbox(null, null, null, Date.now(), false, null, s);
             return;
         }
         let p = parseCommand(r);
@@ -1756,7 +1756,8 @@ commands.msg = {
             throw new Error(`Unknown user ${p[0]}`);
         let username = getUsername();
         serverConnection.chat(username, '', id, p[1]);
-        addToChatbox(serverConnection.id, id, username, Date.now(), '', p[1]);
+        addToChatbox(serverConnection.id, id, username,
+                     Date.now(), false, '', p[1]);
     }
 };
 
@@ -2089,12 +2090,22 @@ async function serverConnect() {
     serverConnection.onpermissions = gotPermissions;
     serverConnection.onchat = addToChatbox;
     serverConnection.onclearchat = clearChat;
-    serverConnection.onusermessage = function(kind, message) {
-        if(kind === 'error')
-            displayError(`The server said: ${message}`);
-        else
-            displayWarning(`The server said: ${message}`);
-    }
+    serverConnection.onusermessage = function(id, dest, username, time, priviledged, kind, message) {
+        let from = id ? (username || 'Anonymous') : 'The Server';
+        switch(kind) {
+        case 'error':
+        case 'warning':
+        case 'info':
+            if(priviledged)
+                displayError(`${from} said: ${message}`, kind);
+            else
+                console.error(`Got unpriviledged message of kind ${kind}`);
+            break;
+        default:
+            console.warn(`Got unknown user message ${kind}`);
+            break;
+        }
+    };
     let url = `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`;
     try {
         await serverConnection.connect(url);

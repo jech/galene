@@ -157,6 +157,7 @@ type clientMessage struct {
 	Dest        string                     `json:"dest,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
+	Priviledged bool                       `json:"priviledged,omitempty"`
 	Permissions *group.ClientPermissions   `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       string                     `json:"value,omitempty"`
@@ -676,9 +677,11 @@ func StartClient(conn *websocket.Conn) (err error) {
 			m, e := errorToWSCloseMessage(err)
 			if m != "" {
 				c.write(clientMessage{
-					Type:  "usermessage",
-					Kind:  "error",
-					Value: m,
+					Type:        "usermessage",
+					Kind:        "error",
+					Dest:        c.id,
+					Priviledged: true,
+					Value:       m,
 				})
 			}
 			c.close(e)
@@ -1065,21 +1068,24 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if err != nil {
 			log.Printf("ICE: %v", err)
 		}
-	case "chat":
+	case "chat", "usermessage":
 		tm := group.ToJSTime(time.Now())
-		if m.Dest == "" {
-			c.group.AddToChatHistory(
-				m.Id, m.Username, tm, m.Kind, m.Value,
-			)
+		if m.Type == "chat" {
+			if m.Dest == "" {
+				c.group.AddToChatHistory(
+					m.Id, m.Username, tm, m.Kind, m.Value,
+				)
+			}
 		}
 		mm := clientMessage{
-			Type:     "chat",
-			Id:       m.Id,
-			Dest:     m.Dest,
-			Username: m.Username,
-			Time:     tm,
-			Kind:     m.Kind,
-			Value:    m.Value,
+			Type:        m.Type,
+			Id:          m.Id,
+			Dest:        m.Dest,
+			Username:    m.Username,
+			Priviledged: c.permissions.Op,
+			Time:        tm,
+			Kind:        m.Kind,
+			Value:       m.Value,
 		}
 		if m.Dest == "" {
 			clients := c.group.GetClients(nil)
@@ -1154,7 +1160,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			err := setPermissions(c.group, m.Id, m.Kind)
+			err := setPermissions(c.group, m.Dest, m.Kind)
 			if err != nil {
 				return c.error(err)
 			}
@@ -1166,7 +1172,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if message == "" {
 				message = "you have been kicked out"
 			}
-			err := kickClient(c.group, m.Id, message)
+			err := kickClient(c.group, m.Dest, message)
 			if err != nil {
 				return c.error(err)
 			}
@@ -1277,9 +1283,11 @@ func (c *webClient) error(err error) error {
 	switch e := err.(type) {
 	case group.UserError:
 		return c.write(clientMessage{
-			Type:  "usermessage",
-			Kind:  "error",
-			Value: string(e),
+			Type:        "usermessage",
+			Kind:        "error",
+			Dest:        c.id,
+			Priviledged: true,
+			Value:       string(e),
 		})
 	default:
 		return err
