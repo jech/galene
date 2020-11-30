@@ -1404,14 +1404,40 @@ function displayUsername() {
     document.getElementById('permspan').textContent = text;
 }
 
+let presentRequested = null;
+
 /**
  * @param {Object<string,boolean>} perms
  */
-function gotPermissions(perms) {
+async function gotPermissions(perms) {
     displayUsername();
     setButtonsVisibility();
-    if(serverConnection.permissions.present)
-        displayMessage("Press Present to enable your camera or microphone");
+
+    try {
+        if(serverConnection.permissions.present && !findUpMedia('local')) {
+            if(presentRequested) {
+                if(presentRequested === 'mike')
+                    updateSettings({video: ''});
+                else if(presentRequested === 'both')
+                    delSetting('video');
+                reflectSettings();
+
+                let button = getButtonElement('presentbutton');
+                button.disabled = true;
+                try {
+                    await addLocalMedia();
+                } finally {
+                    button.disabled = false;
+                }
+            } else {
+                displayMessage(
+                    "Press Present to enable your camera or microphone"
+                );
+            }
+        }
+    } finally {
+        presentRequested = null;
+    }
 }
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#&()=?]+[-a-zA-Z0-9@:%/_\\+~#&()=]/g;
@@ -2036,26 +2062,12 @@ document.getElementById('userform').onsubmit = async function(e) {
         connecting = false;
     }
 
-    let presentboth = getInputElement('presentboth').checked;
-    let presentmike = getInputElement('presentmike').checked;
-
-    if(presentmike)
-        updateSettings({video: ''});
-     else if(presentboth)
-         delSetting('video');
-    reflectSettings();
-
-    if(presentboth || presentmike) {
-        let button = getButtonElement('presentbutton');
-        button.disabled = true;
-        try {
-            let id = findUpMedia('local');
-            if(!id)
-                await addLocalMedia();
-        } finally {
-            button.disabled = false;
-        }
-    }
+    if(getInputElement('presentboth').checked)
+        presentRequested = 'both';
+    else if(getInputElement('presentmike').checked)
+        presentRequested = 'mike';
+    else
+        presentRequested = null;
 
     getInputElement('presentoff').checked = true;
 };
