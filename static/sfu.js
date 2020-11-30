@@ -1828,6 +1828,26 @@ commands.mute = {
     f: userMessage,
 };
 
+commands.warn = {
+    parameters: 'user message',
+    description: 'send a warning to a user',
+    predicate: operatorPredicate,
+    f: (c, r) => {
+        userMessage('warning', r);
+    },
+};
+
+commands.wall = {
+    parameters: 'message',
+    description: 'send a warning to all users',
+    predicate: operatorPredicate,
+    f: (c, r) => {
+        if(!r)
+            throw new Error('empty message');
+        serverConnection.userMessage(getUsername(), 'warning', '', r);
+    },
+};
+
 function handleInput() {
     let input = /** @type {HTMLTextAreaElement} */
         (document.getElementById('input'));
