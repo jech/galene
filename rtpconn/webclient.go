@@ -1069,6 +1069,13 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("ICE: %v", err)
 		}
 	case "chat", "usermessage":
+		if m.Id != c.id {
+			return group.UserError("wrong sender id")
+		}
+		if m.Username != "" && m.Username != c.username {
+			return group.UserError("wrong sender username")
+		}
+
 		tm := group.ToJSTime(time.Now())
 		if m.Type == "chat" {
 			if m.Dest == "" {
