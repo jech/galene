@@ -161,18 +161,19 @@
         <div id="mediaoptions" class="invisible">
           <fieldset>
             <legend>Media Options</legend>
-            <label for="videoselect" class="label-first">Camera:</label>
+            <label for="videoselect" class="sidenav-label-first">Camera:</label>
             <select id="videoselect" class="select select-inline">
               <option value="">off</option>
             </select>
   
-            <label for="audioselect">Microphone:</label>
+            <label for="audioselect" class="sidenav-label">Microphone:</label>
             <select id="audioselect" class="select select-inline">
               <option value="">off</option>
             </select>
   
             <form>
-              <input id="blackboardbox" type="checkbox">Blackboard mode</input>
+              <input id="blackboardbox" type="checkbox"/>
+              <label for="blackboardbox">Blackboard mode</label>
             </form>
   
           </fieldset>
@@ -182,7 +183,7 @@
           <legend>Other Settings</legend>
 
           <form id="sendform">
-            <label for="sendselect" class="label-first">Send:</label>
+            <label for="sendselect" class="sidenav-label-first">Send:</label>
             <select id="sendselect" class="select select-inline">
               <option value="lowest">lowest</option>
               <option value="low">low</option>
@@ -192,7 +193,7 @@
           </form>
 
           <form id="requestform">
-            <label for="requestselect">Receive:</label>
+            <label for="requestselect" class="sidenav-label">Receive:</label>
             <select id="requestselect" class="select select-inline">
               <option value="">nothing</option>
               <option value="audio">audio only</option>
@@ -202,14 +203,15 @@
           </form>
   
           <form>
-            <input id="activitybox" type="checkbox">Activity detection</input>
+            <input id="activitybox" type="checkbox"/>
+            <label for="activitybox">Activity detection</label>
           </form>
 
         </fieldset>
 
         <form id="fileform">
-          <label for="fileinput">Play local file:</label>
-          <input type="file" id="fileinput" accept="audio/*,video/*" multiple></input>
+          <label for="fileinput" class=".sidenav-label-first">Play local file:</label>
+          <input type="file" id="fileinput" accept="audio/*,video/*" multiple/>
         </form>
       </div>
     </div>

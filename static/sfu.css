@@ -850,12 +850,13 @@ h1 {
     height: 56px;
 }
 
-.sidenav label{
+.sidenav-label {
     display: block;
     margin-top: 15px;
 }
 
-.sidenav .label-first {
+.sidenav-label-first {
+    display: block;
     margin-top: 0;
 }
 
