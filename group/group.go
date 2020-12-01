@@ -97,11 +97,10 @@ type Group struct {
 
 	mu          sync.Mutex
 	description *description
-	// indicates that the group no longer exists, but it still has clients
-	dead    bool
-	locked  *string
-	clients map[string]Client
-	history []ChatHistoryEntry
+	locked      *string
+	clients     map[string]Client
+	history     []ChatHistoryEntry
+	timestamp   time.Time
 }
 
 func (g *Group) Name() string {
@@ -201,6 +200,7 @@ func Add(name string, desc *description) (*Group, error) {
 			name:        name,
 			description: desc,
 			clients:     make(map[string]Client),
+			timestamp:   time.Now(),
 		}
 		groups.groups[name] = g
 		return g, nil
@@ -211,11 +211,10 @@ func Add(name string, desc *description) (*Group, error) {
 
 	if desc != nil {
 		g.description = desc
-		g.dead = false
 		return g, nil
 	}
 
-	if g.dead || time.Since(g.description.loadTime) > 5*time.Second {
+	if time.Since(g.description.loadTime) > 5*time.Second {
 		if descriptionChanged(name, g.description) {
 			desc, err := GetDescription(name)
 			if err != nil {
@@ -223,11 +222,9 @@ func Add(name string, desc *description) (*Group, error) {
 					log.Printf("Reading group %v: %v",
 						name, err)
 				}
-				g.dead = true
-				delGroupUnlocked(name)
+				deleteUnlocked(g)
 				return nil, err
 			}
-			g.dead = false
 			g.description = desc
 		} else {
 			g.description.loadTime = time.Now()
@@ -266,18 +263,55 @@ func Get(name string) *Group {
 	return groups.groups[name]
 }
 
-func delGroupUnlocked(name string) bool {
+func Delete(name string) bool {
+	groups.mu.Lock()
+	defer groups.mu.Unlock()
 	g := groups.groups[name]
 	if g == nil {
-		return true
+		return false;
 	}
 
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return deleteUnlocked(g)
+}
+
+// Called with both groups.mu and g.mu taken.
+func deleteUnlocked(g *Group) bool {
 	if len(g.clients) != 0 {
 		return false
 	}
 
-	delete(groups.groups, name)
+	delete(groups.groups, g.name)
 	return true
+}
+
+func Expire() {
+	names := GetNames()
+	now := time.Now()
+
+	for _, name := range names {
+		g := Get(name)
+		if g == nil {
+			continue
+		}
+
+		old := false
+
+		g.mu.Lock()
+		empty := len(g.clients) == 0
+		if empty && !g.description.Public {
+			age := now.Sub(g.timestamp)
+			old = age > maxHistoryAge(g.description)
+		}
+		// We cannot take groups.mu at this point without a deadlock.
+		g.mu.Unlock()
+
+		if empty && old {
+			// Delete will check if the group is still empty
+			Delete(name)
+		}
+	}
 }
 
 func AddClient(group string, c Client) (*Group, error) {
@@ -317,6 +351,7 @@ func AddClient(group string, c Client) (*Group, error) {
 	}
 
 	g.clients[c.Id()] = c
+	g.timestamp = time.Now()
 
 	go func(clients []Client) {
 		u := c.Username()
@@ -344,6 +379,7 @@ func DelClient(c Client) {
 		return
 	}
 	delete(g.clients, c.Id())
+	g.timestamp = time.Now()
 
 	go func(clients []Client) {
 		for _, cc := range clients {
@@ -437,16 +473,10 @@ func (g *Group) AddToChatHistory(id, user string, time int64, kind, value string
 	)
 }
 
-func discardObsoleteHistory(h []ChatHistoryEntry, seconds int) []ChatHistoryEntry {
-	now := time.Now()
-	d := 4 * time.Hour
-	if seconds > 0 {
-		d = time.Duration(seconds) * time.Second
-	}
-
+func discardObsoleteHistory(h []ChatHistoryEntry, duration time.Duration) []ChatHistoryEntry {
 	i := 0
 	for i < len(h) {
-		if now.Sub(FromJSTime(h[i].Time)) <= d {
+		if time.Since(FromJSTime(h[i].Time)) <= duration {
 			break
 		}
 		i++
@@ -462,7 +492,9 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	g.history = discardObsoleteHistory(g.history, g.description.MaxHistoryAge)
+	g.history = discardObsoleteHistory(
+		g.history, maxHistoryAge(g.description),
+	)
 
 	h := make([]ChatHistoryEntry, len(g.history))
 	copy(h, g.history)
@@ -502,6 +534,15 @@ type description struct {
 	Op             []ClientCredentials `json:"op,omitempty"`
 	Presenter      []ClientCredentials `json:"presenter,omitempty"`
 	Other          []ClientCredentials `json:"other,omitempty"`
+}
+
+const DefaultMaxHistoryAge = 4 * time.Hour
+
+func maxHistoryAge(desc *description) time.Duration {
+	if desc.MaxHistoryAge != 0 {
+		return time.Duration(desc.MaxHistoryAge) * time.Second
+	}
+	return DefaultMaxHistoryAge
 }
 
 func openDescriptionFile(name string) (*os.File, string, bool, error) {

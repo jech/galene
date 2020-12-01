@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"syscall"
+	"time"
 
 	"sfu/diskwriter"
 	"sfu/group"
@@ -94,10 +95,19 @@ func main() {
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
-	select {
-	case <-terminate:
-		webserver.Shutdown()
-	case <-serverDone:
-		os.Exit(1)
+
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			go group.Expire()
+		case <-terminate:
+			webserver.Shutdown()
+			return
+		case <-serverDone:
+			os.Exit(1)
+		}
 	}
 }
