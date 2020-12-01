@@ -926,7 +926,7 @@ Stream.prototype.flushIceCandidates = async function () {
         }
     });
 
-    /** @type {Promise<void>[]} */
+    /** @type {Array.<Promise<void>>} */
     let promises = [];
     c.remoteIceCandidates.forEach(candidate => {
         promises.push(this.pc.addIceCandidate(candidate).catch(console.warn));
