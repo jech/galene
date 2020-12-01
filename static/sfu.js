@@ -1502,6 +1502,7 @@ function formatTime(time) {
  * @property {string} [nick]
  * @property {string} [peerId]
  * @property {string} [dest]
+ * @property {number} [time]
  */
 
 /** @type {lastMessage} */
@@ -1532,16 +1533,29 @@ function addToChatbox(peerId, dest, nick, time, priviledged, kind, message) {
 
     if(kind !== 'me') {
         let p = formatLines(message.split('\n'));
-        if(lastMessage.nick !== (nick || null) ||
-           lastMessage.peerId !== peerId ||
-           lastMessage.dest !== (dest || null)) {
+        let doHeader = true;
+        if(!peerId && !dest && !nick) {
+            doHeader = false;
+        } else if(lastMessage.nick !== (nick || null) ||
+                  lastMessage.peerId !== peerId ||
+                  lastMessage.dest !== (dest || null) ||
+                  !time || !lastMessage.time) {
+            doHeader = true;
+        } else {
+            let delta = time - lastMessage.time;
+            doHeader = delta < 0 || delta > 60000;
+        }
+
+        if(doHeader) {
             let header = document.createElement('p');
-            let user = document.createElement('span');
-            user.textContent = dest ?
-                `${nick||'(anon)'} \u2192 ${users[dest]||'(anon)'}` :
-                (nick || '(anon)');
-            user.classList.add('message-user');
-            header.appendChild(user);
+            if(peerId || nick || dest) {
+                let user = document.createElement('span');
+                user.textContent = dest ?
+                    `${nick||'(anon)'} \u2192 ${users[dest]||'(anon)'}` :
+                    (nick || '(anon)');
+                user.classList.add('message-user');
+                header.appendChild(user);
+            }
             header.classList.add('message-header');
             container.appendChild(header);
             if(time) {
@@ -1551,11 +1565,13 @@ function addToChatbox(peerId, dest, nick, time, priviledged, kind, message) {
                 header.appendChild(tm);
             }
         }
+
         p.classList.add('message-content');
         container.appendChild(p);
         lastMessage.nick = (nick || null);
         lastMessage.peerId = peerId;
         lastMessage.dest = (dest || null);
+        lastMessage.time = (time || null);
         container.appendChild(footer);
     } else {
         let asterisk = document.createElement('span');
