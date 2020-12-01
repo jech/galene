@@ -1050,7 +1050,6 @@ function setMedia(c, isUp, video) {
             media = document.createElement('video');
             if(isUp)
                 media.muted = true;
-            media.srcObject = c.stream;
         }
 
         media.classList.add('media');
@@ -1062,6 +1061,9 @@ function setMedia(c, isUp, video) {
         if(!video)
             addCustomControls(media, div, c);
     }
+
+    if(!video)
+        media.srcObject = c.stream;
 
     let label = document.getElementById('label-' + c.id);
     if(!label) {
