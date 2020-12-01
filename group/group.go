@@ -7,6 +7,7 @@ package group
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"path"
@@ -22,6 +23,8 @@ import (
 
 var Directory string
 var UseMDNS bool
+
+var ErrNotAuthorised = errors.New("not authorised")
 
 type UserError string
 
@@ -268,7 +271,7 @@ func Delete(name string) bool {
 	defer groups.mu.Unlock()
 	g := groups.groups[name]
 	if g == nil {
-		return false;
+		return false
 	}
 
 	g.mu.Lock()
@@ -642,22 +645,22 @@ func (desc *description) GetPermission(group string, c Challengeable) (ClientPer
 			}
 			return p, nil
 		}
-		return p, UserError("not authorised")
+		return p, ErrNotAuthorised
 	}
 	if found, good := matchClient(group, c, desc.Presenter); found {
 		if good {
 			p.Present = true
 			return p, nil
 		}
-		return p, UserError("not authorised")
+		return p, ErrNotAuthorised
 	}
 	if found, good := matchClient(group, c, desc.Other); found {
 		if good {
 			return p, nil
 		}
-		return p, UserError("not authorised")
+		return p, ErrNotAuthorised
 	}
-	return p, UserError("not authorised")
+	return p, ErrNotAuthorised
 }
 
 type Public struct {

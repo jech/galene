@@ -707,6 +707,9 @@ func StartClient(conn *websocket.Conn) (err error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = group.UserError("group does not exist")
+		} else if err == group.ErrNotAuthorised {
+			err = group.UserError("not authorised")
+			time.Sleep(200 * time.Millisecond)
 		}
 		return
 	}

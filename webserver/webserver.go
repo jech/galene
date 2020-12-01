@@ -559,8 +559,10 @@ func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname str
 	}
 
 	p, err := desc.GetPermission(groupname, httpClient{user, pass})
-
 	if err != nil || !p.Record {
+		if err == group.ErrNotAuthorised {
+			time.Sleep(200 * time.Millisecond)
+		}
 		return false
 	}
 
