@@ -1627,13 +1627,15 @@ function clearChat() {
 let commands = {}
 
 function operatorPredicate() {
-    if(serverConnection.permissions.op)
+    if(serverConnection && serverConnection.permissions &&
+       serverConnection.permissions.op)
         return null;
     return 'You are not an operator';
 }
 
 function recordingPredicate() {
-    if(serverConnection.permissions.record)
+    if(serverConnection && serverConnection.permissions &&
+       serverConnection.permissions.record)
         return null;
     return 'You are not allowed to record';
 }
@@ -1698,6 +1700,8 @@ commands.unset = {
 commands.leave = {
     description: "leave group",
     f: (c, r) => {
+        if(!serverConnection)
+            throw new Error('Not connected');
         serverConnection.close();
     }
 };
