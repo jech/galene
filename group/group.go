@@ -446,7 +446,6 @@ func discardObsoleteHistory(h []ChatHistoryEntry, seconds int) []ChatHistoryEntr
 
 	i := 0
 	for i < len(h) {
-		log.Println(h[i].Time, FromJSTime(h[i].Time), now.Sub(FromJSTime(h[i].Time)))
 		if now.Sub(FromJSTime(h[i].Time)) <= d {
 			break
 		}
