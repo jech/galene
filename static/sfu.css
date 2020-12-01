@@ -651,6 +651,10 @@ h1 {
     margin-bottom: 4px;
 }
 
+#optionsdiv input[type="checkbox"] {
+  vertical-align: middle;
+}
+
 #presentbutton, #unpresentbutton {
     white-space: nowrap;
     margin-right: 0.4em;
@@ -1221,4 +1225,3 @@ header .collapse {
     }
 
 }
-
