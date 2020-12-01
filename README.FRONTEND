@@ -29,7 +29,7 @@ let sc = new ServerConnection()
 serverConnection.onconnected = ...;
 serverConnection.onclose = ...;
 serverConnection.onusermessage = ...;
-serverConnection.onpermissions = ...;
+serverConnection.onjoined = ...;
 serverConnection.onuser = ...;
 serverConnection.onchat = ...;
 serverConnection.onclearchat = ...;
@@ -55,18 +55,17 @@ You may now connect to the server.
 serverConnection.connect(`wss://${location.host}/ws`);
 ```
 
-You log-in, join a group and request media in the `onconnected` callback.
+You typically join a group and request media in the `onconnected` callback:
 
 ```javascript
 serverConnection.onconnected = function() {
-    this.login(username, password);
-    this.join(group); 
+    this.join(group, 'join', username, password); 
     this.request('everything');
 }
 ```
 
 You should not attempt to push a stream to the server until it has granted
-you the `present` permission through the `onpermissions` callback.
+you the `present` permission through the `onjoined` callback.
 
 ## Managing groups and users
 

@@ -108,11 +108,14 @@ function ServerConnection() {
      */
     this.onuser = null;
     /**
-     * onpermissions is called whenever the current user's permissions change
+     * onjoined is called whenever we join or leave a group or whenever the
+     * permissions we have in a group change.
      *
-     * @type{(this: ServerConnection, permissions: Object<string,boolean>) => void}
+     * kind is one of 'join', 'fail', 'change' or 'leave'.
+     *
+     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, message: string) => void}
      */
-    this.onpermissions = null;
+    this.onjoined = null;
     /**
      * ondownstream is called whenever a new down stream is added.  It
      * should set up the stream's callbacks; actually setting up the UI
@@ -237,14 +240,16 @@ ServerConnection.prototype.connect = async function(url) {
             reject(e);
         };
         this.socket.onopen = function(e) {
+            sc.send({
+                type: 'handshake',
+                id: sc.id,
+            });
             if(sc.onconnected)
                 sc.onconnected.call(sc);
             resolve(sc);
         };
         this.socket.onclose = function(e) {
             sc.permissions = {};
-            if(sc.onpermissions)
-                sc.onpermissions.call(sc, {});
             for(let id in sc.down) {
                 let c = sc.down[id];
                 delete(sc.down[id]);
@@ -252,6 +257,9 @@ ServerConnection.prototype.connect = async function(url) {
                 if(c.onclose)
                     c.onclose.call(c);
             }
+            if(sc.group && sc.onjoined)
+                sc.onjoined.call(sc, 'leave', sc.group, {}, '');
+            sc.group = null;
             if(sc.onclose)
                 sc.onclose.call(sc, e.code, e.reason);
             reject(new Error('websocket close ' + e.code + ' ' + e.reason));
@@ -280,10 +288,19 @@ ServerConnection.prototype.connect = async function(url) {
             case 'label':
                 sc.gotLabel(m.id, m.value);
                 break;
-            case 'permissions':
+            case 'joined':
+                if(sc.group) {
+                    if(m.group !== sc.group) {
+                        throw new Error('Joined multiple groups');
+                    }
+                } else {
+                    sc.group = m.group;
+                }
                 sc.permissions = m.permissions;
-                if(sc.onpermissions)
-                    sc.onpermissions.call(sc, m.permissions);
+                if(sc.onjoined)
+                    sc.onjoined.call(sc, m.kind, m.group,
+                                     m.permissions || {},
+                                     m.value || null);
                 break;
             case 'user':
                 if(sc.onuser)
@@ -324,28 +341,33 @@ ServerConnection.prototype.connect = async function(url) {
 }
 
 /**
- * login authenticates with the server.
+ * join requests to join a group.  The onjoined callback will be called
+ * when we've effectively joined.
  *
- * @param {string} username - the username to login as.
+ * @param {string} group - The name of the group to join.
+ * @param {string} username - the username to join as.
  * @param {string} password - the password.
  */
-ServerConnection.prototype.login = function(username, password) {
+ServerConnection.prototype.join = function(group, username, password) {
     this.send({
-        type: 'login',
-        id: this.id,
+        type: 'join',
+        kind: 'join',
+        group: group,
         username: username,
         password: password,
     });
 }
 
 /**
- * join joins a group.
+ * leave leaves a group.  The onjoined callback will be called when we've
+ * effectively left.
  *
  * @param {string} group - The name of the group to join.
  */
-ServerConnection.prototype.join = function(group) {
+ServerConnection.prototype.leave = function(group) {
     this.send({
         type: 'join',
+        kind: 'leave',
         group: group,
     });
 }

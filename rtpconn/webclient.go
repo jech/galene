@@ -252,11 +252,16 @@ func delUpConn(c *webClient, id string) bool {
 	delete(c.up, id)
 	c.mu.Unlock()
 
-	go func(clients []group.Client) {
-		for _, c := range clients {
-			c.PushConn(conn.id, nil, nil, "")
-		}
-	}(c.Group().GetClients(c))
+	g := c.group
+	if g != nil {
+		go func(clients []group.Client) {
+			for _, c := range clients {
+				c.PushConn(conn.id, nil, nil, "")
+			}
+		}(g.GetClients(c))
+	} else {
+		log.Printf("Deleting connection for client with no group")
+	}
 
 	conn.pc.Close()
 	return true
@@ -577,7 +582,12 @@ func (c *webClient) setRequested(requested map[string]uint32) error {
 }
 
 func pushConns(c group.Client) {
-	clients := c.Group().GetClients(c)
+	group := c.Group()
+	if group == nil {
+		log.Printf("Pushing connections to unjoined client")
+		return
+	}
+	clients := group.GetClients(c)
 	for _, cc := range clients {
 		ccc, ok := cc.(*webClient)
 		if ok {
@@ -637,40 +647,38 @@ func (c *webClient) PushConn(id string, up conn.Up, tracks []conn.UpTrack, label
 	return nil
 }
 
-func StartClient(conn *websocket.Conn) (err error) {
+func readMessage(conn *websocket.Conn, m *clientMessage) error {
+	err := conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+	if err != nil {
+		return err
+	}
+	defer conn.SetReadDeadline(time.Time{})
+
+	return conn.ReadJSON(&m)
+}
+
+func StartClient(conn *websocket.Conn) error {
 	var m clientMessage
 
-	err = conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+	err := readMessage(conn, &m)
 	if err != nil {
 		conn.Close()
-		return
-	}
-	err = conn.ReadJSON(&m)
-	if err != nil {
-		conn.Close()
-		return
-	}
-	err = conn.SetReadDeadline(time.Time{})
-	if err != nil {
-		conn.Close()
-		return
+		return err
 	}
 
-	if m.Type != "login" {
+	if m.Type != "handshake" {
 		conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(
 				websocket.CloseProtocolError,
-				"you must login first",
+				"you must handshake first",
 			),
 		)
 		conn.Close()
-		return
+		return group.ProtocolError("client didn't handshake")
 	}
 
 	c := &webClient{
 		id:       m.Id,
-		username: m.Username,
-		password: m.Password,
 		actionCh: make(chan interface{}, 10),
 		done:     make(chan struct{}),
 	}
@@ -678,49 +686,19 @@ func StartClient(conn *websocket.Conn) (err error) {
 	defer close(c.done)
 
 	c.writeCh = make(chan interface{}, 25)
+	c.writerDone = make(chan struct{})
+	go clientWriter(conn, c.writeCh, c.writerDone)
 	defer func() {
-		if isWSNormalError(err) {
-			err = nil
-			c.close(nil)
-		} else {
-			m, e := errorToWSCloseMessage(c.id, err)
+		var e []byte
+		if !isWSNormalError(err) {
+			var m *clientMessage
+			m, e = errorToWSCloseMessage(c.id, err)
 			if m != nil {
 				c.write(*m)
 			}
-			c.close(e)
 		}
+		c.close(e)
 	}()
-
-	c.writerDone = make(chan struct{})
-	go clientWriter(conn, c.writeCh, c.writerDone)
-
-	err = conn.ReadJSON(&m)
-	if err != nil {
-		return err
-	}
-
-	if m.Type != "join" {
-		return group.ProtocolError("you must join a group first")
-	}
-
-	g, err := group.AddClient(m.Group, c)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err = group.UserError("group does not exist")
-		} else if err == group.ErrNotAuthorised {
-			err = group.UserError("not authorised")
-			time.Sleep(200 * time.Millisecond)
-		}
-		return
-	}
-	if redirect := g.Redirect(); redirect != "" {
-		// We normally redirect at the HTTP level, but the group
-		// description could have been edited in the meantime.
-		err = group.UserError("group is now at " + redirect)
-		return
-	}
-	c.group = g
-	defer group.DelClient(c)
 
 	return clientLoop(c, conn)
 }
@@ -753,6 +731,13 @@ type kickAction struct {
 }
 
 func clientLoop(c *webClient, ws *websocket.Conn) error {
+	defer func() {
+		if c.group != nil {
+			group.DelClient(c)
+			c.group = nil
+		}
+	}()
+
 	read := make(chan interface{}, 1)
 	go clientReader(ws, read, c.done)
 
@@ -764,27 +749,6 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 			}
 		}
 	}()
-
-	perms := c.permissions
-	c.write(clientMessage{
-		Type:        "permissions",
-		Permissions: &perms,
-	})
-
-	h := c.group.GetChatHistory()
-	for _, m := range h {
-		err := c.write(clientMessage{
-			Type:     "chat",
-			Id:       m.Id,
-			Username: m.User,
-			Time:     m.Time,
-			Value:    m.Value,
-			Kind:     m.Kind,
-		})
-		if err != nil {
-			return err
-		}
-	}
 
 	readTime := time.Now()
 
@@ -889,9 +853,15 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				}
 
 			case permissionsChangedAction:
+				group := c.Group()
+				if group == nil {
+					return errors.New("Permissions changed in no group")
+				}
 				perms := c.permissions
 				c.write(clientMessage{
-					Type:        "permissions",
+					Type:        "joined",
+					Kind:        "change",
+					Group:       group.Name(),
 					Permissions: &perms,
 				})
 				if !c.permissions.Present {
@@ -1018,11 +988,66 @@ func kickClient(g *group.Group, id, user, dest string, message string) error {
 
 func handleClientMessage(c *webClient, m clientMessage) error {
 	switch m.Type {
-	case "request":
-		err := c.setRequested(m.Request)
+	case "join":
+		if m.Kind == "leave" {
+			if c.group == nil || c.group.Name() != m.Group {
+				return group.ProtocolError("you are not joined")
+			}
+			c.group = nil
+			c.permissions = group.ClientPermissions{}
+			perms := c.permissions
+			return c.write(clientMessage{
+				Type:        "joined",
+				Kind:        "leave",
+				Group:       m.Group,
+				Permissions: &perms,
+			})
+		}
+
+		if m.Kind != "join" {
+			return group.ProtocolError("unknown kind")
+		}
+
+		if c.group != nil {
+			return group.ProtocolError("cannot join multiple groups")
+		}
+		c.username = m.Username
+		c.password = m.Password
+		g, err := group.AddClient(m.Group, c)
 		if err != nil {
+			if os.IsNotExist(err) {
+				return c.error(
+					group.UserError("group does not exist"),
+				)
+			} else if err == group.ErrNotAuthorised {
+				time.Sleep(200 * time.Millisecond)
+				return c.write(clientMessage{
+					Type: "joined",
+					Kind: "fail",
+					Group: m.Group,
+					Permissions: &group.ClientPermissions{},
+					Value: "not authorised",
+				})
+			}
 			return err
 		}
+		if redirect := g.Redirect(); redirect != "" {
+			// We normally redirect at the HTTP level, but the group
+			// description could have been edited in the meantime.
+			return c.error(
+				group.UserError("group is now at " + redirect),
+			)
+		}
+		c.group = g
+		perms := c.permissions
+		return c.write(clientMessage{
+			Type:        "joined",
+			Kind:        "join",
+			Group:       m.Group,
+			Permissions: &perms,
+		})
+	case "request":
+		return c.setRequested(m.Request)
 	case "offer":
 		if !c.permissions.Present {
 			c.write(clientMessage{
@@ -1080,16 +1105,20 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 	case "chat", "usermessage":
 		if m.Id != c.id {
-			return group.UserError("wrong sender id")
+			return group.ProtocolError("wrong sender id")
 		}
 		if m.Username != "" && m.Username != c.username {
-			return group.UserError("wrong sender username")
+			return group.ProtocolError("wrong sender username")
+		}
+		g := c.group
+		if g == nil {
+			return c.error(group.UserError("join a group first"))
 		}
 
 		tm := group.ToJSTime(time.Now())
 		if m.Type == "chat" {
 			if m.Dest == "" {
-				c.group.AddToChatHistory(
+				g.AddToChatHistory(
 					m.Id, m.Username, tm, m.Kind, m.Value,
 				)
 			}
@@ -1105,7 +1134,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Value:       m.Value,
 		}
 		if m.Dest == "" {
-			clients := c.group.GetClients(nil)
+			clients := g.GetClients(nil)
 			for _, cc := range clients {
 				ccc, ok := cc.(*webClient)
 				if ok {
@@ -1113,7 +1142,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				}
 			}
 		} else {
-			cc := c.group.GetClient(m.Dest)
+			cc := g.GetClient(m.Dest)
 			if cc == nil {
 				return c.error(group.UserError("user unknown"))
 			}
@@ -1125,16 +1154,20 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 	case "groupaction":
 		if m.Id != c.id {
-			return group.UserError("wrong sender id")
+			return group.ProtocolError("wrong sender id")
 		}
 		if m.Username != "" && m.Username != c.username {
-			return group.UserError("wrong sender username")
+			return group.ProtocolError("wrong sender username")
+		}
+		g := c.group
+		if g == nil {
+			return c.error(group.UserError("join a group first"))
 		}
 		switch m.Kind {
 		case "clearchat":
-			c.group.ClearChatHistory()
+			g.ClearChatHistory()
 			m := clientMessage{Type: "clearchat"}
-			clients := c.group.GetClients(nil)
+			clients := g.GetClients(nil)
 			for _, cc := range clients {
 				cc, ok := cc.(*webClient)
 				if ok {
@@ -1145,19 +1178,19 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			c.group.SetLocked(m.Kind == "lock", m.Value)
+			g.SetLocked(m.Kind == "lock", m.Value)
 		case "record":
 			if !c.permissions.Record {
 				return c.error(group.UserError("not authorised"))
 			}
-			for _, cc := range c.group.GetClients(c) {
+			for _, cc := range g.GetClients(c) {
 				_, ok := cc.(*diskwriter.Client)
 				if ok {
 					return c.error(group.UserError("already recording"))
 				}
 			}
-			disk := diskwriter.New(c.group)
-			_, err := group.AddClient(c.group.Name(), disk)
+			disk := diskwriter.New(g)
+			_, err := group.AddClient(g.Name(), disk)
 			if err != nil {
 				disk.Close()
 				return c.error(err)
@@ -1167,7 +1200,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Record {
 				return c.error(group.UserError("not authorised"))
 			}
-			for _, cc := range c.group.GetClients(c) {
+			for _, cc := range g.GetClients(c) {
 				disk, ok := cc.(*diskwriter.Client)
 				if ok {
 					disk.Close()
@@ -1179,17 +1212,21 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 	case "useraction":
 		if m.Id != c.id {
-			return group.UserError("wrong sender id")
+			return group.ProtocolError("wrong sender id")
 		}
 		if m.Username != "" && m.Username != c.username {
-			return group.UserError("wrong sender username")
+			return group.ProtocolError("wrong sender username")
+		}
+		g := c.group
+		if g == nil {
+			return c.error(group.UserError("join a group first"))
 		}
 		switch m.Kind {
 		case "op", "unop", "present", "unpresent":
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			err := setPermissions(c.group, m.Dest, m.Kind)
+			err := setPermissions(g, m.Dest, m.Kind)
 			if err != nil {
 				return c.error(err)
 			}
@@ -1197,7 +1234,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			err := kickClient(c.group, m.Id, m.Username, m.Dest, m.Value)
+			err := kickClient(g, m.Id, m.Username, m.Dest, m.Value)
 			if err != nil {
 				return c.error(err)
 			}
@@ -1207,7 +1244,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 	case "pong":
 		// nothing
 	case "ping":
-		c.write(clientMessage{
+		return c.write(clientMessage{
 			Type: "pong",
 		})
 	default:

@@ -281,9 +281,7 @@ function setConnected(connected) {
 function gotConnected() {
     setConnected(true);
     let up = getUserPass();
-    this.login(up.username, up.password);
-    this.join(group);
-    this.request(getSettings().request);
+    this.join(group, up.username, up.password);
 }
 
 /**
@@ -1409,14 +1407,26 @@ function displayUsername() {
 let presentRequested = null;
 
 /**
+ * @this {ServerConnection}
+ * @param {string} group
  * @param {Object<string,boolean>} perms
  */
-async function gotPermissions(perms) {
+async function gotJoined(kind, group, perms, message) {
+    if(kind === 'fail') {
+        displayError('The server said: ' + message);
+        this.close();
+        return;
+    }
+
     displayUsername();
     setButtonsVisibility();
 
+    if(kind !== 'leave')
+        this.request(getSettings().request);
+
     try {
-        if(serverConnection.permissions.present && !findUpMedia('local')) {
+        if(kind === 'join' &&
+           serverConnection.permissions.present && !findUpMedia('local')) {
             if(presentRequested) {
                 if(presentRequested === 'mike')
                     updateSettings({video: ''});
@@ -2172,7 +2182,7 @@ async function serverConnect() {
     serverConnection.onclose = gotClose;
     serverConnection.ondownstream = gotDownStream;
     serverConnection.onuser = gotUser;
-    serverConnection.onpermissions = gotPermissions;
+    serverConnection.onjoined = gotJoined;
     serverConnection.onchat = addToChatbox;
     serverConnection.onclearchat = clearChat;
     serverConnection.onusermessage = function(id, dest, username, time, priviledged, kind, message) {
