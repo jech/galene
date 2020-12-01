@@ -80,7 +80,7 @@ function ServerConnection() {
      */
     this.permissions = {};
     /**
-     * clientdata is a convenient place to attach data to a ServerConnection.
+     * userdata is a convenient place to attach data to a ServerConnection.
      * It is not used by the library.
      *
      * @type{Object<unknown,unknown>}
@@ -209,7 +209,7 @@ ServerConnection.prototype.getIceServers = async function() {
 }
 
 /**
- * Connect connects to the server.
+ * connect connects to the server.
  *
  * @param {string} url - The URL to connect to.
  * @returns {Promise<ServerConnection>}
@@ -372,7 +372,7 @@ ServerConnection.prototype.request = function(what) {
         request = {audio: true, screenshare: true, video: true};
         break;
     default:
-        console.error(`Uknown value ${what} in sendRequest`);
+        console.error(`Unknown value ${what} in request`);
         break;
     }
 
@@ -794,8 +794,9 @@ function Stream(sc, id, pc) {
      */
     this.statsHandler = null;
     /**
-     * clientdata is a convenient place to attach data to a Stream.
+     * userdata is a convenient place to attach data to a Stream.
      * It is not used by the library.
+     *
      * @type{Object<unknown,unknown>}
      */
     this.userdata = {};
