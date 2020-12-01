@@ -1446,7 +1446,7 @@ const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#&()=?]+[-a-zA-Z0-9@:%/_\\+~#
 
 /**
  * @param {string} line
- * @returns {(Text|HTMLElement)[]}
+ * @returns {Array.<Text|HTMLElement>}
  */
 function formatLine(line) {
     let r = new RegExp(urlRegexp);
