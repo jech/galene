@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
@@ -1218,6 +1219,26 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 					group.DelClient(disk)
 				}
 			}
+		case "subgroups":
+			if !c.permissions.Op {
+				return c.error(group.UserError("not authorised"))
+			}
+			s := ""
+			for _, sg := range group.GetSubGroups(g.Name()) {
+				plural := ""
+				if sg.Clients > 1 {
+					plural = "s"
+				}
+				s = s + fmt.Sprintf("%v (%v client%v)",
+					sg.Name, sg.Clients, plural)
+			}
+			c.write(clientMessage{
+				Type:  "chat",
+				Dest:  c.id,
+				Username: "Server",
+				Time:  group.ToJSTime(time.Now()),
+				Value: &s,
+			})
 		default:
 			return group.ProtocolError("unknown group action")
 		}

@@ -1759,6 +1759,14 @@ commands.unrecord = {
     }
 };
 
+commands.subgroups = {
+    predicate: operatorPredicate,
+    description: 'list subgroups',
+    f: (c, r) => {
+        serverConnection.groupAction(getUsername(), 'subgroups');
+    }
+};
+
 /**
  * parseCommand splits a string into two space-separated parts.  The first
  * part may be quoted and may include backslash escapes.

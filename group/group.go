@@ -259,6 +259,30 @@ func GetNames() []string {
 	return names
 }
 
+type SubGroup struct {
+	Name    string
+	Clients int
+}
+
+func GetSubGroups(parent string) []SubGroup {
+	prefix := parent + "/"
+	subgroups := make([]SubGroup, 0)
+
+	Range(func(g *Group) bool {
+		if strings.HasPrefix(g.name, prefix) {
+			g.mu.Lock()
+			count := len(g.clients)
+			g.mu.Unlock()
+			if count > 0 {
+				subgroups = append(subgroups,
+					SubGroup{g.name, count})
+			}
+		}
+		return true
+	})
+	return subgroups
+}
+
 func Get(name string) *Group {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
