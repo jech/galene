@@ -110,21 +110,31 @@
               <div class="login-container invisible" id="login-container">
                 <div class="login-box">
                   <form id="userform" class="userform">
-                    <label for="username">Username:</label>
+                    <label for="username">Username</label>
                     <input id="username" type="text" name="username"
                            autocomplete="username" class="form-control"/>
-                    <label for="password">Password:</label>
+                    <label for="password">Password</label>
                     <input id="password" type="password" name="password"
                            autocomplete="current-password" class="form-control"/>
-                    <label>Present:</label>
-                    <input id="presentoff" type="radio" name="presentradio" value="" checked/>
-                    <label for="presentoff">nothing</label>
-                    <input id="presentmike" type="radio" name="presentradio" value="mike"/>
-                    <label for="presentmike">microphone</label>
-                    <input id="presentboth" type="radio" name="presentradio" value="both"/>
-                    <label for="presentboth">camera and microphone</label>
+                    <label>Auto ready</label>
+                    <div class="present-switch">
+                      <p class="switch-radio">
+                        <input id="presentoff" type="radio" name="presentradio" value="" checked/>
+                        <label for="presentoff">Disabled</label>
+                      </p>
+                      <p class="switch-radio">
+                        <input id="presentmike" type="radio" name="presentradio" value="mike"/>
+                        <label for="presentmike">Enable microphone</label>
+                      </p>
+                      <p class="switch-radio">
+                        <input id="presentboth" type="radio" name="presentradio" value="both"/>
+                        <label for="presentboth">Enable camera and microphone</label>
+                      </p>
+                    </div>
                     <div class="clear"></div>
-                    <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect"/>
+                    <div class="connect">
+                      <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect"/>
+                    </div>
                   </form>
                   <div class="clear"></div>
                 </div>

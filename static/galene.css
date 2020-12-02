@@ -138,6 +138,7 @@
 .btn {
     display: inline-block;
     font-weight: 400;
+    font-size: 1em;
     text-align: center;
     white-space: nowrap;
     vertical-align: middle;
@@ -557,15 +558,21 @@ textarea.form-reply {
 .login-container {
     height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;
-    display: block;
+    display: flex;
+    justify-content: center;
 }
 
 .login-box {
-    position: absolute;
-    top: 15%;
-    left: 25%;
-    width: 35em;
-    padding: 2em;
+    width: 20em;
+    padding: 1em;
+    margin: 5em auto;
+    height: 23em;
+    background: #fcfcfc;
+}
+
+.login-box .connect {
+    width: 100%;
+    text-align: center;
 }
 
 .login-box h2 {
@@ -672,6 +679,20 @@ h1 {
 
 .userform {
     display: inline
+}
+
+.userform label {
+    min-width: 3em;
+    display: inline-block;
+    padding-top: 10px;
+}
+
+.userform input[type="text"], .userform input[type="password"] {
+    width: 100%;
+}
+
+.switch-radio {
+    margin: 0;
 }
 
 .invisible {
@@ -786,8 +807,8 @@ h1 {
 }
 
 #connectbutton {
-    margin-left: 80px;
-    margin-top: 15px;
+    margin-top: 1em;
+    padding: 0.37rem 1.5rem;
 }
 
 #input {
@@ -1211,7 +1232,7 @@ header .collapse {
     }
 
     .login-box {
-        left: calc(100vw / 2 - 10.5em);
+        background: transparent;
     }
 
     .coln-left {
