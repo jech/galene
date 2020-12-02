@@ -26,12 +26,13 @@ func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
 		code = websocket.CloseNormalClosure
 	case group.ProtocolError:
 		code = websocket.CloseProtocolError
+		s := e.Error()
 		m = &clientMessage{
 			Type:        "usermessage",
 			Kind:        "error",
 			Dest:        id,
 			Priviledged: true,
-			Value:       e.Error(),
+			Value:       &s,
 		}
 		text = e.Error()
 	case group.UserError, group.KickError:
@@ -169,7 +170,7 @@ type clientMessage struct {
 	Priviledged bool                       `json:"priviledged,omitempty"`
 	Permissions *group.ClientPermissions   `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
-	Value       string                     `json:"value,omitempty"`
+	Value       *string                    `json:"value,omitempty"`
 	Time        int64                      `json:"time,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
@@ -809,10 +810,11 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					}
 				}
 			case addLabelAction:
+				label := a.label
 				c.write(clientMessage{
 					Type:  "label",
 					Id:    a.id,
-					Value: a.label,
+					Value: &label,
 				})
 			case pushConnsAction:
 				for _, u := range c.up {
@@ -1021,12 +1023,13 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				)
 			} else if err == group.ErrNotAuthorised {
 				time.Sleep(200 * time.Millisecond)
+				s := "not authorised"
 				return c.write(clientMessage{
-					Type: "joined",
-					Kind: "fail",
-					Group: m.Group,
+					Type:        "joined",
+					Kind:        "fail",
+					Group:       m.Group,
 					Permissions: &group.ClientPermissions{},
-					Value: "not authorised",
+					Value:       &s,
 				})
 			}
 			return err
@@ -1116,10 +1119,14 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 
 		tm := group.ToJSTime(time.Now())
+
 		if m.Type == "chat" {
+			if m.Value == nil {
+				return group.ProtocolError("missing value")
+			}
 			if m.Dest == "" {
 				g.AddToChatHistory(
-					m.Id, m.Username, tm, m.Kind, m.Value,
+					m.Id, m.Username, tm, m.Kind, *m.Value,
 				)
 			}
 		}
@@ -1178,7 +1185,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			g.SetLocked(m.Kind == "lock", m.Value)
+			message := ""
+			if m.Value != nil {
+				message = *m.Value
+			}
+			g.SetLocked(m.Kind == "lock", message)
 		case "record":
 			if !c.permissions.Record {
 				return c.error(group.UserError("not authorised"))
@@ -1234,7 +1245,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !c.permissions.Op {
 				return c.error(group.UserError("not authorised"))
 			}
-			err := kickClient(g, m.Id, m.Username, m.Dest, m.Value)
+			message := ""
+			if m.Value != nil {
+				message = *m.Value
+			}
+			err := kickClient(g, m.Id, m.Username, m.Dest, message)
 			if err != nil {
 				return c.error(err)
 			}
@@ -1344,12 +1359,13 @@ func (c *webClient) close(data []byte) error {
 func errorMessage(id string, err error) *clientMessage {
 	switch e := err.(type) {
 	case group.UserError:
+		message := e.Error()
 		return &clientMessage{
 			Type:        "usermessage",
 			Kind:        "error",
 			Dest:        id,
 			Priviledged: true,
-			Value:       e.Error(),
+			Value:       &message,
 		}
 	case group.KickError:
 		message := e.Message
@@ -1363,7 +1379,7 @@ func errorMessage(id string, err error) *clientMessage {
 			Username:    e.Username,
 			Dest:        id,
 			Priviledged: true,
-			Value:       message,
+			Value:       &message,
 		}
 	default:
 		return nil
