@@ -932,7 +932,7 @@ async function addFileMedia(file) {
         }
     };
     setMedia(c, true, video);
-    video.play();
+    c.userdata.play = true;
     setButtonsVisibility()
 }
 
@@ -1230,10 +1230,19 @@ function setMediaStatus(c) {
         console.warn('Setting status of unknown media.');
         return;
     }
-    if(good)
+    if(good) {
         media.classList.remove('media-failed');
-    else
+        if(c.userdata.play) {
+            if(media instanceof HTMLMediaElement)
+                media.play().catch(e => {
+                    console.error(e);
+                    displayError(e);
+                });
+            delete(c.userdata.play);
+        }
+    } else {
         media.classList.add('media-failed');
+    }
 }
 
 
