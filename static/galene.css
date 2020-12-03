@@ -1113,6 +1113,9 @@ header .collapse {
 /* END Sidebar Left */
 
 @media only screen and (max-device-width: 1024px) {
+    #presentbutton, #unpresentbutton {
+        width: auto;
+    }
     .nav-link {
         margin: 0 4px;
         line-height: 1.5;
