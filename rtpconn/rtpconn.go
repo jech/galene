@@ -573,23 +573,24 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 	var packet rtp.Packet
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
-		for _, seqno := range nack.PacketList() {
+		nack.Range(func (seqno uint16) bool {
 			l := track.remote.GetRTP(seqno, buf)
 			if l == 0 {
 				unhandled = append(unhandled, seqno)
-				continue
+				return true
 			}
 			err := packet.Unmarshal(buf[:l])
 			if err != nil {
-				continue
+				return true
 			}
 			err = track.track.WriteRTP(&packet)
 			if err != nil {
 				log.Printf("WriteRTP: %v", err)
-				continue
+				return false
 			}
 			track.rate.Accumulate(uint32(l))
-		}
+			return true
+		})
 	}
 	if len(unhandled) == 0 {
 		return
