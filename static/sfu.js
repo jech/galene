@@ -829,7 +829,7 @@ async function addLocalMedia(id) {
 
     c.onstats = gotUpStats;
     c.setStatsInterval(2000);
-    await setMedia(c, true);
+    await setMedia(c, true, true);
     setButtonsVisibility();
 }
 
@@ -931,7 +931,7 @@ async function addFileMedia(file) {
             delUpMedia(c);
         }
     };
-    setMedia(c, true, video);
+    setMedia(c, true, false, video);
     c.userdata.play = true;
     setButtonsVisibility()
 }
@@ -1020,11 +1020,13 @@ function muteLocalTracks(mute) {
  * @param {Stream} c
  * @param {boolean} isUp
  *     - indicates whether the stream goes in the up direction
+ * @param {boolean} [mirror]
+ *     - whether to mirror the video
  * @param {HTMLVideoElement} [video]
  *     - the video element to add.  If null, a new element with custom
  *       controls will be created.
  */
-function setMedia(c, isUp, video) {
+function setMedia(c, isUp, mirror, video) {
     let peersdiv = document.getElementById('peers');
 
     let div = document.getElementById('peer-' + c.id);
@@ -1058,6 +1060,8 @@ function setMedia(c, isUp, video) {
         div.appendChild(media);
         if(!video)
             addCustomControls(media, div, c);
+        if(mirror)
+            media.classList.add('mirror');
     }
 
     if(!video)
