@@ -3,11 +3,11 @@ package rtpconn
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sync"
 	"time"
-	"fmt"
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
@@ -1031,29 +1031,36 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		c.password = m.Password
 		g, err := group.AddClient(m.Group, c)
 		if err != nil {
+			var s string
 			if os.IsNotExist(err) {
-				return c.error(
-					group.UserError("group does not exist"),
-				)
+				s = "group does not exist"
 			} else if err == group.ErrNotAuthorised {
+				s = "not authorised"
 				time.Sleep(200 * time.Millisecond)
-				s := "not authorised"
-				return c.write(clientMessage{
-					Type:        "joined",
-					Kind:        "fail",
-					Group:       m.Group,
-					Permissions: &group.ClientPermissions{},
-					Value:       &s,
-				})
+			} else if e, ok := err.(group.UserError); ok {
+				s = string(e)
+			} else {
+				s = "internal server error"
+				log.Printf("Join group: %v")
 			}
-			return err
+			return c.write(clientMessage{
+				Type:        "joined",
+				Kind:        "fail",
+				Group:       m.Group,
+				Permissions: &group.ClientPermissions{},
+				Value:       &s,
+			})
 		}
 		if redirect := g.Redirect(); redirect != "" {
 			// We normally redirect at the HTTP level, but the group
 			// description could have been edited in the meantime.
-			return c.error(
-				group.UserError("group is now at " + redirect),
-			)
+			return c.write(clientMessage{
+				Type:        "joined",
+				Kind:        "redirect",
+				Group:       m.Group,
+				Permissions: &group.ClientPermissions{},
+				Value:       &redirect,
+			})
 		}
 		c.group = g
 		perms := c.permissions
@@ -1264,11 +1271,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 					sg.Name, sg.Clients, plural)
 			}
 			c.write(clientMessage{
-				Type:  "chat",
-				Dest:  c.id,
+				Type:     "chat",
+				Dest:     c.id,
 				Username: "Server",
-				Time:  group.ToJSTime(time.Now()),
-				Value: &s,
+				Time:     group.ToJSTime(time.Now()),
+				Value:    &s,
 			})
 		default:
 			return group.ProtocolError("unknown group action")

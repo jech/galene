@@ -159,6 +159,10 @@ func (g *Group) API() *webrtc.API {
 }
 
 func Add(name string, desc *description) (*Group, error) {
+	if name == "" || strings.HasSuffix(name, "/") {
+		return nil, UserError("illegal group name")
+	}
+
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 

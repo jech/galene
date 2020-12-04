@@ -243,6 +243,12 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.HasSuffix(r.URL.Path, "/") {
+		http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1],
+			http.StatusPermanentRedirect)
+		return
+	}
+
 	g, err := group.Add(name, nil)
 	if err != nil {
 		if os.IsNotExist(err) {

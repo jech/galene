@@ -271,7 +271,7 @@ function setConnected(connected) {
             userpass ? userpass.password : '';
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
-        displayError("Disconnected!", "error");
+        displayError('Disconnected', 'error');
         hideVideo();
         closeVideoControls();
     }
@@ -1425,8 +1425,25 @@ let presentRequested = null;
  * @param {Object<string,boolean>} perms
  */
 async function gotJoined(kind, group, perms, message) {
-    if(kind === 'fail') {
+    let present = presentRequested;
+    presentRequested = null;
+
+    switch(kind) {
+    case 'fail':
         displayError('The server said: ' + message);
+        this.close();
+        return;
+    case 'redirect':
+        this.close();
+        document.location = message;
+        return;
+    case 'leave':
+        this.close();
+        return;
+    case 'join':
+        break;
+    default:
+        displayError('Unknown join message');
         this.close();
         return;
     }
@@ -1434,34 +1451,28 @@ async function gotJoined(kind, group, perms, message) {
     displayUsername();
     setButtonsVisibility();
 
-    if(kind !== 'leave')
-        this.request(getSettings().request);
+    this.request(getSettings().request);
 
-    try {
-        if(kind === 'join' &&
-           serverConnection.permissions.present && !findUpMedia('local')) {
-            if(presentRequested) {
-                if(presentRequested === 'mike')
-                    updateSettings({video: ''});
-                else if(presentRequested === 'both')
-                    delSetting('video');
-                reflectSettings();
+    if(serverConnection.permissions.present && !findUpMedia('local')) {
+        if(present) {
+            if(present === 'mike')
+                updateSettings({video: ''});
+            else if(present === 'both')
+                delSetting('video');
+            reflectSettings();
 
-                let button = getButtonElement('presentbutton');
-                button.disabled = true;
-                try {
-                    await addLocalMedia();
-                } finally {
-                    button.disabled = false;
-                }
-            } else {
-                displayMessage(
-                    "Press Present to enable your camera or microphone"
-                );
+            let button = getButtonElement('presentbutton');
+            button.disabled = true;
+            try {
+                await addLocalMedia();
+            } finally {
+                button.disabled = false;
             }
+        } else {
+            displayMessage(
+                "Press Ready to enable your camera or microphone"
+            );
         }
-    } finally {
-        presentRequested = null;
     }
 }
 
