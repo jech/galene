@@ -1044,12 +1044,30 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 		c.group = g
 		perms := c.permissions
-		return c.write(clientMessage{
+		err = c.write(clientMessage{
 			Type:        "joined",
 			Kind:        "join",
 			Group:       m.Group,
 			Permissions: &perms,
 		})
+		if err != nil {
+			return err
+		}
+		h := c.group.GetChatHistory()
+		for _, m := range h {
+			message := m.Value
+			err := c.write(clientMessage{
+				Type:     "chat",
+				Id:       m.Id,
+				Username: m.User,
+				Time:     m.Time,
+				Value:    &message,
+				Kind:     m.Kind,
+			})
+			if err != nil {
+				return err
+			}
+		}
 	case "request":
 		return c.setRequested(m.Request)
 	case "offer":
