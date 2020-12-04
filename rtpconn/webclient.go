@@ -788,15 +788,10 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				if down != nil {
 					err = negotiate(c, down, false, false)
 					if err != nil {
-						log.Printf("Negotiate: %v", err)
 						delDownConn(c, down.id)
-						err = failUpConnection(
-							c, down.id,
-							"negotiation failed",
-						)
-						if err != nil {
-							return err
-						}
+						c.error(group.UserError(
+							"Negotiation failed",
+						))
 						continue
 					}
 				}
