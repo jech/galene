@@ -258,7 +258,10 @@ func delUpConn(c *webClient, id string) bool {
 	if g != nil {
 		go func(clients []group.Client) {
 			for _, c := range clients {
-				c.PushConn(conn.id, nil, nil, "")
+				err := c.PushConn(conn.id, nil, nil, "")
+				if err != nil {
+					log.Printf("PushConn: %v", err)
+				}
 			}
 		}(g.GetClients(c))
 	} else {
@@ -827,7 +830,17 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					for i, t := range tracks {
 						ts[i] = t
 					}
-					go a.c.PushConn(u.id, u, ts, u.label)
+					go func() {
+						err := a.c.PushConn(
+							u.id, u, ts, u.label,
+						)
+						if err != nil {
+							log.Printf(
+								"PushConn: %v",
+								err,
+							)
+						}
+					}()
 				}
 			case connectionFailedAction:
 				if down := getDownConn(c, a.id); down != nil {
