@@ -381,31 +381,32 @@ func delDownConnHelper(c *webClient, id string) *rtpDownConnection {
 }
 
 func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrack, remoteConn conn.Up) (*webrtc.RTPSender, error) {
-	var pt uint8
-	var ssrc uint32
-	var id, label string
-	switch rt := remoteTrack.(type) {
-	case *rtpUpTrack:
-		pt = rt.track.PayloadType()
-		ssrc = rt.track.SSRC()
-		id = rt.track.ID()
-		label = rt.track.Label()
-	default:
-		return nil, errors.New("not implemented yet")
+	rt, ok := remoteTrack.(*rtpUpTrack)
+	if !ok {
+		return nil, errors.New("unexpected up track type")
 	}
 
-	local, err := conn.pc.NewTrack(pt, ssrc, id, label)
+	local, err := webrtc.NewTrackLocalStaticRTP(
+		remoteTrack.Codec(),
+		rt.track.ID(), rt.track.StreamID(),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := conn.pc.AddTrack(local)
+	sender, err := conn.pc.AddTrack(local)
 	if err != nil {
 		return nil, err
+	}
+
+	parms := sender.GetParameters()
+	if len(parms.Encodings) != 1 {
+		return nil, errors.New("got multiple encodings")
 	}
 
 	track := &rtpDownTrack{
 		track:      local,
+		ssrc:       parms.Encodings[0].SSRC,
 		remote:     remoteTrack,
 		maxBitrate: new(bitrate),
 		stats:      new(receiverStats),
@@ -413,9 +414,9 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrac
 	}
 	conn.tracks = append(conn.tracks, track)
 
-	go rtcpDownListener(conn, track, s)
+	go rtcpDownListener(conn, track, sender)
 
-	return s, nil
+	return sender, nil
 }
 
 func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bool) error {
@@ -432,7 +433,7 @@ func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bo
 
 	labels := make(map[string]string)
 	for _, t := range down.pc.GetTransceivers() {
-		var track *webrtc.Track
+		var track webrtc.TrackLocal
 		if t.Sender() != nil {
 			track = t.Sender().Track()
 		}

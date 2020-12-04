@@ -4,10 +4,10 @@ import (
 	"errors"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v3"
 
 	"sfu/conn"
 	"sfu/packetcache"
@@ -241,7 +241,7 @@ const (
 func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 	defer close(writer.done)
 
-	codec := track.track.Codec().Name
+	codec := track.track.Codec()
 
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
@@ -277,7 +277,8 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 
 				found, _, lts := track.cache.Last()
 				kts, _, kf := track.cache.Keyframe()
-				if codec == webrtc.VP8 && found && len(kf) > 0 {
+				if strings.ToLower(codec.MimeType) == "video/vp8" &&
+					found && len(kf) > 0 {
 					if ((lts-kts)&0x80000000) != 0 ||
 						lts-kts < 2*90000 {
 						// we got a recent keyframe
@@ -344,8 +345,8 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 			if kfNeeded > kfUnneeded {
 				kf := false
 				kfValid := false
-				switch codec {
-				case webrtc.VP8:
+				switch codec.MimeType {
+				case "video/vp8":
 					kf = isVP8Keyframe(&packet)
 					kfValid = true
 				}

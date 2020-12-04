@@ -67,8 +67,9 @@ type iceConnection interface {
 }
 
 type rtpDownTrack struct {
-	track         *webrtc.Track
+	track         *webrtc.TrackLocalStaticRTP
 	remote        conn.UpTrack
+	ssrc          webrtc.SSRC
 	maxBitrate    *bitrate
 	rate          *estimator.Estimator
 	stats         *receiverStats
@@ -112,7 +113,7 @@ func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection,
 		return nil, err
 	}
 
-	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
+	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		log.Printf("Got track on downstream connection")
 	})
 
@@ -176,7 +177,7 @@ func (down *rtpDownConnection) flushICECandidates() error {
 }
 
 type rtpUpTrack struct {
-	track    *webrtc.Track
+	track    *webrtc.TrackRemote
 	label    string
 	rate     *estimator.Estimator
 	cache    *packetcache.Cache
@@ -257,8 +258,8 @@ func (up *rtpUpTrack) Label() string {
 	return up.label
 }
 
-func (up *rtpUpTrack) Codec() *webrtc.RTPCodec {
-	return up.track.Codec()
+func (up *rtpUpTrack) Codec() webrtc.RTPCodecCapability {
+	return up.track.Codec().RTPCodecCapability
 }
 
 func (up *rtpUpTrack) hasRtcpFb(tpe, parameter string) bool {
@@ -344,7 +345,7 @@ func (up *rtpUpConnection) flushICECandidates() error {
 	return err
 }
 
-func getTrackMid(pc *webrtc.PeerConnection, track *webrtc.Track) string {
+func getTrackMid(pc *webrtc.PeerConnection, track *webrtc.TrackRemote) string {
 	for _, t := range pc.GetTransceivers() {
 		if t.Receiver() != nil && t.Receiver().Track() == track {
 			return t.Mid()
@@ -399,7 +400,7 @@ func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
 
 	up := &rtpUpConnection{id: id, pc: pc}
 
-	pc.OnTrack(func(remote *webrtc.Track, receiver *webrtc.RTPReceiver) {
+	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		up.mu.Lock()
 
 		mid := getTrackMid(pc, remote)
@@ -475,9 +476,9 @@ func (up *rtpUpConnection) sendPLI(track *rtpUpTrack) error {
 	return sendPLI(up.pc, track.track.SSRC())
 }
 
-func sendPLI(pc *webrtc.PeerConnection, ssrc uint32) error {
+func sendPLI(pc *webrtc.PeerConnection, ssrc webrtc.SSRC) error {
 	return pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.PictureLossIndication{MediaSSRC: ssrc},
+		&rtcp.PictureLossIndication{MediaSSRC: uint32(ssrc)},
 	})
 }
 
@@ -503,12 +504,12 @@ func (up *rtpUpConnection) sendFIR(track *rtpUpTrack, increment bool) error {
 	return sendFIR(up.pc, track.track.SSRC(), seqno)
 }
 
-func sendFIR(pc *webrtc.PeerConnection, ssrc uint32, seqno uint8) error {
+func sendFIR(pc *webrtc.PeerConnection, ssrc webrtc.SSRC, seqno uint8) error {
 	return pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.FullIntraRequest{
 			FIR: []rtcp.FIREntry{
 				{
-					SSRC:           ssrc,
+					SSRC:           uint32(ssrc),
 					SequenceNumber: seqno,
 				},
 			},
@@ -558,10 +559,10 @@ func (up *rtpUpConnection) sendNACKs(track *rtpUpTrack, seqnos []uint16) error {
 	return err
 }
 
-func sendNACKs(pc *webrtc.PeerConnection, ssrc uint32, nacks []rtcp.NackPair) error {
+func sendNACKs(pc *webrtc.PeerConnection, ssrc webrtc.SSRC, nacks []rtcp.NackPair) error {
 	packet := rtcp.Packet(
 		&rtcp.TransportLayerNack{
-			MediaSSRC: ssrc,
+			MediaSSRC: uint32(ssrc),
 			Nacks:     nacks,
 		},
 	)
@@ -663,7 +664,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 				}
 			case *rtcp.SourceDescription:
 				for _, c := range p.Chunks {
-					if c.Source != track.track.SSRC() {
+					if c.Source != uint32(track.track.SSRC()) {
 						continue
 					}
 					for _, i := range c.Items {
@@ -735,7 +736,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 		}
 
 		reports = append(reports, rtcp.ReceptionReport{
-			SSRC:               t.track.SSRC(),
+			SSRC:               uint32(t.track.SSRC()),
 			FractionLost:       uint8((lost * 256) / expected),
 			TotalLost:          totalLost,
 			LastSequenceNumber: eseqno,
@@ -767,7 +768,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 		if t.hasRtcpFb("goog-remb", "") {
 			continue
 		}
-		ssrcs = append(ssrcs, t.track.SSRC())
+		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
 	}
 
 	if len(ssrcs) > 0 {
@@ -823,7 +824,7 @@ func sendSR(conn *rtpDownConnection) error {
 			p, b := t.rate.Totals()
 			packets = append(packets,
 				&rtcp.SenderReport{
-					SSRC:        t.track.SSRC(),
+					SSRC:        uint32(t.ssrc),
 					NTPTime:     nowNTP,
 					RTPTime:     nowRTP,
 					PacketCount: p,
@@ -843,7 +844,7 @@ func sendSR(conn *rtpDownConnection) error {
 				&rtcp.SourceDescription{
 					Chunks: []rtcp.SourceDescriptionChunk{
 						{
-							Source: t.track.SSRC(),
+							Source: uint32(t.ssrc),
 							Items:  []rtcp.SourceDescriptionItem{item},
 						},
 					},
@@ -953,7 +954,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				found := false
 				var seqno uint8
 				for _, entry := range p.FIR {
-					if entry.SSRC == track.track.SSRC() {
+					if entry.SSRC == uint32(track.ssrc) {
 						found = true
 						seqno = entry.SequenceNumber
 						break
@@ -992,13 +993,13 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				conn.maxREMBBitrate.Set(p.Bitrate, jiffies)
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
-					if r.SSRC == track.track.SSRC() {
+					if r.SSRC == uint32(track.ssrc) {
 						handleReport(track, r, jiffies)
 					}
 				}
 			case *rtcp.SenderReport:
 				for _, r := range p.Reports {
-					if r.SSRC == track.track.SSRC() {
+					if r.SSRC == uint32(track.ssrc) {
 						handleReport(track, r, jiffies)
 					}
 				}
@@ -1037,7 +1038,7 @@ func handleReport(track *rtpDownTrack, report rtcp.ReceptionReport, jiffies uint
 	}
 }
 
-func minPacketCache(track *webrtc.Track) int {
+func minPacketCache(track *webrtc.TrackRemote) int {
 	if track.Kind() == webrtc.RTPCodecTypeVideo {
 		return 128
 	}

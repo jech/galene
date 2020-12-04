@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/at-wat/ebml-go/webm"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
-	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media/samplebuilder"
 
 	"sfu/conn"
@@ -227,20 +227,21 @@ func newDiskConn(directory, label string, up conn.Up, remoteTracks []conn.UpTrac
 	}
 	for _, remote := range remoteTracks {
 		var builder *samplebuilder.SampleBuilder
-		switch remote.Codec().Name {
-		case webrtc.Opus:
+		codec := remote.Codec()
+		switch strings.ToLower(codec.MimeType) {
+		case "audio/opus":
 			builder = samplebuilder.New(
-				16, &codecs.OpusPacket{},
+				16, &codecs.OpusPacket{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.OpusPartitionHeadChecker{},
 				),
 			)
-		case webrtc.VP8:
+		case "video/vp8":
 			if conn.hasVideo {
 				return nil, errors.New("multiple video tracks not supported")
 			}
 			builder = samplebuilder.New(
-				128, &codecs.VP8Packet{},
+				128, &codecs.VP8Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.VP8PartitionHeadChecker{},
 				),
@@ -312,8 +313,9 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 		keyframe := true
 
-		switch t.remote.Codec().Name {
-		case webrtc.VP8:
+		codec := t.remote.Codec()
+		switch strings.ToLower(codec.MimeType) {
+		case "video/vp8":
 			if len(sample.Data) < 1 {
 				continue
 			}
@@ -365,8 +367,9 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 // called locked
 func (t *diskTrack) initWriter(data []byte) error {
-	switch t.remote.Codec().Name {
-	case webrtc.VP8:
+	codec := t.remote.Codec()
+	switch strings.ToLower(codec.MimeType) {
+	case "video/vp8":
 		if len(data) < 10 {
 			return nil
 		}
@@ -390,10 +393,10 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	}
 	var entries []webm.TrackEntry
 	for i, t := range conn.tracks {
-		codec := t.remote.Codec()
 		var entry webm.TrackEntry
-		switch t.remote.Codec().Name {
-		case webrtc.Opus:
+		codec := t.remote.Codec()
+		switch strings.ToLower(codec.MimeType) {
+		case "audio/opus":
 			entry = webm.TrackEntry{
 				Name:        "Audio",
 				TrackNumber: uint64(i + 1),
@@ -404,7 +407,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					Channels:          uint64(codec.Channels),
 				},
 			}
-		case webrtc.VP8:
+		case "video/vp8":
 			entry = webm.TrackEntry{
 				Name:        "Video",
 				TrackNumber: uint64(i + 1),

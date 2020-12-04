@@ -174,22 +174,36 @@ func Add(name string, desc *description) (*Group, error) {
 			s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
 		}
 		m := webrtc.MediaEngine{}
-		m.RegisterCodec(webrtc.NewRTPVP8CodecExt(
-			webrtc.DefaultPayloadTypeVP8, 90000,
-			[]webrtc.RTCPFeedback{
-				{"goog-remb", ""},
-				{"nack", ""},
-				{"nack", "pli"},
-				{"ccm", "fir"},
+		m.RegisterCodec(
+			webrtc.RTPCodecParameters{
+				RTPCodecCapability: webrtc.RTPCodecCapability{
+					"video/VP8", 90000, 0,
+					"",
+					[]webrtc.RTCPFeedback{
+						{"goog-remb", ""},
+						{"nack", ""},
+						{"nack", "pli"},
+						{"ccm", "fir"},
+					},
+				},
+				PayloadType: 96,
 			},
-			"",
-		))
-		m.RegisterCodec(webrtc.NewRTPOpusCodec(
-			webrtc.DefaultPayloadTypeOpus, 48000,
-		))
+			webrtc.RTPCodecTypeVideo,
+		)
+		m.RegisterCodec(
+			webrtc.RTPCodecParameters{
+				RTPCodecCapability: webrtc.RTPCodecCapability{
+					"audio/opus", 48000, 2,
+					"minptime=10;useinbandfec=1",
+					nil,
+				},
+				PayloadType: 111,
+			},
+			webrtc.RTPCodecTypeAudio,
+		)
 		groups.api = webrtc.NewAPI(
 			webrtc.WithSettingEngine(s),
-			webrtc.WithMediaEngine(m),
+			webrtc.WithMediaEngine(&m),
 		)
 	}
 

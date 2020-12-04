@@ -3,6 +3,7 @@ package rtpconn
 import (
 	"io"
 	"log"
+	"strings"
 
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
@@ -31,7 +32,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 	}()
 
 	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
-	codec := track.track.Codec().Name
+	codec := track.track.Codec()
 	sendNACK := track.hasRtcpFb("nack", "")
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
@@ -54,7 +55,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 		track.jitter.Accumulate(packet.Timestamp)
 
 		kf := false
-		if isvideo && codec == webrtc.VP8 {
+		if isvideo && strings.ToLower(codec.MimeType) == "video/vp8" {
 			kf = isVP8Keyframe(&packet)
 		}
 
