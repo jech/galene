@@ -87,7 +87,11 @@ func (client *Client) Kick(id, user, message string) error {
 	return err
 }
 
-func (client *Client) PushConn(id string, up conn.Up, tracks []conn.UpTrack, label string) error {
+func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, label string) error {
+	if client.group != g {
+		return nil
+	}
+
 	client.mu.Lock()
 	defer client.mu.Unlock()
 

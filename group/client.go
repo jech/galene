@@ -97,7 +97,7 @@ type Client interface {
 	Challengeable
 	SetPermissions(ClientPermissions)
 	OverridePermissions(*Group) bool
-	PushConn(id string, conn conn.Up, tracks []conn.UpTrack, label string) error
+	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, label string) error
 	PushClient(id, username string, add bool) error
 }
 
