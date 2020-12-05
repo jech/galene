@@ -600,7 +600,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
         sc.ondownstream.call(sc, c);
 
     await c.pc.setRemoteDescription(offer);
-    await c.flushIceCandidates();
+    await c.flushRemoteIceCandidates()
     let answer = await c.pc.createAnswer();
     if(!answer)
         throw new Error("Didn't create answer");
@@ -610,6 +610,8 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
         id: id,
         answer: answer,
     });
+    c.localDescriptionSent = true;
+    c.flushLocalIceCandidates();
     if(c.onnegotiationcompleted)
         c.onnegotiationcompleted.call(c);
 };
@@ -648,7 +650,7 @@ ServerConnection.prototype.gotAnswer = async function(id, answer) {
             c.onerror.call(c, e);
         return;
     }
-    await c.flushIceCandidates();
+    await c.flushRemoteIceCandidates();
     if(c.onnegotiationcompleted)
         c.onnegotiationcompleted.call(c);
 };
@@ -780,26 +782,25 @@ function Stream(sc, id, pc) {
      */
     this.labelsByMid = {};
     /**
+     * Indicates whether we have already sent a local description.
+     *
+     * @type {boolean}
+     */
+    this.localDescriptionSent = false;
+    /**
      * Buffered local ICE candidates.  This will be flushed by
-     * flushIceCandidates when the PC becomes stable.
+     * flushLocalIceCandidates after we send a local description.
      *
      * @type {RTCIceCandidate[]}
      */
     this.localIceCandidates = [];
     /**
      * Buffered remote ICE candidates.  This will be flushed by
-     * flushIceCandidates when the PC becomes stable.
+     * flushRemoteIceCandidates when we get a remote SDP description.
      *
      * @type {RTCIceCandidate[]}
      */
     this.remoteIceCandidates = [];
-    /**
-     * Indicates whether it is legal to renegotiate at this point.  If
-     * this is false, a new connection must be negotiated.
-     *
-     * @type {boolean}
-     */
-    this.renegotiate = false;
     /**
      * The statistics last computed by the stats handler.  This is
      * a dictionary indexed by track id, with each value a dictionary of
@@ -921,7 +922,7 @@ Stream.prototype.close = function(sendclose) {
  */
 Stream.prototype.gotLocalIce = function(candidate) {
     let c = this;
-    if(c.pc.remoteDescription)
+    if(c.localDescriptionSent)
         c.sc.send({type: 'ice',
                    id: c.id,
                    candidate: candidate,
@@ -931,13 +932,15 @@ Stream.prototype.gotLocalIce = function(candidate) {
 }
 
 /**
- * flushIceCandidates flushes any buffered ICE candidates.  It is called
- * automatically when the connection reaches a stable state.
+ * flushLocalIceCandidates flushes any buffered local ICE candidates.
+ * It is called when we send an offer.
  * @function
  */
-Stream.prototype.flushIceCandidates = async function () {
+Stream.prototype.flushLocalIceCandidates = function () {
     let c = this;
-    c.localIceCandidates.forEach(candidate => {
+    let candidates = c.localIceCandidates;
+    c.localIceCandidates = [];
+    candidates.forEach(candidate => {
         try {
             c.sc.send({type: 'ice',
                        id: c.id,
@@ -947,13 +950,23 @@ Stream.prototype.flushIceCandidates = async function () {
             console.warn(e);
         }
     });
+    c.localIceCandidates = [];
+}
 
+/**
+ * flushRemoteIceCandidates flushes any buffered remote ICE candidates.  It is
+ * called automatically when we get a remote description.
+ * @function
+ */
+Stream.prototype.flushRemoteIceCandidates = async function () {
+    let c = this;
+    let candidates = c.remoteIceCandidates;
+    c.remoteIceCandidates = [];
     /** @type {Array.<Promise<void>>} */
     let promises = [];
-    c.remoteIceCandidates.forEach(candidate => {
-        promises.push(this.pc.addIceCandidate(candidate).catch(console.warn));
+    candidates.forEach(candidate => {
+        promises.push(c.pc.addIceCandidate(candidate).catch(console.warn));
     });
-    c.remoteIceCandidates = [];
     return await Promise.all(promises);
 };
 
@@ -990,12 +1003,13 @@ Stream.prototype.negotiate = async function (restartIce) {
 
     c.sc.send({
         type: 'offer',
-        kind: this.renegotiate ? 'renegotiate' : '',
+        kind: this.localDescriptionSent ? 'renegotiate' : '',
         id: c.id,
         labels: c.labelsByMid,
         offer: offer,
     });
-    this.renegotiate = true;
+    this.localDescriptionSent = true;
+    c.flushLocalIceCandidates();
 };
 
 /**
