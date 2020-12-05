@@ -1195,11 +1195,17 @@ function registerControlHandlers(media, container) {
 
     let fs = getVideoButton(container, 'fullscreen');
     if(fs) {
-        if(HTMLVideoElement.prototype.requestFullscreen) {
+        if(HTMLVideoElement.prototype.requestFullscreen ||
+           /** @ts-ignore */
+           HTMLVideoElement.prototype.webkitRequestFullscreen) {
             fs.onclick = function(e) {
                 e.preventDefault();
                 if(media.requestFullscreen) {
                     media.requestFullscreen();
+                /** @ts-ignore */
+                } else if(media.webkitRequestFullscreen) {
+                    /** @ts-ignore */
+                    media.webkitRequestFullscreen();
                 } else {
                     displayWarning('Full screen not supported!');
                 }
