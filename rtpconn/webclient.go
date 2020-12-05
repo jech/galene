@@ -657,13 +657,13 @@ func readMessage(conn *websocket.Conn, m *clientMessage) error {
 	return conn.ReadJSON(&m)
 }
 
-func StartClient(conn *websocket.Conn) error {
+func StartClient(conn *websocket.Conn) (err error) {
 	var m clientMessage
 
-	err := readMessage(conn, &m)
+	err = readMessage(conn, &m)
 	if err != nil {
 		conn.Close()
-		return err
+		return
 	}
 
 	if m.Type != "handshake" {
@@ -674,7 +674,8 @@ func StartClient(conn *websocket.Conn) error {
 			),
 		)
 		conn.Close()
-		return group.ProtocolError("client didn't handshake")
+		err = group.ProtocolError("client didn't handshake")
+		return
 	}
 
 	c := &webClient{
@@ -689,13 +690,14 @@ func StartClient(conn *websocket.Conn) error {
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
 	defer func() {
-		var e []byte
-		if !isWSNormalError(err) {
-			var m *clientMessage
-			m, e = errorToWSCloseMessage(c.id, err)
-			if m != nil {
-				c.write(*m)
-			}
+		m, e := errorToWSCloseMessage(c.id, err)
+		if isWSNormalError(err) {
+			err = nil
+		} else if _, ok := err.(group.KickError); ok {
+			err = nil
+		}
+		if m != nil {
+			c.write(*m)
 		}
 		c.close(e)
 	}()
