@@ -764,6 +764,11 @@ async function setMaxVideoThroughput(c, bps) {
     }
 }
 
+function isSafari() {
+    let ua = navigator.userAgent.toLowerCase();
+    return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
+}
+
 /**
  * @param {string} [id]
  */
@@ -833,7 +838,7 @@ async function addLocalMedia(id) {
     setButtonsVisibility();
 }
 
-let safariWarningDone = false;
+let safariScreenshareDone = false;
 
 async function addShareMedia() {
     if(!getUserPass())
@@ -852,13 +857,11 @@ async function addShareMedia() {
         return;
     }
 
-    if(!safariWarningDone) {
-        let ua = navigator.userAgent.toLowerCase();
-        if(ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0) {
+    if(!safariScreenshareDone) {
+        if(isSafari())
             displayWarning('Screen sharing under Safari is experimental.  ' +
                            'Please use a different browser if possible.');
-        }
-        safariWarningDone = true;
+        safariScreenshareDone = true;
     }
 
     let c = newUpStream();
@@ -931,7 +934,7 @@ async function addFileMedia(file) {
             delUpMedia(c);
         }
     };
-    setMedia(c, true, false, video);
+    await setMedia(c, true, false, video);
     c.userdata.play = true;
     setButtonsVisibility()
 }
@@ -1026,7 +1029,7 @@ function muteLocalTracks(mute) {
  *     - the video element to add.  If null, a new element with custom
  *       controls will be created.
  */
-function setMedia(c, isUp, mirror, video) {
+async function setMedia(c, isUp, mirror, video) {
     let peersdiv = document.getElementById('peers');
 
     let div = document.getElementById('peer-' + c.id);
@@ -1080,6 +1083,15 @@ function setMedia(c, isUp, mirror, video) {
 
     showVideo();
     resizePeers();
+
+    if(!isUp && isSafari() && !findUpMedia('local')) {
+        // Safari doesn't allow autoplay unless the user has granted media access
+        try {
+            let stream = await navigator.mediaDevices.getUserMedia({audio: true});
+            stream.getTracks().forEach(t => t.stop());
+        } catch(e) {
+        }
+    }
 }
 
 /**
