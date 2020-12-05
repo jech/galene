@@ -1809,6 +1809,16 @@ commands.subgroups = {
     }
 };
 
+commands.renegotiate = {
+    description: 'renegotiate media streams',
+    f: (c, r) => {
+        for(let id in serverConnection.up)
+            serverConnection.up[id].restartIce();
+        for(let id in serverConnection.down)
+            serverConnection.down[id].restartIce();
+    }
+};
+
 /**
  * parseCommand splits a string into two space-separated parts.  The first
  * part may be quoted and may include backslash escapes.
