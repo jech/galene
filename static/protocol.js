@@ -253,7 +253,7 @@ ServerConnection.prototype.connect = async function(url) {
             for(let id in sc.down) {
                 let c = sc.down[id];
                 delete(sc.down[id]);
-                c.close(false);
+                c.close();
                 if(c.onclose)
                     c.onclose.call(c);
             }
@@ -423,9 +423,9 @@ ServerConnection.prototype.newUpStream = function(id) {
     if(!pc)
         throw new Error("Couldn't create peer connection");
     if(sc.up[id]) {
-        sc.up[id].close(false);
+        sc.up[id].close();
     }
-    let c = new Stream(this, id, pc);
+    let c = new Stream(this, id, pc, true);
     sc.up[id] = c;
 
     pc.onnegotiationneeded = async e => {
@@ -545,15 +545,18 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
         // Unless the server indicates that this is a renegotiation with
         // all parameters unchanged, tear down the existing connection.
         delete(sc.down[id]);
-        c.close(false);
+        c.close();
         c = null;
     }
+
+    if(sc.up[id])
+        throw new Error('Duplicate connection id');
 
     if(!c) {
         let pc = new RTCPeerConnection({
             iceServers: this.iceServers,
         });
-        c = new Stream(this, id, pc);
+        c = new Stream(this, id, pc, false);
         sc.down[id] = c;
 
         c.pc.onicecandidate = function(e) {
@@ -681,7 +684,7 @@ ServerConnection.prototype.gotClose = function(id) {
     if(!c)
         throw new Error('unknown down stream');
     delete(this.down[id]);
-    c.close(false);
+    c.close();
     if(c.onclose)
         c.onclose.call(c);
 };
@@ -730,7 +733,7 @@ ServerConnection.prototype.gotRemoteIce = async function(id, candidate) {
  *
  * @constructor
  */
-function Stream(sc, id, pc) {
+function Stream(sc, id, pc, up) {
     /**
      * The associated ServerConnection.
      *
@@ -745,6 +748,13 @@ function Stream(sc, id, pc) {
      * @const
      */
     this.id = id;
+    /**
+     * Indicates whether the stream is in the client->server direction.
+     *
+     * @type {boolean}
+     * @const
+     */
+     this.up = up
     /**
      * For up streams, one of "local" or "screenshare".
      *
@@ -884,10 +894,9 @@ function Stream(sc, id, pc) {
 }
 
 /**
- * close closes an up stream.  It should not be called for down streams.
- * @param {boolean} sendclose - whether to send a close message to the server
+ * close closes a stream.
  */
-Stream.prototype.close = function(sendclose) {
+Stream.prototype.close = function() {
     let c = this;
     if(c.statsHandler) {
         clearInterval(c.statsHandler);
@@ -904,7 +913,7 @@ Stream.prototype.close = function(sendclose) {
     }
     c.pc.close();
 
-    if(sendclose) {
+    if(c.up && c.localDescriptionSent) {
         try {
             c.sc.send({
                 type: 'close',
@@ -983,6 +992,8 @@ Stream.prototype.flushRemoteIceCandidates = async function () {
  */
 Stream.prototype.negotiate = async function (restartIce) {
     let c = this;
+    if(!c.up)
+        throw new Error('not an up stream');
 
     let options = {};
     if(restartIce)
@@ -1022,6 +1033,8 @@ Stream.prototype.negotiate = async function (restartIce) {
 
 Stream.prototype.restartIce = function () {
     let c = this;
+    if(!c.up)
+        throw new Error('not an up stream');
 
     if('restartIce' in c.pc) {
         try {
