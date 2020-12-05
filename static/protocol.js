@@ -569,9 +569,10 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
             if(c.onstatus)
                 c.onstatus.call(c, pc.iceConnectionState);
             if(pc.iceConnectionState === 'failed') {
-                sc.send({type: 'renegotiate',
-                         id: id,
-                        });
+                sc.send({
+                    type: 'renegotiate',
+                    id: id,
+                });
             }
         };
 
@@ -1026,15 +1027,22 @@ Stream.prototype.negotiate = async function (restartIce) {
 };
 
 /**
- * restartIce causes an ICE restart on an up stream.  It is called
- * automatically when ICE signals that the connection has failed.  It
- * returns immediately, negotiation will happen asynchronously.
+ * restartIce causes an ICE restart on a stream.  For up streams, it is
+ * called automatically when ICE signals that the connection has failed,
+ * but may also be called by the application.  For down streams, it
+ * requests that the server perform an ICE restart.  In either case,
+ * it returns immediately, negotiation will happen asynchronously.
  */
 
 Stream.prototype.restartIce = function () {
     let c = this;
-    if(!c.up)
-        throw new Error('not an up stream');
+    if(!c.up) {
+        c.sc.send({
+            type: 'renegotiate',
+            id: c.id,
+        });
+        return;
+    }
 
     if('restartIce' in c.pc) {
         try {
