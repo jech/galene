@@ -455,7 +455,8 @@ ServerConnection.prototype.newUpStream = function(id) {
  * the message back to the client.
  *
  * @param {string} username - The sender's username.
- * @param {string} kind - The kind of message, either "" or "me".
+ * @param {string} kind
+ *     -  The kind of message, either '', 'me' or an application-specific type.
  * @param {string} dest - The id to send the message to, empty for broadcast.
  * @param {string} value - The text of the message.
  */
@@ -491,10 +492,11 @@ ServerConnection.prototype.userAction = function(username, kind, dest, value) {
 
 /**
  * userMessage sends an application-specific message to a user.
+ * This is similar to a chat message, but is not saved in the chat history.
  *
  * @param {string} username - The sender's username.
  * @param {string} kind - The kind of application-specific message.
- * @param {string} dest - The id of the user to send the message to.
+ * @param {string} dest - The id to send the message to, empty for broadcast.
  * @param {string} [value] - An optional parameter.
  */
 ServerConnection.prototype.userMessage = function(username, kind, dest, value) {
@@ -512,8 +514,8 @@ ServerConnection.prototype.userMessage = function(username, kind, dest, value) {
  * groupAction sends a request to act on the current group.
  *
  * @param {string} username - The sender's username.
- * @param {string} kind - One of "clearchat", "lock", "unlock", "record or
- * "unrecord".
+ * @param {string} kind
+ *     - One of 'clearchat', 'lock', 'unlock', 'record' or 'unrecord'.
  * @param {string} [message] - An optional user-readable message.
  */
 ServerConnection.prototype.groupAction = function(username, kind, message) {
