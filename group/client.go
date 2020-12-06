@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"hash"
-	"sfu/conn"
 
 	"golang.org/x/crypto/pbkdf2"
+
+	"galene/conn"
 )
 
 type RawPassword struct {

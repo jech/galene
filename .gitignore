@@ -1,7 +1,7 @@
 *~
 data/*.pem
-sfu
-sfu-password-generator/sfu-password-generator
+galene
+galene-password-generator/galene-password-generator
 passwd
 groups/*.json
 static/*.d.ts

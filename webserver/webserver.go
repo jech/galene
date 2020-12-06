@@ -21,10 +21,10 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"sfu/diskwriter"
-	"sfu/group"
-	"sfu/rtpconn"
-	"sfu/stats"
+	"galene/diskwriter"
+	"galene/group"
+	"galene/rtpconn"
+	"galene/stats"
 )
 
 var server atomic.Value
@@ -267,7 +267,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveFile(w, r, filepath.Join(StaticRoot, "sfu.html"))
+	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {

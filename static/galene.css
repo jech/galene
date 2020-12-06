@@ -1020,7 +1020,7 @@ legend {
     z-index: 1039;
 }
 
-#left-sidebar .sfu-header {
+#left-sidebar .galene-header {
     display: inline-block;
 }
 
@@ -1033,7 +1033,7 @@ header .collapse {
     margin-left: 5px;
 }
 
-.sfu-header {
+.galene-header {
     font-size: 1.3rem;
     font-weight: 900;
     color: #dbd9d9;

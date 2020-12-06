@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"sfu/group"
+	"galene/group"
 )
 
 func main() {

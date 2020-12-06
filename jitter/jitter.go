@@ -3,7 +3,7 @@ package jitter
 import (
 	"sync/atomic"
 
-	"sfu/rtptime"
+	"galene/rtptime"
 )
 
 type Estimator struct {

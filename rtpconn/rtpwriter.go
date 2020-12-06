@@ -9,9 +9,9 @@ import (
 
 	"github.com/pion/rtp"
 
-	"sfu/conn"
-	"sfu/packetcache"
-	"sfu/rtptime"
+	"galene/conn"
+	"galene/packetcache"
+	"galene/rtptime"
 )
 
 // packetIndex is a request to send a packet from the cache.

@@ -4,7 +4,7 @@ The frontend is written in JavaScript and is split into two files:
 
   - `protocol.js` contains the low-level functions that interact with the
     server;
-  - `sfu.js` contains the user interface.
+  - `galene.js` contains the user interface.
 
 If you wish to develop your own frontend, I recommend using `protocol.js`,
 which is likely to remain reasonably stable as the protocol evolves.  This

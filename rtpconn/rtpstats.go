@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"sfu/rtptime"
-	"sfu/stats"
+	"galene/rtptime"
+	"galene/stats"
 )
 
 func (c *webClient) GetStats() *stats.Client {

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"sfu/group"
+	"galene/group"
 )
 
 type GroupStats struct {

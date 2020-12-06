@@ -3,7 +3,7 @@ package estimator
 import (
 	"testing"
 
-	"sfu/rtptime"
+	"galene/rtptime"
 )
 
 func TestEstimator(t *testing.T) {

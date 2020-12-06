@@ -1,4 +1,4 @@
-module sfu
+module galene
 
 go 1.13
 
