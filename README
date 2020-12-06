@@ -56,7 +56,7 @@ options are described below.
 
     {
       "public": true,
-      "op":i [{"username":"jch","password":"1234"}],
+      "op": [{"username":"jch","password":"1234"}],
       "presenter": [{}],
       "max-users": 100
     }
