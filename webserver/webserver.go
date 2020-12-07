@@ -31,6 +31,8 @@ var server atomic.Value
 
 var StaticRoot string
 
+var Redirect string
+
 func Serve(address string, dataDir string) error {
 	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
 	http.HandleFunc("/group/", groupHandler)
@@ -116,6 +118,20 @@ const (
 	veryCachableCacheControl = "max-age=86400"
 )
 
+func redirect(w http.ResponseWriter, r *http.Request) bool {
+	if Redirect == "" || strings.EqualFold(r.Host, Redirect) {
+		return false
+	}
+
+	u := url.URL{
+		Scheme: "https",
+		Host:   Redirect,
+		Path:   r.URL.Path,
+	}
+	http.Redirect(w, r, u.String(), http.StatusMovedPermanently)
+	return true
+}
+
 func makeCachable(w http.ResponseWriter, p string, fi os.FileInfo, cachable bool) {
 	etag := fmt.Sprintf("\"%v-%v\"", fi.Size(), fi.ModTime().UnixNano())
 	w.Header().Set("ETag", etag)
@@ -140,6 +156,10 @@ type fileHandler struct {
 }
 
 func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if redirect(w, r) {
+		return
+	}
+
 	mungeHeader(w)
 	p := r.URL.Path
 	// this ensures any leading .. are removed by path.Clean below
@@ -236,6 +256,10 @@ func parseGroupName(path string) string {
 }
 
 func groupHandler(w http.ResponseWriter, r *http.Request) {
+	if redirect(w, r) {
+		return
+	}
+
 	mungeHeader(w)
 	name := parseGroupName(r.URL.Path)
 	if name == "" {
@@ -420,6 +444,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func recordingsHandler(w http.ResponseWriter, r *http.Request) {
+	if redirect(w, r) {
+		return
+	}
+
 	if len(r.URL.Path) < 12 || r.URL.Path[:12] != "/recordings/" {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
