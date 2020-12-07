@@ -345,7 +345,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 			if kfNeeded > kfUnneeded {
 				kf := false
 				kfValid := false
-				switch codec.MimeType {
+				switch strings.ToLower(codec.MimeType) {
 				case "video/vp8":
 					kf = isVP8Keyframe(&packet)
 					kfValid = true
