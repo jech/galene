@@ -2134,7 +2134,7 @@ function displayError(message, level) {
         gravity = 'bottom';
         break;
     case "warning":
-        background = "linear-gradient(to right, #edd800, #c9c200)";
+        background = "linear-gradient(to right, #bdc511, #c2cf01)";
         break;
     }
 
