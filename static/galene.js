@@ -1125,6 +1125,9 @@ function addCustomControls(media, container, c) {
     if(c.kind === 'local') {
         volume.remove();
     } else {
+        let slider = /** @type{HTMLInputElement} */
+            (getVideoButton(controls, "volume-slider"));
+        slider.disabled = media.muted;
         setVolumeButton(
             /** @type{HTMLElement} */(volume.firstElementChild),
             media.muted,
@@ -1149,11 +1152,11 @@ function getVideoButton(container, name) {
  */
 function setVolumeButton(button, muted) {
     if(!muted) {
-        button.classList.remove("fa-volume-off");
+        button.classList.remove("fa-volume-mute");
         button.classList.add("fa-volume-up");
     } else {
         button.classList.remove("fa-volume-up");
-        button.classList.add("fa-volume-off");
+        button.classList.add("fa-volume-mute");
     }
 }
 
@@ -1165,12 +1168,21 @@ function registerControlHandlers(media, container) {
     let volume = getVideoButton(container, 'volume');
     if (volume) {
         volume.onclick = function(event) {
+            let target = /** @type{HTMLElement} */(event.target);
+            if(!target.classList.contains('volume-mute'))
+                // if click on volume slider, do nothing
+                return;
             event.preventDefault();
             media.muted = !media.muted;
-            setVolumeButton(
-                /** @type{HTMLElement} */(event.target),
-                media.muted,
-            );
+            let slider = /** @type{HTMLInputElement} */
+                (getVideoButton(volume, "volume-slider"));
+            slider.disabled = media.muted;
+            setVolumeButton(target, media.muted);
+        };
+        volume.oninput = function() {
+          let slider = /** @type{HTMLInputElement} */
+              (getVideoButton(volume, "volume-slider"));
+          media.volume = parseInt(slider.value, 10)/100;
         };
     }
 

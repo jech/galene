@@ -457,30 +457,51 @@ textarea.form-reply {
     left: 0;
     bottom: 25px;
     text-align: center;
-    color: #fff;
-    font-size: 1.5em;
-    transition: all .5s ease-out;
+    color: #eaeaea;
+    font-size: 1.1em;
     opacity: 0;
+    height: 32px;
+}
+
+.video-controls:after, .top-video-controls:after {
+    clear: both;
+    display: table;
+    content: " ";
 }
 
 .top-video-controls {
-  text-align: right;
-  bottom: inherit;
-  top: 5px;
+    text-align: right;
+    bottom: inherit;
+    top: 5px;
+}
+
+.controls-button {
+    padding: 3px 10px;
+    vertical-align: middle;
+    height: 100%;
+}
+
+.controls-left {
+    float: left;
+    text-align: left;
+}
+
+.controls-right {
+    float: right;
+    text-align: right;
 }
 
 .vc-overlay {
-  background: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 7%) 0%, rgb(0 0 0 / 24%) 100%);
+    background: linear-gradient(180deg, rgb(0 0 0 / 20%) 0%, rgb(0 0 0 / 50%) 0%, rgb(0 0 0 / 70%) 100%);
 }
 
 .peer:hover > .video-controls, .peer:hover > .top-video-controls {
     opacity: 1;
-    transition: all .7s ease-out;
 }
 
 .video-controls span, .top-video-controls span {
-    margin-right: 10%;
-    transition: all .7s ease-out;
+    margin-right: 20px;
+    transition: opacity .7s ease-out;
     opacity: 1;
     cursor: pointer;
 }
@@ -490,12 +511,11 @@ textarea.form-reply {
 }
 
 .video-controls span:hover, .top-video-controls span:hover {
-    opacity: .5;
+    opacity: .8;
     transition: opacity .5s ease-out;
 }
 
 .video-controls .volume {
-    width: 25px;
     display: inline-block;
     text-align: center;
 }
@@ -503,6 +523,27 @@ textarea.form-reply {
 .video-controls span.disabled, .video-controls span.disabled:hover, .top-video-controls span.disabled:hover{
     opacity: .2;
     color: #c8c8c8
+}
+
+.volume-mute {
+    vertical-align: middle;
+    width: 25px;
+    display: var(--dv, inline);
+}
+
+.volume-slider {
+    height: 4px;
+    width: 60px;
+    cursor: pointer;
+    margin: 5px 5px;
+    vertical-align: middle;
+    opacity: var(--ov, 0);
+    transition: opacity .5s ease-out;
+}
+
+.video-controls .volume:hover {
+    --ov: 1;
+    --dv: inline;
 }
 
 .mobile-container {

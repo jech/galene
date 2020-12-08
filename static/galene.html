@@ -218,15 +218,20 @@
 
     <div id="videocontrols-template" class="invisible">
       <div class="video-controls vc-overlay">
-        <span class="volume" title="Volume">
-          <i class="fas fa-volume-up" aria-hidden="true"></i>
-        </span>
-        <span class="pip" title="Picture In Picture">
-          <i class="fas fa-clone" aria-hidden="true"></i>
-        </span>
-        <span class="fullscreen" title="Fullscreen">
-          <i class="fas fa-expand-alt" aria-hidden="true"></i>
-        </span>
+        <div class="controls-button controls-left">
+          <span class="volume" title="Volume">
+            <i class="fas fa-volume-up volume-mute" aria-hidden="true"></i>
+            <input class="volume-slider" type="range" max="100" value="100" min="0" step="5" >
+          </span>
+        </div>
+        <div class="controls-button controls-right">
+          <span class="pip" title="Picture In Picture">
+            <i class="far fa-clone" aria-hidden="true"></i>
+          </span>
+          <span class="fullscreen" title="Fullscreen">
+            <i class="fas fa-expand" aria-hidden="true"></i>
+          </span>
+        </div>
       </div>
     </div>
 
