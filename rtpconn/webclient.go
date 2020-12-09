@@ -819,7 +819,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					for i, t := range tracks {
 						ts[i] = t
 					}
-					go func() {
+					go func(u *rtpUpConnection, ts []conn.UpTrack) {
 						err := a.client.PushConn(
 							g, u.id, u, ts, u.label,
 						)
@@ -829,7 +829,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 								err,
 							)
 						}
-					}()
+					}(u, ts)
 				}
 			case connectionFailedAction:
 				if down := getDownConn(c, a.id); down != nil {
