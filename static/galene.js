@@ -1125,13 +1125,9 @@ function addCustomControls(media, container, c) {
     if(c.kind === 'local') {
         volume.remove();
     } else {
-        let slider = /** @type{HTMLInputElement} */
-            (getVideoButton(controls, "volume-slider"));
-        slider.disabled = media.muted;
-        setVolumeButton(
-            /** @type{HTMLElement} */(volume.firstElementChild),
-            media.muted,
-        );
+        setVolumeButton(media.muted,
+                        getVideoButton(controls, "volume-mute"),
+                        getVideoButton(controls, "volume-slider"));
     }
 
     container.appendChild(controls);
@@ -1147,10 +1143,11 @@ function getVideoButton(container, name) {
 }
 
 /**
- * @param {HTMLElement} button
  * @param {boolean} muted
+ * @param {HTMLElement} button
+ * @param {HTMLElement} slider
  */
-function setVolumeButton(button, muted) {
+function setVolumeButton(muted, button, slider) {
     if(!muted) {
         button.classList.remove("fa-volume-mute");
         button.classList.add("fa-volume-up");
@@ -1158,6 +1155,10 @@ function setVolumeButton(button, muted) {
         button.classList.remove("fa-volume-up");
         button.classList.add("fa-volume-mute");
     }
+
+    if(!(slider instanceof HTMLInputElement))
+        throw new Error("Couldn't find volume slider");
+    slider.disabled = muted;
 }
 
 /**
@@ -1174,10 +1175,8 @@ function registerControlHandlers(media, container) {
                 return;
             event.preventDefault();
             media.muted = !media.muted;
-            let slider = /** @type{HTMLInputElement} */
-                (getVideoButton(volume, "volume-slider"));
-            slider.disabled = media.muted;
-            setVolumeButton(target, media.muted);
+            setVolumeButton(media.muted, target,
+                            getVideoButton(volume, "volume-slider"));
         };
         volume.oninput = function() {
           let slider = /** @type{HTMLInputElement} */
