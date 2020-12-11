@@ -328,6 +328,10 @@ textarea.form-reply {
     transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
 }
 
+.form-reply::placeholder {
+  opacity: .7;
+}
+
 .select {
     display: block;
     width: 100%;

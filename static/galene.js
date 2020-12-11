@@ -1481,6 +1481,11 @@ async function gotJoined(kind, group, perms, message) {
     displayUsername();
     setButtonsVisibility();
 
+    let input = /** @type{HTMLTextAreaElement} */
+        (document.getElementById('input'));
+    input.placeholder = 'Type /help for help';
+    setTimeout(() => {input.placeholder = '';}, 8000);
+
     this.request(getSettings().request);
 
     if(serverConnection.permissions.present && !findUpMedia('local')) {
