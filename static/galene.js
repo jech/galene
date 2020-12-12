@@ -773,9 +773,6 @@ function isSafari() {
  * @param {string} [id]
  */
 async function addLocalMedia(id) {
-    if(!getUserPass())
-        return;
-
     let settings = getSettings();
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
@@ -841,9 +838,6 @@ async function addLocalMedia(id) {
 let safariScreenshareDone = false;
 
 async function addShareMedia() {
-    if(!getUserPass())
-        return;
-
     /** @type {MediaStream} */
     let stream = null;
     try {
@@ -884,9 +878,6 @@ async function addShareMedia() {
  * @param {File} file
  */
 async function addFileMedia(file) {
-    if(!getUserPass())
-        return;
-
     let url = URL.createObjectURL(file);
     let video = document.createElement('video');
     video.src = url;
