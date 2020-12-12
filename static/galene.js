@@ -1470,15 +1470,17 @@ async function gotJoined(kind, group, perms, message) {
         this.close();
         return;
     case 'join':
+    case 'change':
+        displayUsername();
+        setButtonsVisibility();
+        if(kind === 'change')
+            return;
         break;
     default:
         displayError('Unknown join message');
         this.close();
         return;
     }
-
-    displayUsername();
-    setButtonsVisibility();
 
     let input = /** @type{HTMLTextAreaElement} */
         (document.getElementById('input'));
