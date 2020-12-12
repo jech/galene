@@ -5,9 +5,9 @@ go 1.13
 require (
 	github.com/at-wat/ebml-go v0.11.0
 	github.com/gorilla/websocket v1.4.2
-	github.com/pion/ice/v2 v2.0.13
+	github.com/pion/ice/v2 v2.0.14
 	github.com/pion/rtcp v1.2.6
-	github.com/pion/rtp v1.6.1
-	github.com/pion/webrtc/v3 v3.0.0-beta.15
+	github.com/pion/rtp v1.6.2
+	github.com/pion/webrtc/v3 v3.0.0-beta.16
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 )
