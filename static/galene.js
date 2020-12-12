@@ -250,6 +250,14 @@ function closeVideoControls() {
     document.getElementById('collapse-video').style.display = "";
 }
 
+function fillLogin() {
+    let userpass = getUserPass();
+    getInputElement('username').value =
+        userpass ? userpass.username : '';
+    getInputElement('password').value =
+        userpass ? userpass.password : '';
+}
+
 /**
   * @param{boolean} connected
   */
@@ -264,11 +272,7 @@ function setConnected(connected) {
         displayUsername();
     } else {
         resetUsers();
-        let userpass = getUserPass();
-        getInputElement('username').value =
-            userpass ? userpass.username : '';
-        getInputElement('password').value =
-            userpass ? userpass.password : '';
+        fillLogin();
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         displayError('Disconnected', 'error');
@@ -2299,6 +2303,7 @@ function start() {
 
     setMediaChoices(false).then(e => reflectSettings());
 
+    fillLogin();
     document.getElementById("login-container").classList.remove('invisible');
 }
 
