@@ -1048,7 +1048,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				s = string(e)
 			} else {
 				s = "internal server error"
-				log.Printf("Join group: %v")
+				log.Printf("Join group: %v", err)
 			}
 			return c.write(clientMessage{
 				Type:        "joined",
