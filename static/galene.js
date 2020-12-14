@@ -78,6 +78,7 @@ function getUsername() {
  * @property {string} [send]
  * @property {string} [request]
  * @property {boolean} [activityDetection]
+ * @property {Array.<number>} [resolution]
  * @property {boolean} [blackboardMode]
  */
 
@@ -783,7 +784,11 @@ async function addLocalMedia(id) {
     let video = settings.video ? {deviceId: settings.video} : false;
 
     if(video) {
-        if(settings.blackboardMode) {
+        let resolution = settings.resolution;
+        if(resolution) {
+            video.width = { ideal: resolution[0] };
+            video.height = { ideal: resolution[1] };
+        } else if(settings.blackboardMode) {
             video.width = { min: 640, ideal: 1920 };
             video.height = { min: 400, ideal: 1080 };
         }
