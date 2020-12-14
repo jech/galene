@@ -1587,7 +1587,7 @@ let lastMessage = {};
  * @param {string} kind
  * @param {string} message
  */
-function addToChatbox(peerId, dest, nick, time, priviledged, kind, message) {
+function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
     let userpass = getUserPass();
     let row = document.createElement('div');
     row.classList.add('message-row');
@@ -2263,25 +2263,25 @@ async function serverConnect() {
     serverConnection.onjoined = gotJoined;
     serverConnection.onchat = addToChatbox;
     serverConnection.onclearchat = clearChat;
-    serverConnection.onusermessage = function(id, dest, username, time, priviledged, kind, message) {
+    serverConnection.onusermessage = function(id, dest, username, time, privileged, kind, message) {
         switch(kind) {
         case 'error':
         case 'warning':
         case 'info':
             let from = id ? (username || 'Anonymous') : 'The Server';
-            if(priviledged)
+            if(privileged)
                 displayError(`${from} said: ${message}`, kind);
             else
-                console.error(`Got unpriviledged message of kind ${kind}`);
+                console.error(`Got unprivileged message of kind ${kind}`);
             break;
         case 'mute':
             console.log(id, dest, username);
-            if(priviledged) {
+            if(privileged) {
                 setLocalMute(true, true);
                 let by = username ? ' by ' + username : '';
                 displayWarning(`You have been muted${by}`);
             } else {
-                console.error(`Got unpriviledged message of kind ${kind}`);
+                console.error(`Got unprivileged message of kind ${kind}`);
             }
             break;
         default:

@@ -127,7 +127,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, priviledged: boolean, kind: string, message: string) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: string) => void}
      */
     this.onchat = null;
     /**
@@ -136,10 +136,10 @@ function ServerConnection() {
      * a user-id otherwise.
      *
      * 'kind' is typically one of 'error', 'warning', 'info' or 'mute'.  If
-     * 'id' is non-null, 'priviledged' indicates whether the message was
+     * 'id' is non-null, 'privileged' indicates whether the message was
      * sent by an operator.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, priviledged: boolean, kind: string, message: string) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: string) => void}
      */
     this.onusermessage = null;
     /**
@@ -159,7 +159,7 @@ function ServerConnection() {
   * @property {string} [dest]
   * @property {string} [username]
   * @property {string} [password]
-  * @property {boolean} [priviledged]
+  * @property {boolean} [privileged]
   * @property {Object<string,boolean>} [permissions]
   * @property {string} [group]
   * @property {string} [value]
@@ -317,7 +317,7 @@ ServerConnection.prototype.connect = async function(url) {
                 if(sc.onusermessage)
                     sc.onusermessage.call(
                         sc, m.id, m.dest, m.username, m.time,
-                        m.priviledged, m.kind, m.value,
+                        m.privileged, m.kind, m.value,
                     );
                 break;
             case 'clearchat':

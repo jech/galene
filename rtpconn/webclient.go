@@ -32,7 +32,7 @@ func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
 			Type:        "usermessage",
 			Kind:        "error",
 			Dest:        id,
-			Priviledged: true,
+			Privileged:  true,
 			Value:       &s,
 		}
 		text = e.Error()
@@ -168,7 +168,7 @@ type clientMessage struct {
 	Dest        string                     `json:"dest,omitempty"`
 	Username    string                     `json:"username,omitempty"`
 	Password    string                     `json:"password,omitempty"`
-	Priviledged bool                       `json:"priviledged,omitempty"`
+	Privileged  bool                       `json:"privileged,omitempty"`
 	Permissions *group.ClientPermissions   `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
 	Value       *string                    `json:"value,omitempty"`
@@ -1181,7 +1181,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Id:          m.Id,
 			Dest:        m.Dest,
 			Username:    m.Username,
-			Priviledged: c.permissions.Op,
+			Privileged:  c.permissions.Op,
 			Time:        tm,
 			Kind:        m.Kind,
 			Value:       m.Value,
@@ -1430,7 +1430,7 @@ func errorMessage(id string, err error) *clientMessage {
 			Type:        "usermessage",
 			Kind:        "error",
 			Dest:        id,
-			Priviledged: true,
+			Privileged:  true,
 			Value:       &message,
 		}
 	case group.KickError:
@@ -1444,7 +1444,7 @@ func errorMessage(id string, err error) *clientMessage {
 			Id:          e.Id,
 			Username:    e.Username,
 			Dest:        id,
-			Priviledged: true,
+			Privileged:  true,
 			Value:       &message,
 		}
 	default:
