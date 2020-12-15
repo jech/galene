@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -18,13 +19,20 @@ func main() {
 	var iterations int
 	var length int
 	var saltLen int
-	flag.IntVar(&iterations, "iterations", 4096, "number of iterations")
-	flag.IntVar(&length, "key length", 32, "key length")
-	flag.IntVar(&saltLen, "salt", 8, "salt length")
+	var username string
+	flag.StringVar(&username, "user", "",
+		"generate entry for given `username`")
+	flag.IntVar(&iterations, "iterations", 4096, "`number` of iterations")
+	flag.IntVar(&length, "key", 32, "key `length`")
+	flag.IntVar(&saltLen, "salt", 8, "salt `length`")
 	flag.Parse()
 
 	if len(flag.Args()) == 0 {
-		flag.Usage()
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"Usage: %s [option...] password...\n",
+			os.Args[0])
+		flag.PrintDefaults()
 		os.Exit(2)
 	}
 
@@ -47,7 +55,15 @@ func main() {
 			Iterations: iterations,
 		}
 		e := json.NewEncoder(os.Stdout)
-		err = e.Encode(p)
+		if username != "" {
+			creds := group.ClientCredentials{
+				Username: username,
+				Password: &p,
+			}
+			err = e.Encode(creds)
+		} else {
+			err = e.Encode(p)
+		}
 		if err != nil {
 			log.Fatalf("Encode: %v", err)
 		}
