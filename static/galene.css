@@ -525,6 +525,10 @@ textarea.form-reply {
     text-align: center;
 }
 
+.video-controls .video-play {
+    font-size: 0.85em;
+}
+
 .video-controls span.disabled, .video-controls span.disabled:hover, .top-video-controls span.disabled:hover{
     opacity: .2;
     color: #c8c8c8

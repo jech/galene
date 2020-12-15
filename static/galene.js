@@ -1166,6 +1166,14 @@ function setVolumeButton(muted, button, slider) {
  * @param {HTMLElement} container
  */
 function registerControlHandlers(media, container) {
+    let play = getVideoButton(container, 'video-play');
+    if(play) {
+        play.onclick = function(event) {
+            event.preventDefault();
+            media.play();
+        };
+    }
+
     let volume = getVideoButton(container, 'volume');
     if (volume) {
         volume.onclick = function(event) {
