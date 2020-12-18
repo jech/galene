@@ -610,6 +610,7 @@ func addDownConnTracks(c *webClient, remote conn.Up, tracks []conn.UpTrack) (*rt
 		}
 	}
 	if !requested {
+		delDownConn(c, remote.Id())
 		return nil, nil
 	}
 
