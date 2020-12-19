@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"galene/rtptime"
+	"github.com/jech/galene/rtptime"
 )
 
 type Estimator struct {

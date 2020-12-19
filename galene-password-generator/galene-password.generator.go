@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"galene/group"
+	"github.com/jech/galene/group"
 )
 
 func main() {

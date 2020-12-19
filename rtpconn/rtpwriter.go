@@ -9,9 +9,9 @@ import (
 
 	"github.com/pion/rtp"
 
-	"galene/conn"
-	"galene/packetcache"
-	"galene/rtptime"
+	"github.com/jech/galene/conn"
+	"github.com/jech/galene/packetcache"
+	"github.com/jech/galene/rtptime"
 )
 
 // packetIndex is a request to send a packet from the cache.

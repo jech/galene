@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"galene/group"
+	"github.com/jech/galene/group"
 )
 
 type GroupStats struct {

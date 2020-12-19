@@ -16,8 +16,8 @@ import (
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3/pkg/media/samplebuilder"
 
-	"galene/conn"
-	"galene/group"
+	"github.com/jech/galene/conn"
+	"github.com/jech/galene/group"
 )
 
 var Directory string

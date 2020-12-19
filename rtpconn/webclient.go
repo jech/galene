@@ -12,10 +12,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
 
-	"galene/conn"
-	"galene/diskwriter"
-	"galene/estimator"
-	"galene/group"
+	"github.com/jech/galene/conn"
+	"github.com/jech/galene/diskwriter"
+	"github.com/jech/galene/estimator"
+	"github.com/jech/galene/group"
 )
 
 func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {

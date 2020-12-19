@@ -9,8 +9,8 @@ import (
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3"
 
-	"galene/packetcache"
-	"galene/rtptime"
+	"github.com/jech/galene/packetcache"
+	"github.com/jech/galene/rtptime"
 )
 
 func isVP8Keyframe(packet *rtp.Packet) bool {

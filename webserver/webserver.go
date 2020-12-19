@@ -21,10 +21,10 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"galene/diskwriter"
-	"galene/group"
-	"galene/rtpconn"
-	"galene/stats"
+	"github.com/jech/galene/diskwriter"
+	"github.com/jech/galene/group"
+	"github.com/jech/galene/rtpconn"
+	"github.com/jech/galene/stats"
 )
 
 var server atomic.Value

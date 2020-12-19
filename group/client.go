@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"galene/conn"
+	"github.com/jech/galene/conn"
 )
 
 type RawPassword struct {

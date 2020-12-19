@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"galene/diskwriter"
-	"galene/group"
-	"galene/webserver"
+	"github.com/jech/galene/diskwriter"
+	"github.com/jech/galene/group"
+	"github.com/jech/galene/webserver"
 )
 
 func main() {

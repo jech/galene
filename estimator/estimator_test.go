@@ -3,7 +3,7 @@ package estimator
 import (
 	"testing"
 
-	"galene/rtptime"
+	"github.com/jech/galene/rtptime"
 )
 
 func TestEstimator(t *testing.T) {

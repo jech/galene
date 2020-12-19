@@ -13,12 +13,12 @@ import (
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 
-	"galene/conn"
-	"galene/estimator"
-	"galene/group"
-	"galene/jitter"
-	"galene/packetcache"
-	"galene/rtptime"
+	"github.com/jech/galene/conn"
+	"github.com/jech/galene/estimator"
+	"github.com/jech/galene/group"
+	"github.com/jech/galene/jitter"
+	"github.com/jech/galene/packetcache"
+	"github.com/jech/galene/rtptime"
 )
 
 type bitrate struct {

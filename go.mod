@@ -1,4 +1,4 @@
-module galene
+module github.com/jech/galene
 
 go 1.13
 
