@@ -29,11 +29,11 @@ func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
 		code = websocket.CloseProtocolError
 		s := e.Error()
 		m = &clientMessage{
-			Type:        "usermessage",
-			Kind:        "error",
-			Dest:        id,
-			Privileged:  true,
-			Value:       &s,
+			Type:       "usermessage",
+			Kind:       "error",
+			Dest:       id,
+			Privileged: true,
+			Value:      &s,
 		}
 		text = e.Error()
 	case group.UserError, group.KickError:
@@ -708,7 +708,7 @@ func StartClient(conn *websocket.Conn) (err error) {
 }
 
 type pushConnAction struct {
-	group *group.Group
+	group  *group.Group
 	id     string
 	conn   conn.Up
 	tracks []conn.UpTrack
@@ -720,7 +720,7 @@ type addLabelAction struct {
 }
 
 type pushConnsAction struct {
-	group *group.Group
+	group  *group.Group
 	client group.Client
 }
 
@@ -942,7 +942,6 @@ func leaveGroup(c *webClient) {
 	c.permissions = group.ClientPermissions{}
 	c.group = nil
 }
-
 
 func failDownConnection(c *webClient, id string, message string) error {
 	if id != "" {
@@ -1178,14 +1177,14 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 		}
 		mm := clientMessage{
-			Type:        m.Type,
-			Id:          m.Id,
-			Dest:        m.Dest,
-			Username:    m.Username,
-			Privileged:  c.permissions.Op,
-			Time:        tm,
-			Kind:        m.Kind,
-			Value:       m.Value,
+			Type:       m.Type,
+			Id:         m.Id,
+			Dest:       m.Dest,
+			Username:   m.Username,
+			Privileged: c.permissions.Op,
+			Time:       tm,
+			Kind:       m.Kind,
+			Value:      m.Value,
 		}
 		if m.Dest == "" {
 			clients := g.GetClients(nil)
@@ -1428,11 +1427,11 @@ func errorMessage(id string, err error) *clientMessage {
 	case group.UserError:
 		message := e.Error()
 		return &clientMessage{
-			Type:        "usermessage",
-			Kind:        "error",
-			Dest:        id,
-			Privileged:  true,
-			Value:       &message,
+			Type:       "usermessage",
+			Kind:       "error",
+			Dest:       id,
+			Privileged: true,
+			Value:      &message,
 		}
 	case group.KickError:
 		message := e.Message
@@ -1440,13 +1439,13 @@ func errorMessage(id string, err error) *clientMessage {
 			message = "you have been kicked out"
 		}
 		return &clientMessage{
-			Type:        "usermessage",
-			Kind:        "error",
-			Id:          e.Id,
-			Username:    e.Username,
-			Dest:        id,
-			Privileged:  true,
-			Value:       &message,
+			Type:       "usermessage",
+			Kind:       "error",
+			Id:         e.Id,
+			Username:   e.Username,
+			Dest:       id,
+			Privileged: true,
+			Value:      &message,
 		}
 	default:
 		return nil

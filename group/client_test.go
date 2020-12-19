@@ -69,7 +69,7 @@ func TestJSON(t *testing.T) {
 }
 
 func BenchmarkPlain(b *testing.B) {
-	for i :=0; i < b.N; i++ {
+	for i := 0; i < b.N; i++ {
 		match, err := pw2.Match("bad")
 		if err != nil || match {
 			b.Errorf("pw2 matched")
@@ -78,7 +78,7 @@ func BenchmarkPlain(b *testing.B) {
 }
 
 func BenchmarkPBKDF2(b *testing.B) {
-	for i :=0; i < b.N; i++ {
+	for i := 0; i < b.N; i++ {
 		match, err := pw3.Match("bad")
 		if err != nil || match {
 			b.Errorf("pw3 matched")

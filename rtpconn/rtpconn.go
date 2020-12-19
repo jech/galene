@@ -574,7 +574,7 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 	var packet rtp.Packet
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
-		nack.Range(func (seqno uint16) bool {
+		nack.Range(func(seqno uint16) bool {
 			l := track.remote.GetRTP(seqno, buf)
 			if l == 0 {
 				unhandled = append(unhandled, seqno)

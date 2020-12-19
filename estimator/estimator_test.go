@@ -15,7 +15,7 @@ func TestEstimator(t *testing.T) {
 	e.Accumulate(128)
 	e.estimate(now + rtptime.JiffiesPerSec)
 	rate, packetRate :=
-		e.estimate(now + (rtptime.JiffiesPerSec * 1001) / 1000)
+		e.estimate(now + (rtptime.JiffiesPerSec*1001)/1000)
 
 	if rate != 42+128 {
 		t.Errorf("Expected %v, got %v", 42+128, rate)

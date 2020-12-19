@@ -39,7 +39,7 @@ func NTPToTime(ntp uint64) time.Time {
 	sec := uint32(ntp >> 32)
 	frac := uint32(ntp & 0xFFFFFFFF)
 	return ntpEpoch.Add(
-		time.Duration(sec) * time.Second +
+		time.Duration(sec)*time.Second +
 			((time.Duration(frac) * time.Second) >> 32),
 	)
 }
@@ -48,5 +48,5 @@ func TimeToNTP(tm time.Time) uint64 {
 	d := tm.Sub(ntpEpoch)
 	sec := uint32(d / time.Second)
 	frac := uint32(d % time.Second)
-	return (uint64(sec) << 32) + (uint64(frac) << 32) / uint64(time.Second)
+	return (uint64(sec) << 32) + (uint64(frac)<<32)/uint64(time.Second)
 }

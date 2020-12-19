@@ -21,15 +21,15 @@ func differs(a, b, delta uint64) bool {
 	if a < b {
 		a, b = b, a
 	}
-	return a - b >= delta
+	return a-b >= delta
 }
 
 func TestTime(t *testing.T) {
 	a := Now(48000)
 	time.Sleep(4 * time.Millisecond)
 	b := Now(48000) - a
-	if differs(b, 4 * 48, 16) {
-		t.Errorf("Expected %v, got %v", 4 * 48, b)
+	if differs(b, 4*48, 16) {
+		t.Errorf("Expected %v, got %v", 4*48, b)
 	}
 
 	c := Microseconds()
@@ -68,7 +68,7 @@ func TestNTP(t *testing.T) {
 	}
 	if diff2 > (1 << 8) {
 		t.Errorf("Expected %v, got %v (diff=%v)",
-			ntp, ntp2, float64(diff2) / float64(1<<32))
+			ntp, ntp2, float64(diff2)/float64(1<<32))
 	}
 
 }

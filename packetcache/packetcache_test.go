@@ -350,7 +350,7 @@ func TestBitmapPacket(t *testing.T) {
 	}
 
 	p := rtcp.NackPair{first, rtcp.PacketBitmap(bitmap)}
-	p.Range(func (s uint16) bool {
+	p.Range(func(s uint16) bool {
 		if s < 42 || s >= 42+64 {
 			if (value & (1 << (s - 42))) != 0 {
 				t.Errorf("Bit %v unexpectedly set", s-42)
