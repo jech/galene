@@ -37,7 +37,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	for {
-		bytes, err := track.track.Read(buf)
+		bytes, _, err := track.track.Read(buf)
 		if err != nil {
 			if err != io.EOF {
 				log.Printf("%v", err)
