@@ -6,19 +6,22 @@ The frontend is written in JavaScript and is split into two files:
     server;
   - `galene.js` contains the user interface.
 
-If you wish to develop your own frontend, I recommend using `protocol.js`,
-which is likely to remain reasonably stable as the protocol evolves.  This
-file can be processed with JSDoc or Typescript (a sample `tsconfig.json`
-is provided), but is otherwise plain Javascript (ES6).
+A new frontend may either implement Galène's client-server protocol from
+scratch, or it may use the functionality of `protocol.js`.  This document
+documents the latter approach.
 
 ## Data structures
 
 The class `ServerConnection` encapsulates a connection to the server as
-well as all the associated streams.
+well as all the associated streams.  Unless your frontend communicates
+with multiple servers, it will probably create just a single instance of
+this class.
 
-The class `Stream` encapsulates a set of related audio and video tracks;
-your frontend will probably associate each stream with a `video` or
-`audio` component.
+The class `Stream` encapsulates a set of related audio and video tracks
+(for example, an audio track from a microphone and a video track from
+a webcam).  A stream is said to go *up* when it carries data from the
+client to the server, and *down* otherwise.  Streams going up are created
+by the client (your frontend), streams going down are created by the server.
 
 ## Connecting to the server
 
@@ -38,16 +41,17 @@ serverConnection.ondownstream = ...;
 
 The `onconnected` callback is called when we connect to the server.  The
 `onclose` callback is called when the socket is closed; you should use it
-to close all your outgoing streams (incoming streams will be closed by the
-server).  `onusermessage` indicates a message from the server that should
-be displayed to the user.
+to close all your up streams (down streams will be closed by the server).
+The `onusermessage` callback indicates an application-specific message,
+either from another user or from the server; the field `kind` indicates
+the kind of message.
 
-The other callbacks will only be called after you join a group.  `onuser`
-is used to indicate that a user has joined or left the current group.
-`onchat` indicates that a chat message has been posted to the group, and
-`onclearchat` indicates that the chat history has been cleared.  Finally,
-`ondownstream` is called when the server pushes a stream to the client;
-see the section below about streams.
+Once you have joined a group (see below), the remaining callbacks may
+trigger.  The `onuser` callback is used to indicate that a user has joined
+or left the current group.  The `onchat` callback indicates that a chat
+message has been posted to the group, and `onclearchat` indicates that the
+chat history has been cleared.  Finally, `ondownstream` is called when the
+server pushes a stream to the client; see the section below about streams.
 
 You may now connect to the server.
 
@@ -67,24 +71,30 @@ serverConnection.onconnected = function() {
 You should not attempt to push a stream to the server until it has granted
 you the `present` permission through the `onjoined` callback.
 
-## Managing groups and users
-
-The `groupaction` and `useraction` methods perform actions such as kicking
-users or locking groups.  Most actions require either the `Op` or the
-`Record` permission.
-
 ## Sending and receiving chat messages
 
 Once you have joined a group, you send chat messages with the `chat`
-method.  No permission is needed to do that.
+method of the `ServerConnection` class.  No permission is needed to do that.
 
 ```javascript
-serverConnection.chat(username, '', 'Hi!');
+serverConnection.chat(username, '', id, 'Hi!');
 ```
 
 You receive chat messages in the `onchat` callback.  The server may
 request that you clear your chat window, in that case the `onclearchat`
 callback will trigger.
+
+## Other messages
+
+The `usermessage` method of the `ServerConnection` is similar to the
+`chat` method, but it sends an application-specific message.  Just like
+chat messages, application-specific messages are not interpreted by the
+server; unlike chat messages, they are not kept in the chat history.
+
+The `useraction` method is used to ask the server to act on a remote user
+(kick it, change its permissions, etc.); similarly, the `groupaction`
+class requests an action to be performed on the current group.  Most
+actions require either the `Op` or the `Record` permission.
 
 ## Accepting incoming video streams
 
@@ -145,8 +155,9 @@ See above for information about setting up the `labels` dictionary.
 
 ## Stream statistics
 
-For outgoing streams only, the `setStatsInterval` and `onstats` callback
-can be used to determine the data rate in real time.  This is currently
-not implemented for down streams.
+Some statistics about streams are made available by calling the
+`setStatsInterval` method and setting the `onstats` callback.  These
+include the data rate for streams in the up direction, and the average
+audio energy (the square of the volume) for streams in the down direction.
 
 --- Juliusz Chroboczek <https://www.irif.fr/~jch/>

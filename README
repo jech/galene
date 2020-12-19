@@ -77,9 +77,25 @@ If you are using *runit*, use a script like the following:
     #!/bin/sh
     exec 2>&1
     cd ~galene
+    ulimit -n 65536
     exec setuidgid galene ./galene
 
-If you are using *systemd*, use `Type=simple` in your service file.
+If you are using *systemd*, something like this should do:
+
+    [Unit]
+    Description=Galene
+    After=network.target
+
+    [Service]
+    Type=simple
+    WorkingDirectory=/home/galene
+    User=galene
+    Group=galene
+    ExecStart=/home/galene/galene
+    LimitNOFILE=65536
+
+    [Install]
+    WantedBy=multi-user.target
 
 # Locations
 
