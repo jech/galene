@@ -25,6 +25,9 @@ func differs(a, b, delta uint64) bool {
 }
 
 func TestTime(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping TestTime in short mode")
+	}
 	a := Now(48000)
 	time.Sleep(40 * time.Millisecond)
 	b := Now(48000) - a

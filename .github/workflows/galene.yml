@@ -1,0 +1,111 @@
+name: Galène
+on: [push, pull_request]
+jobs:
+  # Build and test Galène on three boring systems
+  native-build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-20.04, macos-10.15, windows-2019 ]
+        go: [ 1.13, 1.16 ]
+    name: Galène, Golang ${{ matrix.go }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Set Windows env vars
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          "GOMODCACHE=$(go env GOMODCACHE)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "GOCACHE=$(go env GOCACHE)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Set UNIX env vars
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: |
+          printf "GOMODCACHE=%s\n" $(go env GOMODCACHE) >> $GITHUB_ENV
+          printf "GOCACHE=%s\n" $(go env GOCACHE) >> $GITHUB_ENV
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GOCACHE }}
+            ${{ env.GOMODCACHE }}
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+      - name: Build
+        env:
+          CGO_ENABLED: 0
+        run: go build -ldflags='-s -w' ./...
+      - name: Test
+        run: go test -short ./...
+
+  # Cross-compile Galène for a selection of architectures
+  x-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        go: [ 1.13, 1.16 ]
+        goarch: [ mips, mipsle, mips64, mips64le, arm64]
+        include:
+          - goarch: mips
+            gomips: softfloat
+    name: Galène, cross-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Set UNIX env vars
+        run: |
+          printf "GOMODCACHE=%s\n" $(go env GOMODCACHE) >> $GITHUB_ENV
+          printf "GOCACHE=%s\n" $(go env GOCACHE) >> $GITHUB_ENV
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GOCACHE }}
+            ${{ env.GOMODCACHE }}
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+      - name: Build
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+        run: go build -ldflags='-s -w' ./...
+
+  # It's just easier to duplicate the steps for arm
+  x-build-arm:
+    strategy:
+      fail-fast: false
+      matrix:
+        go: [ 1.13, 1.16 ]
+        goarm: [ 5, 6, 7 ]
+    name: Galène, cross-build arm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Set UNIX env vars
+        run: |
+          printf "GOMODCACHE=%s\n" $(go env GOMODCACHE) >> $GITHUB_ENV
+          printf "GOCACHE=%s\n" $(go env GOCACHE) >> $GITHUB_ENV
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GOCACHE }}
+            ${{ env.GOMODCACHE }}
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+      - name: Build
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: arm
+          GOARM: ${{ matrix.goarm }}
+        run: go build -ldflags='-s -w' ./...
