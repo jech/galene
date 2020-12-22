@@ -120,7 +120,8 @@ contain the name of the group -- that makes it possible to set up a new
 group just by copying a template file.
 
 The group definition file contains a JSON directory with the following
-fields, all of which are optional.
+fields, all of which are optional. To enable audio/video you need to
+provide at least an empty "presenter" array. 
 
  - `op`, `presenter`, `other`: each of these is an array of user
    definitions (see below) and specifies the users allowed to connect
