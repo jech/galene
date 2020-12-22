@@ -1,0 +1,21 @@
+name: Lint Galène
+on: [push, pull_request]
+jobs:
+  build:
+    name: Lint Galène
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Lint Galène
+        uses: github/super-linter@v3
+        env:
+          VALIDATE_CSS: true
+          VALIDATE_GO: false    # Golang is currently broken with super-linter
+          VALIDATE_HTML: true
+          VALIDATE_ALL_CODEBASE: false
+          FILTER_REGEX_EXCLUDE: static/(css|scripts|webfonts)/.*
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
