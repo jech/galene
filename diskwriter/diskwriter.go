@@ -119,7 +119,7 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 		client.down = make(map[string]*diskConn)
 	}
 
-	down, err := newDiskConn(directory, label, up, tracks)
+	down, err := newDiskConn(client, directory, label, up, tracks)
 	if err != nil {
 		return err
 	}
@@ -129,6 +129,7 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 }
 
 type diskConn struct {
+	client    *Client
 	directory string
 	label     string
 	hasVideo  bool
@@ -218,8 +219,9 @@ type diskTrack struct {
 	lastKf uint32
 }
 
-func newDiskConn(directory, label string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
+func newDiskConn(client *Client, directory, label string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
 	conn := diskConn{
+		client:    client,
 		directory: directory,
 		label:     label,
 		tracks:    make([]*diskTrack, 0, len(remoteTracks)),
