@@ -1393,6 +1393,20 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 	}
 }
 
+func (c *webClient) Warn(oponly bool, message string) error {
+	if oponly && !c.permissions.Op {
+		return nil
+	}
+
+	return c.write(clientMessage{
+		Type: "usermessage",
+		Kind: "warning",
+		Dest: c.id,
+		Privileged: true,
+		Value: &message,
+	})
+}
+
 var ErrClientDead = errors.New("client is dead")
 
 func (c *webClient) action(m interface{}) error {

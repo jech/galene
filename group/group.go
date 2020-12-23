@@ -480,6 +480,24 @@ func (g *Group) Shutdown(message string) {
 	})
 }
 
+type warner interface {
+	Warn(oponly bool, message string) error
+}
+
+func (g *Group) WallOps(message string) {
+	clients := g.GetClients(nil)
+	for _, c := range clients {
+		w, ok := c.(warner)
+		if !ok {
+			continue
+		}
+		err := w.Warn(true, message)
+		if err != nil {
+			log.Printf("WallOps: %v", err)
+		}
+	}
+}
+
 func FromJSTime(tm int64) time.Time {
 	if tm == 0 {
 		return time.Time{}
