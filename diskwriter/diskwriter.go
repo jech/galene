@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -196,7 +197,12 @@ func (conn *diskConn) Close() error {
 }
 
 func openDiskFile(directory, label string) (*os.File, error) {
-	filename := time.Now().Format("2006-01-02T15:04:05.000")
+	filenameFormat := "2006-01-02T15:04:05.000"
+	if runtime.GOOS == "windows" {
+		filenameFormat = "2006-01-02T15-04-05-000"
+	}
+
+	filename := time.Now().Format(filenameFormat)
 	if label != "" {
 		filename = filename + "-" + label
 	}
