@@ -404,6 +404,8 @@ function setButtonsVisibility() {
     let local = !!findUpMedia('local');
     let share = !!findUpMedia('screenshare');
     let video = !!findUpMedia('video');
+    /** @ts-ignore */
+    let canFile = !!HTMLVideoElement.prototype.captureStream;
 
     // don't allow multiple presentations
     setVisibility('presentbutton', permissions.present && !local);
@@ -420,7 +422,7 @@ function setButtonsVisibility() {
 
     setVisibility('mediaoptions', permissions.present);
     setVisibility('sendform', permissions.present);
-    setVisibility('fileform', permissions.present);
+    setVisibility('fileform', canFile && permissions.present);
 }
 
 /**
@@ -553,8 +555,12 @@ getInputElement('fileinput').onchange = function(e) {
         throw new Error('Unexpected type for this');
     let input = this;
     let files = input.files;
-    for(let i = 0; i < files.length; i++)
-        addFileMedia(files[i]);
+    for(let i = 0; i < files.length; i++) {
+        addFileMedia(files[i]).catch(e => {
+            console.error(e);
+            displayError(e);
+        });
+    }
     input.value = '';
     closeNav();
 }
@@ -902,6 +908,12 @@ async function addShareMedia() {
  * @param {File} file
  */
 async function addFileMedia(file) {
+    /** @ts-ignore */
+    if(!HTMLVideoElement.prototype.captureStream) {
+        displayError("This browser doesn't support file playback");
+        return;
+    }
+
     let url = URL.createObjectURL(file);
     let video = document.createElement('video');
     video.src = url;
