@@ -68,10 +68,7 @@ func Serve(address string, dataDir string) error {
 
 	server.Store(s)
 
-	err := s.ListenAndServeTLS(
-		filepath.Join(dataDir, "cert.pem"),
-		filepath.Join(dataDir, "key.pem"),
-	)
+	err := s.ListenAndServe()
 	if err == http.ErrServerClosed {
 		return nil
 	}
