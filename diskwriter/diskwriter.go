@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,6 +113,7 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 	directory := filepath.Join(Directory, client.group.Name())
 	err := os.MkdirAll(directory, 0700)
 	if err != nil {
+		g.WallOps("Write to disk: " + err.Error())
 		return err
 	}
 
@@ -121,6 +123,7 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 
 	down, err := newDiskConn(client, directory, label, up, tracks)
 	if err != nil {
+		g.WallOps("Write to disk: " + err.Error())
 		return err
 	}
 
@@ -139,6 +142,18 @@ type diskConn struct {
 	remote        conn.Up
 	tracks        []*diskTrack
 	width, height uint32
+	lastWarning   time.Time
+}
+
+// called locked
+func (conn *diskConn) warn(message string) {
+	now := time.Now()
+	if now.Sub(conn.lastWarning) < 10*time.Second {
+		return
+	}
+	log.Println(message)
+	conn.client.group.WallOps(message)
+	conn.lastWarning = now
 }
 
 // called locked
@@ -325,6 +340,9 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 			if keyframe {
 				err := t.initWriter(sample.Data)
 				if err != nil {
+					t.conn.warn(
+						"Write to disk " + err.Error(),
+					)
 					return err
 				}
 				t.lastKf = ts
@@ -341,6 +359,10 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 				if !t.conn.hasVideo {
 					err := t.conn.initWriter(0, 0)
 					if err != nil {
+						t.conn.warn(
+							"Write to disk " +
+								err.Error(),
+						)
 						return err
 					}
 				}
