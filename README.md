@@ -1,180 +1,36 @@
-# Installation
+# Galène videoconferencing server
 
-## Build the server binary
+Galène is a videoconferencing server that is easy to deploy (just copy a few files and run the binary) and that requires moderate server resources. It was originally designed for lectures and conferences (where a single speaker streams audio and video to hundreds or thousands of users), but later evolved to be useful for student practicals (where users are divided into many small groups), and meetings (where a few dozen users interact with each other).
 
-    CGO_ENABLED=0 go build -ldflags='-s -w'
+Galène's server side is implemented in Go, and uses the Pion implementation of WebRTC. The server has been tested on Linux/amd64 and Linux/arm64, and should in principle be portable to other systems (including Mac OS X and Windows). The client is implemented in Javascript, and works on recent versions of all major web browsers, both on desktop and mobile.
 
-## Create a server certificate
+## Setup
 
-    mkdir data
-    openssl req -newkey rsa:2048 -nodes -keyout data/key.pem -x509 -days 365 -out data/cert.pem
+The setup requires Docker. Checkout the Development section in case
+you would like to have a bit more control and build Galène yourself.
 
-## Set the server administrator credentials
+```bash
+docker run -it -p 8443:8443 garage44/galene:latest
+```
 
-This step is optional.
+* Open a compatible browser to the [Galène frontend](http://localhost:8443)
 
-    echo 'god:topsecret' > data/passwd
+:tada: You're now running Galène locally.
 
-## Set up a TURN server
+> Please note that you may need a slightly more extended setup when you
+> want to have conferences between multiple users.
 
-This step depends on your network setup and your user population.  If your
-server is accessible from the Internet (no firewall or NAT) and none of
-your users are behind restrictive firewalls, then no ICE servers are
-necessary.  If your server is behind a NAT, a STUN server is required.  If
-any of your users are behind restrictive firewalls (which is usually the
-case of Academic and Enterprise networks), then you will need a TURN
-server running on an innocent-looking TCP port.  This is the recommended
-setup.
+## Development
 
-You should probably be running your own TURN server — I use *coturn*.  The
-address of the TURN server is configured in the file `data/ice-servers.json`.
-It should look like this:
+With a local Golang environment, build Galène manually with:
 
-    [
-        {
-            "urls":["turn:turn.example.com:443"],
-            "username":"username",
-            "credential":"password"
-        },
-        {
-            "urls":["turn:turn.example.com:443?transport=tcp"],
-            "username":"username",
-            "credential":"password"
-        }
-    ]
+```bash
+git clone git@github.com:garage44/galene.git
+cd galene
+CGO_ENABLED=0 GOOS=linux go build -ldflags='-s -w'
+```
 
-The port number, username and password should be the same as the ones in
-your TURN server's configuration.
+## Documentation
 
-## Set up a group
-
-A group is set up by creating a file `groups/name.json`.  The available
-options are described below.
-
-    mkdir groups
-    vi groups/public.json
-
-    {
-      "public": true,
-      "op": [{"username":"jch","password":"1234"}],
-      "presenter": [{}],
-      "max-users": 100
-    }
-
-## Copy the necessary files to your server:
-
-Assuming you have set up a user *galene*:
-
-    rsync -a galene static data groups galene@server.example.org:
-
-## Run the server binary:
-
-    ssh galene@server.example.org
-    nohup ./galene &
-
-If you are using *runit*, use a script like the following:
-
-    #!/bin/sh
-    exec 2>&1
-    cd ~galene
-    ulimit -n 65536
-    exec setuidgid galene ./galene
-
-If you are using *systemd*, something like this should do:
-
-    [Unit]
-    Description=Galene
-    After=network.target
-
-    [Service]
-    Type=simple
-    WorkingDirectory=/home/galene
-    User=galene
-    Group=galene
-    ExecStart=/home/galene/galene
-    LimitNOFILE=65536
-
-    [Install]
-    WantedBy=multi-user.target
-
-# Locations
-
-There is a landing page at the root of the server.  It contains a form
-for typing the name of a group, and a clickable list of public groups.
-
-Groups are available under `/group/groupname`.  You may share this URL
-with others, there is no need to go through the landing page.
-
-Recordings can be accessed under `/recordings/groupname`.  This is only
-available to the administrator of the group.
-
-Some statistics are available under `/stats`.  This is only available to
-the server administrator.
-
-
-# Group definitions
-
-Groups are defined by files in the directory defined by the `-groups`
-command-line option, one per group.  The group definition file does not
-contain the name of the group -- that makes it possible to set up a new
-group just by copying a template file.
-
-The group definition file contains a JSON directory with the following
-fields, all of which are optional.
-
- - `op`, `presenter`, `other`: each of these is an array of user
-   definitions (see below) and specifies the users allowed to connect
-   respectively with operator privileges, with presenter privileges, and
-   as passive listeners;
- - `public`: if true, then the group is visible on the landing page;
- - `description`: a human-readable description of the group; this is
-   displayed on the landing page for public groups;
- - `max-clients`: the maximum number of clients that may join the group at
-   a time;
- - `max-history-age`: the time, in seconds, during which chat history is
-   kept (default 14400, i.e. 4 hours);
- - `allow-recording`: if true, then recording is allowed in this group;
- - `allow-anonymous`: if true, then users may connect with an empty username.
- - `allow-subgroups`: if true, then subgroups of the form `group/subgroup`
-   are automatically created when accessed.
- - `redirect`: if set, then attempts to join the group will be redirected
-   to the given URL; most other fields are ignored in this case.
-   
-A user definition is a dictionary with the following fields:
-
- - `username`: the username of the user; if omitted, any username is
-   allowed;
- - `password`: if omitted, then no password is required.  Otherwise, this
-   can either be a string, specifying a plain text password, or
-   a dictionary generated by the `galene-password-generator` utility.
-   
-For example,
-
-    {"username": "jch", "password": "topsecret"}
-    
-specifies user *jch* with password *topsecret*, while
-
-    {"password": "topsecret"}
-    
-specifies that any username will do.  An entry with a hashed password
-looks like this:
-
-    {
-        "username": "jch",
-        "password": {
-            "type": "pbkdf2",
-            "hash": "sha-256",
-            "key": "f591c35604e6aef572851d9c3543c812566b032b6dc083c81edd15cc24449913",
-            "salt": "92bff2ace56fe38f",
-            "iterations": 4096
-        }
-    }
-
-# Commands
-
-Typing a line starting with a slash `/` in the chat dialogue causes
-a command to be sent to the server.  Type `/help` to get the list of
-available commands; the output depends on whether you are an operator or
-not.
-
---- Juliusz Chroboczek <https://www.irif.fr/~jch/>
+Checkout [the wiki](https://github.com/garage44/galene/wiki) for further setup
+and usage instructions.

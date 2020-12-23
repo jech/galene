@@ -1,7 +1,5 @@
-*~
-data/*.pem
+data/*
+groups/*
 galene
 galene-password-generator/galene-password-generator
-passwd
-groups/*.json
 static/*.d.ts

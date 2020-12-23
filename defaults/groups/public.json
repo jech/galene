@@ -1,0 +1,6 @@
+{
+  "public": true,
+  "op": [{"username":"opuser","password":"opsecret"}],
+  "presenter": [{}],
+  "max-users": 100
+}
