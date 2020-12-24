@@ -24,6 +24,8 @@ func main() {
 		"web server root `directory`")
 	flag.StringVar(&webserver.Redirect, "redirect", "",
 		"redirect to canonical `host`")
+	flag.BoolVar(&webserver.Insecure, "insecure", false,
+		"act as an HTTP server rather than HTTPS")
 	flag.StringVar(&dataDir, "data", "./data/",
 		"data `directory`")
 	flag.StringVar(&group.Directory, "groups", "./groups/",

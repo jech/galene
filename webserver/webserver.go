@@ -33,6 +33,8 @@ var StaticRoot string
 
 var Redirect string
 
+var Insecure bool
+
 func Serve(address string, dataDir string) error {
 	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
 	http.HandleFunc("/group/", groupHandler)
@@ -68,10 +70,17 @@ func Serve(address string, dataDir string) error {
 
 	server.Store(s)
 
-	err := s.ListenAndServeTLS(
-		filepath.Join(dataDir, "cert.pem"),
-		filepath.Join(dataDir, "key.pem"),
-	)
+	var err error
+
+	if !Insecure {
+		err = s.ListenAndServeTLS(
+			filepath.Join(dataDir, "cert.pem"),
+			filepath.Join(dataDir, "key.pem"),
+		)
+	} else {
+		err = s.ListenAndServe()
+	}
+
 	if err == http.ErrServerClosed {
 		return nil
 	}
