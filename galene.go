@@ -24,6 +24,8 @@ func main() {
 		"web server root `directory`")
 	flag.StringVar(&webserver.Redirect, "redirect", "",
 		"redirect to canonical `host`")
+	flag.BoolVar(&webserver.UseHttps, "https", true,
+		"web server https using cert.pem and key.pem from data directory")
 	flag.StringVar(&dataDir, "data", "./data/",
 		"data `directory`")
 	flag.StringVar(&group.Directory, "groups", "./groups/",
