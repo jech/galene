@@ -279,6 +279,7 @@ type rtpUpConnection struct {
 	iceCandidates []*webrtc.ICECandidateInit
 
 	mu     sync.Mutex
+	pushed bool
 	tracks []*rtpUpTrack
 	local  []conn.Down
 }
@@ -372,6 +373,44 @@ func (up *rtpUpConnection) complete() bool {
 	return true
 }
 
+// pushConnNow pushes a connection to all of the clients in a group
+func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
+	up.mu.Lock()
+	up.pushed = true
+	tracks := make([]conn.UpTrack, len(up.tracks))
+	for i, t := range up.tracks {
+		tracks[i] = t
+	}
+	up.mu.Unlock()
+
+	for _, c := range cs {
+		c.PushConn(g, up.id, up, tracks, up.label)
+	}
+}
+
+// pushConn schedules a call to pushConnNow
+func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
+	if up.complete() {
+		pushConnNow(up, g, cs)
+		return
+	}
+
+	up.mu.Lock()
+	up.pushed = false
+	up.mu.Unlock()
+
+	go func(g *group.Group, cs []group.Client) {
+		time.Sleep(300 * time.Millisecond)
+		up.mu.Lock()
+		pushed := up.pushed
+		up.pushed = true
+		up.mu.Unlock()
+		if !pushed {
+			pushConnNow(up, g, cs)
+		}
+	}(g, cs)
+}
+
 func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
 	pc, err := c.Group().API().NewPeerConnection(group.IceConfiguration())
 	if err != nil {
@@ -436,26 +475,12 @@ func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
 
 		go rtcpUpListener(up, track, receiver)
 
-		complete := up.complete()
-		var tracks []conn.UpTrack
-		if complete {
-			tracks = make([]conn.UpTrack, len(up.tracks))
-			for i, t := range up.tracks {
-				tracks[i] = t
-			}
-		}
-
-		// pushConn might need to take the lock
 		up.mu.Unlock()
 
-		if complete {
-			clients := c.Group().GetClients(c)
-			for _, cc := range clients {
-				cc.PushConn(c.Group(), up.id, up, tracks, up.label)
-			}
-		}
+		pushConn(up, c.Group(), c.Group().GetClients(c))
 	})
 
+	pushConn(up, c.Group(), c.Group().GetClients(c))
 	go rtcpUpSender(up)
 
 	return up, nil
