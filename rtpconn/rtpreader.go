@@ -13,15 +13,26 @@ import (
 	"github.com/jech/galene/rtptime"
 )
 
-func isVP8Keyframe(packet *rtp.Packet) bool {
-	var vp8 codecs.VP8Packet
-	_, err := vp8.Unmarshal(packet.Payload)
-	if err != nil {
-		return false
-	}
+// isKeyframe determines if packet is the start of a keyframe.
+// It returns (true, true) if that is the case, (false, true) if that is
+// definitely not the case, and (false, false) if the information cannot
+// be determined.
+func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
+	switch strings.ToLower(codec) {
+	case "video/vp8":
+		var vp8 codecs.VP8Packet
+		_, err := vp8.Unmarshal(packet.Payload)
+		if err != nil || len(vp8.Payload) < 1 {
+			return false, false
+		}
 
-	return vp8.S != 0 && vp8.PID == 0 &&
-		len(vp8.Payload) > 0 && (vp8.Payload[0]&0x1) == 0
+		if vp8.S != 0 && vp8.PID == 0 && (vp8.Payload[0]&0x1) == 0 {
+			return true, true
+		}
+		return false, true
+	default:
+		return false, false
+	}
 }
 
 func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
@@ -54,10 +65,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 		track.jitter.Accumulate(packet.Timestamp)
 
-		kf := false
-		if isvideo && strings.ToLower(codec.MimeType) == "video/vp8" {
-			kf = isVP8Keyframe(&packet)
-		}
+		kf, _ := isKeyframe(codec.MimeType, &packet)
 
 		first, index := track.cache.Store(
 			packet.SequenceNumber, packet.Timestamp,
