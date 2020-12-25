@@ -911,6 +911,10 @@ function Stream(sc, id, pc, up) {
 
 /**
  * close closes a stream.
+ *
+ * For streams in the up direction, this may be called at any time.  For
+ * streams in the down direction, this will be called automatically when
+ * the server signals that it is closing a stream.
  */
 Stream.prototype.close = function() {
     let c = this;
@@ -940,6 +944,19 @@ Stream.prototype.close = function() {
     }
     c.sc = null;
 };
+
+/**
+ * abort requests that the server close a down stream.
+ */
+Stream.prototype.abort = function() {
+    let c = this;
+    if(c.up)
+        throw new Error("Abort called on an up stream");
+    c.sc.send({
+        type: 'abort',
+        id: c.id,
+    });
+}
 
 /**
  * Called when we get a local ICE candidate.  Don't call this.

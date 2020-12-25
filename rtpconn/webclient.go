@@ -1144,6 +1144,15 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if !found {
 			log.Printf("Deleting unknown up connection %v", m.Id)
 		}
+	case "abort":
+		found := delDownConn(c, m.Id)
+		if !found {
+			log.Printf("Attempted to abort unknown connection")
+		}
+		c.write(clientMessage{
+			Type: "close",
+			Id:   m.Id,
+		});
 	case "ice":
 		if m.Candidate == nil {
 			return group.ProtocolError("null candidate")
