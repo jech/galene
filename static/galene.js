@@ -341,6 +341,8 @@ function gotDownStream(c) {
     c.onstats = gotDownStats;
     if(getSettings().activityDetection)
         c.setStatsInterval(activityDetectionInterval);
+
+    setMedia(c, false);
 }
 
 // Store current browser viewport height in css variable
