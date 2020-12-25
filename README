@@ -139,6 +139,11 @@ fields, all of which are optional.
    are automatically created when accessed.
  - `redirect`: if set, then attempts to join the group will be redirected
    to the given URL; most other fields are ignored in this case.
+ - `codecs`: this is a list of codecs allowed in this group.  The default
+   is `["vp8", "opus"]`.  Other possible values include `"vp9"`
+   (incompatible with Mac OS), `"h264"` (incompatible with some versions
+   of Firefox and Chromium), `"g722"`, `"pcmu"` and `"pcma"`.  Recording
+   to disk is only supported for `"vp8"` and `"opus"`.
    
 A user definition is a dictionary with the following fields:
 

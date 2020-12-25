@@ -108,7 +108,8 @@ type rtpDownConnection struct {
 }
 
 func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
-	pc, err := c.Group().API().NewPeerConnection(group.IceConfiguration())
+	api := group.APIFromCodecs(remote.Codecs())
+	pc, err := api.NewPeerConnection(group.IceConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -298,6 +299,17 @@ func (up *rtpUpConnection) Id() string {
 
 func (up *rtpUpConnection) Label() string {
 	return up.label
+}
+
+func (up *rtpUpConnection) Codecs() []webrtc.RTPCodecCapability {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+
+	codecs := make([]webrtc.RTPCodecCapability, len(up.tracks))
+	for i := range up.tracks {
+		codecs[i] = up.tracks[i].Codec()
+	}
+	return codecs
 }
 
 func (up *rtpUpConnection) AddLocal(local conn.Down) error {

@@ -17,6 +17,7 @@ type Up interface {
 	DelLocal(Down) bool
 	Id() string
 	Label() string
+	Codecs() []webrtc.RTPCodecCapability
 }
 
 // Type UpTrack represents a track in the client to server direction.

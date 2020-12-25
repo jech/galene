@@ -92,6 +92,7 @@ const (
 
 type Group struct {
 	name string
+	api  *webrtc.API
 
 	mu          sync.Mutex
 	description *description
@@ -146,11 +147,131 @@ func (g *Group) AllowRecording() bool {
 var groups struct {
 	mu     sync.Mutex
 	groups map[string]*Group
-	api    *webrtc.API
 }
 
 func (g *Group) API() *webrtc.API {
-	return groups.api
+	return g.api
+}
+
+func codecFromName(name string) (webrtc.RTPCodecCapability, error) {
+	switch name {
+	case "vp8":
+		return webrtc.RTPCodecCapability{
+			"video/VP8", 90000, 0,
+			"",
+			nil,
+		}, nil
+	case "vp9":
+		return webrtc.RTPCodecCapability{
+			"video/VP9", 90000, 0,
+			"profile-id=2",
+			nil,
+		}, nil
+	case "h264":
+		return webrtc.RTPCodecCapability{
+			"video/H264", 90000, 0,
+			"level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
+			nil,
+		}, nil
+	case "opus":
+		return webrtc.RTPCodecCapability{
+			"audio/opus", 48000, 2,
+			"minptime=10;useinbandfec=1",
+			nil,
+		}, nil
+	case "g722":
+		return webrtc.RTPCodecCapability{
+			"audio/G722", 8000, 1,
+			"",
+			nil,
+		}, nil
+	case "pcmu":
+		return webrtc.RTPCodecCapability{
+			"audio/PCMU", 8000, 1,
+			"",
+			nil,
+		}, nil
+	case "pcma":
+		return webrtc.RTPCodecCapability{
+			"audio/PCMA", 8000, 1,
+			"",
+			nil,
+		}, nil
+	default:
+		return webrtc.RTPCodecCapability{}, errors.New("unknown codec")
+	}
+}
+
+func payloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, error) {
+	switch strings.ToLower(codec.MimeType) {
+	case "video/vp8":
+		return 96, nil
+	case "video/vp9":
+		return 98, nil
+	case "video/h264":
+		return 102, nil
+	case "audio/opus":
+		return 111, nil
+	case "audio/g722":
+		return 9, nil
+	case "audio/pcmu":
+		return 0, nil
+	case "audio/pcma":
+		return 8, nil
+	default:
+		return 0, errors.New("unknown codec")
+	}
+}
+
+func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
+	s := webrtc.SettingEngine{}
+	s.SetSRTPReplayProtectionWindow(512)
+	if !UseMDNS {
+		s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
+	}
+	m := webrtc.MediaEngine{}
+
+	for _, codec := range codecs {
+		var tpe webrtc.RTPCodecType
+		var fb []webrtc.RTCPFeedback
+		if strings.HasPrefix(strings.ToLower(codec.MimeType), "video/") {
+			tpe = webrtc.RTPCodecTypeVideo
+			fb = []webrtc.RTCPFeedback{
+				{"goog-remb", ""},
+				{"nack", ""},
+				{"nack", "pli"},
+				{"ccm", "fir"},
+			}
+		} else if strings.HasPrefix(strings.ToLower(codec.MimeType), "audio/") {
+			tpe = webrtc.RTPCodecTypeAudio
+			fb = []webrtc.RTCPFeedback{}
+		} else {
+			continue
+		}
+
+		ptpe, err := payloadType(codec)
+		if err != nil {
+			log.Printf("%v", err)
+			continue
+		}
+		m.RegisterCodec(
+			webrtc.RTPCodecParameters{
+				RTPCodecCapability: webrtc.RTPCodecCapability{
+					MimeType:     codec.MimeType,
+					ClockRate:    codec.ClockRate,
+					Channels:     codec.Channels,
+					SDPFmtpLine:  codec.SDPFmtpLine,
+					RTCPFeedback: fb,
+				},
+				PayloadType: ptpe,
+			},
+			tpe,
+		)
+	}
+	return webrtc.NewAPI(
+		webrtc.WithSettingEngine(s),
+		webrtc.WithMediaEngine(&m),
+	)
 }
 
 func Add(name string, desc *description) (*Group, error) {
@@ -163,43 +284,6 @@ func Add(name string, desc *description) (*Group, error) {
 
 	if groups.groups == nil {
 		groups.groups = make(map[string]*Group)
-		s := webrtc.SettingEngine{}
-		s.SetSRTPReplayProtectionWindow(512)
-		if !UseMDNS {
-			s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
-		}
-		m := webrtc.MediaEngine{}
-		m.RegisterCodec(
-			webrtc.RTPCodecParameters{
-				RTPCodecCapability: webrtc.RTPCodecCapability{
-					"video/VP8", 90000, 0,
-					"",
-					[]webrtc.RTCPFeedback{
-						{"goog-remb", ""},
-						{"nack", ""},
-						{"nack", "pli"},
-						{"ccm", "fir"},
-					},
-				},
-				PayloadType: 96,
-			},
-			webrtc.RTPCodecTypeVideo,
-		)
-		m.RegisterCodec(
-			webrtc.RTPCodecParameters{
-				RTPCodecCapability: webrtc.RTPCodecCapability{
-					"audio/opus", 48000, 2,
-					"minptime=10;useinbandfec=1",
-					nil,
-				},
-				PayloadType: 111,
-			},
-			webrtc.RTPCodecTypeAudio,
-		)
-		groups.api = webrtc.NewAPI(
-			webrtc.WithSettingEngine(s),
-			webrtc.WithMediaEngine(&m),
-		)
 	}
 
 	var err error
@@ -212,11 +296,29 @@ func Add(name string, desc *description) (*Group, error) {
 				return nil, err
 			}
 		}
+
+		names := desc.Codecs
+		if len(names) == 0 {
+			names = []string{"vp8", "opus"}
+		}
+		codecs := make([]webrtc.RTPCodecCapability, 0, len(names))
+		for _, n := range names {
+			codec, err := codecFromName(n)
+			if err != nil {
+				log.Printf("Codec %v: %v", n, err)
+				continue
+			}
+			codecs = append(codecs, codec)
+		}
+
+		api := APIFromCodecs(codecs)
+
 		g = &Group{
 			name:        name,
 			description: desc,
 			clients:     make(map[string]Client),
 			timestamp:   time.Now(),
+			api:         api,
 		}
 		groups.groups[name] = g
 		return g, nil
@@ -592,6 +694,7 @@ type description struct {
 	Op             []ClientCredentials `json:"op,omitempty"`
 	Presenter      []ClientCredentials `json:"presenter,omitempty"`
 	Other          []ClientCredentials `json:"other,omitempty"`
+	Codecs         []string            `json:"codecs,omitempty"`
 }
 
 const DefaultMaxHistoryAge = 4 * time.Hour
