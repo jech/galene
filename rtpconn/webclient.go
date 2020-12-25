@@ -535,6 +535,15 @@ func gotAnswer(c *webClient, id string, answer webrtc.SessionDescription) error 
 		return err
 	}
 
+	for _, t := range down.tracks {
+		local := t.track.Codec()
+		remote := t.remote.Codec()
+		if local.MimeType != remote.MimeType ||
+			local.ClockRate != remote.ClockRate {
+			return errors.New("negotiation failed")
+		}
+	}
+
 	err = down.flushICECandidates()
 	if err != nil {
 		log.Printf("ICE: %v", err)
