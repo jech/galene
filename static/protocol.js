@@ -620,17 +620,30 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
     if(sc.ondownstream)
         sc.ondownstream.call(sc, c);
 
-    await c.pc.setRemoteDescription(offer);
-    await c.flushRemoteIceCandidates()
-    let answer = await c.pc.createAnswer();
-    if(!answer)
-        throw new Error("Didn't create answer");
-    await c.pc.setLocalDescription(answer);
-    this.send({
-        type: 'answer',
-        id: id,
-        answer: answer,
-    });
+    try {
+        await c.pc.setRemoteDescription(offer);
+
+        await c.flushRemoteIceCandidates();
+
+        let answer = await c.pc.createAnswer();
+        if(!answer)
+            throw new Error("Didn't create answer");
+        await c.pc.setLocalDescription(answer);
+        this.send({
+            type: 'answer',
+            id: id,
+            answer: answer,
+        });
+    } catch(e) {
+        try {
+            if(c.onerror)
+                c.onerror.call(c, e);
+        } finally {
+            c.abort();
+        }
+        return;
+    }
+
     c.localDescriptionSent = true;
     c.flushLocalIceCandidates();
     if(c.onnegotiationcompleted)
@@ -667,8 +680,12 @@ ServerConnection.prototype.gotAnswer = async function(id, answer) {
     try {
         await c.pc.setRemoteDescription(answer);
     } catch(e) {
-        if(c.onerror)
-            c.onerror.call(c, e);
+        try {
+            if(c.onerror)
+                c.onerror.call(c, e);
+        } finally {
+            c.close();
+        }
         return;
     }
     await c.flushRemoteIceCandidates();
