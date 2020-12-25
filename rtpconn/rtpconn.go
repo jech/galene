@@ -453,9 +453,10 @@ func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
 			for _, cc := range clients {
 				cc.PushConn(c.Group(), up.id, up, tracks, up.label)
 			}
-			go rtcpUpSender(up)
 		}
 	})
+
+	go rtcpUpSender(up)
 
 	return up, nil
 }
