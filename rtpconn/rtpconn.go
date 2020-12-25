@@ -411,7 +411,7 @@ func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	}(g, cs)
 }
 
-func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
+func newUpConn(c group.Client, id string, labels map[string]string) (*rtpUpConnection, error) {
 	pc, err := c.Group().API().NewPeerConnection(group.IceConfiguration())
 	if err != nil {
 		return nil, err
@@ -437,7 +437,7 @@ func newUpConn(c group.Client, id string) (*rtpUpConnection, error) {
 		return nil, err
 	}
 
-	up := &rtpUpConnection{id: id, pc: pc}
+	up := &rtpUpConnection{id: id, pc: pc, labels: labels}
 
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		up.mu.Lock()

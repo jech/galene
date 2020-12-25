@@ -204,7 +204,7 @@ func getUpConns(c *webClient) []*rtpUpConnection {
 	return up
 }
 
-func addUpConn(c *webClient, id string) (*rtpUpConnection, bool, error) {
+func addUpConn(c *webClient, id string, labels map[string]string) (*rtpUpConnection, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -220,7 +220,7 @@ func addUpConn(c *webClient, id string) (*rtpUpConnection, bool, error) {
 		return old, false, nil
 	}
 
-	conn, err := newUpConn(c, id)
+	conn, err := newUpConn(c, id, labels)
 	if err != nil {
 		return nil, false, err
 	}
@@ -481,7 +481,7 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 		delUpConn(c, id)
 	}
 
-	up, isnew, err := addUpConn(c, id)
+	up, isnew, err := addUpConn(c, id, labels)
 	if err != nil {
 		return err
 	}
@@ -508,8 +508,6 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 	if err != nil {
 		return err
 	}
-
-	up.labels = labels
 
 	err = up.flushICECandidates()
 	if err != nil {
