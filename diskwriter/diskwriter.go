@@ -274,6 +274,7 @@ func newDiskConn(client *Client, directory, label string, up conn.Up, remoteTrac
 			client.group.WallOps(
 				"Cannot record codec " + codec.MimeType,
 			)
+			continue
 		}
 		track := &diskTrack{
 			remote:  remote,
