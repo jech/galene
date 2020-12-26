@@ -190,7 +190,7 @@ function ServerConnection() {
 ServerConnection.prototype.close = function() {
     this.socket && this.socket.close(1000, 'Close requested by client');
     this.socket = null;
-}
+};
 
 /**
   * send sends a message to the server.
@@ -202,7 +202,7 @@ ServerConnection.prototype.send = function(m) {
         throw(new Error('Connection is not open'));
     }
     return this.socket.send(JSON.stringify(m));
-}
+};
 
 /**
  * connect connects to the server.
@@ -263,7 +263,7 @@ ServerConnection.prototype.connect = async function(url) {
                 sc.gotAnswer(m.id, m.sdp);
                 break;
             case 'renegotiate':
-                sc.gotRenegotiate(m.id)
+                sc.gotRenegotiate(m.id);
                 break;
             case 'close':
                 sc.gotClose(m.id);
@@ -322,7 +322,7 @@ ServerConnection.prototype.connect = async function(url) {
             }
         };
     });
-}
+};
 
 /**
  * join requests to join a group.  The onjoined callback will be called
@@ -340,7 +340,7 @@ ServerConnection.prototype.join = function(group, username, password) {
         username: username,
         password: password,
     });
-}
+};
 
 /**
  * leave leaves a group.  The onjoined callback will be called when we've
@@ -354,7 +354,7 @@ ServerConnection.prototype.leave = function(group) {
         kind: 'leave',
         group: group,
     });
-}
+};
 
 /**
  * request sets the list of requested media types.
@@ -430,7 +430,7 @@ ServerConnection.prototype.newUpStream = function(id) {
     pc.ontrack = console.error;
 
     return c;
-}
+};
 
 /**
  * chat sends a chat message to the server.  The server will normally echo
@@ -734,7 +734,7 @@ function Stream(sc, id, pc, up) {
      * @type {boolean}
      * @const
      */
-     this.up = up
+    this.up = up;
     /**
      * For up streams, one of "local" or "screenshare".
      *
@@ -920,7 +920,7 @@ Stream.prototype.abort = function() {
         type: 'abort',
         id: c.id,
     });
-}
+};
 
 /**
  * Called when we get a local ICE candidate.  Don't call this.
@@ -937,7 +937,7 @@ Stream.prototype.gotLocalIce = function(candidate) {
                   });
     else
         c.localIceCandidates.push(candidate);
-}
+};
 
 /**
  * flushLocalIceCandidates flushes any buffered local ICE candidates.
@@ -959,7 +959,7 @@ Stream.prototype.flushLocalIceCandidates = function () {
         }
     });
     c.localIceCandidates = [];
-}
+};
 
 /**
  * flushRemoteIceCandidates flushes any buffered remote ICE candidates.  It is

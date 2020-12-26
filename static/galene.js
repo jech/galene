@@ -147,7 +147,7 @@ function delSetting(key) {
     if(!(key in s))
         return;
     delete(s[key]);
-    storeSettings(s)
+    storeSettings(s);
 }
 
 /**
@@ -316,13 +316,13 @@ function gotDownStream(c) {
     c.onerror = function(e) {
         console.error(e);
         displayError(e);
-    }
+    };
     c.ondowntrack = function(track, transceiver, label, stream) {
         setMedia(c, false);
-    }
+    };
     c.onstatus = function(status) {
         setMediaStatus(c);
-    }
+    };
     c.onstats = gotDownStats;
     if(getSettings().activityDetection)
         c.setStatsInterval(activityDetectionInterval);
@@ -455,14 +455,14 @@ getInputElement('blackboardbox').onchange = function(e) {
         throw new Error('Unexpected type for this');
     updateSettings({blackboardMode: this.checked});
     changePresentation();
-}
+};
 
 document.getElementById('mutebutton').onclick = function(e) {
     e.preventDefault();
     let localMute = getSettings().localMute;
     localMute = !localMute;
     setLocalMute(localMute, true);
-}
+};
 
 document.getElementById('sharebutton').onclick = function(e) {
     e.preventDefault();
@@ -473,13 +473,13 @@ document.getElementById('unsharebutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('screenshare');
     resizePeers();
-}
+};
 
 document.getElementById('stopvideobutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('video');
     resizePeers();
-}
+};
 
 /** @returns {number} */
 function getMaxVideoThroughput() {
@@ -508,7 +508,7 @@ getSelectElement('sendselect').onchange = async function(e) {
         let c = serverConnection.up[id];
         await setMaxVideoThroughput(c, t);
     }
-}
+};
 
 getSelectElement('requestselect').onchange = function(e) {
     e.preventDefault();
@@ -535,7 +535,7 @@ getInputElement('activitybox').onchange = function(e) {
             setActive(c, false);
         }
     }
-}
+};
 
 getInputElement('fileinput').onchange = function(e) {
     if(!(this instanceof HTMLInputElement))
@@ -550,7 +550,7 @@ getInputElement('fileinput').onchange = function(e) {
     }
     input.value = '';
     closeNav();
-}
+};
 
 /**
  * @this {Stream}
@@ -735,18 +735,18 @@ function newUpStream(id) {
     let c = serverConnection.newUpStream(id);
     c.onstatus = function(status) {
         setMediaStatus(c);
-    }
+    };
     c.onerror = function(e) {
         console.error(e);
         displayError(e);
         delUpMedia(c);
-    }
+    };
     c.onabort = function() {
         delUpMedia(c);
-    }
+    };
     c.onnegotiationcompleted = function() {
-        setMaxVideoThroughput(c, getMaxVideoThroughput())
-    }
+        setMaxVideoThroughput(c, getMaxVideoThroughput());
+    };
     return c;
 }
 
@@ -833,7 +833,7 @@ async function addLocalMedia(id) {
     c.stream = stream;
     let mute = getSettings().localMute;
     stream.getTracks().forEach(t => {
-        c.labels[t.id] = t.kind
+        c.labels[t.id] = t.kind;
         if(t.kind == 'audio') {
             if(mute)
                 t.enabled = false;
@@ -888,7 +888,7 @@ async function addShareMedia() {
     c.onstats = gotUpStats;
     c.setStatsInterval(2000);
     await setMedia(c, true);
-    setButtonsVisibility()
+    setButtonsVisibility();
 }
 
 /**
@@ -937,7 +937,7 @@ async function addFileMedia(file) {
                 sender = s;
         });
         if(sender) {
-            c.pc.removeTrack(sender)
+            c.pc.removeTrack(sender);
         } else {
             console.warn('Removing unknown track');
         }
@@ -950,7 +950,7 @@ async function addFileMedia(file) {
     };
     await setMedia(c, true, false, video);
     c.userdata.play = true;
-    setButtonsVisibility()
+    setButtonsVisibility();
 }
 
 /**
@@ -979,7 +979,7 @@ function delUpMedia(c) {
     }
     c.close();
     delete(serverConnection.up[c.id]);
-    setButtonsVisibility()
+    setButtonsVisibility();
 }
 
 /**
@@ -1369,8 +1369,8 @@ let users = {};
  * @param{string} b
  */
 function stringCompare(a, b) {
-    let la = a.toLowerCase()
-    let lb = b.toLowerCase()
+    let la = a.toLowerCase();
+    let lb = b.toLowerCase();
     if(la < lb)
         return -1;
     else if(la > lb)
@@ -1761,7 +1761,7 @@ function clearChat() {
  *
  * @type {Object.<string,command>}
  */
-let commands = {}
+let commands = {};
 
 function operatorPredicate() {
     if(serverConnection && serverConnection.permissions &&
@@ -1818,7 +1818,7 @@ commands.set = {
         let p = parseCommand(r);
         let value;
         if(p[1]) {
-            value = JSON.parse(p[1])
+            value = JSON.parse(p[1]);
         } else {
             value = true;
         }
