@@ -167,9 +167,10 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 		if (delta & 0x8000) != 0 {
 			delta = 0
 		}
-		// send a NACK if a packet is late by 65ms or 2 packets,
-		// whichever is more
-		packets := rate / 16
+		// send a NACK if a packet is late by 20ms or 2 packets,
+		// whichever is more.  Since TCP sends a dupack after 2 packets,
+		// this should be safe.
+		packets := rate / 50
 		if packets > 24 {
 			packets = 24
 		}
