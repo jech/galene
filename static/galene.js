@@ -944,7 +944,7 @@ async function addFileMedia(file) {
 
         if(Object.keys(c.labels).length === 0) {
             stream.onaddtrack = null;
-            stream.onremovetrack == null;
+            stream.onremovetrack = null;
             delUpMedia(c);
         }
     };
