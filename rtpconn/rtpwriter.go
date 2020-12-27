@@ -266,12 +266,12 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				track.mu.Lock()
 				ntp := track.srNTPTime
 				rtp := track.srRTPTime
-				cname := track.cname
 				track.mu.Unlock()
 				if ntp != 0 {
 					action.track.SetTimeOffset(ntp, rtp)
 				}
-				if cname != "" {
+				cname, ok := track.cname.Load().(string)
+				if ok && cname != "" {
 					action.track.SetCname(cname)
 				}
 

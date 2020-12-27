@@ -411,6 +411,7 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrac
 		maxBitrate: new(bitrate),
 		stats:      new(receiverStats),
 		rate:       estimator.New(time.Second),
+		atomics:    &downTrackAtomics{},
 	}
 	conn.tracks = append(conn.tracks, track)
 
@@ -1159,7 +1160,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		c.write(clientMessage{
 			Type: "close",
 			Id:   m.Id,
-		});
+		})
 	case "ice":
 		if m.Candidate == nil {
 			return group.ProtocolError("null candidate")
@@ -1415,11 +1416,11 @@ func (c *webClient) Warn(oponly bool, message string) error {
 	}
 
 	return c.write(clientMessage{
-		Type: "usermessage",
-		Kind: "warning",
-		Dest: c.id,
+		Type:       "usermessage",
+		Kind:       "warning",
+		Dest:       c.id,
 		Privileged: true,
-		Value: &message,
+		Value:      &message,
 	})
 }
 

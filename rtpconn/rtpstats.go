@@ -2,7 +2,6 @@ package rtpconn
 
 import (
 	"sort"
-	"sync/atomic"
 	"time"
 
 	"github.com/jech/galene/rtptime"
@@ -51,7 +50,7 @@ func (c *webClient) GetStats() *stats.Client {
 		}
 		for _, t := range down.tracks {
 			rate, _ := t.rate.Estimate()
-			rtt := rtptime.ToDuration(atomic.LoadUint64(&t.rtt),
+			rtt := rtptime.ToDuration(t.getRTT(),
 				rtptime.JiffiesPerSec)
 			loss, jitter := t.stats.Get(jiffies)
 			j := time.Duration(jitter) * time.Second /
