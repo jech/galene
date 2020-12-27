@@ -1,3 +1,21 @@
+Galène 0.2 (unreleased)
+
+  * Error handling has been improved.  In particular, group operators now
+    receive a friendly warning when recording to disk fails for some reason.
+  * Recording to disk now works on Windows too.
+  * The play from disk button is not available when the browser doesn't
+    support the required API.  We used to display a cryptic error message
+    in that case.
+  * The stream abort protocol message is now supported in the client->server
+    direction, making it possible for the client to reject a stream.
+  * It is now possible to configure a group to use codecs such as VP9 and
+    H.264.  The default is still to use VP8 and Opus, as this yields the
+    best compatibility across browsers.
+  * The delay before sending NACKs has been reduced, which gives a major
+    boost in video quality.
+  * Fixed a crash on 32-bit architectures due to unaligned atomic memory
+    operations.
+
 19 December 2020: Galène 0.1
 
   * Initial release.
