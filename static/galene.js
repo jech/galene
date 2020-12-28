@@ -1681,7 +1681,6 @@ function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
         lastMessage.peerId = peerId;
         lastMessage.dest = (dest || null);
         lastMessage.time = (time || null);
-        container.appendChild(footer);
     } else {
         let asterisk = document.createElement('span');
         asterisk.textContent = '*';
@@ -1700,6 +1699,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
         container.classList.add('message-me');
         lastMessage = {};
     }
+    container.appendChild(footer);
 
     let box = document.getElementById('box');
     box.appendChild(row);
