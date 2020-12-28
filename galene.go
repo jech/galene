@@ -39,6 +39,8 @@ func main() {
 	flag.StringVar(&mutexprofile, "mutexprofile", "",
 		"store mutex profile in `file`")
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
+	flag.BoolVar(&group.ICERelayOnly, "relay-only", false,
+		"require use of TURN relays for all media traffic")
 	flag.Parse()
 
 	if cpuprofile != "" {

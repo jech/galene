@@ -22,6 +22,7 @@ type RTCConfiguration struct {
 }
 
 var ICEFilename string
+var ICERelayOnly bool
 
 var iceConf RTCConfiguration
 var iceOnce sync.Once
@@ -43,6 +44,9 @@ func ICEConfiguration() *RTCConfiguration {
 		}
 		iceConf = RTCConfiguration{
 			ICEServers: iceServers,
+		}
+		if ICERelayOnly {
+			iceConf.ICETransportPolicy = "relay"
 		}
 	})
 
