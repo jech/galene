@@ -27,13 +27,12 @@ func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
 		code = websocket.CloseNormalClosure
 	case group.ProtocolError:
 		code = websocket.CloseProtocolError
-		s := e.Error()
 		m = &clientMessage{
 			Type:       "usermessage",
 			Kind:       "error",
 			Dest:       id,
 			Privileged: true,
-			Value:      &s,
+			Value:      e.Error(),
 		}
 		text = e.Error()
 	case group.UserError, group.KickError:
@@ -171,7 +170,7 @@ type clientMessage struct {
 	Privileged  bool                       `json:"privileged,omitempty"`
 	Permissions *group.ClientPermissions   `json:"permissions,omitempty"`
 	Group       string                     `json:"group,omitempty"`
-	Value       *string                    `json:"value,omitempty"`
+	Value       interface{}                `json:"value,omitempty"`
 	Time        int64                      `json:"time,omitempty"`
 	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
 	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
@@ -808,11 +807,10 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					}
 				}
 			case addLabelAction:
-				label := a.label
 				c.write(clientMessage{
 					Type:  "label",
 					Id:    a.id,
-					Value: &label,
+					Value: a.label,
 				})
 			case pushConnsAction:
 				g := c.group
@@ -1063,7 +1061,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Kind:        "fail",
 				Group:       m.Group,
 				Permissions: &group.ClientPermissions{},
-				Value:       &s,
+				Value:       s,
 			})
 		}
 		if redirect := g.Redirect(); redirect != "" {
@@ -1074,7 +1072,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Kind:        "redirect",
 				Group:       m.Group,
 				Permissions: &group.ClientPermissions{},
-				Value:       &redirect,
+				Value:       redirect,
 			})
 		}
 		c.group = g
@@ -1090,13 +1088,12 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 		h := c.group.GetChatHistory()
 		for _, m := range h {
-			message := m.Value
 			err := c.write(clientMessage{
 				Type:     "chat",
 				Id:       m.Id,
 				Username: m.User,
 				Time:     m.Time,
-				Value:    &message,
+				Value:    m.Value,
 				Kind:     m.Kind,
 			})
 			if err != nil {
@@ -1184,12 +1181,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		tm := group.ToJSTime(time.Now())
 
 		if m.Type == "chat" {
-			if m.Value == nil {
-				return group.ProtocolError("missing value")
-			}
 			if m.Dest == "" {
 				g.AddToChatHistory(
-					m.Id, m.Username, tm, m.Kind, *m.Value,
+					m.Id, m.Username, tm, m.Kind, m.Value,
 				)
 			}
 		}
@@ -1249,8 +1243,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return c.error(group.UserError("not authorised"))
 			}
 			message := ""
-			if m.Value != nil {
-				message = *m.Value
+			v, ok := m.Value.(string)
+			if ok {
+				message = v
 			}
 			g.SetLocked(m.Kind == "lock", message)
 		case "record":
@@ -1299,7 +1294,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Dest:     c.id,
 				Username: "Server",
 				Time:     group.ToJSTime(time.Now()),
-				Value:    &s,
+				Value:    s,
 			})
 		default:
 			return group.ProtocolError("unknown group action")
@@ -1329,8 +1324,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return c.error(group.UserError("not authorised"))
 			}
 			message := ""
-			if m.Value != nil {
-				message = *m.Value
+			v, ok := m.Value.(string)
+			if ok {
+				message = v
 			}
 			err := kickClient(g, m.Id, m.Username, m.Dest, message)
 			if err != nil {
@@ -1420,7 +1416,7 @@ func (c *webClient) Warn(oponly bool, message string) error {
 		Kind:       "warning",
 		Dest:       c.id,
 		Privileged: true,
-		Value:      &message,
+		Value:      message,
 	})
 }
 
@@ -1456,13 +1452,12 @@ func (c *webClient) close(data []byte) error {
 func errorMessage(id string, err error) *clientMessage {
 	switch e := err.(type) {
 	case group.UserError:
-		message := e.Error()
 		return &clientMessage{
 			Type:       "usermessage",
 			Kind:       "error",
 			Dest:       id,
 			Privileged: true,
-			Value:      &message,
+			Value:      e.Error(),
 		}
 	case group.KickError:
 		message := e.Message
@@ -1476,7 +1471,7 @@ func errorMessage(id string, err error) *clientMessage {
 			Username:   e.Username,
 			Dest:       id,
 			Privileged: true,
-			Value:      &message,
+			Value:      message,
 		}
 	default:
 		return nil

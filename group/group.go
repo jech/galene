@@ -83,7 +83,7 @@ type ChatHistoryEntry struct {
 	User  string
 	Time  int64
 	Kind  string
-	Value string
+	Value interface{}
 }
 
 const (
@@ -620,7 +620,7 @@ func (g *Group) ClearChatHistory() {
 	g.history = nil
 }
 
-func (g *Group) AddToChatHistory(id, user string, time int64, kind, value string) {
+func (g *Group) AddToChatHistory(id, user string, time int64, kind string, value interface{}) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 

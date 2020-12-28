@@ -1549,6 +1549,43 @@ async function gotJoined(kind, group, perms, message) {
     }
 }
 
+/**
+ * @param {string} id
+ * @param {string} dest
+ * @param {string} username
+ * @param {number} time
+ * @param {boolean} privileged
+ * @param {string} kind
+ * @param {unknown} message
+ */
+function gotUserMessage(id, dest, username, time, privileged, kind, message) {
+    switch(kind) {
+    case 'error':
+    case 'warning':
+    case 'info':
+        let from = id ? (username || 'Anonymous') : 'The Server';
+        if(privileged)
+            displayError(`${from} said: ${message}`, kind);
+        else
+            console.error(`Got unprivileged message of kind ${kind}`);
+        break;
+    case 'mute':
+        console.log(id, dest, username);
+        if(privileged) {
+            setLocalMute(true, true);
+            let by = username ? ' by ' + username : '';
+            displayWarning(`You have been muted${by}`);
+        } else {
+            console.error(`Got unprivileged message of kind ${kind}`);
+        }
+        break;
+    default:
+        console.warn(`Got unknown user message ${kind}`);
+        break;
+    }
+};
+
+
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#&()=?]+[-a-zA-Z0-9@:%/_\\+~#&()=]/g;
 
 /**
@@ -1622,7 +1659,7 @@ let lastMessage = {};
  * @param {string} nick
  * @param {number} time
  * @param {string} kind
- * @param {string} message
+ * @param {unknown} message
  */
 function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
     let userpass = getUserPass();
@@ -1641,7 +1678,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
         container.classList.add('message-private');
 
     if(kind !== 'me') {
-        let p = formatLines(message.split('\n'));
+        let p = formatLines(message.toString().split('\n'));
         let doHeader = true;
         if(!peerId && !dest && !nick) {
             doHeader = false;
@@ -1689,7 +1726,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
         user.textContent = nick || '(anon)';
         user.classList.add('message-me-user');
         let content = document.createElement('span');
-        formatLine(message).forEach(elt => {
+        formatLine(message.toString()).forEach(elt => {
             content.appendChild(elt);
         });
         content.classList.add('message-me-content');
@@ -2300,32 +2337,8 @@ async function serverConnect() {
     serverConnection.onjoined = gotJoined;
     serverConnection.onchat = addToChatbox;
     serverConnection.onclearchat = clearChat;
-    serverConnection.onusermessage = function(id, dest, username, time, privileged, kind, message) {
-        switch(kind) {
-        case 'error':
-        case 'warning':
-        case 'info':
-            let from = id ? (username || 'Anonymous') : 'The Server';
-            if(privileged)
-                displayError(`${from} said: ${message}`, kind);
-            else
-                console.error(`Got unprivileged message of kind ${kind}`);
-            break;
-        case 'mute':
-            console.log(id, dest, username);
-            if(privileged) {
-                setLocalMute(true, true);
-                let by = username ? ' by ' + username : '';
-                displayWarning(`You have been muted${by}`);
-            } else {
-                console.error(`Got unprivileged message of kind ${kind}`);
-            }
-            break;
-        default:
-            console.warn(`Got unknown user message ${kind}`);
-            break;
-        }
-    };
+    serverConnection.onusermessage = gotUserMessage;
+
     let url = `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`;
     try {
         await serverConnection.connect(url);

@@ -142,7 +142,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: string) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: unknown) => void}
      */
     this.onchat = null;
     /**
@@ -154,7 +154,7 @@ function ServerConnection() {
      * 'id' is non-null, 'privileged' indicates whether the message was
      * sent by an operator.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: string) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: unknown) => void}
      */
     this.onusermessage = null;
     /**
@@ -177,7 +177,7 @@ function ServerConnection() {
   * @property {boolean} [privileged]
   * @property {Object<string,boolean>} [permissions]
   * @property {string} [group]
-  * @property {string} [value]
+  * @property {unknown} [value]
   * @property {RTCSessionDescriptionInit} [offer]
   * @property {RTCSessionDescriptionInit} [answer]
   * @property {RTCIceCandidate} [candidate]
