@@ -79,7 +79,7 @@ func main() {
 		}()
 	}
 
-	group.IceFilename = filepath.Join(dataDir, "ice-servers.json")
+	group.ICEFilename = filepath.Join(dataDir, "ice-servers.json")
 
 	go group.ReadPublicGroups()
 

@@ -50,34 +50,6 @@ func (err ProtocolError) Error() string {
 	return string(err)
 }
 
-var IceFilename string
-
-var iceConf webrtc.Configuration
-var iceOnce sync.Once
-
-func IceConfiguration() webrtc.Configuration {
-	iceOnce.Do(func() {
-		var iceServers []webrtc.ICEServer
-		file, err := os.Open(IceFilename)
-		if err != nil {
-			log.Printf("Open %v: %v", IceFilename, err)
-			return
-		}
-		defer file.Close()
-		d := json.NewDecoder(file)
-		err = d.Decode(&iceServers)
-		if err != nil {
-			log.Printf("Get ICE configuration: %v", err)
-			return
-		}
-		iceConf = webrtc.Configuration{
-			ICEServers: iceServers,
-		}
-	})
-
-	return iceConf
-}
-
 type ChatHistoryEntry struct {
 	Id    string
 	User  string

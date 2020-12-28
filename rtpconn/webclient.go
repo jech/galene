@@ -161,22 +161,23 @@ func (v rateMap) MarshalJSON() ([]byte, error) {
 }
 
 type clientMessage struct {
-	Type        string                     `json:"type"`
-	Kind        string                     `json:"kind,omitempty"`
-	Id          string                     `json:"id,omitempty"`
-	Dest        string                     `json:"dest,omitempty"`
-	Username    string                     `json:"username,omitempty"`
-	Password    string                     `json:"password,omitempty"`
-	Privileged  bool                       `json:"privileged,omitempty"`
-	Permissions *group.ClientPermissions   `json:"permissions,omitempty"`
-	Group       string                     `json:"group,omitempty"`
-	Value       interface{}                `json:"value,omitempty"`
-	Time        int64                      `json:"time,omitempty"`
-	Offer       *webrtc.SessionDescription `json:"offer,omitempty"`
-	Answer      *webrtc.SessionDescription `json:"answer,omitempty"`
-	Candidate   *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
-	Labels      map[string]string          `json:"labels,omitempty"`
-	Request     rateMap                    `json:"request,omitempty"`
+	Type             string                     `json:"type"`
+	Kind             string                     `json:"kind,omitempty"`
+	Id               string                     `json:"id,omitempty"`
+	Dest             string                     `json:"dest,omitempty"`
+	Username         string                     `json:"username,omitempty"`
+	Password         string                     `json:"password,omitempty"`
+	Privileged       bool                       `json:"privileged,omitempty"`
+	Permissions      *group.ClientPermissions   `json:"permissions,omitempty"`
+	Group            string                     `json:"group,omitempty"`
+	Value            interface{}                `json:"value,omitempty"`
+	Time             int64                      `json:"time,omitempty"`
+	Offer            *webrtc.SessionDescription `json:"offer,omitempty"`
+	Answer           *webrtc.SessionDescription `json:"answer,omitempty"`
+	Candidate        *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
+	Labels           map[string]string          `json:"labels,omitempty"`
+	Request          rateMap                    `json:"request,omitempty"`
+	RTCConfiguration *group.RTCConfiguration    `json:"rtcConfiguration,omitempty"`
 }
 
 type closeMessage struct {
@@ -866,16 +867,17 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				}
 
 			case permissionsChangedAction:
-				group := c.Group()
-				if group == nil {
+				g := c.Group()
+				if g == nil {
 					return errors.New("Permissions changed in no group")
 				}
 				perms := c.permissions
 				c.write(clientMessage{
-					Type:        "joined",
-					Kind:        "change",
-					Group:       group.Name(),
-					Permissions: &perms,
+					Type:             "joined",
+					Kind:             "change",
+					Group:            g.Name(),
+					Permissions:      &perms,
+					RTCConfiguration: group.ICEConfiguration(),
 				})
 				if !c.permissions.Present {
 					up := getUpConns(c)
@@ -1078,10 +1080,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		c.group = g
 		perms := c.permissions
 		err = c.write(clientMessage{
-			Type:        "joined",
-			Kind:        "join",
-			Group:       m.Group,
-			Permissions: &perms,
+			Type:             "joined",
+			Kind:             "join",
+			Group:            m.Group,
+			Permissions:      &perms,
+			RTCConfiguration: group.ICEConfiguration(),
 		})
 		if err != nil {
 			return err

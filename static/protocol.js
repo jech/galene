@@ -85,9 +85,9 @@ function ServerConnection() {
     /**
      * The ICE configuration used by all associated streams.
      *
-     * @type {RTCIceServer[]}
+     * @type {RTCConfiguration}
      */
-    this.iceServers = null;
+    this.rtcConfiguration = null;
     /**
      * The permissions granted to this connection.
      *
@@ -183,6 +183,7 @@ function ServerConnection() {
   * @property {RTCIceCandidate} [candidate]
   * @property {Object<string,string>} [labels]
   * @property {Object<string,(boolean|number)>} [request]
+  * @property {Object<string,any>} [rtcConfiguration]
   */
 
 /**
@@ -207,26 +208,6 @@ ServerConnection.prototype.send = function(m) {
 }
 
 /**
- * getIceServers fetches an ICE configuration from the server and
- * populates the iceServers field of a ServerConnection.  It is called
- * lazily by connect.
- *
- * @returns {Promise<RTCIceServer[]>}
- * @function
- */
-ServerConnection.prototype.getIceServers = async function() {
-    let r = await fetch('/ice-servers.json');
-    if(!r.ok)
-        throw new Error("Couldn't fetch ICE servers: " +
-                        r.status + ' ' + r.statusText);
-    let servers = await r.json();
-    if(!(servers instanceof Array))
-        throw new Error("couldn't parse ICE servers");
-    this.iceServers = servers;
-    return servers;
-}
-
-/**
  * connect connects to the server.
  *
  * @param {string} url - The URL to connect to.
@@ -238,14 +219,6 @@ ServerConnection.prototype.connect = async function(url) {
     if(sc.socket) {
         sc.socket.close(1000, 'Reconnecting');
         sc.socket = null;
-    }
-
-    if(!sc.iceServers) {
-        try {
-            await sc.getIceServers();
-        } catch(e) {
-            console.warn(e);
-        }
     }
 
     sc.socket = new WebSocket(url);
@@ -311,7 +284,8 @@ ServerConnection.prototype.connect = async function(url) {
                 } else {
                     sc.group = m.group;
                 }
-                sc.permissions = m.permissions;
+                sc.permissions = m.permissions || [];
+                sc.rtcConfiguration = m.rtcConfiguration || null;
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
                                      m.permissions || {},
@@ -432,9 +406,7 @@ ServerConnection.prototype.newUpStream = function(id) {
         if(sc.up[id])
             throw new Error('Eek!');
     }
-    let pc = new RTCPeerConnection({
-        iceServers: sc.iceServers || [],
-    });
+    let pc = new RTCPeerConnection(sc.rtcConfiguration);
     if(!pc)
         throw new Error("Couldn't create peer connection");
     if(sc.up[id]) {
@@ -568,9 +540,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
         throw new Error('Duplicate connection id');
 
     if(!c) {
-        let pc = new RTCPeerConnection({
-            iceServers: this.iceServers,
-        });
+        let pc = new RTCPeerConnection(sc.rtcConfiguration);
         c = new Stream(this, id, pc, false);
         sc.down[id] = c;
 

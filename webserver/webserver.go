@@ -45,12 +45,6 @@ func Serve(address string, dataDir string) error {
 		})
 	http.HandleFunc("/recordings/", recordingsHandler)
 	http.HandleFunc("/ws", wsHandler)
-	http.HandleFunc("/ice-servers.json",
-		func(w http.ResponseWriter, r *http.Request) {
-			mungeHeader(w)
-			serveFile(w, r,
-				filepath.Join(dataDir, "ice-servers.json"))
-		})
 	http.HandleFunc("/public-groups.json", publicHandler)
 	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
 		statsHandler(w, r, dataDir)
