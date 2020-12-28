@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"os"
-	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pion/webrtc/v3"
 )
@@ -24,33 +25,52 @@ type RTCConfiguration struct {
 var ICEFilename string
 var ICERelayOnly bool
 
-var iceConf RTCConfiguration
-var iceOnce sync.Once
+type iceConf struct {
+	conf      RTCConfiguration
+	timestamp time.Time
+}
 
-func ICEConfiguration() *RTCConfiguration {
-	iceOnce.Do(func() {
-		var iceServers []ICEServer
+var iceConfiguration atomic.Value
+
+func updateICEConfiguration() *iceConf {
+	now := time.Now()
+	var conf RTCConfiguration
+
+	if ICEFilename != "" {
 		file, err := os.Open(ICEFilename)
 		if err != nil {
 			log.Printf("Open %v: %v", ICEFilename, err)
-			return
+		} else {
+			defer file.Close()
+			d := json.NewDecoder(file)
+			err = d.Decode(&conf.ICEServers)
+			if err != nil {
+				log.Printf("Get ICE configuration: %v", err)
+			}
 		}
-		defer file.Close()
-		d := json.NewDecoder(file)
-		err = d.Decode(&iceServers)
-		if err != nil {
-			log.Printf("Get ICE configuration: %v", err)
-			return
-		}
-		iceConf = RTCConfiguration{
-			ICEServers: iceServers,
-		}
-		if ICERelayOnly {
-			iceConf.ICETransportPolicy = "relay"
-		}
-	})
+	}
 
+	if ICERelayOnly {
+		conf.ICETransportPolicy = "relay"
+	}
+
+	iceConf := iceConf{
+		conf:      conf,
+		timestamp: now,
+	}
+	iceConfiguration.Store(&iceConf)
 	return &iceConf
+}
+
+func ICEConfiguration() *RTCConfiguration {
+	conf, ok := iceConfiguration.Load().(*iceConf)
+	if !ok || time.Since(conf.timestamp) > 5*time.Minute {
+		conf = updateICEConfiguration()
+	} else if time.Since(conf.timestamp) > 2*time.Minute {
+		go updateICEConfiguration()
+	}
+
+	return &conf.conf
 }
 
 func ToConfiguration(conf *RTCConfiguration) webrtc.Configuration {
