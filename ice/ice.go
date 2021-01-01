@@ -79,7 +79,9 @@ func updateICEConfiguration() *configuration {
 	if ICEFilename != "" {
 		file, err := os.Open(ICEFilename)
 		if err != nil {
-			log.Printf("Open %v: %v", ICEFilename, err)
+			if !os.IsNotExist(err) {
+				log.Printf("Open %v: %v", ICEFilename, err)
+			}
 		} else {
 			defer file.Close()
 			d := json.NewDecoder(file)
