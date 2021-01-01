@@ -16,6 +16,7 @@ import (
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/estimator"
 	"github.com/jech/galene/group"
+	"github.com/jech/galene/ice"
 	"github.com/jech/galene/jitter"
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
@@ -138,7 +139,7 @@ type rtpDownConnection struct {
 
 func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
 	api := group.APIFromCodecs(remote.Codecs())
-	pc, err := api.NewPeerConnection(*group.ICEConfiguration())
+	pc, err := api.NewPeerConnection(*ice.ICEConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +458,7 @@ func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 }
 
 func newUpConn(c group.Client, id string, labels map[string]string) (*rtpUpConnection, error) {
-	pc, err := c.Group().API().NewPeerConnection(*group.ICEConfiguration())
+	pc, err := c.Group().API().NewPeerConnection(*ice.ICEConfiguration())
 	if err != nil {
 		return nil, err
 	}

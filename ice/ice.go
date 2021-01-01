@@ -1,4 +1,4 @@
-package group
+package ice
 
 import (
 	"bytes"
@@ -16,14 +16,14 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-type ICEServer struct {
+type Server struct {
 	URLs           []string    `json:"urls"`
 	Username       string      `json:"username,omitempty"`
 	Credential     interface{} `json:"credential,omitempty"`
 	CredentialType string      `json:"credentialType,omitempty"`
 }
 
-func getICEServer(server ICEServer) (webrtc.ICEServer, error) {
+func getServer(server Server) (webrtc.ICEServer, error) {
 	s := webrtc.ICEServer{
 		URLs:       server.URLs,
 		Username:   server.Username,
@@ -65,16 +65,16 @@ func getICEServer(server ICEServer) (webrtc.ICEServer, error) {
 var ICEFilename string
 var ICERelayOnly bool
 
-type iceConf struct {
+type configuration struct {
 	conf      webrtc.Configuration
 	timestamp time.Time
 }
 
-var iceConfiguration atomic.Value
+var conf atomic.Value
 
-func updateICEConfiguration() *iceConf {
+func updateICEConfiguration() *configuration {
 	now := time.Now()
-	var conf webrtc.Configuration
+	var cf webrtc.Configuration
 
 	if ICEFilename != "" {
 		file, err := os.Open(ICEFilename)
@@ -83,36 +83,36 @@ func updateICEConfiguration() *iceConf {
 		} else {
 			defer file.Close()
 			d := json.NewDecoder(file)
-			var servers []ICEServer
+			var servers []Server
 			err = d.Decode(&servers)
 			if err != nil {
 				log.Printf("Get ICE configuration: %v", err)
 			}
 			for _, s := range servers {
-				ss, err := getICEServer(s)
+				ss, err := getServer(s)
 				if err != nil {
 					log.Printf("parse ICE server: %v", err)
 					continue
 				}
-				conf.ICEServers = append(conf.ICEServers, ss)
+				cf.ICEServers = append(cf.ICEServers, ss)
 			}
 		}
 	}
 
 	if ICERelayOnly {
-		conf.ICETransportPolicy = webrtc.ICETransportPolicyRelay
+		cf.ICETransportPolicy = webrtc.ICETransportPolicyRelay
 	}
 
-	iceConf := iceConf{
-		conf:      conf,
+	iceConf := configuration{
+		conf:      cf,
 		timestamp: now,
 	}
-	iceConfiguration.Store(&iceConf)
+	conf.Store(&iceConf)
 	return &iceConf
 }
 
 func ICEConfiguration() *webrtc.Configuration {
-	conf, ok := iceConfiguration.Load().(*iceConf)
+	conf, ok := conf.Load().(*configuration)
 	if !ok || time.Since(conf.timestamp) > 5*time.Minute {
 		conf = updateICEConfiguration()
 	} else if time.Since(conf.timestamp) > 2*time.Minute {

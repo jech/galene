@@ -16,6 +16,7 @@ import (
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/estimator"
 	"github.com/jech/galene/group"
+	"github.com/jech/galene/ice"
 )
 
 func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
@@ -877,7 +878,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					Kind:             "change",
 					Group:            g.Name(),
 					Permissions:      &perms,
-					RTCConfiguration: group.ICEConfiguration(),
+					RTCConfiguration: ice.ICEConfiguration(),
 				})
 				if !c.permissions.Present {
 					up := getUpConns(c)
@@ -1084,7 +1085,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Kind:             "join",
 			Group:            m.Group,
 			Permissions:      &perms,
-			RTCConfiguration: group.ICEConfiguration(),
+			RTCConfiguration: ice.ICEConfiguration(),
 		})
 		if err != nil {
 			return err

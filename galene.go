@@ -13,6 +13,7 @@ import (
 
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/group"
+	"github.com/jech/galene/ice"
 	"github.com/jech/galene/webserver"
 )
 
@@ -39,7 +40,7 @@ func main() {
 	flag.StringVar(&mutexprofile, "mutexprofile", "",
 		"store mutex profile in `file`")
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
-	flag.BoolVar(&group.ICERelayOnly, "relay-only", false,
+	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
 	flag.Parse()
 
@@ -81,7 +82,7 @@ func main() {
 		}()
 	}
 
-	group.ICEFilename = filepath.Join(dataDir, "ice-servers.json")
+	ice.ICEFilename = filepath.Join(dataDir, "ice-servers.json")
 
 	go group.ReadPublicGroups()
 
