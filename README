@@ -38,7 +38,7 @@ It should look like this:
             ],
             "username": "username",
             "credential": "password"
-        },
+        }
     ]
 
 The port number, username and password should be the same as the ones in

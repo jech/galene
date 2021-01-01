@@ -177,7 +177,7 @@ type clientMessage struct {
 	Candidate        *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
 	Labels           map[string]string          `json:"labels,omitempty"`
 	Request          rateMap                    `json:"request,omitempty"`
-	RTCConfiguration *group.RTCConfiguration    `json:"rtcConfiguration,omitempty"`
+	RTCConfiguration *webrtc.Configuration      `json:"rtcConfiguration,omitempty"`
 }
 
 type closeMessage struct {

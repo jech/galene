@@ -138,9 +138,7 @@ type rtpDownConnection struct {
 
 func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
 	api := group.APIFromCodecs(remote.Codecs())
-	pc, err := api.NewPeerConnection(
-		group.ToConfiguration(group.ICEConfiguration()),
-	)
+	pc, err := api.NewPeerConnection(*group.ICEConfiguration())
 	if err != nil {
 		return nil, err
 	}
@@ -459,9 +457,7 @@ func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 }
 
 func newUpConn(c group.Client, id string, labels map[string]string) (*rtpUpConnection, error) {
-	pc, err := c.Group().API().NewPeerConnection(
-		group.ToConfiguration(group.ICEConfiguration()),
-	)
+	pc, err := c.Group().API().NewPeerConnection(*group.ICEConfiguration())
 	if err != nil {
 		return nil, err
 	}

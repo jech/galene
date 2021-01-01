@@ -2,6 +2,7 @@ package group
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"sync/atomic"
@@ -17,16 +18,28 @@ type ICEServer struct {
 	CredentialType string      `json:"credentialType,omitempty"`
 }
 
-type RTCConfiguration struct {
-	ICEServers         []ICEServer `json:"iceServers,omitempty"`
-	ICETransportPolicy string      `json:"iceTransportPolicy,omitempty"`
+func getICEServer(server ICEServer) (webrtc.ICEServer, error) {
+	s := webrtc.ICEServer{
+		URLs:       server.URLs,
+		Username:   server.Username,
+		Credential: server.Credential,
+	}
+	switch server.CredentialType {
+	case "", "password":
+		s.CredentialType = webrtc.ICECredentialTypePassword
+	case "oauth":
+		s.CredentialType = webrtc.ICECredentialTypeOauth
+	default:
+		return webrtc.ICEServer{}, errors.New("unsupported credential type")
+	}
+	return s, nil
 }
 
 var ICEFilename string
 var ICERelayOnly bool
 
 type iceConf struct {
-	conf      RTCConfiguration
+	conf      webrtc.Configuration
 	timestamp time.Time
 }
 
@@ -34,7 +47,7 @@ var iceConfiguration atomic.Value
 
 func updateICEConfiguration() *iceConf {
 	now := time.Now()
-	var conf RTCConfiguration
+	var conf webrtc.Configuration
 
 	if ICEFilename != "" {
 		file, err := os.Open(ICEFilename)
@@ -43,15 +56,24 @@ func updateICEConfiguration() *iceConf {
 		} else {
 			defer file.Close()
 			d := json.NewDecoder(file)
-			err = d.Decode(&conf.ICEServers)
+			var servers []ICEServer
+			err = d.Decode(&servers)
 			if err != nil {
 				log.Printf("Get ICE configuration: %v", err)
+			}
+			for _, s := range servers {
+				ss, err := getICEServer(s)
+				if err != nil {
+					log.Printf("parse ICE server: %v", err)
+					continue
+				}
+				conf.ICEServers = append(conf.ICEServers, ss)
 			}
 		}
 	}
 
 	if ICERelayOnly {
-		conf.ICETransportPolicy = "relay"
+		conf.ICETransportPolicy = webrtc.ICETransportPolicyRelay
 	}
 
 	iceConf := iceConf{
@@ -62,7 +84,7 @@ func updateICEConfiguration() *iceConf {
 	return &iceConf
 }
 
-func ICEConfiguration() *RTCConfiguration {
+func ICEConfiguration() *webrtc.Configuration {
 	conf, ok := iceConfiguration.Load().(*iceConf)
 	if !ok || time.Since(conf.timestamp) > 5*time.Minute {
 		conf = updateICEConfiguration()
@@ -71,32 +93,4 @@ func ICEConfiguration() *RTCConfiguration {
 	}
 
 	return &conf.conf
-}
-
-func ToConfiguration(conf *RTCConfiguration) webrtc.Configuration {
-	var iceServers []webrtc.ICEServer
-	for _, s := range conf.ICEServers {
-		tpe := webrtc.ICECredentialTypePassword
-		if s.CredentialType == "oauth" {
-			tpe = webrtc.ICECredentialTypeOauth
-		}
-		iceServers = append(iceServers,
-			webrtc.ICEServer{
-				URLs:           s.URLs,
-				Username:       s.Username,
-				Credential:     s.Credential,
-				CredentialType: tpe,
-			},
-		)
-	}
-
-	policy := webrtc.ICETransportPolicyAll
-	if conf.ICETransportPolicy == "relay" {
-		policy = webrtc.ICETransportPolicyRelay
-	}
-
-	return webrtc.Configuration{
-		ICEServers:         iceServers,
-		ICETransportPolicy: policy,
-	}
 }
