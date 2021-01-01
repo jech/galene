@@ -26,9 +26,9 @@ case of Academic and Enterprise networks), then you will need a TURN
 server running on an innocent-looking TCP port.  This is the recommended
 setup.
 
-You should probably be running your own TURN server — I use *coturn*.  The
-address of the TURN server is configured in the file `data/ice-servers.json`.
-It should look like this:
+You should probably be running your own TURN server.  The address of the
+TURN server is configured in the file `data/ice-servers.json`.  It should
+look like this:
 
     [
         {
@@ -36,13 +36,13 @@ It should look like this:
                 "turn:turn.example.com:443",
                 "turn:turn.example.com:443?transport=tcp"
             ],
-            "username": "username",
-            "credential": "password"
+            "username": "galene",
+            "credential": "secret"
         }
     ]
 
-The port number, username and password should be the same as the ones in
-your TURN server's configuration.
+If you use coturn's `use-auth-secret` option, set `credentialType` to
+`hmac-sha1`.
 
 ## Set up a group
 

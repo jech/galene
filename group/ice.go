@@ -1,8 +1,13 @@
 package group
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sync/atomic"
@@ -29,6 +34,28 @@ func getICEServer(server ICEServer) (webrtc.ICEServer, error) {
 		s.CredentialType = webrtc.ICECredentialTypePassword
 	case "oauth":
 		s.CredentialType = webrtc.ICECredentialTypeOauth
+	case "hmac-sha1":
+		cred, ok := server.Credential.(string)
+		if !ok {
+			return webrtc.ICEServer{},
+				errors.New("credential is not a string")
+		}
+		ts := time.Now().Unix() + 86400
+		var username string
+		if server.Username == "" {
+			username = fmt.Sprintf("%d", ts)
+		} else {
+			username = fmt.Sprintf("%d:%s", ts, server.Username)
+		}
+		mac := hmac.New(sha1.New, []byte(cred))
+		mac.Write([]byte(username))
+		buf := bytes.Buffer{}
+		e := base64.NewEncoder(base64.StdEncoding, &buf)
+		e.Write(mac.Sum(nil))
+		e.Close()
+		s.Username = username
+		s.Credential = string(buf.Bytes())
+		s.CredentialType = webrtc.ICECredentialTypePassword
 	default:
 		return webrtc.ICEServer{}, errors.New("unsupported credential type")
 	}
