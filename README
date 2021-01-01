@@ -32,15 +32,13 @@ It should look like this:
 
     [
         {
-            "urls":["turn:turn.example.com:443"],
-            "username":"username",
-            "credential":"password"
+            "urls": [
+                "turn:turn.example.com:443",
+                "turn:turn.example.com:443?transport=tcp"
+            ],
+            "username": "username",
+            "credential": "password"
         },
-        {
-            "urls":["turn:turn.example.com:443?transport=tcp"],
-            "username":"username",
-            "credential":"password"
-        }
     ]
 
 The port number, username and password should be the same as the ones in
@@ -56,7 +54,7 @@ options are described below.
 
     {
       "public": true,
-      "op": [{"username":"jch","password":"1234"}],
+      "op": [{"username":"jch", "password":"1234"}],
       "presenter": [{}],
       "max-users": 100
     }
@@ -120,7 +118,9 @@ contain the name of the group -- that makes it possible to set up a new
 group just by copying a template file.
 
 The group definition file contains a JSON directory with the following
-fields, all of which are optional.
+fields.  All fields are optional, but unless you specify at least one user
+definition (`op`, `presenter`, or `other`), nobody will be able to join
+the group.
 
  - `op`, `presenter`, `other`: each of these is an array of user
    definitions (see below) and specifies the users allowed to connect
