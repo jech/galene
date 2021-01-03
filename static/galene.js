@@ -1555,7 +1555,6 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
             console.error(`Got unprivileged message of kind ${kind}`);
         break;
     case 'mute':
-        console.log(id, dest, username);
         if(privileged) {
             setLocalMute(true, true);
             let by = username ? ' by ' + username : '';
@@ -1564,6 +1563,12 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
             console.error(`Got unprivileged message of kind ${kind}`);
         }
         break;
+    case 'clearchat':
+        if(privileged) {
+            clearChat();
+        } else {
+            console.error(`Got unprivileged message of kind ${kind}`);
+        }
     default:
         console.warn(`Got unknown user message ${kind}`);
         break;
@@ -2319,7 +2324,6 @@ async function serverConnect() {
     serverConnection.onuser = gotUser;
     serverConnection.onjoined = gotJoined;
     serverConnection.onchat = addToChatbox;
-    serverConnection.onclearchat = clearChat;
     serverConnection.onusermessage = gotUserMessage;
 
     let url = `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`;

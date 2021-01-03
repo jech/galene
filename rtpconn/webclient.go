@@ -539,7 +539,7 @@ func gotAnswer(c *webClient, id string, sdp string) error {
 	}
 	err := down.pc.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeAnswer,
-		SDP: sdp,
+		SDP:  sdp,
 	})
 	if err != nil {
 		return err
@@ -1235,7 +1235,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		switch m.Kind {
 		case "clearchat":
 			g.ClearChatHistory()
-			m := clientMessage{Type: "clearchat"}
+			m := clientMessage{
+				Type:       "usermessage",
+				Kind:       "clearchat",
+				Privileged: true,
+			}
 			clients := g.GetClients(nil)
 			for _, cc := range clients {
 				cc, ok := cc.(*webClient)

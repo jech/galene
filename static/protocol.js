@@ -161,13 +161,6 @@ function ServerConnection() {
      * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: unknown) => void}
      */
     this.onusermessage = null;
-    /**
-     * onclearchat is called whenever the server requests that the chat
-     * be cleared.
-     *
-     * @type{(this: ServerConnection) => void}
-     */
-    this.onclearchat = null;
 }
 
 /**
@@ -314,10 +307,6 @@ ServerConnection.prototype.connect = async function(url) {
                         sc, m.source, m.dest, m.username, m.time,
                         m.privileged, m.kind, m.value,
                     );
-                break;
-            case 'clearchat':
-                if(sc.onclearchat)
-                    sc.onclearchat.call(sc);
                 break;
             case 'ping':
                 sc.send({
