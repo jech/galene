@@ -46,16 +46,9 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 
 		profile := (vp9.Payload[0] >> 4) & 0x3
 		if profile != 3 {
-			if (vp9.Payload[0] & 0x8) != 0 {
-				return false, true
-			}
-			return (vp9.Payload[0] & 0x4) == 0, true
-		} else {
-			if (vp9.Payload[0] & 0x4) != 0 {
-				return false, true
-			}
-			return (vp9.Payload[0] & 0x2) == 0, true
+			return (vp9.Payload[0] & 0xC) == 0, true
 		}
+		return (vp9.Payload[0] & 0x6) == 0, true
 	case "video/h264":
 		if len(packet.Payload) < 1 {
 			return false, false
