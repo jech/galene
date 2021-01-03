@@ -359,10 +359,9 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 				}
 				t.lastKf = ts
 			} else if t.writer != nil {
-				// Request a keyframe every 10s
+				// Request a keyframe every 4s
 				delta := ts - t.lastKf
-				if (delta&0x80000000) == 0 &&
-					delta > 10*90000 {
+				if (delta&0x80000000) != 0 || delta > 4*90000 {
 					kfNeeded = true
 				}
 			}
