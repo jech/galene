@@ -238,6 +238,7 @@ type diskTrack struct {
 	origin uint64
 
 	lastKf uint32
+	savedKf *rtp.Packet
 }
 
 func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
@@ -268,6 +269,17 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				128, &codecs.VP8Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.VP8PartitionHeadChecker{},
+				),
+			)
+			conn.hasVideo = true
+		case "video/vp9":
+			if conn.hasVideo {
+				return nil, errors.New("multiple video tracks not supported")
+			}
+			builder = samplebuilder.New(
+				128, &codecs.VP9Packet{}, codec.ClockRate,
+				samplebuilder.WithPartitionHeadChecker(
+					&codecs.VP9PartitionHeadChecker{},
 				),
 			)
 			conn.hasVideo = true
@@ -313,6 +325,72 @@ func clonePacket(packet *rtp.Packet) *rtp.Packet {
 	return &p
 }
 
+func isKeyframe(codec string, data []byte) bool {
+	switch strings.ToLower(codec) {
+	case "video/vp8":
+		if len(data) < 1 {
+			return false
+		}
+		return (data[0] & 0x1) == 0
+	case "video/vp9":
+		if len(data) < 1 {
+			return false
+		}
+		if data[0]&0xC0 != 0x80 {
+			return false
+		}
+		profile := (data[0] >> 4) & 0x3
+		if profile != 3 {
+			return (data[0] & 0xC) == 0
+		}
+		return (data[0] & 0x6) == 0
+	default:
+		panic("Eek!")
+	}
+}
+
+func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, uint32) {
+	switch strings.ToLower(codec) {
+	case "video/vp8":
+		if len(data) < 10 {
+			return 0, 0
+		}
+		raw := uint32(data[6]) | uint32(data[7])<<8 |
+			uint32(data[8])<<16 | uint32(data[9])<<24
+		width := raw & 0x3FFF
+		height := (raw >> 16) & 0x3FFF
+		return width, height
+	case "video/vp9":
+		if packet == nil {
+			return 0, 0
+		}
+		var vp9 codecs.VP9Packet
+		_, err := vp9.Unmarshal(packet.Payload)
+		if err != nil {
+			return 0, 0
+		}
+		if(!vp9.V) {
+			return 0, 0
+		}
+		w := uint32(0)
+		h := uint32(0)
+		for i := range vp9.Width {
+			if i >= len(vp9.Height) {
+				break
+			}
+			if w < uint32(vp9.Width[i]) {
+				w = uint32(vp9.Width[i])
+			}
+			if h < uint32(vp9.Height[i]) {
+				h = uint32(vp9.Height[i])
+			}
+		}
+		return w, h
+	default:
+		return 0, 0
+	}
+}
+
 func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 	// since we call initWriter, we take the connection lock for simplicity.
 	t.conn.mu.Lock()
@@ -322,9 +400,28 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		return nil
 	}
 
+	codec := t.remote.Codec()
+
 	p := clonePacket(packet)
 	if p == nil {
 		return nil
+	}
+
+	if strings.ToLower(codec.MimeType) == "video/vp9" {
+		var vp9 codecs.VP9Packet
+		_, err := vp9.Unmarshal(p.Payload)
+		if err == nil && vp9.B && len(vp9.Payload) >= 1 {
+			profile := (vp9.Payload[0] >> 4) & 0x3
+			kf := false
+			if profile != 3 {
+				kf = (vp9.Payload[0] & 0xC) == 0
+			} else {
+				kf = (vp9.Payload[0] & 0x6) == 0
+			}
+			if kf {
+				t.savedKf = p
+			}
+		}
 	}
 
 	kfNeeded := false
@@ -342,15 +439,16 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 		keyframe := true
 
-		codec := t.remote.Codec()
 		switch strings.ToLower(codec.MimeType) {
-		case "video/vp8":
-			if len(sample.Data) < 1 {
-				continue
-			}
-			keyframe = (sample.Data[0]&0x1 == 0)
+		case "video/vp8", "video/vp9":
+			keyframe = isKeyframe(codec.MimeType, sample.Data)
 			if keyframe {
-				err := t.initWriter(sample.Data)
+				err := t.conn.initWriter(
+					keyframeDimensions(
+						codec.MimeType, sample.Data,
+						t.savedKf,
+					),
+				)
 				if err != nil {
 					t.conn.warn(
 						"Write to disk " + err.Error(),
@@ -401,27 +499,6 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 }
 
 // called locked
-func (t *diskTrack) initWriter(data []byte) error {
-	codec := t.remote.Codec()
-	switch strings.ToLower(codec.MimeType) {
-	case "video/vp8":
-		if len(data) < 10 {
-			return nil
-		}
-		keyframe := (data[0]&0x1 == 0)
-		if !keyframe {
-			return nil
-		}
-		raw := uint32(data[6]) | uint32(data[7])<<8 |
-			uint32(data[8])<<16 | uint32(data[9])<<24
-		width := raw & 0x3FFF
-		height := (raw >> 16) & 0x3FFF
-		return t.conn.initWriter(width, height)
-	}
-	return nil
-}
-
-// called locked
 func (conn *diskConn) initWriter(width, height uint32) error {
 	if conn.file != nil && width == conn.width && height == conn.height {
 		return nil
@@ -447,6 +524,17 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 				Name:        "Video",
 				TrackNumber: uint64(i + 1),
 				CodecID:     "V_VP8",
+				TrackType:   1,
+				Video: &webm.Video{
+					PixelWidth:  uint64(width),
+					PixelHeight: uint64(height),
+				},
+			}
+		case "video/vp9":
+			entry = webm.TrackEntry{
+				Name:        "Video",
+				TrackNumber: uint64(i + 1),
+				CodecID:     "V_VP9",
 				TrackType:   1,
 				Video: &webm.Video{
 					PixelWidth:  uint64(width),
