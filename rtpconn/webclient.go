@@ -162,24 +162,23 @@ func (v rateMap) MarshalJSON() ([]byte, error) {
 }
 
 type clientMessage struct {
-	Type             string                     `json:"type"`
-	Kind             string                     `json:"kind,omitempty"`
-	Id               string                     `json:"id,omitempty"`
-	Source           string                     `json:"source,omitempty"`
-	Dest             string                     `json:"dest,omitempty"`
-	Username         string                     `json:"username,omitempty"`
-	Password         string                     `json:"password,omitempty"`
-	Privileged       bool                       `json:"privileged,omitempty"`
-	Permissions      *group.ClientPermissions   `json:"permissions,omitempty"`
-	Group            string                     `json:"group,omitempty"`
-	Value            interface{}                `json:"value,omitempty"`
-	Time             int64                      `json:"time,omitempty"`
-	Offer            *webrtc.SessionDescription `json:"offer,omitempty"`
-	Answer           *webrtc.SessionDescription `json:"answer,omitempty"`
-	Candidate        *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
-	Labels           map[string]string          `json:"labels,omitempty"`
-	Request          rateMap                    `json:"request,omitempty"`
-	RTCConfiguration *webrtc.Configuration      `json:"rtcConfiguration,omitempty"`
+	Type             string                   `json:"type"`
+	Kind             string                   `json:"kind,omitempty"`
+	Id               string                   `json:"id,omitempty"`
+	Source           string                   `json:"source,omitempty"`
+	Dest             string                   `json:"dest,omitempty"`
+	Username         string                   `json:"username,omitempty"`
+	Password         string                   `json:"password,omitempty"`
+	Privileged       bool                     `json:"privileged,omitempty"`
+	Permissions      *group.ClientPermissions `json:"permissions,omitempty"`
+	Group            string                   `json:"group,omitempty"`
+	Value            interface{}              `json:"value,omitempty"`
+	Time             int64                    `json:"time,omitempty"`
+	SDP              string                   `json:"sdp,omitempty"`
+	Candidate        *webrtc.ICECandidateInit `json:"candidate,omitempty"`
+	Labels           map[string]string        `json:"labels,omitempty"`
+	Request          rateMap                  `json:"request,omitempty"`
+	RTCConfiguration *webrtc.Configuration    `json:"rtcConfiguration,omitempty"`
 }
 
 type closeMessage struct {
@@ -464,7 +463,7 @@ func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bo
 		Id:       down.id,
 		Source:   source,
 		Username: username,
-		Offer:    &offer,
+		SDP:      offer.SDP,
 		Labels:   labels,
 	})
 }
@@ -481,7 +480,7 @@ func sendICE(c *webClient, id string, candidate *webrtc.ICECandidate) error {
 	})
 }
 
-func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegotiate bool, labels map[string]string) error {
+func gotOffer(c *webClient, id string, sdp string, renegotiate bool, labels map[string]string) error {
 	if !renegotiate {
 		// unless the client indicates that this is a compatible
 		// renegotiation, tear down the existing connection.
@@ -496,12 +495,15 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 	up.userId = c.Id()
 	up.username = c.Username()
 
-	err = up.pc.SetRemoteDescription(offer)
+	err = up.pc.SetRemoteDescription(webrtc.SessionDescription{
+		Type: webrtc.SDPTypeOffer,
+		SDP:  sdp,
+	})
 	if err != nil {
 		if renegotiate && !isnew {
 			// create a new PC from scratch
 			log.Printf("SetRemoteDescription(offer): %v", err)
-			return gotOffer(c, id, offer, false, labels)
+			return gotOffer(c, id, sdp, false, labels)
 		}
 		return err
 	}
@@ -522,20 +524,23 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 	}
 
 	return c.write(clientMessage{
-		Type:   "answer",
-		Id:     id,
-		Answer: &answer,
+		Type: "answer",
+		Id:   id,
+		SDP:  answer.SDP,
 	})
 }
 
 var ErrUnknownId = errors.New("unknown id")
 
-func gotAnswer(c *webClient, id string, answer webrtc.SessionDescription) error {
+func gotAnswer(c *webClient, id string, sdp string) error {
 	down := getDownConn(c, id)
 	if down == nil {
 		return ErrUnknownId
 	}
-	err := down.pc.SetRemoteDescription(answer)
+	err := down.pc.SetRemoteDescription(webrtc.SessionDescription{
+		Type: webrtc.SDPTypeAnswer,
+		SDP: sdp,
+	})
 	if err != nil {
 		return err
 	}
@@ -1128,21 +1133,15 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			})
 			return c.error(group.UserError("not authorised"))
 		}
-		if m.Offer == nil {
-			return group.ProtocolError("null offer")
-		}
 		err := gotOffer(
-			c, m.Id, *m.Offer, m.Kind == "renegotiate", m.Labels,
+			c, m.Id, m.SDP, m.Kind == "renegotiate", m.Labels,
 		)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
 			return failUpConnection(c, m.Id, "negotiation failed")
 		}
 	case "answer":
-		if m.Answer == nil {
-			return group.ProtocolError("null answer")
-		}
-		err := gotAnswer(c, m.Id, *m.Answer)
+		err := gotAnswer(c, m.Id, m.SDP)
 		if err != nil {
 			log.Printf("gotAnswer: %v", err)
 			message := ""

@@ -183,8 +183,7 @@ function ServerConnection() {
   * @property {Object<string,boolean>} [permissions]
   * @property {string} [group]
   * @property {unknown} [value]
-  * @property {RTCSessionDescriptionInit} [offer]
-  * @property {RTCSessionDescriptionInit} [answer]
+  * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
   * @property {Object<string,string>} [labels]
   * @property {Object<string,(boolean|number)>} [request]
@@ -265,10 +264,10 @@ ServerConnection.prototype.connect = async function(url) {
                 break;
             case 'offer':
                 sc.gotOffer(m.id, m.labels, m.source, m.username,
-                            m.offer, m.kind === 'renegotiate');
+                            m.sdp, m.kind === 'renegotiate');
                 break;
             case 'answer':
-                sc.gotAnswer(m.id, m.answer);
+                sc.gotAnswer(m.id, m.sdp);
                 break;
             case 'renegotiate':
                 sc.gotRenegotiate(m.id)
@@ -525,11 +524,11 @@ ServerConnection.prototype.groupAction = function(kind, message) {
  * @param {Object<string, string>} labels
  * @param {string} source
  * @param {string} username
- * @param {RTCSessionDescriptionInit} offer
+ * @param {string} sdp
  * @param {boolean} renegotiate
  * @function
  */
-ServerConnection.prototype.gotOffer = async function(id, labels, source, username, offer, renegotiate) {
+ServerConnection.prototype.gotOffer = async function(id, labels, source, username, sdp, renegotiate) {
     let sc = this;
     let c = sc.down[id];
     if(c && !renegotiate) {
@@ -598,7 +597,10 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         sc.ondownstream.call(sc, c);
 
     try {
-        await c.pc.setRemoteDescription(offer);
+        await c.pc.setRemoteDescription({
+            type: 'offer',
+            sdp: sdp,
+        });
 
         await c.flushRemoteIceCandidates();
 
@@ -609,7 +611,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         this.send({
             type: 'answer',
             id: id,
-            answer: answer,
+            sdp: answer.sdp,
         });
     } catch(e) {
         try {
@@ -631,15 +633,18 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
  * Called when we receive an answer from the server.  Don't call this.
  *
  * @param {string} id
- * @param {RTCSessionDescriptionInit} answer
+ * @param {string} sdp
  * @function
  */
-ServerConnection.prototype.gotAnswer = async function(id, answer) {
+ServerConnection.prototype.gotAnswer = async function(id, sdp) {
     let c = this.up[id];
     if(!c)
         throw new Error('unknown up stream');
     try {
-        await c.pc.setRemoteDescription(answer);
+        await c.pc.setRemoteDescription({
+            type: 'answer',
+            sdp: sdp,
+        });
     } catch(e) {
         try {
             if(c.onerror)
@@ -1038,7 +1043,7 @@ Stream.prototype.negotiate = async function (restartIce) {
         kind: this.localDescriptionSent ? 'renegotiate' : '',
         id: c.id,
         labels: c.labelsByMid,
-        offer: offer,
+        sdp: offer.sdp,
     });
     this.localDescriptionSent = true;
     c.flushLocalIceCandidates();
