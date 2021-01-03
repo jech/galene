@@ -16,7 +16,7 @@ type Up interface {
 	AddLocal(Down) error
 	DelLocal(Down) bool
 	Id() string
-	Label() string
+	User() (string, string)
 	Codecs() []webrtc.RTPCodecCapability
 }
 

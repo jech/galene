@@ -74,18 +74,6 @@ function getUserPass() {
 }
 
 /**
- * Return null if the user hasn't logged in yet.
- *
- * @returns {string}
- */
-function getUsername() {
-    let userpass = getUserPass();
-    if(!userpass)
-        return null;
-    return userpass.username;
-}
-
-/**
  * @typedef {Object} settings
  * @property {boolean} [localMute]
  * @property {string} [video]
@@ -331,9 +319,6 @@ function gotDownStream(c) {
     }
     c.ondowntrack = function(track, transceiver, label, stream) {
         setMedia(c, false);
-    }
-    c.onlabel = function(label) {
-        setLabel(c);
     }
     c.onstatus = function(status) {
         setMediaStatus(c);
@@ -1324,7 +1309,7 @@ function setLabel(c, fallback) {
     let label = document.getElementById('label-' + c.id);
     if(!label)
         return;
-    let l = c.label;
+    let l = c.username;
     if(l) {
         label.textContent = l;
         label.classList.remove('label-fallback');
@@ -1856,7 +1841,7 @@ commands.clear = {
     predicate: operatorPredicate,
     description: 'clear the chat history',
     f: (c, r) => {
-        serverConnection.groupAction(getUsername(), 'clearchat');
+        serverConnection.groupAction('clearchat');
     }
 };
 
@@ -1865,7 +1850,7 @@ commands.lock = {
     description: 'lock this group',
     parameters: '[message]',
     f: (c, r) => {
-        serverConnection.groupAction(getUsername(), 'lock', r);
+        serverConnection.groupAction('lock', r);
     }
 };
 
@@ -1873,7 +1858,7 @@ commands.unlock = {
     predicate: operatorPredicate,
     description: 'unlock this group, revert the effect of /lock',
     f: (c, r) => {
-        serverConnection.groupAction(getUsername(), 'unlock');
+        serverConnection.groupAction('unlock');
     }
 };
 
@@ -1881,7 +1866,7 @@ commands.record = {
     predicate: recordingPredicate,
     description: 'start recording',
     f: (c, r) => {
-        serverConnection.groupAction(getUsername(), 'record');
+        serverConnection.groupAction('record');
     }
 };
 
@@ -1889,7 +1874,7 @@ commands.unrecord = {
     predicate: recordingPredicate,
     description: 'stop recording',
     f: (c, r) => {
-        serverConnection.groupAction(getUsername(), 'unrecord');
+        serverConnection.groupAction('unrecord');
     }
 };
 
@@ -1897,7 +1882,7 @@ commands.subgroups = {
     predicate: operatorPredicate,
     description: 'list subgroups',
     f: (c, r) => {
-        serverConnection.groupAction(getUsername(), 'subgroups');
+        serverConnection.groupAction('subgroups');
     }
 };
 
@@ -1969,9 +1954,8 @@ commands.msg = {
         let id = findUserId(p[0]);
         if(!id)
             throw new Error(`Unknown user ${p[0]}`);
-        let username = getUsername();
-        serverConnection.chat(username, '', id, p[1]);
-        addToChatbox(serverConnection.id, id, username,
+        serverConnection.chat('', id, p[1]);
+        addToChatbox(serverConnection.id, id, serverConnection.username,
                      Date.now(), false, '', p[1]);
     }
 };
@@ -1987,7 +1971,7 @@ function userCommand(c, r) {
     let id = findUserId(p[0]);
     if(!id)
         throw new Error(`Unknown user ${p[0]}`);
-    serverConnection.userAction(getUsername(), c, id, p[1]);
+    serverConnection.userAction(c, id, p[1]);
 }
 
 function userMessage(c, r) {
@@ -1997,7 +1981,7 @@ function userMessage(c, r) {
     let id = findUserId(p[0]);
     if(!id)
         throw new Error(`Unknown user ${p[0]}`);
-    serverConnection.userMessage(getUsername(), c, id, p[1]);
+    serverConnection.userMessage(c, id, p[1]);
 }
 
 commands.kick = {
@@ -2058,7 +2042,7 @@ commands.wall = {
     f: (c, r) => {
         if(!r)
             throw new Error('empty message');
-        serverConnection.userMessage(getUsername(), 'warning', '', r);
+        serverConnection.userMessage('warning', '', r);
     },
 };
 
@@ -2122,9 +2106,8 @@ function handleInput() {
         return;
     }
 
-    let username = getUsername();
     try {
-        serverConnection.chat(username, me ? 'me' : '', '', message);
+        serverConnection.chat(me ? 'me' : '', '', message);
     } catch(e) {
         console.error(e);
         displayError(e);

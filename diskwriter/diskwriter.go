@@ -89,7 +89,7 @@ func (client *Client) Kick(id, user, message string) error {
 	return err
 }
 
-func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, label string) error {
+func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack) error {
 	if client.group != g {
 		return nil
 	}
@@ -122,7 +122,7 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 		client.down = make(map[string]*diskConn)
 	}
 
-	down, err := newDiskConn(client, directory, label, up, tracks)
+	down, err := newDiskConn(client, directory, up, tracks)
 	if err != nil {
 		g.WallOps("Write to disk: " + err.Error())
 		return err
@@ -135,7 +135,7 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 type diskConn struct {
 	client    *Client
 	directory string
-	label     string
+	username  string
 	hasVideo  bool
 
 	mu            sync.Mutex
@@ -167,7 +167,7 @@ func (conn *diskConn) reopen() error {
 	}
 	conn.file = nil
 
-	file, err := openDiskFile(conn.directory, conn.label)
+	file, err := openDiskFile(conn.directory, conn.username)
 	if err != nil {
 		return err
 	}
@@ -196,15 +196,15 @@ func (conn *diskConn) Close() error {
 	return nil
 }
 
-func openDiskFile(directory, label string) (*os.File, error) {
+func openDiskFile(directory, username string) (*os.File, error) {
 	filenameFormat := "2006-01-02T15:04:05.000"
 	if runtime.GOOS == "windows" {
 		filenameFormat = "2006-01-02T15-04-05-000"
 	}
 
 	filename := time.Now().Format(filenameFormat)
-	if label != "" {
-		filename = filename + "-" + label
+	if username != "" {
+		filename = filename + "-" + username
 	}
 	for counter := 0; counter < 100; counter++ {
 		var fn string
@@ -240,11 +240,12 @@ type diskTrack struct {
 	lastKf uint32
 }
 
-func newDiskConn(client *Client, directory, label string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
+func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
+	_, username := up.User()
 	conn := diskConn{
 		client:    client,
 		directory: directory,
-		label:     label,
+		username:  username,
 		tracks:    make([]*diskTrack, 0, len(remoteTracks)),
 		remote:    up,
 	}

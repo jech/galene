@@ -165,6 +165,7 @@ type clientMessage struct {
 	Type             string                     `json:"type"`
 	Kind             string                     `json:"kind,omitempty"`
 	Id               string                     `json:"id,omitempty"`
+	Source           string                     `json:"source,omitempty"`
 	Dest             string                     `json:"dest,omitempty"`
 	Username         string                     `json:"username,omitempty"`
 	Password         string                     `json:"password,omitempty"`
@@ -259,7 +260,7 @@ func delUpConn(c *webClient, id string) bool {
 	if g != nil {
 		go func(clients []group.Client) {
 			for _, c := range clients {
-				err := c.PushConn(g, conn.id, nil, nil, "")
+				err := c.PushConn(g, conn.id, nil, nil)
 				if err != nil {
 					log.Printf("PushConn: %v", err)
 				}
@@ -455,12 +456,16 @@ func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bo
 		kind = "renegotiate"
 	}
 
+	source, username := down.remote.User()
+
 	return c.write(clientMessage{
-		Type:   "offer",
-		Kind:   kind,
-		Id:     down.id,
-		Offer:  &offer,
-		Labels: labels,
+		Type:     "offer",
+		Kind:     kind,
+		Id:       down.id,
+		Source:   source,
+		Username: username,
+		Offer:    &offer,
+		Labels:   labels,
 	})
 }
 
@@ -488,9 +493,9 @@ func gotOffer(c *webClient, id string, offer webrtc.SessionDescription, renegoti
 		return err
 	}
 
-	if u := c.Username(); u != "" {
-		up.label = u
-	}
+	up.userId = c.Id()
+	up.username = c.Username()
+
 	err = up.pc.SetRemoteDescription(offer)
 	if err != nil {
 		if renegotiate && !isnew {
@@ -644,16 +649,10 @@ func addDownConnTracks(c *webClient, remote conn.Up, tracks []conn.UpTrack) (*rt
 	return down, nil
 }
 
-func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, label string) error {
+func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack) error {
 	err := c.action(pushConnAction{g, id, up, tracks})
 	if err != nil {
 		return err
-	}
-	if up != nil && label != "" {
-		err := c.action(addLabelAction{up.Id(), up.Label()})
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -723,11 +722,6 @@ type pushConnAction struct {
 	tracks []conn.UpTrack
 }
 
-type addLabelAction struct {
-	id    string
-	label string
-}
-
 type pushConnsAction struct {
 	group  *group.Group
 	client group.Client
@@ -755,6 +749,13 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
+
+	err := c.write(clientMessage{
+		Type: "handshake",
+	})
+	if err != nil {
+		return err
+	}
 
 	for {
 		select {
@@ -808,12 +809,6 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 						continue
 					}
 				}
-			case addLabelAction:
-				c.write(clientMessage{
-					Type:  "label",
-					Id:    a.id,
-					Value: a.label,
-				})
 			case pushConnsAction:
 				g := c.group
 				if g == nil || a.group != g {
@@ -830,7 +825,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					}
 					go func(u *rtpUpConnection, ts []conn.UpTrack) {
 						err := a.client.PushConn(
-							g, u.id, u, ts, u.label,
+							g, u.id, u, ts,
 						)
 						if err != nil {
 							log.Printf(
@@ -855,7 +850,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					go c.PushConn(
 						c.group,
 						down.remote.Id(), down.remote,
-						tracks, down.remote.Label(),
+						tracks,
 					)
 				} else if up := getUpConn(c, a.id); up != nil {
 					c.write(clientMessage{
@@ -877,6 +872,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					Type:             "joined",
 					Kind:             "change",
 					Group:            g.Name(),
+					Username:         c.username,
 					Permissions:      &perms,
 					RTCConfiguration: ice.ICEConfiguration(),
 				})
@@ -1020,6 +1016,20 @@ func kickClient(g *group.Group, id, user, dest string, message string) error {
 }
 
 func handleClientMessage(c *webClient, m clientMessage) error {
+	if m.Source != "" {
+		if m.Source != c.Id() {
+			return group.ProtocolError("spoofed client id")
+		}
+	}
+
+	if m.Type != "join" {
+		if m.Username != "" {
+			if m.Username != c.Username() {
+				return group.ProtocolError("spoofed username")
+			}
+		}
+	}
+
 	switch m.Type {
 	case "join":
 		if m.Kind == "leave" {
@@ -1032,6 +1042,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Type:        "joined",
 				Kind:        "leave",
 				Group:       m.Group,
+				Username:    c.username,
 				Permissions: &perms,
 			})
 		}
@@ -1063,6 +1074,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Type:        "joined",
 				Kind:        "fail",
 				Group:       m.Group,
+				Username:    c.username,
 				Permissions: &group.ClientPermissions{},
 				Value:       s,
 			})
@@ -1074,6 +1086,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Type:        "joined",
 				Kind:        "redirect",
 				Group:       m.Group,
+				Username:    c.username,
 				Permissions: &group.ClientPermissions{},
 				Value:       redirect,
 			})
@@ -1084,6 +1097,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Type:             "joined",
 			Kind:             "join",
 			Group:            m.Group,
+			Username:         c.username,
 			Permissions:      &perms,
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
@@ -1171,12 +1185,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("ICE: %v", err)
 		}
 	case "chat", "usermessage":
-		if m.Id != c.id {
-			return group.ProtocolError("wrong sender id")
-		}
-		if m.Username != "" && m.Username != c.username {
-			return group.ProtocolError("wrong sender username")
-		}
 		g := c.group
 		if g == nil {
 			return c.error(group.UserError("join a group first"))
@@ -1187,13 +1195,13 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if m.Type == "chat" {
 			if m.Dest == "" {
 				g.AddToChatHistory(
-					m.Id, m.Username, tm, m.Kind, m.Value,
+					m.Source, m.Username, tm, m.Kind, m.Value,
 				)
 			}
 		}
 		mm := clientMessage{
 			Type:       m.Type,
-			Id:         m.Id,
+			Source:     m.Source,
 			Dest:       m.Dest,
 			Username:   m.Username,
 			Privileged: c.permissions.Op,
@@ -1221,12 +1229,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			ccc.write(mm)
 		}
 	case "groupaction":
-		if m.Id != c.id {
-			return group.ProtocolError("wrong sender id")
-		}
-		if m.Username != "" && m.Username != c.username {
-			return group.ProtocolError("wrong sender username")
-		}
 		g := c.group
 		if g == nil {
 			return c.error(group.UserError("join a group first"))
@@ -1304,12 +1306,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return group.ProtocolError("unknown group action")
 		}
 	case "useraction":
-		if m.Id != c.id {
-			return group.ProtocolError("wrong sender id")
-		}
-		if m.Username != "" && m.Username != c.username {
-			return group.ProtocolError("wrong sender username")
-		}
 		g := c.group
 		if g == nil {
 			return c.error(group.UserError("join a group first"))
@@ -1332,7 +1328,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if ok {
 				message = v
 			}
-			err := kickClient(g, m.Id, m.Username, m.Dest, message)
+			err := kickClient(g, m.Source, m.Username, m.Dest, message)
 			if err != nil {
 				return c.error(err)
 			}

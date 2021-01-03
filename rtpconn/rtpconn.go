@@ -308,7 +308,8 @@ func (up *rtpUpTrack) hasRtcpFb(tpe, parameter string) bool {
 
 type rtpUpConnection struct {
 	id            string
-	label         string
+	userId        string
+	username      string
 	pc            *webrtc.PeerConnection
 	labels        map[string]string
 	iceCandidates []*webrtc.ICECandidateInit
@@ -331,8 +332,8 @@ func (up *rtpUpConnection) Id() string {
 	return up.id
 }
 
-func (up *rtpUpConnection) Label() string {
-	return up.label
+func (up *rtpUpConnection) User() (string, string) {
+	return up.userId, up.username
 }
 
 func (up *rtpUpConnection) Codecs() []webrtc.RTPCodecCapability {
@@ -430,7 +431,7 @@ func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	up.mu.Unlock()
 
 	for _, c := range cs {
-		c.PushConn(g, up.id, up, tracks, up.label)
+		c.PushConn(g, up.id, up, tracks)
 	}
 }
 

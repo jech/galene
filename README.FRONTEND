@@ -105,7 +105,6 @@ serverConnection.ondownstream = function(stream) {
     stream.onclose = ...;
     stream.onerror = ...;
     stream.ondowntrack = ...;
-    stream.onlabel = ...;
     stream.onstatus = ...;
 }
 ```
@@ -114,10 +113,6 @@ The `stream.labels` dictionary maps each track's id to one of `audio`,
 `video` or `screenshare`.  Since `stream.labels` is already available at
 this point, you may set up an `audio` or `video` component straight away,
 or you may choose to wait until the `ondowntrack` callback is called.
-
-The server will usually invoke the `onlabel` callback in order to set
-a user-readable label on the stream; this is currently just the
-originating client's username.
 
 After a new stream is created, `ondowntrack` will be called whenever
 a track is added.  If the `MediaStream` passed to `ondowntrack` differs

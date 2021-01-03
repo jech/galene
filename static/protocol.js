@@ -59,11 +59,15 @@ function ServerConnection() {
      */
     this.id = randomid();
     /**
-     * The group that we have joined, or nil if we haven't joined yet.
+     * The group that we have joined, or null if we haven't joined yet.
      *
      * @type {string}
      */
     this.group = null;
+    /**
+     * The username we joined as.
+     */
+    this.username = null;
     /**
      * The underlying websocket.
      *
@@ -171,6 +175,7 @@ function ServerConnection() {
   * @property {string} type
   * @property {string} [kind]
   * @property {string} [id]
+  * @property {string} [source]
   * @property {string} [dest]
   * @property {string} [username]
   * @property {string} [password]
@@ -248,6 +253,7 @@ ServerConnection.prototype.connect = async function(url) {
             if(sc.group && sc.onjoined)
                 sc.onjoined.call(sc, 'leave', sc.group, {}, '');
             sc.group = null;
+            sc.username = null;
             if(sc.onclose)
                 sc.onclose.call(sc, e.code, e.reason);
             reject(new Error('websocket close ' + e.code + ' ' + e.reason));
@@ -255,8 +261,11 @@ ServerConnection.prototype.connect = async function(url) {
         this.socket.onmessage = function(e) {
             let m = JSON.parse(e.data);
             switch(m.type) {
+            case 'handshake':
+                break;
             case 'offer':
-                sc.gotOffer(m.id, m.labels, m.offer, m.kind === 'renegotiate');
+                sc.gotOffer(m.id, m.labels, m.source, m.username,
+                            m.offer, m.kind === 'renegotiate');
                 break;
             case 'answer':
                 sc.gotAnswer(m.id, m.answer);
@@ -273,9 +282,6 @@ ServerConnection.prototype.connect = async function(url) {
             case 'ice':
                 sc.gotRemoteIce(m.id, m.candidate);
                 break;
-            case 'label':
-                sc.gotLabel(m.id, m.value);
-                break;
             case 'joined':
                 if(sc.group) {
                     if(m.group !== sc.group) {
@@ -284,6 +290,7 @@ ServerConnection.prototype.connect = async function(url) {
                 } else {
                     sc.group = m.group;
                 }
+                sc.username = m.username;
                 sc.permissions = m.permissions || [];
                 sc.rtcConfiguration = m.rtcConfiguration || null;
                 if(sc.onjoined)
@@ -298,14 +305,14 @@ ServerConnection.prototype.connect = async function(url) {
             case 'chat':
                 if(sc.onchat)
                     sc.onchat.call(
-                        sc, m.id, m.dest, m.username, m.time,
+                        sc, m.source, m.dest, m.username, m.time,
                         m.privileged, m.kind, m.value,
                     );
                 break;
             case 'usermessage':
                 if(sc.onusermessage)
                     sc.onusermessage.call(
-                        sc, m.id, m.dest, m.username, m.time,
+                        sc, m.source, m.dest, m.username, m.time,
                         m.privileged, m.kind, m.value,
                     );
                 break;
@@ -441,18 +448,17 @@ ServerConnection.prototype.newUpStream = function(id) {
  * chat sends a chat message to the server.  The server will normally echo
  * the message back to the client.
  *
- * @param {string} username - The sender's username.
  * @param {string} kind
  *     -  The kind of message, either '', 'me' or an application-specific type.
  * @param {string} dest - The id to send the message to, empty for broadcast.
  * @param {string} value - The text of the message.
  */
-ServerConnection.prototype.chat = function(username, kind, dest, value) {
+ServerConnection.prototype.chat = function(kind, dest, value) {
     this.send({
         type: 'chat',
-        id: this.id,
+        source: this.id,
         dest: dest,
-        username: username,
+        username: this.username,
         kind: kind,
         value: value,
     });
@@ -461,17 +467,16 @@ ServerConnection.prototype.chat = function(username, kind, dest, value) {
 /**
  * userAction sends a request to act on a user.
  *
- * @param {string} username - The sender's username.
  * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
  * @param {string} dest - The id of the user to act upon.
  * @param {string} [value] - An optional user-readable message.
  */
-ServerConnection.prototype.userAction = function(username, kind, dest, value) {
+ServerConnection.prototype.userAction = function(kind, dest, value) {
     this.send({
         type: 'useraction',
-        id: this.id,
+        source: this.id,
         dest: dest,
-        username: username,
+        username: this.username,
         kind: kind,
         value: value,
     });
@@ -481,17 +486,16 @@ ServerConnection.prototype.userAction = function(username, kind, dest, value) {
  * userMessage sends an application-specific message to a user.
  * This is similar to a chat message, but is not saved in the chat history.
  *
- * @param {string} username - The sender's username.
  * @param {string} kind - The kind of application-specific message.
  * @param {string} dest - The id to send the message to, empty for broadcast.
  * @param {string} [value] - An optional parameter.
  */
-ServerConnection.prototype.userMessage = function(username, kind, dest, value) {
+ServerConnection.prototype.userMessage = function(kind, dest, value) {
     this.send({
         type: 'usermessage',
-        id: this.id,
+        source: this.id,
         dest: dest,
-        username: username,
+        username: this.username,
         kind: kind,
         value: value,
     });
@@ -500,17 +504,16 @@ ServerConnection.prototype.userMessage = function(username, kind, dest, value) {
 /**
  * groupAction sends a request to act on the current group.
  *
- * @param {string} username - The sender's username.
  * @param {string} kind
  *     - One of 'clearchat', 'lock', 'unlock', 'record' or 'unrecord'.
  * @param {string} [message] - An optional user-readable message.
  */
-ServerConnection.prototype.groupAction = function(username, kind, message) {
+ServerConnection.prototype.groupAction = function(kind, message) {
     this.send({
         type: 'groupaction',
-        id: this.id,
+        source: this.id,
         kind: kind,
-        username: username,
+        username: this.username,
         value: message,
     });
 };
@@ -520,11 +523,13 @@ ServerConnection.prototype.groupAction = function(username, kind, message) {
  *
  * @param {string} id
  * @param {Object<string, string>} labels
+ * @param {string} source
+ * @param {string} username
  * @param {RTCSessionDescriptionInit} offer
  * @param {boolean} renegotiate
  * @function
  */
-ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegotiate) {
+ServerConnection.prototype.gotOffer = async function(id, labels, source, username, offer, renegotiate) {
     let sc = this;
     let c = sc.down[id];
     if(c && !renegotiate) {
@@ -586,6 +591,8 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
     }
 
     c.labelsByMid = labels;
+    c.source = source;
+    c.username = username;
 
     if(sc.ondownstream)
         sc.ondownstream.call(sc, c);
@@ -618,22 +625,6 @@ ServerConnection.prototype.gotOffer = async function(id, labels, offer, renegoti
     c.flushLocalIceCandidates();
     if(c.onnegotiationcompleted)
         c.onnegotiationcompleted.call(c);
-};
-
-/**
- * Called when we receive a stream label from the server.  Don't call this.
- *
- * @param {string} id
- * @param {string} label
- */
-ServerConnection.prototype.gotLabel = function(id, label) {
-    let c = this.down[id];
-    if(!c)
-        throw new Error('Got label for unknown id');
-
-    c.label = label;
-    if(c.onlabel)
-        c.onlabel.call(c, label);
 };
 
 /**
@@ -765,13 +756,19 @@ function Stream(sc, id, pc, up) {
      */
     this.kind = null;
     /**
-     * For down streams, a user-readable label.
+     * For down streams, the id of the client that created the stream.
      *
      * @type {string}
      */
-    this.label = null;
+    this.source = null;
     /**
-     * The associated RTCPeerConnectoin.  This is null before the stream
+     * For down streams, the username of the client who created the stream.
+     *
+     * @type {string}
+     */
+    this.username = null;
+    /**
+     * The associated RTCPeerConnection.  This is null before the stream
      * is connected, and may change over time.
      *
      * @type {RTCPeerConnection}
@@ -1036,6 +1033,8 @@ Stream.prototype.negotiate = async function (restartIce) {
 
     c.sc.send({
         type: 'offer',
+        source: c.sc.id,
+        username: c.sc.username,
         kind: this.localDescriptionSent ? 'renegotiate' : '',
         id: c.id,
         labels: c.labelsByMid,
