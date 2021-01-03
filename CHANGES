@@ -10,11 +10,23 @@ Galène 0.2 (unreleased)
     direction, making it possible for the client to reject a stream.
   * It is now possible to configure a group to use codecs such as VP9 and
     H.264.  The default is still to use VP8 and Opus, as this yields the
-    best compatibility across browsers.
+    best compatibility across browsers.  Only VP8, VP9 and Opus can be
+    saved to disk.
   * The delay before sending NACKs has been reduced, which gives a major
     boost in video quality.
-  * Fixed a crash on 32-bit architectures due to unaligned atomic memory
-    operations.
+  * The command-line option -insecure allows using plain HTTP, which is
+    useful when running behind a reverse proxy.
+  * The client-server protocol has been reworked to be more symmetric and
+    more secure.  It is now documented in the file README.PROTOCOL.
+  * It is now possible to generate TURN passwords automatically, which
+    avoids leaking long-term TURN credentials.
+  * The command-line option "-relay-only" can be used to specify that all
+    media traffic should go through a TURN server.
+  * The ICE configuration will now be checked periodically, and new
+    clients will use an updated configuration.
+  * When saving to disk to disk, the keyframe interval has been reduced to 4s.
+  * We now work around a limitation of the Go runtime that used to cause
+    a crash on 32-bit architectures.
 
 19 December 2020: Galène 0.1
 
