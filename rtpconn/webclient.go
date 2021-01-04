@@ -1209,12 +1209,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Value:      m.Value,
 		}
 		if m.Dest == "" {
-			clients := g.GetClients(nil)
-			for _, cc := range clients {
-				ccc, ok := cc.(*webClient)
-				if ok {
-					ccc.write(mm)
-				}
+			err := broadcast(g.GetClients(nil), mm)
+			if err != nil {
+				log.Printf("broadcast(chat): %v", err)
 			}
 		} else {
 			cc := g.GetClient(m.Dest)
@@ -1223,7 +1220,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			ccc, ok := cc.(*webClient)
 			if !ok {
-				return c.error(group.UserError("this user doesn't chat"))
+				return c.error(group.UserError(
+					"this user doesn't chat",
+				))
 			}
 			ccc.write(mm)
 		}
@@ -1240,12 +1239,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Kind:       "clearchat",
 				Privileged: true,
 			}
-			clients := g.GetClients(nil)
-			for _, cc := range clients {
-				cc, ok := cc.(*webClient)
-				if ok {
-					cc.write(m)
-				}
+			err := broadcast(g.GetClients(nil), m)
+			if err != nil {
+				log.Printf("broadcast(clearchat): %v", err)
 			}
 		case "lock", "unlock":
 			if !c.permissions.Op {
@@ -1394,6 +1390,11 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 			if err != nil {
 				return
 			}
+		case []byte:
+			err := conn.WriteMessage(websocket.TextMessage, m)
+			if err != nil {
+				return
+			}
 		case closeMessage:
 			if m.data != nil {
 				conn.WriteMessage(
@@ -1441,6 +1442,24 @@ func (c *webClient) write(m clientMessage) error {
 	case <-c.writerDone:
 		return ErrClientDead
 	}
+}
+
+func broadcast(cs []group.Client, m clientMessage) error {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	for _, c := range cs {
+		cc, ok := c.(*webClient)
+		if !ok {
+			continue
+		}
+		select {
+		case cc.writeCh <- b:
+		case <-cc.writerDone:
+		}
+	}
+	return nil
 }
 
 func (c *webClient) close(data []byte) error {
