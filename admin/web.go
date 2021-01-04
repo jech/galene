@@ -4,15 +4,18 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"net/http/pprof"
 
+	"github.com/jech/galene/group"
 	"github.com/jech/galene/stats"
 )
 
 func New() http.Handler {
 	s := http.NewServeMux()
-	s.HandleFunc("/stats/groups", GroupeHandler)
+	s.HandleFunc("/api/groups", GroupsHandler)
+	s.HandleFunc("/api/group/", OneGroupHandler) // /api/group/_all /api/group/{group}
 
 	s.HandleFunc("/pprof/cmdline", pprof.Cmdline)
 	s.HandleFunc("/pprof/profile", pprof.Profile)
@@ -25,9 +28,28 @@ func New() http.Handler {
 	return s
 }
 
-func GroupeHandler(w http.ResponseWriter, r *http.Request) {
+func OneGroupHandler(w http.ResponseWriter, r *http.Request) {
+	slugs := strings.Split(r.URL.Path, "/")
+	if len(slugs) > 4 {
+		http.NotFound(w, r)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(stats.GetGroups())
+	group := slugs[3]
+	var err error
+	if group == "_all" {
+		err = json.NewEncoder(w).Encode(stats.GetGroups())
+	} else {
+		err = json.NewEncoder(w).Encode(stats.GetGroup(group))
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func GroupsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(group.GetNames())
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -38,37 +38,39 @@ type Track struct {
 
 func GetGroups() []GroupStats {
 	names := group.GetNames()
-
 	gs := make([]GroupStats, 0, len(names))
 	for _, name := range names {
-		g := group.Get(name)
-		if g == nil {
-			continue
-		}
-		clients := g.GetClients(nil)
-		stats := GroupStats{
-			Name:    name,
-			Clients: make([]*Client, 0, len(clients)),
-		}
-		for _, c := range clients {
-			s, ok := c.(Statable)
-			if ok {
-				cs := s.GetStats()
-				stats.Clients = append(stats.Clients, cs)
-			} else {
-				stats.Clients = append(stats.Clients,
-					&Client{Id: c.Id()},
-				)
-			}
-		}
-		sort.Slice(stats.Clients, func(i, j int) bool {
-			return stats.Clients[i].Id < stats.Clients[j].Id
-		})
-		gs = append(gs, stats)
+		gs = append(gs, *GetGroup(name))
 	}
 	sort.Slice(gs, func(i, j int) bool {
 		return gs[i].Name < gs[j].Name
 	})
-
 	return gs
+}
+
+func GetGroup(name string) *GroupStats {
+	g := group.Get(name)
+	if g == nil {
+		return nil
+	}
+	clients := g.GetClients(nil)
+	stats := GroupStats{
+		Name:    name,
+		Clients: make([]*Client, 0, len(clients)),
+	}
+	for _, c := range clients {
+		s, ok := c.(Statable)
+		if ok {
+			cs := s.GetStats()
+			stats.Clients = append(stats.Clients, cs)
+		} else {
+			stats.Clients = append(stats.Clients,
+				&Client{Id: c.Id()},
+			)
+		}
+	}
+	sort.Slice(stats.Clients, func(i, j int) bool {
+		return stats.Clients[i].Id < stats.Clients[j].Id
+	})
+	return &stats
 }
