@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jech/galene/admin"
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
@@ -18,7 +20,7 @@ import (
 )
 
 func main() {
-	var cpuprofile, memprofile, mutexprofile, httpAddr, dataDir string
+	var cpuprofile, memprofile, mutexprofile, httpAddr, adminAddr, dataDir string
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
@@ -42,6 +44,7 @@ func main() {
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
+	flag.StringVar(&adminAddr, "admin", "localhost:8444", "admin server `address`")
 	flag.Parse()
 
 	if cpuprofile != "" {
@@ -93,6 +96,10 @@ func main() {
 			log.Printf("Server: %v", err)
 		}
 		close(serverDone)
+	}()
+
+	go func() {
+		http.ListenAndServe(adminAddr, admin.New())
 	}()
 
 	terminate := make(chan os.Signal, 1)
