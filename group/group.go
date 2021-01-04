@@ -246,6 +246,23 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
 	)
 }
 
+func APIFromNames(names []string) *webrtc.API {
+	if len(names) == 0 {
+		names = []string{"vp8", "opus"}
+	}
+	codecs := make([]webrtc.RTPCodecCapability, 0, len(names))
+	for _, n := range names {
+		codec, err := codecFromName(n)
+		if err != nil {
+			log.Printf("Codec %v: %v", n, err)
+			continue
+		}
+		codecs = append(codecs, codec)
+	}
+
+	return APIFromCodecs(codecs)
+}
+
 func Add(name string, desc *description) (*Group, error) {
 	if name == "" || strings.HasSuffix(name, "/") {
 		return nil, UserError("illegal group name")
@@ -269,28 +286,12 @@ func Add(name string, desc *description) (*Group, error) {
 			}
 		}
 
-		names := desc.Codecs
-		if len(names) == 0 {
-			names = []string{"vp8", "opus"}
-		}
-		codecs := make([]webrtc.RTPCodecCapability, 0, len(names))
-		for _, n := range names {
-			codec, err := codecFromName(n)
-			if err != nil {
-				log.Printf("Codec %v: %v", n, err)
-				continue
-			}
-			codecs = append(codecs, codec)
-		}
-
-		api := APIFromCodecs(codecs)
-
 		g = &Group{
 			name:        name,
 			description: desc,
 			clients:     make(map[string]Client),
 			timestamp:   time.Now(),
-			api:         api,
+			api:         APIFromNames(desc.Codecs),
 		}
 		groups.groups[name] = g
 		return g, nil
@@ -301,6 +302,7 @@ func Add(name string, desc *description) (*Group, error) {
 
 	if desc != nil {
 		g.description = desc
+		g.api = APIFromNames(desc.Codecs)
 		return g, nil
 	}
 
@@ -316,6 +318,7 @@ func Add(name string, desc *description) (*Group, error) {
 				return nil, err
 			}
 			g.description = desc
+			g.api = APIFromNames(desc.Codecs)
 		} else {
 			g.description.loadTime = time.Now()
 		}
