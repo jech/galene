@@ -1569,6 +1569,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
         } else {
             console.error(`Got unprivileged message of kind ${kind}`);
         }
+        break;
     default:
         console.warn(`Got unknown user message ${kind}`);
         break;
