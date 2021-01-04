@@ -561,19 +561,11 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
             } else {
                 console.warn("Couldn't find label for track");
             }
-            if(c.stream !== e.streams[0]) {
-                c.stream = e.streams[0];
-                let label =
-                    e.transceiver && c.labelsByMid[e.transceiver.mid];
-                c.labels[e.track.id] = label;
-                if(c.ondowntrack) {
-                    c.ondowntrack.call(
-                        c, e.track, e.transceiver, label, e.streams[0],
-                    );
-                }
-                if(c.onlabel) {
-                    c.onlabel.call(c, label);
-                }
+            c.stream = e.streams[0];
+            if(c.ondowntrack) {
+                c.ondowntrack.call(
+                    c, e.track, e.transceiver, label, e.streams[0],
+                );
             }
         };
     }
@@ -860,12 +852,6 @@ function Stream(sc, id, pc, up) {
      * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, label: string, stream: MediaStream) => void}
      */
     this.ondowntrack = null;
-    /**
-     * onlabel is called whenever the server sets a new label for the stream.
-     *
-     * @type{(this: Stream, label: string) => void}
-     */
-    this.onlabel = null;
     /**
      * onstatus is called whenever the status of the stream changes.
      *
