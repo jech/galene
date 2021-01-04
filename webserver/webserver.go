@@ -430,10 +430,12 @@ func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 	fmt.Fprintf(w, "</body></html>\n")
 }
 
-var upgrader websocket.Upgrader
+var wsUpgrader = websocket.Upgrader {
+	HandshakeTimeout: 30 * time.Second,
+}
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("Websocket upgrade: %v", err)
 		return
