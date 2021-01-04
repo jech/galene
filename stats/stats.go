@@ -8,13 +8,14 @@ import (
 )
 
 type GroupStats struct {
-	Name    string
-	Clients []*Client
+	Name    string    `json:"name"`
+	Clients []*Client `json:"clients"`
 }
 
 type Client struct {
-	Id       string
-	Up, Down []Conn
+	Id   string `json:"id"`
+	Up   []Conn `json:"up"`
+	Down []Conn `json:"down"`
 }
 
 type Statable interface {
@@ -22,17 +23,17 @@ type Statable interface {
 }
 
 type Conn struct {
-	Id         string
-	MaxBitrate uint64
-	Tracks     []Track
+	Id         string  `json:"id"`
+	MaxBitrate uint64  `json:"max_bitrate"`
+	Tracks     []Track `json:"tracks"`
 }
 
 type Track struct {
-	Bitrate    uint64
-	MaxBitrate uint64
-	Loss       uint8
-	Rtt        time.Duration
-	Jitter     time.Duration
+	Bitrate    uint64        `json:"bitrate"`
+	MaxBitrate uint64        `json:"max_bitrate"`
+	Loss       uint8         `json:"loss"`
+	Rtt        time.Duration `json:"rtt"`
+	Jitter     time.Duration `json:"jitter"`
 }
 
 func GetGroups() []GroupStats {
