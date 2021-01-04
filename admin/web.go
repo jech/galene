@@ -10,6 +10,7 @@ import (
 
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/stats"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func New() http.Handler {
@@ -22,6 +23,8 @@ func New() http.Handler {
 	s.HandleFunc("/pprof/symbol", pprof.Symbol)
 	s.HandleFunc("/pprof/trace", pprof.Trace)
 	//s.HandleFunc("/pprof/", pprof.Index)
+
+	s.Handle("/metrics", promhttp.Handler())
 
 	s.HandleFunc("/", HomeHandler)
 

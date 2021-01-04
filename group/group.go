@@ -14,8 +14,16 @@ import (
 
 	"github.com/pion/ice/v2"
 	"github.com/pion/webrtc/v3"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+var (
+	clientsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "galene_clients",
+		Help: "The number of connected clients",
+	})
+)
 var Directory string
 var UseMDNS bool
 
@@ -478,6 +486,8 @@ func AddClient(group string, c Client) (*Group, error) {
 		}
 	}(g.getClientsUnlocked(c))
 
+	clientsGauge.Inc()
+
 	return g, nil
 }
 
@@ -521,6 +531,7 @@ func DelClient(c Client) {
 	}(clients)
 
 	autolock(g, clients)
+	clientsGauge.Dec()
 }
 
 func (g *Group) GetClients(except Client) []Client {
