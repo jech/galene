@@ -111,6 +111,7 @@ func main() {
 		if err != nil {
 			log.Fatal("Can't decode json ", adminFilePath, err)
 		}
+		f.Close()
 		go func() {
 			http.ListenAndServe(adminAddr, admin.New(adminAuth))
 		}()
