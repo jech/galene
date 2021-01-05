@@ -1,12 +1,12 @@
 # Galène's protocol
 
-Galène's uses a symmetric, asynchronous protocol.  In client-server
+Galène uses a symmetric, asynchronous protocol.  In client-server
 usage, some messages are only sent in the client to server or in the
 server to client direction.
 
 ## Message syntax
 
-All messages are sent as JSON objects.  All fields exctept `type` are
+All messages are sent as JSON objects.  All fields except `type` are
 optional; however, there are some fields that are common across multiple
 message types.
 
@@ -16,7 +16,7 @@ message types.
  - `source`, the client-id of the originating client;
  - `username`, the username of the originating client;
  - `dest`, the client-id of the destination client;
- - `privileged`, set by the server to indicate that the orignating client
+ - `privileged`, set by the server to indicate that the originating client
    had the `op` privilege at the time it sent the message.
 
 ## Data structures
@@ -36,7 +36,7 @@ that do not originate messages (servers) do not need to be assigned an id.
 ### Stream
 
 A stream is a set of related tracks.  It is identified by an id, an opaque
-string.  Streams in Galène are uniderectional.  A stream is carried by
+string.  Streams in Galène are unidirectional.  A stream is carried by
 exactly one peer connection (PC) (multiple streams in a single PC are not
 allowed).  The offerer is also the RTP sender (i.e. all tracks sent by the
 offerer are of type `sendonly`).
@@ -91,7 +91,7 @@ The `join` message requests that the sender join or leave a group:
 When the sender has effectively joined the group, the peer will send
 a 'joined' message of kind 'join'; it may then send a 'joined' message of
 kind 'change' at any time, in order to inform the client of a change in
-its permissions or in the recommented RTC configuration.
+its permissions or in the recommended RTC configuration.
 
 ```javascript
 {
@@ -178,7 +178,7 @@ an answer.
 }
 ```
 
-Both peers may then tricke ICE candidates with `ice` messages.
+Both peers may then trickle ICE candidates with `ice` messages.
 
 ```javascript
 {
