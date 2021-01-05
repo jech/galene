@@ -13,7 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func New() http.Handler {
+func New(auth *group.Password) http.HandlerFunc {
 	s := http.NewServeMux()
 	s.HandleFunc("/api/groups", GroupsHandler)
 	s.HandleFunc("/api/group/", OneGroupHandler) // /api/group/_all /api/group/{group}
@@ -28,7 +28,7 @@ func New() http.Handler {
 
 	s.HandleFunc("/", HomeHandler)
 
-	return s
+	return BasicAuthMiddleware(auth, s)
 }
 
 func OneGroupHandler(w http.ResponseWriter, r *http.Request) {

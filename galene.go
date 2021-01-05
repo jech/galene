@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -44,7 +46,7 @@ func main() {
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
-	flag.StringVar(&adminAddr, "admin", "localhost:8444", "admin server `address`")
+	flag.StringVar(&adminAddr, "admin", "", "admin server `address`")
 	flag.Parse()
 
 	if cpuprofile != "" {
@@ -98,9 +100,21 @@ func main() {
 		close(serverDone)
 	}()
 
-	go func() {
-		http.ListenAndServe(adminAddr, admin.New())
-	}()
+	if adminAddr != "" {
+		adminFilePath := path.Join(dataDir, "admin.json")
+		f, err := os.OpenFile(adminFilePath, os.O_RDONLY, 0400)
+		if err != nil {
+			log.Fatal(err)
+		}
+		adminAuth := new(group.Password)
+		err = json.NewDecoder(f).Decode(adminAuth)
+		if err != nil {
+			log.Fatal("Can't decode json ", adminFilePath, err)
+		}
+		go func() {
+			http.ListenAndServe(adminAddr, admin.New(adminAuth))
+		}()
+	}
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
