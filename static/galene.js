@@ -324,9 +324,9 @@ function gotDownStream(c) {
     c.onstatus = function(status) {
         setMediaStatus(c);
     };
-    c.onstats = gotDownStats;
+    c.onactivitydetect = gotActivityDetect;
     if(getSettings().activityDetection)
-        c.setStatsInterval(activityDetectionInterval);
+        c.setActivityInterval(activityDetectionInterval);
 
     setMedia(c, false);
 }
@@ -519,6 +519,7 @@ getSelectElement('requestselect').onchange = function(e) {
     serverConnection.request(this.value);
 };
 
+const uploadRateDisplayInterval = 2000;
 const activityDetectionInterval = 200;
 const activityDetectionPeriod = 700;
 const activityDetectionThreshold = 0.2;
@@ -530,9 +531,16 @@ getInputElement('activitybox').onchange = function(e) {
     for(let id in serverConnection.down) {
         let c = serverConnection.down[id];
         if(this.checked)
-            c.setStatsInterval(activityDetectionInterval);
+            c.setActivityInterval(activityDetectionInterval);
         else {
-            c.setStatsInterval(0);
+            setActive(c, false);
+        }
+    }
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
+        if(this.checked)
+            c.setActivityInterval(activityDetectionInterval);
+        else {
             setActive(c, false);
         }
     }
@@ -554,29 +562,6 @@ getInputElement('fileinput').onchange = function(e) {
 };
 
 /**
- * @this {Stream}
- * @param {Object<string,any>} stats
- */
-function gotUpStats(stats) {
-    let c = this;
-
-    let text = '';
-
-    c.pc.getSenders().forEach(s => {
-        let tid = s.track && s.track.id;
-        let stats = tid && c.stats[tid];
-        let rate = stats && stats['outbound-rtp'] && stats['outbound-rtp'].rate;
-        if(typeof rate === 'number') {
-            if(text)
-                text = text + ' + ';
-            text = text + Math.round(rate / 1000) + 'kbps';
-        }
-    });
-
-    setLabel(c, text);
-}
-
-/**
  * @param {Stream} c
  * @param {boolean} value
  */
@@ -588,22 +573,21 @@ function setActive(c, value) {
         peer.classList.remove('peer-active');
 }
 
-/**
- * @this {Stream}
- * @param {Object<string,any>} stats
+/** 
+ * @param {Stream} c
+ * @param {Array.<RTCRtpSender|RTCRtpReceiver>} tracks
+ * @param {Object<string,{audioEnergy: number}>} stats
  */
-function gotDownStats(stats) {
+function updateActivityIndicator(c, tracks, stats) {
     if(!getInputElement('activitybox').checked)
         return;
 
-    let c = this;
-
     let maxEnergy = 0;
 
-    c.pc.getReceivers().forEach(r => {
+    tracks.forEach(r => {
         let tid = r.track && r.track.id;
         let s = tid && stats[tid];
-        let energy = s && s['track'] && s['track'].audioEnergy;
+        let energy = s && s.audioEnergy;
         if(typeof energy === 'number')
             maxEnergy = Math.max(maxEnergy, energy);
     });
@@ -618,6 +602,47 @@ function gotDownStats(stats) {
         if(!last || Date.now() - last > activityDetectionPeriod)
             setActive(c, false);
     }
+}
+
+/**
+ * @this {Stream}
+ * @param {Object<string,{audioEnergy: number}>} stats
+ */
+function gotActivityDetect(stats) {
+    let c = this;
+    updateActivityIndicator(c, c.pc.getSenders(), stats);
+    updateActivityIndicator(c, c.pc.getReceivers(), stats);
+}
+
+/**
+ * @this {Stream}
+ * @param {Object<string,any>} stats
+ */
+function gotUpStats(stats) {
+    let c = this;
+
+    let text = '';
+
+    c.pc.getSenders().forEach(s => {
+        let tid = s.track && s.track.id;
+        let st = tid && stats[tid];
+        let rate = st && st.rate;
+        if(typeof rate === 'number') {
+            if(text)
+                text = text + ' + ';
+            text = text + Math.round(rate / 1000) + 'kbps';
+        }
+    });
+
+    setLabel(c, text);
+}
+
+/**
+ * @this {Stream}
+ * @param {Object<string,any>} stats
+ */
+function gotDownStats(stats) {
+    updateActivityIndicator(this, this.pc.getReceivers(), stats);
 }
 
 /**
@@ -958,8 +983,12 @@ async function addLocalMedia(id) {
         c.pc.addTrack(t, stream);
     });
 
-    c.onstats = gotUpStats;
-    c.setStatsInterval(2000);
+    c.onupratestats = gotUpStats;
+    c.onactivitydetect = gotActivityDetect;
+
+    c.setUpRateInterval(uploadRateDisplayInterval);
+    if(getSettings().activityDetection)
+        c.setActivityInterval(activityDetectionInterval);
     await setMedia(c, true, true);
     setButtonsVisibility();
 }
@@ -997,8 +1026,8 @@ async function addShareMedia() {
         };
         c.labels[t.id] = 'screenshare';
     });
-    c.onstats = gotUpStats;
-    c.setStatsInterval(2000);
+    c.onupratestats = gotUpStats;
+    c.setUpRateInterval(uploadRateDisplayInterval);
     await setMedia(c, true);
     setButtonsVisibility();
 }
@@ -1044,8 +1073,8 @@ async function addFileMedia(file) {
         }
         c.pc.addTrack(t, stream);
         c.labels[t.id] = t.kind;
-        c.onstats = gotUpStats;
-        c.setStatsInterval(2000);
+        c.onupratestats = gotUpStats;
+        c.setUpRateInterval(uploadRateDisplayInterval);
     };
     stream.onremovetrack = function(e) {
         let t = e.track;

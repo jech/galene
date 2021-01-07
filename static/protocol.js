@@ -808,9 +808,9 @@ function Stream(sc, id, pc, up) {
      * a dictionary indexed by track id, with each value a dictionary of
      * statistics.
      *
-     * @type {Object<string,unknown>}
+     * @type {Object<string,Object<unknown, unknown>>}
      */
-    this.stats = {};
+    this.stats = {'energy': {}, 'outbound-rtp': {}};
     /**
      * The id of the periodic handler that computes statistics, as
      * returned by setInterval.
@@ -818,6 +818,19 @@ function Stream(sc, id, pc, up) {
      * @type {number}
      */
     this.statsHandler = null;
+    /**
+     * Timer information for upload stats and activity detection.
+     *
+     * @type Map<string, {deadline: number, interval: number}>
+     */
+    this.timers = new Map();
+    
+    /**
+     * The last time one of the timers fired. Used to keep timers aligned.
+     *
+     * @type number
+     */
+    this.lastStatsDeadline = 0;
     /**
      * userdata is a convenient place to attach data to a Stream.
      * It is not used by the library.
@@ -871,10 +884,18 @@ function Stream(sc, id, pc, up) {
     this.onabort = null;
     /**
      * onstats is called when we have new statistics about the connection
+     * Rate is determined by setUpRateInterval().
      *
-     * @type{(this: Stream, stats: Object<unknown,unknown>) => void}
+     * @type{(this: Stream, stats: Object<string,{rate: number}>) => void}
      */
-    this.onstats = null;
+    this.onupratestats = null;
+    /**
+     * onactivitydetect is called when we have new statistics about
+     * audio activity. Rate is determined by setActivityInterval().
+     *
+     * @type{(this: Stream, stats: Object<string,{audioEnergy: number}>) => void}
+     */
+    this.onactivitydetect = null;
 }
 
 /**
@@ -1067,15 +1088,78 @@ Stream.prototype.restartIce = function () {
 
 /**
  * updateStats is called periodically, if requested by setStatsInterval,
- * in order to recompute stream statistics and invoke the onstats handler.
+ * in order to recompute stream statistics and invoke the onstats and
+ * onactivitydetect handler.
  *
  * @function
  */
 Stream.prototype.updateStats = async function() {
+    let now = Date.now();
+    let toFire = new Set();
+    for (let [name, t] of this.timers) {
+        if (t.deadline <= now + 5) {
+            toFire.add(name);
+            t.deadline = now + t.interval;
+        }
+    }
+    this.lastStatsDeadline = now;
+
+    let newDeadline = nextDeadline(this.timers);
+
+    if (newDeadline < Infinity) {
+        let c = this;
+        if(c.statsHandler) {
+            clearTimeout(c.statsHandler);
+            c.statsHandler = null;
+        }
+
+        c.statsHandler = setTimeout(() => {
+            c.updateStats();
+        }, newDeadline - now);
+    }
+
+    await this.accumulateStats();
+
     let c = this;
-    let old = c.stats;
-    /** @type{Object<string,unknown>} */
-    let stats = {};
+    if (toFire.has("activity") && c.onactivitydetect) {
+        for (let tid of Object.keys(c.stats['energy'])) {
+            let r = c.stats['energy'][tid];
+            r.audioEnergy =
+                (r.totalAudioEnergyEnd - r.totalAudioEnergyBegin) * 1000 /
+                (r.timestampEnd - r.timestampBegin);
+            r.timestampBegin = r.timestampEnd;
+            r.totalAudioEnergyBegin = r.totalAudioEnergyEnd;
+        }
+        c.onactivitydetect.call(c, c.stats['energy']);
+    }
+    if (toFire.has("outbound-rtp") && this.onupratestats) {
+        for (let tid of Object.keys(c.stats['outbound-rtp'])) {
+            let r = c.stats['outbound-rtp'][tid];
+            r.rate = ((r.bytesSent) * 1000 /
+                 (r.timestampEnd - r.timestampBegin)) * 8;
+            r.timestampBegin = r.timestampEnd;
+            r.bytesSent = 0;
+        }
+        c.onupratestats.call(c, c.stats['outbound-rtp']);
+    }
+};
+
+Stream.prototype.accumulateStats = async function() {
+    let c = this;
+
+    function fillAudioEnergy(tid, r) {
+        if(!('totalAudioEnergy' in r))
+            return;
+        if(!c.stats['energy'][tid]) {
+            c.stats['energy'][tid] = {};
+            c.stats['energy'][tid].timestampBegin = r.timestamp;
+            c.stats['energy'][tid].totalAudioEnergyBegin = r.totalAudioEnergy;
+            c.stats['energy'][tid].totalAudioEnergyEnd = r.totalAudioEnergy;
+        }
+        c.stats['energy'][tid].totalAudioEnergyEnd = r.totalAudioEnergy;
+        c.stats['energy'][tid].timestampEnd = r.timestamp;
+    }
+
 
     let transceivers = c.pc.getTransceivers();
     for(let i = 0; i < transceivers.length; i++) {
@@ -1096,15 +1180,18 @@ Stream.prototype.updateStats = async function() {
                 if(stid && r.type === 'outbound-rtp') {
                     if(!('bytesSent' in r))
                         continue;
-                    if(!stats[stid])
-                        stats[stid] = {};
-                    stats[stid][r.type] = {};
-                    stats[stid][r.type].timestamp = r.timestamp;
-                    stats[stid][r.type].bytesSent = r.bytesSent;
-                    if(old[stid] && old[stid][r.type])
-                        stats[stid][r.type].rate =
-                        ((r.bytesSent - old[stid][r.type].bytesSent) * 1000 /
-                         (r.timestamp - old[stid][r.type].timestamp)) * 8;
+                    if(!c.stats['outbound-rtp'][stid]) {
+                        c.stats['outbound-rtp'][stid] = {};
+                        c.stats['outbound-rtp'][stid] = {};
+                        c.stats['outbound-rtp'][stid].timestampBegin = r.timestamp;
+                        c.stats['outbound-rtp'][stid].timestampEnd = r.timestamp;
+                        c.stats['outbound-rtp'][stid].bytesSent = 0;
+                    }
+                    c.stats['outbound-rtp'][stid].bytesSent += r.bytesSent;
+                    c.stats['outbound-rtp'][stid].timestampEnd = r.timestamp;
+                }
+                if (stid && r.type == 'media-source') {
+                    fillAudioEnergy(stid, r);
                 }
             }
         }
@@ -1123,43 +1210,77 @@ Stream.prototype.updateStats = async function() {
                 if(rtid && r.type === 'track') {
                     if(!('totalAudioEnergy' in r))
                         continue;
-                    if(!stats[rtid])
-                        stats[rtid] = {};
-                    stats[rtid][r.type] = {};
-                    stats[rtid][r.type].timestamp = r.timestamp;
-                    stats[rtid][r.type].totalAudioEnergy = r.totalAudioEnergy;
-                    if(old[rtid] && old[rtid][r.type])
-                        stats[rtid][r.type].audioEnergy =
-                        (r.totalAudioEnergy - old[rtid][r.type].totalAudioEnergy) * 1000 /
-                        (r.timestamp - old[rtid][r.type].timestamp);
+                    fillAudioEnergy(rtid, r);
                 }
             }
         }
     }
-
-    c.stats = stats;
-
-    if(c.onstats)
-        c.onstats.call(c, c.stats);
 };
 
 /**
- * setStatsInterval sets the interval in milliseconds at which the onstats
- * handler will be called.  This is only useful for up streams.
+ * setUpRateInterval sets the interval in milliseconds at which the
+ * onupratestats handler will be called.
  *
  * @param {number} ms - The interval in milliseconds.
  */
-Stream.prototype.setStatsInterval = function(ms) {
-    let c = this;
-    if(c.statsHandler) {
-        clearInterval(c.statsHandler);
-        c.statsHandler = null;
+Stream.prototype.setUpRateInterval = function(ms) {
+    this.setStatsInterval("outbound-rtp", ms);
+};
+
+/**
+ * setActivityInterval sets the interval in milliseconds at which the
+ * onactivitydetect handler will be called.
+ *
+ * @param {number} ms - The interval in milliseconds.
+ */
+Stream.prototype.setActivityInterval = function(ms) {
+    this.setStatsInterval("activity", ms);
+};
+
+/**
+ * @param {string} name - The kind of timer we consider.
+ * @param {number} ms - The interval in milliseconds.
+ */
+Stream.prototype.setStatsInterval = function(name, ms) {
+    let oldDeadline = nextDeadline(this.timers);
+    let now = Date.now();
+
+    if (ms <= 0) {
+        this.timers.delete(name);
+    } else if (this.timers.has(name)) {
+        let timer = this.timers.get(name);
+        timer.deadline += ms - timer.interval;
+        if (timer.deadline < 0)
+            timer.deadline = now;
+        timer.interval = ms;
+    } else {
+        if (this.timers.size === 0)
+            this.lastStatsDeadline = now;
+        this.timers.set(name, {
+            interval: ms,
+            deadline: this.lastStatsDeadline + ms
+        });
     }
 
-    if(ms <= 0)
-        return;
+    let newDeadline = nextDeadline(this.timers);
 
-    c.statsHandler = setInterval(() => {
-        c.updateStats();
-    }, ms);
-};
+    if (newDeadline !== oldDeadline) {
+        let c = this;
+        if(c.statsHandler) {
+            clearTimeout(c.statsHandler);
+            c.statsHandler = null;
+        }
+
+        c.statsHandler = setTimeout(() => {
+            c.updateStats();
+        }, newDeadline - now);
+    }
+}
+
+function nextDeadline(timers) {
+    let deadline = Infinity;
+    for (let [_, t] of timers) {
+        deadline = Math.min(deadline, t.deadline);
+    }
+    return deadline;
+}
