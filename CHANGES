@@ -27,6 +27,8 @@ Galène 0.2 (unreleased)
   * When saving to disk to disk, the keyframe interval has been reduced to 4s.
   * We now work around a limitation of the Go runtime that used to cause
     a crash on 32-bit architectures.
+  * We now send keepalives after 55s at most, which should fix issues with
+    reverse proxies timing out the WebSocket.  What a terrible waste.
 
 19 December 2020: Galène 0.1
 
