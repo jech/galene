@@ -902,10 +902,13 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				return errors.New("unexpected action")
 			}
 		case <-ticker.C:
-			if time.Since(readTime) > 90*time.Second {
+			if time.Since(readTime) > 75*time.Second {
 				return errors.New("client is dead")
 			}
-			if time.Since(readTime) > 60*time.Second {
+			// Some reverse proxies timeout connexions at 60
+			// seconds, make sure we generate some activity
+			// after 55s at most.
+			if time.Since(readTime) > 45*time.Second {
 				err := c.write(clientMessage{
 					Type: "ping",
 				})
