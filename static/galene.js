@@ -1074,7 +1074,11 @@ async function setMedia(c, isUp, mirror, video) {
         /** @ts-ignore */
         media.playsinline = true;
         media.id = 'media-' + c.id;
-        div.appendChild(media);
+
+        let mirrorDiv = document.createElement('div');
+        div.appendChild(mirrorDiv);
+        mirrorDiv.appendChild(media);
+
         if(!video)
             addCustomControls(media, div, c);
         if(mirror)
@@ -1234,11 +1238,11 @@ function registerControlHandlers(media, container) {
             fs.onclick = function(e) {
                 e.preventDefault();
                 if(media.requestFullscreen) {
-                    media.requestFullscreen();
+                    media.parentNode.requestFullscreen();
                 /** @ts-ignore */
-                } else if(media.webkitRequestFullscreen) {
+                } else if(media.parentNode.webkitRequestFullscreen) {
                     /** @ts-ignore */
-                    media.webkitRequestFullscreen();
+                    media.parentNode.webkitRequestFullscreen();
                 } else {
                     displayWarning('Full screen not supported!');
                 }
