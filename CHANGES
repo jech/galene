@@ -1,34 +1,35 @@
-Galène 0.2 (unreleased)
+9 January 2021: Galène 0.2
 
+  * We now work around a limitation of the Go runtime that used to cause
+    a crash on 32-bit architectures.
+  * Recording to disk now works on Windows too.
   * Error handling has been improved.  In particular, group operators now
     receive a friendly warning when recording to disk fails for some reason.
-  * Recording to disk now works on Windows too.
-  * The play from disk button is not available when the browser doesn't
-    support the required API.  We used to display a cryptic error message
-    in that case.
-  * The stream abort protocol message is now supported in the client->server
-    direction, making it possible for the client to reject a stream.
   * It is now possible to configure a group to use codecs such as VP9 and
     H.264.  The default is still to use VP8 and Opus, as this yields the
     best compatibility across browsers.  Only VP8, VP9 and Opus can be
     saved to disk.
-  * The delay before sending NACKs has been reduced, which gives a major
-    boost in video quality.
-  * The command-line option -insecure allows using plain HTTP, which is
-    useful when running behind a reverse proxy.
-  * The client-server protocol has been reworked to be more symmetric and
-    more secure.  It is now documented in the file README.PROTOCOL.
-  * It is now possible to generate TURN passwords automatically, which
-    avoids leaking long-term TURN credentials.
   * The command-line option "-relay-only" can be used to specify that all
     media traffic should go through a TURN server.
+  * It is now possible to generate TURN passwords automatically, which
+    avoids leaking long-term TURN credentials.  See the "credentialType"
+    value "hmac-sha1" described in README.
   * The ICE configuration will now be checked periodically, and new
     clients will use an updated configuration.
+  * The client-server protocol has been reworked to be more symmetric
+    and more secure.  It is now documented in the file README.PROTOCOL.
+  * The stream abort protocol message is now supported in the client->server
+    direction, making it possible for the client to reject a stream.
+  * The delay before sending NACKs has been reduced, which gives a major
+    boost in video quality.
+  * The play from disk button is not available when the browser doesn't
+    support the required API.  We used to display a cryptic error message
+    in that case.
+  * The command-line option -insecure allows using plain HTTP, which is
+    useful when running behind a reverse proxy.
   * When saving to disk to disk, the keyframe interval has been reduced to 4s.
-  * We now work around a limitation of the Go runtime that used to cause
-    a crash on 32-bit architectures.
   * We now send keepalives after 55s at most, which should fix issues with
-    reverse proxies timing out the WebSocket.  What a terrible waste.
+    reverse proxies timing out the WebSocket.
 
 19 December 2020: Galène 0.1
 
