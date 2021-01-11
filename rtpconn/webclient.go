@@ -464,7 +464,7 @@ func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bo
 		Id:       down.id,
 		Source:   source,
 		Username: username,
-		SDP:      offer.SDP,
+		SDP:      down.pc.LocalDescription().SDP,
 		Labels:   labels,
 	})
 }
@@ -527,7 +527,7 @@ func gotOffer(c *webClient, id string, sdp string, renegotiate bool, labels map[
 	return c.write(clientMessage{
 		Type: "answer",
 		Id:   id,
-		SDP:  answer.SDP,
+		SDP:  up.pc.LocalDescription().SDP,
 	})
 }
 

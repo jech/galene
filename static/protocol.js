@@ -595,7 +595,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         this.send({
             type: 'answer',
             id: id,
-            sdp: answer.sdp,
+            sdp: c.pc.localDescription.sdp,
         });
     } catch(e) {
         try {
@@ -1021,7 +1021,7 @@ Stream.prototype.negotiate = async function (restartIce) {
         kind: this.localDescriptionSent ? 'renegotiate' : '',
         id: c.id,
         labels: c.labelsByMid,
-        sdp: offer.sdp,
+        sdp: c.pc.localDescription.sdp,
     });
     this.localDescriptionSent = true;
     c.flushLocalIceCandidates();

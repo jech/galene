@@ -2090,10 +2090,10 @@ async function relayTest() {
 
             let offer = await pc1.createOffer();
             await pc1.setLocalDescription(offer);
-            await pc2.setRemoteDescription(offer);
+            await pc2.setRemoteDescription(pc1.localDescription);
             let answer = await pc2.createAnswer();
-            pc2.setLocalDescription(answer);
-            await pc1.setRemoteDescription(answer);
+            await pc2.setLocalDescription(answer);
+            await pc1.setRemoteDescription(pc2.localDescription);
 
             pc2.ondatachannel = e => {
                 let d2 = e.channel;
