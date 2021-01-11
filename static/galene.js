@@ -2032,6 +2032,14 @@ commands.mute = {
     f: userMessage,
 };
 
+commands.muteall = {
+    description: 'mute all remote users',
+    predicate: operatorPredicate,
+    f: (c, r) => {
+        serverConnection.userMessage('mute', null, null, true);
+    }
+}
+
 commands.warn = {
     parameters: 'user message',
     description: 'send a warning to a user',
