@@ -1738,6 +1738,13 @@ function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
     return message;
 }
 
+/**
+ * @param {string} message
+ */
+function localMessage(message) {
+    return addToChatbox(null, null, null, Date.now(), false, null, message);
+}
+
 function clearChat() {
     lastMessage = {};
     document.getElementById('box').textContent = '';
@@ -1794,7 +1801,7 @@ commands.help = {
         let s = '';
         for(let i = 0; i < cs.length; i++)
             s = s + cs[i] + '\n';
-        addToChatbox(null, null, null, Date.now(), false, null, s);
+        localMessage(s);
     }
 };
 
@@ -1812,7 +1819,7 @@ commands.set = {
             let s = "";
             for(let key in settings)
                 s = s + `${key}: ${JSON.stringify(settings[key])}\n`;
-            addToChatbox(null, null, null, Date.now(), false, null, s);
+            localMessage(s);
             return;
         }
         let p = parseCommand(r);
@@ -2109,17 +2116,14 @@ async function relayTest() {
 
 commands['relay-test'] = {
     f: async (c, r) => {
-        addToChatbox(null, null, null, Date.now(), false, null,
-                     `Relay test in progress...`);
+        localMessage('Relay test in progress...');
         try {
             let s = Date.now();
             let rtt = await relayTest();
             let e = Date.now();
-            addToChatbox(null, null, null, Date.now(), false, null,
-                         `Relay test successful in ${e-s}ms, RTT ${rtt}ms`);
+            localMessage(`Relay test successful in ${e-s}ms, RTT ${rtt}ms`);
         } catch(e) {
-            addToChatbox(null, null, null, Date.now(), false, null,
-                         `Relay test failed: ${e}`);
+            localMessage(`Relay test failed: ${e}`);
         }
     }
 }
