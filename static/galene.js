@@ -2060,6 +2060,60 @@ commands.wall = {
     },
 };
 
+async function relayTest() {
+    let conf = Object.assign({}, serverConnection.rtcConfiguration);
+    conf.iceTransportPolicy = 'relay';
+    let pc1 = new RTCPeerConnection(conf);
+    let pc2 = new RTCPeerConnection(conf);
+    pc1.onicecandidate = e => {e.candidate && pc2.addIceCandidate(e.candidate);};
+    pc2.onicecandidate = e => {e.candidate && pc1.addIceCandidate(e.candidate);};
+    try {
+        await new Promise(async (resolve, reject) => {
+            let d1 = pc1.createDataChannel('loopbackTest');
+            d1.onopen = e => {
+                d1.send('loopback');
+            };
+
+            let offer = await pc1.createOffer();
+            await pc1.setLocalDescription(offer);
+            await pc2.setRemoteDescription(offer);
+            let answer = await pc2.createAnswer();
+            pc2.setLocalDescription(answer);
+            await pc1.setRemoteDescription(answer);
+
+            pc2.ondatachannel = e => {
+                let d2 = e.channel;
+                d2.onmessage = e => {
+                    if(e.data === 'loopback')
+                        resolve();
+                    else
+                        reject('unexpected data');
+                }
+            }
+
+            setTimeout(() => reject('timed out'), 5000);
+        })
+    } finally {
+        pc1.close();
+        pc2.close();
+    }
+}
+
+commands['relay-test'] = {
+    f: async (c, r) => {
+        addToChatbox(null, null, null, Date.now(), false, null,
+                     `Relay test in progress...`);
+        try {
+            await relayTest();
+            addToChatbox(null, null, null, Date.now(), false, null,
+                         `Relay test successful.`);
+        } catch(e) {
+            addToChatbox(null, null, null, Date.now(), false, null,
+                         'Relay test failed: ' + e);
+        }
+    }
+}
+
 function handleInput() {
     let input = /** @type {HTMLTextAreaElement} */
         (document.getElementById('input'));
