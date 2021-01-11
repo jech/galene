@@ -123,7 +123,15 @@ More options are described under *Details of group definitions* below.
 
     ./galene &
     
-You should be able to access Galène at `https://localhost:8443`.
+You should be able to access Galène at `https://localhost:8443`.  Connect
+to the group that you have just set up in two distinct browser windows,
+then press *Ready* in one of the two; you should see a video in the other.
+
+If you have set up a TURN server, type */relay-test* in the chat box; if
+the TURN server is properly configured, you should see a message saying
+that the relay test has been successful.  (The relay test will fail if you
+didn't configure a TURN server; this is normal, and nothing to worry
+about.)
 
 ## Deploy to your server
 
