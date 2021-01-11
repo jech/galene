@@ -206,7 +206,7 @@ func getUpConns(c *webClient) []*rtpUpConnection {
 	return up
 }
 
-func addUpConn(c *webClient, id string, labels map[string]string) (*rtpUpConnection, bool, error) {
+func addUpConn(c *webClient, id string, labels map[string]string, offer string) (*rtpUpConnection, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -222,7 +222,7 @@ func addUpConn(c *webClient, id string, labels map[string]string) (*rtpUpConnect
 		return old, false, nil
 	}
 
-	conn, err := newUpConn(c, id, labels)
+	conn, err := newUpConn(c, id, labels, offer)
 	if err != nil {
 		return nil, false, err
 	}
@@ -488,7 +488,7 @@ func gotOffer(c *webClient, id string, sdp string, renegotiate bool, labels map[
 		delUpConn(c, id)
 	}
 
-	up, isnew, err := addUpConn(c, id, labels)
+	up, isnew, err := addUpConn(c, id, labels, sdp)
 	if err != nil {
 		return err
 	}

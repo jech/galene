@@ -11,6 +11,7 @@ import (
 
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
+	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
 
 	"github.com/jech/galene/conn"
@@ -458,30 +459,29 @@ func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	}(g, cs)
 }
 
-func newUpConn(c group.Client, id string, labels map[string]string) (*rtpUpConnection, error) {
+func newUpConn(c group.Client, id string, labels map[string]string, offer string) (*rtpUpConnection, error) {
+	var o sdp.SessionDescription
+	err := o.Unmarshal([]byte(offer))
+	if err != nil {
+		return nil, err
+	}
+
 	pc, err := c.Group().API().NewPeerConnection(*ice.ICEConfiguration())
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio,
-		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		},
-	)
-	if err != nil {
-		pc.Close()
-		return nil, err
-	}
-
-	_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo,
-		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		},
-	)
-	if err != nil {
-		pc.Close()
-		return nil, err
+	for _, m := range o.MediaDescriptions {
+		_, err = pc.AddTransceiverFromKind(
+			webrtc.NewRTPCodecType(m.MediaName.Media),
+			webrtc.RtpTransceiverInit{
+				Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			},
+		)
+		if err != nil {
+			pc.Close()
+			return nil, err
+		}
 	}
 
 	up := &rtpUpConnection{id: id, pc: pc, labels: labels}
