@@ -173,6 +173,7 @@ type clientMessage struct {
 	Permissions      *group.ClientPermissions `json:"permissions,omitempty"`
 	Group            string                   `json:"group,omitempty"`
 	Value            interface{}              `json:"value,omitempty"`
+	NoEcho           bool                     `json:"noecho,omitempty"`
 	Time             int64                    `json:"time,omitempty"`
 	SDP              string                   `json:"sdp,omitempty"`
 	Candidate        *webrtc.ICECandidateInit `json:"candidate,omitempty"`
@@ -1209,10 +1210,15 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Privileged: c.permissions.Op,
 			Time:       tm,
 			Kind:       m.Kind,
+			NoEcho:     m.NoEcho,
 			Value:      m.Value,
 		}
 		if m.Dest == "" {
-			err := broadcast(g.GetClients(nil), mm)
+			var except group.Client
+			if m.NoEcho {
+				except = c
+			}
+			err := broadcast(g.GetClients(except), mm)
 			if err != nil {
 				log.Printf("broadcast(chat): %v", err)
 			}

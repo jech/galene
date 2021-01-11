@@ -233,6 +233,7 @@ A chat message may be sent using a `chat` message.
     username: username,
     dest: dest-id,
     privileged: boolean,
+    noecho: false,
     value: message
 }
 ```
@@ -242,7 +243,9 @@ the clients in the group.  If `source` is empty, then the message was
 originated by the server.  The message is forwarded by the server without
 interpretation, the server only validates that the `source` and `username`
 fields are authentic.  The field `privileged` is set to true by the server
-if the message was originated by a client with the `op` permission.
+if the message was originated by a client with the `op` permission.  The
+field `noecho` is set by the client if it doesn't wish to receive a copy
+of its own message.
 
 A user message is similar to a chat message, but is not conserved in the
 chat history, and is not expected to contain user-visible content.

@@ -176,6 +176,7 @@ function ServerConnection() {
   * @property {Object<string,boolean>} [permissions]
   * @property {string} [group]
   * @property {unknown} [value]
+  * @property {boolean} [noecho]
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
   * @property {Object<string,string>} [labels]
@@ -477,8 +478,9 @@ ServerConnection.prototype.userAction = function(kind, dest, value) {
  * @param {string} kind - The kind of application-specific message.
  * @param {string} dest - The id to send the message to, empty for broadcast.
  * @param {string} [value] - An optional parameter.
+ * @param {boolean} [noecho] - If set, don't echo back the message to the sender.
  */
-ServerConnection.prototype.userMessage = function(kind, dest, value) {
+ServerConnection.prototype.userMessage = function(kind, dest, value, noecho) {
     this.send({
         type: 'usermessage',
         source: this.id,
@@ -486,6 +488,7 @@ ServerConnection.prototype.userMessage = function(kind, dest, value) {
         username: this.username,
         kind: kind,
         value: value,
+        noecho: noecho,
     });
 };
 
