@@ -2060,7 +2060,14 @@ commands.wall = {
     },
 };
 
+/**
+ * Test loopback through a TURN relay.
+ *
+ * @returns {Promise<number>}
+ */
 async function relayTest() {
+    if(!serverConnection)
+        throw new Error('not connected');
     let conf = Object.assign({}, serverConnection.rtcConfiguration);
     conf.iceTransportPolicy = 'relay';
     let pc1 = new RTCPeerConnection(conf);
@@ -2068,10 +2075,10 @@ async function relayTest() {
     pc1.onicecandidate = e => {e.candidate && pc2.addIceCandidate(e.candidate);};
     pc2.onicecandidate = e => {e.candidate && pc1.addIceCandidate(e.candidate);};
     try {
-        await new Promise(async (resolve, reject) => {
+        return await new Promise(async (resolve, reject) => {
             let d1 = pc1.createDataChannel('loopbackTest');
             d1.onopen = e => {
-                d1.send('loopback');
+                d1.send(Date.now().toString());
             };
 
             let offer = await pc1.createOffer();
@@ -2084,14 +2091,15 @@ async function relayTest() {
             pc2.ondatachannel = e => {
                 let d2 = e.channel;
                 d2.onmessage = e => {
-                    if(e.data === 'loopback')
-                        resolve();
+                    let t = parseInt(e.data);
+                    if(isNaN(t))
+                        reject(new Error('corrupt data'));
                     else
-                        reject('unexpected data');
+                        resolve(Date.now() - t);
                 }
             }
 
-            setTimeout(() => reject('timed out'), 5000);
+            setTimeout(() => reject(new Error('timeout')), 5000);
         })
     } finally {
         pc1.close();
@@ -2104,12 +2112,14 @@ commands['relay-test'] = {
         addToChatbox(null, null, null, Date.now(), false, null,
                      `Relay test in progress...`);
         try {
-            await relayTest();
+            let s = Date.now();
+            let rtt = await relayTest();
+            let e = Date.now();
             addToChatbox(null, null, null, Date.now(), false, null,
-                         `Relay test successful.`);
+                         `Relay test successful in ${e-s}ms, RTT ${rtt}ms`);
         } catch(e) {
             addToChatbox(null, null, null, Date.now(), false, null,
-                         'Relay test failed: ' + e);
+                         `Relay test failed: ${e}`);
         }
     }
 }
