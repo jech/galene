@@ -236,12 +236,15 @@ ServerConnection.prototype.connect = async function(url) {
         };
         this.socket.onclose = function(e) {
             sc.permissions = {};
+            for(let id in sc.up) {
+                let c = sc.up[id];
+                delete(sc.up[id]);
+                c.close();
+            }
             for(let id in sc.down) {
                 let c = sc.down[id];
                 delete(sc.down[id]);
                 c.close();
-                if(c.onclose)
-                    c.onclose.call(c);
             }
             if(sc.group && sc.onjoined)
                 sc.onjoined.call(sc, 'leave', sc.group, {}, '');
@@ -528,7 +531,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         // Unless the server indicates that this is a renegotiation with
         // all parameters unchanged, tear down the existing connection.
         delete(sc.down[id]);
-        c.close();
+        c.close(true);
         c = null;
     }
 
@@ -634,7 +637,7 @@ ServerConnection.prototype.gotAnswer = async function(id, sdp) {
             if(c.onerror)
                 c.onerror.call(c, e);
         } finally {
-            c.close();
+            c.close(true);
         }
         return;
     }
@@ -668,8 +671,6 @@ ServerConnection.prototype.gotClose = function(id) {
         throw new Error('unknown down stream');
     delete(this.down[id]);
     c.close();
-    if(c.onclose)
-        c.onclose.call(c);
 };
 
 /**
@@ -882,8 +883,10 @@ function Stream(sc, id, pc, up) {
  * For streams in the up direction, this may be called at any time.  For
  * streams in the down direction, this will be called automatically when
  * the server signals that it is closing a stream.
+ *
+ * @param {boolean} [nocallback]
  */
-Stream.prototype.close = function() {
+Stream.prototype.close = function(nocallback) {
     let c = this;
     if(c.statsHandler) {
         clearInterval(c.statsHandler);
@@ -909,6 +912,9 @@ Stream.prototype.close = function() {
         } catch(e) {
         }
     }
+
+    if(!nocallback && c.onclose)
+        c.onclose.call(c);
     c.sc = null;
 };
 
