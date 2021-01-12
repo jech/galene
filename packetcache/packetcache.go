@@ -6,6 +6,27 @@ package packetcache
 import (
 	"math/bits"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	cacheGet = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "galene_cache_get",
+		Help: "Galene cache successful get call",
+	})
+	cacheGetSize = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "galene_cache_get_size",
+		Help: "Galene cache successful get size",
+	})
+	cacheStore = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "galene_cache_store",
+		Help: "Galene cache store call",
+	})
+	cacheStoreSize = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "galene_cache_store_size",
+		Help: "Galene cache store size",
+	})
 )
 
 // The maximum size of packets stored in the cache.  Chosen to be
@@ -291,6 +312,8 @@ func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, marker 
 	cache.entries[i].timestamp = timestamp
 	cache.tail = (i + 1) % uint16(len(cache.entries))
 
+	cacheStore.Inc()
+	cacheStoreSize.Add(float64(len(buf)))
 	return cache.bitmap.first, i
 }
 
@@ -383,11 +406,15 @@ func (cache *Cache) Get(seqno uint16, result []byte) uint16 {
 
 	n, _, _ := get(seqno, cache.keyframe.entries, result)
 	if n > 0 {
+		cacheGet.Inc()
+		cacheGetSize.Add(float64(n))
 		return n
 	}
 
 	n, _, _ = get(seqno, cache.entries, result)
 	if n > 0 {
+		cacheGet.Inc()
+		cacheGetSize.Add(float64(n))
 		return n
 	}
 
