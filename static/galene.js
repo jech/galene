@@ -83,6 +83,7 @@ function getUserPass() {
  * @property {boolean} [activityDetection]
  * @property {Array.<number>} [resolution]
  * @property {boolean} [blackboardMode]
+ * @property {string} [filter]
  */
 
 /** @type{settings} */
@@ -777,6 +778,70 @@ async function setMaxVideoThroughput(c, bps) {
     }
 }
 
+/**
+ * @constructor
+ */
+function Filter(stream, f) {
+    /** @type {MediaStream} */
+    this.input = stream;
+    /** @type {(this: Filter, src: HTMLElement, dest: HTMLCanvasElement) => void} */
+    this.f = f;
+    /** @type {HTMLVideoElement} */
+    this.video = document.createElement('video');
+    /** @type {HTMLCanvasElement} */
+    this.canvas = document.createElement('canvas');
+    /** @type {MediaStream} */
+    this.captureStream = null;
+    /** @type {MediaStream} */
+    this.outputStream = null;
+    /** @type {number} */
+    this.timer = null;
+
+    /** @ts-ignore */
+    this.captureStream = this.canvas.captureStream(0);
+
+    this.outputStream = new MediaStream();
+    this.outputStream.addTrack(this.captureStream.getTracks()[0]);
+    this.input.getTracks().forEach(t => {
+        t.onended = e => this.stop();
+        if(t.kind != 'video')
+            this.outputStream.addTrack(t);
+    });
+    this.video.srcObject = stream;
+    this.video.muted = true;
+    this.video.play();
+    this.timer = setInterval(() => this.draw(), 1000 / 30);
+}
+
+Filter.prototype.draw = function() {
+    this.canvas.width = this.video.videoWidth;
+    this.canvas.height = this.video.videoHeight;
+    this.f(this.video, this.canvas);
+    /** @ts-ignore */
+    this.captureStream.getTracks()[0].requestFrame();
+};
+
+Filter.prototype.stop = function() {
+    if(!this.timer)
+        return;
+    this.captureStream.getTracks()[0].stop();
+    clearTimeout(this.timer);
+    this.timer = null;
+};
+
+let filters = {
+    'mirror-h': (video, canvas) => {
+        let ctx = canvas.getContext('2d');
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -video.videoWidth, 0);
+    },
+    'mirror-v': (video, canvas) => {
+        let ctx = canvas.getContext('2d');
+        ctx.scale(1, -1);
+        ctx.drawImage(video, 0, -video.videoHeight);
+    },
+};
+
 function isSafari() {
     let ua = navigator.userAgent.toLowerCase();
     return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
@@ -790,6 +855,14 @@ async function addLocalMedia(id) {
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
     let video = settings.video ? {deviceId: settings.video} : false;
+
+    let filter = null;
+    if(settings.filter) {
+        filter = filters[settings.filter];
+        if(!filter) {
+            displayWarning(`Unknown filter ${filter}`);
+        }
+    }
 
     if(video) {
         let resolution = settings.resolution;
@@ -830,9 +903,18 @@ async function addLocalMedia(id) {
     let c = newUpStream(id);
 
     c.kind = 'local';
-    c.stream = stream;
+    if(filter) {
+        let f = new Filter(stream, filter);
+        c.stream = f.outputStream;
+        c.onclose = function() {
+            f.stop();
+        }
+    } else {
+        c.stream = stream;
+    }
+
     let mute = getSettings().localMute;
-    stream.getTracks().forEach(t => {
+    c.stream.getTracks().forEach(t => {
         c.labels[t.id] = t.kind;
         if(t.kind == 'audio') {
             if(mute)
@@ -972,6 +1054,7 @@ function stopUpMedia(c) {
         try {
             t.stop();
         } catch(e) {
+            console.warn(e);
         }
     });
 }
