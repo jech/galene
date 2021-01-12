@@ -11,12 +11,21 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/estimator"
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
+)
+
+var (
+	websocketGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "galene_websockets",
+		Help: "The number of opened websockets",
+	})
 )
 
 func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
@@ -762,6 +771,8 @@ type kickAction struct {
 }
 
 func clientLoop(c *webClient, ws *websocket.Conn) error {
+	websocketGauge.Inc()
+	defer websocketGauge.Dec()
 	read := make(chan interface{}, 1)
 	go clientReader(ws, read, c.done)
 

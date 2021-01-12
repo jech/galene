@@ -23,6 +23,10 @@ var (
 		Name: "galene_clients",
 		Help: "The number of connected clients",
 	})
+	groupsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "galene_groups",
+		Help: "Number of groups",
+	})
 )
 var Directory string
 var UseMDNS bool
@@ -330,6 +334,7 @@ func Add(name string, desc *description) (*Group, error) {
 	g.api = APIFromNames(desc.Codecs)
 	autolock(g, g.getClientsUnlocked(nil))
 
+	groupsGauge.Inc()
 	return g, nil
 }
 
@@ -406,6 +411,7 @@ func deleteUnlocked(g *Group) bool {
 	}
 
 	delete(groups.groups, g.name)
+	groupsGauge.Dec()
 	return true
 }
 

@@ -8,10 +8,18 @@ import (
 	"time"
 
 	"github.com/pion/rtp"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
+)
+
+var (
+	rtpWriteCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "galene_rtp_write",
+		Help: "gale,e rtp write packets",
+	})
 )
 
 // packetIndex is a request to send a packet from the cache.
@@ -339,6 +347,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 						continue
 					}
 				}
+				rtpWriteCounter.Add(float64(bytes))
 				l.Accumulate(uint32(bytes))
 			}
 

@@ -8,9 +8,17 @@ import (
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
+)
+
+var (
+	rtpReadCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "galene_rtp_read",
+		Help: "gale,e rtp read packets",
+	})
 )
 
 // isKeyframe determines if packet is the start of a keyframe.
@@ -86,7 +94,7 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 				if offset >= int(length) {
 					return false, false
 				}
-				n := packet.Payload[i + offset] & 0x1F
+				n := packet.Payload[i+offset] & 0x1F
 				if n == 5 {
 					return true, true
 				} else if n >= 24 {
@@ -137,6 +145,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 			}
 			break
 		}
+		rtpReadCounter.Add(float64(bytes))
 		track.rate.Accumulate(uint32(bytes))
 
 		err = packet.Unmarshal(buf[:bytes])
