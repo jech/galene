@@ -779,12 +779,14 @@ async function setMaxVideoThroughput(c, bps) {
 }
 
 /**
+ * @param {MediaStream} stream
+ * @param {(this: Filter, src: CanvasImageSource, dest: HTMLCanvasElement) => boolean} f
  * @constructor
  */
 function Filter(stream, f) {
     /** @type {MediaStream} */
     this.inputStream = stream;
-    /** @type {(this: Filter, src: HTMLElement, dest: HTMLCanvasElement) => void} */
+    /** @type {(this: Filter, src: CanvasImageSource, dest: HTMLCanvasElement) => boolean} */
     this.f = f;
     /** @type {number} */
     this.frameRate = 30;
@@ -801,7 +803,6 @@ function Filter(stream, f) {
     /** @type {number} */
     this.count = 0;
 
-    //this.input.getTracks().forEach(t => console.log(t.getSettings()));
     /** @ts-ignore */
     this.captureStream = this.canvas.captureStream(0);
 
@@ -838,9 +839,11 @@ Filter.prototype.draw = function() {
 
     this.canvas.width = this.video.videoWidth;
     this.canvas.height = this.video.videoHeight;
-    this.f(this.video, this.canvas);
-    /** @ts-ignore */
-    this.captureStream.getTracks()[0].requestFrame();
+    let ok = this.f.call(this, this.video, this.canvas);
+    if(ok) {
+        /** @ts-ignore */
+        this.captureStream.getTracks()[0].requestFrame();
+    }
 };
 
 Filter.prototype.stop = function() {
@@ -851,16 +854,21 @@ Filter.prototype.stop = function() {
     this.timer = null;
 };
 
+/**
+ * @type {Object.<string, ((this: Filter, src: CanvasImageSource, dest: HTMLCanvasElement) => boolean)>}
+ */
 let filters = {
-    'mirror-h': (video, canvas) => {
+    'mirror-h': function(video, canvas) {
         let ctx = canvas.getContext('2d');
         ctx.scale(-1, 1);
-        ctx.drawImage(video, -video.videoWidth, 0);
+        ctx.drawImage(video, -canvas.width, 0);
+        return true;
     },
-    'mirror-v': (video, canvas) => {
+    'mirror-v': function(video, canvas) {
         let ctx = canvas.getContext('2d');
         ctx.scale(1, -1);
-        ctx.drawImage(video, 0, -video.videoHeight);
+        ctx.drawImage(video, 0, -canvas.height);
+        return true;
     },
 };
 
