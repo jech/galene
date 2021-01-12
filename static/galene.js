@@ -783,9 +783,11 @@ async function setMaxVideoThroughput(c, bps) {
  */
 function Filter(stream, f) {
     /** @type {MediaStream} */
-    this.input = stream;
+    this.inputStream = stream;
     /** @type {(this: Filter, src: HTMLElement, dest: HTMLCanvasElement) => void} */
     this.f = f;
+    /** @type {number} */
+    this.frameRate = 30;
     /** @type {HTMLVideoElement} */
     this.video = document.createElement('video');
     /** @type {HTMLCanvasElement} */
@@ -796,13 +798,16 @@ function Filter(stream, f) {
     this.outputStream = null;
     /** @type {number} */
     this.timer = null;
+    /** @type {number} */
+    this.count = 0;
 
+    //this.input.getTracks().forEach(t => console.log(t.getSettings()));
     /** @ts-ignore */
     this.captureStream = this.canvas.captureStream(0);
 
     this.outputStream = new MediaStream();
     this.outputStream.addTrack(this.captureStream.getTracks()[0]);
-    this.input.getTracks().forEach(t => {
+    this.inputStream.getTracks().forEach(t => {
         t.onended = e => this.stop();
         if(t.kind != 'video')
             this.outputStream.addTrack(t);
@@ -810,10 +815,27 @@ function Filter(stream, f) {
     this.video.srcObject = stream;
     this.video.muted = true;
     this.video.play();
-    this.timer = setInterval(() => this.draw(), 1000 / 30);
+    this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
 }
 
 Filter.prototype.draw = function() {
+    // check framerate evecry 30 frames
+    if((this.count % 30) === 0) {
+        let frameRate = 0;
+        this.inputStream.getTracks().forEach(t => {
+            if(t.kind === 'video') {
+                let r = t.getSettings().frameRate;
+                if(r)
+                    frameRate = r;
+            }
+        });
+        if(frameRate && frameRate != this.frameRate) {
+            clearTimeout(this.timer);
+            this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
+        }
+    }
+    this.count++;
+
     this.canvas.width = this.video.videoWidth;
     this.canvas.height = this.video.videoHeight;
     this.f(this.video, this.canvas);
