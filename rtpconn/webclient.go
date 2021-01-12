@@ -423,6 +423,18 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrac
 }
 
 func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bool) error {
+	if down.pc.SignalingState() == webrtc.SignalingStateHaveLocalOffer {
+		// avoid sending multiple offers back-to-back
+		if restartIce {
+			down.negotiationNeeded = negotiationRestartIce
+		} else if down.negotiationNeeded == negotiationUnneeded {
+			down.negotiationNeeded = negotiationNeeded
+		}
+		return nil
+	}
+
+	down.negotiationNeeded = negotiationUnneeded
+
 	options := webrtc.OfferOptions{ICERestart: restartIce}
 	offer, err := down.pc.CreateOffer(&options)
 	if err != nil {
@@ -808,6 +820,9 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				if down != nil {
 					err = negotiate(c, down, false, false)
 					if err != nil {
+						log.Printf(
+							"Negotiation failed: %v",
+							err)
 						delDownConn(c, down.id)
 						c.error(group.UserError(
 							"Negotiation failed",
@@ -1154,13 +1169,26 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			return failDownConnection(c, m.Id, message)
 		}
+		down := getDownConn(c, m.Id)
+		if down.negotiationNeeded > negotiationUnneeded {
+			err := negotiate(
+				c, down, true,
+				down.negotiationNeeded == negotiationRestartIce,
+			)
+			if err != nil {
+				return failDownConnection(
+					c, m.Id, "negotiation failed",
+				)
+			}
+		}
 	case "renegotiate":
 		down := getDownConn(c, m.Id)
 		if down != nil {
 			err := negotiate(c, down, true, true)
 			if err != nil {
-				return failDownConnection(c, m.Id,
-					"renegotiation failed")
+				return failDownConnection(
+					c, m.Id, "renegotiation failed",
+				)
 			}
 		} else {
 			log.Printf("Trying to renegotiate unknown connection")

@@ -129,13 +129,20 @@ func (down *rtpDownTrack) SetCname(cname string) {
 	down.cname.Store(cname)
 }
 
+const (
+	negotiationUnneeded = iota
+	negotiationNeeded
+	negotiationRestartIce
+)
+
 type rtpDownConnection struct {
-	id             string
-	pc             *webrtc.PeerConnection
-	remote         conn.Up
-	tracks         []*rtpDownTrack
-	maxREMBBitrate *bitrate
-	iceCandidates  []*webrtc.ICECandidateInit
+	id                string
+	pc                *webrtc.PeerConnection
+	remote            conn.Up
+	tracks            []*rtpDownTrack
+	maxREMBBitrate    *bitrate
+	iceCandidates     []*webrtc.ICECandidateInit
+	negotiationNeeded int
 }
 
 func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
