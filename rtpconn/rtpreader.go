@@ -17,7 +17,7 @@ import (
 var (
 	rtpReadCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "galene_rtp_read",
-		Help: "gale,e rtp read packets",
+		Help: "galene rtp read packets",
 	})
 )
 

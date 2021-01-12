@@ -18,7 +18,11 @@ import (
 var (
 	rtpWriteCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "galene_rtp_write",
-		Help: "gale,e rtp write packets",
+		Help: "galene rtp write packets",
+	})
+	rtpDeadWriteCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "galene_rtp_dead_write",
+		Help: "galene rtp  dead writer",
 	})
 )
 
@@ -138,6 +142,7 @@ func (wp *rtpWriterPool) write(seqno uint16, index uint16, delay uint32, isvideo
 		case <-w.done:
 			// the writer is dead.
 			dead = append(dead, w)
+			rtpDeadWriteCounter.Inc()
 		default:
 			// the writer is congested
 			if isvideo {
