@@ -911,6 +911,15 @@ async function addFileMedia(file) {
     let c = newUpStream();
     c.kind = 'video';
     c.stream = stream;
+    c.onclose = function() {
+        let media = /** @type{HTMLVideoElement} */
+            (document.getElementById('media-' + this.id));
+        if(media && media.src) {
+            URL.revokeObjectURL(media.src);
+            media.src = null;
+        }
+    }
+
     stream.onaddtrack = function(e) {
         let t = e.track;
         if(t.kind === 'audio') {
@@ -972,12 +981,8 @@ function stopUpMedia(c) {
  */
 function delUpMedia(c) {
     stopUpMedia(c);
-    try {
-        delMedia(c.id);
-    } catch(e) {
-        console.warn(e);
-    }
     c.close();
+    delMedia(c.id);
     delete(serverConnection.up[c.id]);
     setButtonsVisibility();
 }
@@ -1260,11 +1265,6 @@ function delMedia(id) {
 
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + id));
-
-    if(media.src) {
-        URL.revokeObjectURL(media.src);
-        media.src = null;
-    }
 
     media.srcObject = null;
     mediadiv.removeChild(peer);
