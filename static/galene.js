@@ -878,16 +878,22 @@ Filter.prototype.draw = function() {
             this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
         }
     }
-    this.count++;
 
-    let ok = this.definition.f.call(this, this.video,
+    let ok = false;
+    try {
+        ok = this.definition.f.call(this, this.video,
                                     this.video.videoWidth,
                                     this.video.videoHeight,
                                     this.context);
+    } catch(e) {
+        console.error(e);
+    }
     if(ok && !this.fixedFramerate) {
         /** @ts-ignore */
         this.captureStream.getTracks()[0].requestFrame();
     }
+
+    this.count++;
 };
 
 Filter.prototype.stop = function() {
@@ -905,6 +911,8 @@ Filter.prototype.stop = function() {
 function setFilter(c, f) {
     if(!f) {
         let filter = c.userdata.filter;
+        if(!filter)
+            return null;
         if(!(filter instanceof Filter))
             throw new Error('userdata.filter is not a filter');
         if(c.userdata.filter) {
@@ -940,8 +948,10 @@ let filters = {
         f: function(src, width, height, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
-            ctx.canvas.width = width;
-            ctx.canvas.height = height;
+            if(ctx.canvas.width !== width || ctx.canvas.height !== height) {
+                ctx.canvas.width = width;
+                ctx.canvas.height = height;
+            }
             ctx.scale(-1, 1);
             ctx.drawImage(src, -width, 0);
             ctx.resetTransform();
@@ -953,8 +963,10 @@ let filters = {
         f: function(src, width, height, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
-            ctx.canvas.width = width;
-            ctx.canvas.height = height;
+            if(ctx.canvas.width !== width || ctx.canvas.height !== height) {
+                ctx.canvas.width = width;
+                ctx.canvas.height = height;
+            }
             ctx.scale(1, -1);
             ctx.drawImage(src, 0, -height);
             ctx.resetTransform();
@@ -1178,6 +1190,7 @@ async function addFileMedia(file) {
  * @param {Stream} c
  */
 function stopUpMedia(c) {
+    setFilter(c, null);
     if(!c.stream)
         return;
     c.stream.getTracks().forEach(t => {
