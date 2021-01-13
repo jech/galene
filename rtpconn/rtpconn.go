@@ -13,6 +13,8 @@ import (
 	"github.com/pion/rtp"
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/estimator"
@@ -21,6 +23,13 @@ import (
 	"github.com/jech/galene/jitter"
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
+)
+
+var (
+	rtpTrackCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "galene_rtp_track",
+		Help: "galene rtp track",
+	}, []string{"label", "codec"})
 )
 
 type bitrate struct {
@@ -525,6 +534,9 @@ func newUpConn(c group.Client, id string, labels map[string]string, offer string
 		}
 
 		up.tracks = append(up.tracks, track)
+		rtpTrackCounter.With(prometheus.Labels{
+			"label": label,
+			"codec": remote.Codec().MimeType}).Inc()
 
 		go readLoop(up, track)
 
