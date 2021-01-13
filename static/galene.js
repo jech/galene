@@ -944,6 +944,7 @@ let filters = {
             ctx.canvas.height = height;
             ctx.scale(-1, 1);
             ctx.drawImage(src, -width, 0);
+            ctx.resetTransform();
             return true;
         },
     },
@@ -956,6 +957,7 @@ let filters = {
             ctx.canvas.height = height;
             ctx.scale(1, -1);
             ctx.drawImage(src, 0, -height);
+            ctx.resetTransform();
             return true;
         },
     },
