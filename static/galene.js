@@ -779,21 +779,35 @@ async function setMaxVideoThroughput(c, bps) {
 }
 
 /**
+ * @typedef {Object} filterDefinition
+ * @property {string} [description]
+ * @property {string} [contextType]
+ * @property {(this: Filter, src: CanvasImageSource, width: number, height: number, ctx: RenderingContext) => boolean} f
+ */
+
+/**
  * @param {MediaStream} stream
- * @param {(this: Filter, src: CanvasImageSource, dest: HTMLCanvasElement) => boolean} f
+ * @param {filterDefinition} definition
  * @constructor
  */
-function Filter(stream, f) {
+function Filter(stream, definition) {
+    /** @ts-ignore */
+    if(!HTMLCanvasElement.prototype.captureStream) {
+        throw new Error('Filters are not supported on this platform');
+    }
+
     /** @type {MediaStream} */
     this.inputStream = stream;
-    /** @type {(this: Filter, src: CanvasImageSource, dest: HTMLCanvasElement) => boolean} */
-    this.f = f;
+    /** @type {filterDefinition} */
+    this.definition = definition;
     /** @type {number} */
     this.frameRate = 30;
     /** @type {HTMLVideoElement} */
     this.video = document.createElement('video');
     /** @type {HTMLCanvasElement} */
     this.canvas = document.createElement('canvas');
+    /** @type {any} */
+    this.context = this.canvas.getContext(definition.contextType || '2d');
     /** @type {MediaStream} */
     this.captureStream = null;
     /** @type {MediaStream} */
@@ -802,9 +816,18 @@ function Filter(stream, f) {
     this.timer = null;
     /** @type {number} */
     this.count = 0;
+    /** @type {boolean} */
+    this.fixedFramerate = false;
 
     /** @ts-ignore */
     this.captureStream = this.canvas.captureStream(0);
+    /** @ts-ignore */
+    if(!this.captureStream.getTracks()[0].requestFrame) {
+        console.warn('captureFrame not supported, using fixed framerate');
+        /** @ts-ignore */
+        this.captureStream = this.canvas.captureStream(this.frameRate);
+        this.fixedFramerate = true;
+    }
 
     this.outputStream = new MediaStream();
     this.outputStream.addTrack(this.captureStream.getTracks()[0]);
@@ -837,10 +860,11 @@ Filter.prototype.draw = function() {
     }
     this.count++;
 
-    this.canvas.width = this.video.videoWidth;
-    this.canvas.height = this.video.videoHeight;
-    let ok = this.f.call(this, this.video, this.canvas);
-    if(ok) {
+    let ok = this.definition.f.call(this, this.video,
+                                    this.video.videoWidth,
+                                    this.video.videoHeight,
+                                    this.context);
+    if(ok && !this.fixedFramerate) {
         /** @ts-ignore */
         this.captureStream.getTracks()[0].requestFrame();
     }
@@ -855,20 +879,65 @@ Filter.prototype.stop = function() {
 };
 
 /**
- * @type {Object.<string, ((this: Filter, src: CanvasImageSource, dest: HTMLCanvasElement) => boolean)>}
+ * @param {Stream} c
+ * @param {Filter} f
+ */
+function setFilter(c, f) {
+    if(!f) {
+        let filter = c.userdata.filter;
+        if(!(filter instanceof Filter))
+            throw new Error('userdata.filter is not a filter');
+        if(c.userdata.filter) {
+            c.stream = c.userdata.filter.inputStream;
+            c.userdata.filter.stop();
+            c.userdata.filter = null;
+        }
+        if(!c.onclose) {
+            console.warn("onclose not set, this shouldn't happen");
+            c.onclose = null;
+        }
+        return
+    }
+
+    if(c.userdata.filter)
+        setFilter(c, null);
+
+    if(c.onclose)
+        throw new Error('onclose already taken');
+    if(f.inputStream != c.stream)
+        throw new Error('Setting filter for wrong stream');
+    c.stream = f.outputStream;
+    c.userdata.filter = f;
+    c.onclose = () => setFilter(c, null);
+}
+
+/**
+ * @type {Object.<string,filterDefinition>}
  */
 let filters = {
-    'mirror-h': function(video, canvas) {
-        let ctx = canvas.getContext('2d');
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, -canvas.width, 0);
-        return true;
+    'mirror-h': {
+        description: "Horizontal mirror",
+        f: function(src, width, height, ctx) {
+            if(!(ctx instanceof CanvasRenderingContext2D))
+                throw new Error('bad context type');
+            ctx.canvas.width = width;
+            ctx.canvas.height = height;
+            ctx.scale(-1, 1);
+            ctx.drawImage(src, -width, 0);
+            return true;
+        },
     },
-    'mirror-v': function(video, canvas) {
-        let ctx = canvas.getContext('2d');
-        ctx.scale(1, -1);
-        ctx.drawImage(video, 0, -canvas.height);
-        return true;
+    'mirror-v': {
+        description: "Vertical mirror",
+        f: function(src, width, height, ctx) {
+            if(!(ctx instanceof CanvasRenderingContext2D))
+                throw new Error('bad context type');
+            ctx.canvas.width = width;
+            ctx.canvas.height = height;
+            ctx.scale(1, -1);
+            ctx.drawImage(src, 0, -height);
+            return true;
+        },
     },
 };
 
@@ -933,14 +1002,15 @@ async function addLocalMedia(id) {
     let c = newUpStream(id);
 
     c.kind = 'local';
+    c.stream = stream;
+
     if(filter) {
-        let f = new Filter(stream, filter);
-        c.stream = f.outputStream;
-        c.onclose = function() {
-            f.stop();
+        try {
+            let f = new Filter(stream, filter);
+            setFilter(c, f);
+        } catch(e) {
+            displayWarning(e);
         }
-    } else {
-        c.stream = stream;
     }
 
     let mute = getSettings().localMute;
