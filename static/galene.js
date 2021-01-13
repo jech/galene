@@ -799,6 +799,7 @@ async function setMaxVideoThroughput(c, bps) {
  * @typedef {Object} filterDefinition
  * @property {string} [description]
  * @property {string} [contextType]
+ * @property {Object} [contextAttributes]
  * @property {(this: Filter, src: CanvasImageSource, width: number, height: number, ctx: RenderingContext) => boolean} f
  */
 
@@ -824,7 +825,9 @@ function Filter(stream, definition) {
     /** @type {HTMLCanvasElement} */
     this.canvas = document.createElement('canvas');
     /** @type {any} */
-    this.context = this.canvas.getContext(definition.contextType || '2d');
+    this.context = this.canvas.getContext(
+        definition.contextType || '2d',
+        definition.contextAttributes || null);
     /** @type {MediaStream} */
     this.captureStream = null;
     /** @type {MediaStream} */
