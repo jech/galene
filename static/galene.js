@@ -880,7 +880,7 @@ Filter.prototype.draw = function() {
             }
         });
         if(frameRate && frameRate != this.frameRate) {
-            clearTimeout(this.timer);
+            clearInterval(this.timer);
             this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
         }
     }
@@ -906,7 +906,7 @@ Filter.prototype.stop = function() {
     if(!this.timer)
         return;
     this.captureStream.getTracks()[0].stop();
-    clearTimeout(this.timer);
+    clearInterval(this.timer);
     this.timer = null;
     if(this.definition.cleanup)
         this.definition.cleanup.call(this);
