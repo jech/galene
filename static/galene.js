@@ -1299,7 +1299,7 @@ async function setMedia(c, isUp, mirror, video) {
             media.classList.add('mirror');
     }
 
-    if(!video)
+    if(!video && media.srcObject !== c.stream)
         media.srcObject = c.stream;
 
     let label = document.getElementById('label-' + c.id);
