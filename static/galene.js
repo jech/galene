@@ -800,6 +800,8 @@ async function setMaxVideoThroughput(c, bps) {
  * @property {string} [description]
  * @property {string} [contextType]
  * @property {Object} [contextAttributes]
+ * @property {(this: Filter, ctx: RenderingContext) => void} [init]
+ * @property {(this: Filter) => void} [cleanup]
  * @property {(this: Filter, src: CanvasImageSource, width: number, height: number, ctx: RenderingContext) => boolean} f
  */
 
@@ -838,6 +840,8 @@ function Filter(stream, definition) {
     this.count = 0;
     /** @type {boolean} */
     this.fixedFramerate = false;
+    /** @type {Object} */
+    this.userdata = {}
 
     /** @ts-ignore */
     this.captureStream = this.canvas.captureStream(0);
@@ -859,6 +863,8 @@ function Filter(stream, definition) {
     this.video.srcObject = stream;
     this.video.muted = true;
     this.video.play();
+    if(this.definition.init)
+        this.definition.init.call(this, this.context);
     this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
 }
 
@@ -902,6 +908,8 @@ Filter.prototype.stop = function() {
     this.captureStream.getTracks()[0].stop();
     clearTimeout(this.timer);
     this.timer = null;
+    if(this.definition.cleanup)
+        this.definition.cleanup.call(this);
 };
 
 /**
