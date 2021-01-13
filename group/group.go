@@ -821,32 +821,41 @@ func GetPublic() []Public {
 }
 
 func ReadPublicGroups() {
-	dir, err := os.Open(Directory)
-	if err != nil {
-		return
-	}
-	defer dir.Close()
-
-	fis, err := dir.Readdir(-1)
-	if err != nil {
-		log.Printf("readPublicGroups: %v", err)
-		return
-	}
-
-	for _, fi := range fis {
-		if !strings.HasSuffix(fi.Name(), ".json") {
-			continue
-		}
-		name := fi.Name()[:len(fi.Name())-5]
-		desc, err := GetDescription(name)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				log.Printf("Reading group %v: %v", name, err)
+	err := filepath.Walk(
+		Directory,
+		func(path string, fi os.FileInfo, err error) error {
+			if err != nil {
+				log.Printf("Group file %v: %v", path, err)
 			}
-			continue
-		}
-		if desc.Public {
-			Add(name, desc)
-		}
+			if fi.IsDir() {
+				return nil
+			}
+			filename, err := filepath.Rel(Directory, path)
+			if err != nil {
+				log.Printf("Group file %v: %v", path, err)
+				return nil
+			}
+			if !strings.HasSuffix(filename, ".json") {
+				log.Printf(
+					"Unexpected extension for group file %v",
+					path,
+				)
+				return nil
+			}
+			name := filename[:len(filename)-5]
+			desc, err := GetDescription(name)
+			if err != nil {
+				log.Printf("Group file %v: %v", path, err)
+				return nil
+			}
+			if desc.Public {
+				Add(name, desc)
+			}
+			return nil
+		},
+	)
+
+	if err != nil {
+		log.Printf("Couldn't read groups: %v", err);
 	}
 }
