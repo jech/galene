@@ -6,24 +6,15 @@ import (
 	"net/http"
 	"strings"
 
-	"net/http/pprof"
-
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/stats"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func New(auth *group.Password, withPprof bool) http.HandlerFunc {
+func New(auth *group.Password) http.HandlerFunc {
 	s := http.NewServeMux()
 	s.HandleFunc("/api/groups", GroupsHandler)
 	s.HandleFunc("/api/group/", OneGroupHandler) // /api/group/_all /api/group/{group}
-	if withPprof {
-		s.HandleFunc("/pprof/cmdline", pprof.Cmdline)
-		s.HandleFunc("/pprof/profile", pprof.Profile)
-		s.HandleFunc("/pprof/symbol", pprof.Symbol)
-		s.HandleFunc("/pprof/trace", pprof.Trace)
-		//s.HandleFunc("/pprof/", pprof.Index)
-	}
 
 	s.Handle("/metrics", promhttp.Handler())
 

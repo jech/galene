@@ -23,7 +23,6 @@ import (
 
 func main() {
 	var cpuprofile, memprofile, mutexprofile, httpAddr, adminAddr, dataDir string
-	var withPprof bool
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
@@ -48,7 +47,6 @@ func main() {
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
 	flag.StringVar(&adminAddr, "admin", "", "admin server `address`")
-	flag.BoolVar(&withPprof, "with-pprof", false, "Expose pprof endpoints.")
 	flag.Parse()
 
 	if cpuprofile != "" {
@@ -115,7 +113,7 @@ func main() {
 		}
 		f.Close()
 		go func() {
-			http.ListenAndServe(adminAddr, admin.New(adminAuth, withPprof))
+			http.ListenAndServe(adminAddr, admin.New(adminAuth))
 		}()
 	}
 
