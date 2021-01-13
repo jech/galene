@@ -1223,9 +1223,7 @@ function delUpMediaKind(kind) {
         let c = serverConnection.up[id];
         if(kind && c.kind != kind)
             continue
-        c.close();
-        delMedia(id);
-        delete(serverConnection.up[id]);
+        delUpMedia(c);
     }
 
     setButtonsVisibility();
