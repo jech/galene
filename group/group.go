@@ -28,12 +28,6 @@ var (
 		Help: "Number of groups",
 	})
 )
-
-func init() {
-	prometheus.MustRegister(clientsGauge)
-	prometheus.MustRegister(groupsGauge)
-}
-
 var Directory string
 var UseMDNS bool
 

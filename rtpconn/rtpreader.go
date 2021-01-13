@@ -21,10 +21,6 @@ var (
 	})
 )
 
-func init() {
-	prometheus.MustRegister(rtpReadCounter)
-}
-
 // isKeyframe determines if packet is the start of a keyframe.
 // It returns (true, true) if that is the case, (false, true) if that is
 // definitely not the case, and (false, false) if the information cannot
