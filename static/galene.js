@@ -203,6 +203,16 @@ function reflectSettings() {
     }
     audioselect.value = settings.audio;
 
+    if(settings.hasOwnProperty('filter')) {
+        getSelectElement('filterselect').value = settings.filter;
+    } else {
+        let s = getSelectElement('filterselect').value;
+        if(s) {
+            settings.filter = s;
+            store = true;
+        }
+    }
+
     if(settings.hasOwnProperty('request')) {
         getSelectElement('requestselect').value = settings.request;
     } else {
@@ -480,6 +490,13 @@ document.getElementById('stopvideobutton').onclick = function(e) {
     e.preventDefault();
     delUpMediaKind('video');
     resizePeers();
+};
+
+getSelectElement('filterselect').onchange = async function(e) {
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
+    updateSettings({filter: this.value});
+    changePresentation();
 };
 
 /** @returns {number} */
@@ -941,6 +958,14 @@ let filters = {
     },
 };
 
+function addFilters() {
+    for(let name in filters) {
+        let f = filters[name];
+        let d = f.description || name;
+        addSelectOption(getSelectElement('filterselect'), d, name);
+    }
+}
+
 function isSafari() {
     let ua = navigator.userAgent.toLowerCase();
     return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
@@ -959,7 +984,7 @@ async function addLocalMedia(id) {
     if(settings.filter) {
         filter = filters[settings.filter];
         if(!filter) {
-            displayWarning(`Unknown filter ${filter}`);
+            displayWarning(`Unknown filter ${settings.filter}`);
         }
     }
 
@@ -2603,6 +2628,7 @@ function start() {
         document.getElementById('title').textContent = title;
     }
 
+    addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 
     fillLogin();

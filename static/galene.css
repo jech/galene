@@ -751,6 +751,12 @@ h1 {
     margin-right: 0.4em;
 }
 
+#filterselect {
+    width: 8em;
+    text-align-last: center;
+    margin-right: 0.4em;
+}
+
 #sendselect {
     width: 8em;
     text-align-last: center;
