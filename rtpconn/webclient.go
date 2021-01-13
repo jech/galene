@@ -28,6 +28,10 @@ var (
 	})
 )
 
+func init() {
+	prometheus.MustRegister(websocketGauge)
+}
+
 func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
 	var code int
 	var m *clientMessage

@@ -29,6 +29,13 @@ var (
 	})
 )
 
+func init() {
+	prometheus.MustRegister(cacheGet)
+	prometheus.MustRegister(cacheGetSize)
+	prometheus.MustRegister(cacheStore)
+	prometheus.MustRegister(cacheStoreSize)
+}
+
 // The maximum size of packets stored in the cache.  Chosen to be
 // a multiple of 8.
 const BufSize = 1504

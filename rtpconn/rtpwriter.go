@@ -26,6 +26,11 @@ var (
 	})
 )
 
+func init() {
+	prometheus.MustRegister(rtpWriteCounter)
+	prometheus.MustRegister(rtpDeadWriteCounter)
+}
+
 // packetIndex is a request to send a packet from the cache.
 type packetIndex struct {
 	// the packet's seqno
