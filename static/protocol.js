@@ -1250,7 +1250,7 @@ Stream.prototype.setStatsInterval = function(name, ms) {
     } else if (this.timers.has(name)) {
         let timer = this.timers.get(name);
         timer.deadline += ms - timer.interval;
-        if (timer.deadline < 0)
+        if (timer.deadline < now)
             timer.deadline = now;
         timer.interval = ms;
     } else {
@@ -1258,7 +1258,8 @@ Stream.prototype.setStatsInterval = function(name, ms) {
             this.lastStatsDeadline = now;
         this.timers.set(name, {
             interval: ms,
-            deadline: this.lastStatsDeadline + ms
+            deadline: this.lastStatsDeadline + 
+              Math.ceil((now - this.lastStatsDeadline) / ms) * ms;
         });
     }
 
