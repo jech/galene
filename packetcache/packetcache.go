@@ -8,22 +8,23 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
-	cacheGet = prometheus.NewCounter(prometheus.CounterOpts{
+	cacheGet = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "galene_cache_get",
 		Help: "Galene cache successful get call",
 	})
-	cacheGetSize = prometheus.NewCounter(prometheus.CounterOpts{
+	cacheGetSize = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "galene_cache_get_size",
 		Help: "Galene cache successful get size",
 	})
-	cacheStore = prometheus.NewCounter(prometheus.CounterOpts{
+	cacheStore = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "galene_cache_store",
 		Help: "Galene cache store call",
 	})
-	cacheStoreSize = prometheus.NewCounter(prometheus.CounterOpts{
+	cacheStoreSize = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "galene_cache_store_size",
 		Help: "Galene cache store size",
 	})

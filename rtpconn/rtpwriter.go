@@ -9,6 +9,7 @@ import (
 
 	"github.com/pion/rtp"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/packetcache"
@@ -16,11 +17,11 @@ import (
 )
 
 var (
-	rtpWriteCounter = prometheus.NewCounter(prometheus.CounterOpts{
+	rtpWriteCounter = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "galene_rtp_write",
 		Help: "galene rtp write packets",
 	})
-	rtpDeadWriteCounter = prometheus.NewCounter(prometheus.CounterOpts{
+	rtpDeadWriteCounter = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "galene_rtp_dead_write",
 		Help: "galene rtp  dead writer",
 	})

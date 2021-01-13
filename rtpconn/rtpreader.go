@@ -9,13 +9,14 @@ import (
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
 )
 
 var (
-	rtpReadCounter = prometheus.NewCounter(prometheus.CounterOpts{
+	rtpReadCounter = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "galene_rtp_read",
 		Help: "galene rtp read packets",
 	})
