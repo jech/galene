@@ -224,6 +224,9 @@ the group.
  - `public`: if true, then the group is visible on the landing page;
  - `description`: a human-readable description of the group; this is
    displayed on the landing page for public groups;
+ - `contact`: a human-readable contact for this group, such as an e-mail
+   address;
+ - `comment`: a human-readable string;
  - `max-clients`: the maximum number of clients that may join the group at
    a time;
  - `max-history-age`: the time, in seconds, during which chat history is

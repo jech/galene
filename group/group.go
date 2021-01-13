@@ -659,6 +659,8 @@ type description struct {
 	modTime        time.Time           `json:"-"`
 	fileSize       int64               `json:"-"`
 	Description    string              `json:"description,omitempty"`
+	Contact        string              `json:"contact,omitempty"`
+	Comment        string              `json:"comment,omitempty"`
 	Redirect       string              `json:"redirect,omitempty"`
 	Public         bool                `json:"public,omitempty"`
 	MaxClients     int                 `json:"max-clients,omitempty"`
@@ -744,6 +746,7 @@ func GetDescription(name string) (*description, error) {
 	}
 
 	d := json.NewDecoder(r)
+	d.DisallowUnknownFields()
 	err = d.Decode(&desc)
 	if err != nil {
 		return nil, err
