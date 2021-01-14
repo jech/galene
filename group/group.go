@@ -829,6 +829,7 @@ func ReadPublicGroups() {
 		func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
 				log.Printf("Group file %v: %v", path, err)
+				return nil
 			}
 			if fi.IsDir() {
 				return nil
@@ -859,6 +860,6 @@ func ReadPublicGroups() {
 	)
 
 	if err != nil {
-		log.Printf("Couldn't read groups: %v", err);
+		log.Printf("Couldn't read groups: %v", err)
 	}
 }
