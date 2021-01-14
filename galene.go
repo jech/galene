@@ -98,13 +98,20 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 
+	go relayTest()
+
 	ticker := time.NewTicker(15 * time.Minute)
 	defer ticker.Stop()
+
+	slowTicker := time.NewTicker(12 * time.Hour)
+	defer slowTicker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
 			go group.Expire()
+		case <-slowTicker.C:
+			go relayTest()
 		case <-terminate:
 			webserver.Shutdown()
 			return
@@ -112,4 +119,15 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+func relayTest() {
+	now := time.Now()
+	d, err := ice.RelayTest()
+	if err != nil {
+		log.Printf("Relay test failed: %v", err)
+		log.Printf("Perhaps you didn't configure a TURN server?")
+		return
+	}
+	log.Printf("Relay test successful in %v, RTT = %v", time.Since(now), d)
 }

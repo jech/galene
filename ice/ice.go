@@ -123,3 +123,98 @@ func ICEConfiguration() *webrtc.Configuration {
 
 	return &conf.conf
 }
+
+func RelayTest() (time.Duration, error) {
+	conf := ICEConfiguration()
+	conf2 := *conf
+	conf2.ICETransportPolicy = webrtc.ICETransportPolicyRelay
+	pc1, err := webrtc.NewPeerConnection(conf2)
+	if err != nil {
+		return 0, err
+	}
+	defer pc1.Close()
+	pc2, err := webrtc.NewPeerConnection(*conf)
+	if err != nil {
+		return 0, err
+	}
+	defer pc2.Close()
+
+	pc1.OnICECandidate(func(c *webrtc.ICECandidate) {
+		if c != nil {
+			pc2.AddICECandidate(c.ToJSON())
+		}
+	})
+	pc2.OnICECandidate(func(c *webrtc.ICECandidate) {
+		if c != nil {
+			pc1.AddICECandidate(c.ToJSON())
+		}
+	})
+
+	d1, err := pc1.CreateDataChannel("loopback", nil)
+	if err != nil {
+		return 0, err
+	}
+
+	ch1 := make(chan error, 1)
+	d1.OnOpen(func() {
+		err := d1.Send([]byte(time.Now().Format(time.RFC3339Nano)))
+		if err != nil {
+			select {
+			case ch1 <- err:
+			default:
+			}
+		}
+	})
+
+	offer, err := pc1.CreateOffer(nil)
+	if err != nil {
+		return 0, err
+	}
+	err = pc1.SetLocalDescription(offer)
+	if err != nil {
+		return 0, err
+	}
+	err = pc2.SetRemoteDescription(*pc1.LocalDescription())
+	if err != nil {
+		return 0, err
+	}
+	answer, err := pc2.CreateAnswer(nil)
+	if err != nil {
+		return 0, err
+	}
+	err = pc2.SetLocalDescription(answer)
+	if err != nil {
+		return 0, err
+	}
+	err = pc1.SetRemoteDescription(*pc2.LocalDescription())
+	if err != nil {
+		return 0, err
+	}
+
+	ch2 := make(chan string, 1)
+	pc2.OnDataChannel(func(d2 *webrtc.DataChannel) {
+		d2.OnMessage(func(msg webrtc.DataChannelMessage) {
+			select {
+			case ch2 <- string(msg.Data):
+			default:
+			}
+		})
+	})
+
+	timer := time.NewTimer(20 * time.Second)
+	defer timer.Stop()
+	select {
+	case err := <-ch1:
+		return 0, err
+	case msg := <-ch2:
+		tm, err := time.Parse(time.RFC3339Nano, msg)
+		if err != nil {
+			return 0, err
+		}
+		log.Println(tm)
+		log.Println(time.Now())
+		return time.Now().Sub(tm), nil
+	case <-timer.C:
+		return 0, errors.New("timeout")
+	}
+}
