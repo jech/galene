@@ -40,11 +40,10 @@ serverConnection.ondownstream = ...;
 ```
 
 The `onconnected` callback is called when we connect to the server.  The
-`onclose` callback is called when the socket is closed; you should use it
-to close all your up streams (down streams will be closed by the server).
-The `onusermessage` callback indicates an application-specific message,
-either from another user or from the server; the field `kind` indicates
-the kind of message.
+`onclose` callback is called when the socket is closed; all streams will
+have been closed by the time it is called.  The `onusermessage` callback
+indicates an application-specific message, either from another user or
+from the server; the field `kind` indicates the kind of message.
 
 Once you have joined a group (see below), the remaining callbacks may
 trigger.  The `onuser` callback is used to indicate that a user has joined
@@ -126,8 +125,8 @@ a change in the status of the stream; states `connected` and `complete`
 indicate a functioning stream; other states indicate that the stream is
 not working right now but might recover in the future.
 
-The `onclose` callback is called when the stream is destroyed by the
-server.
+The `onclose` callback is called when the stream is destroyed, either by
+the server or in response to a call to the `close` method.
 
 ## Pushing outgoing video streams
 

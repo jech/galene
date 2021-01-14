@@ -238,12 +238,10 @@ ServerConnection.prototype.connect = async function(url) {
             sc.permissions = {};
             for(let id in sc.up) {
                 let c = sc.up[id];
-                delete(sc.up[id]);
                 c.close();
             }
             for(let id in sc.down) {
                 let c = sc.down[id];
-                delete(sc.down[id]);
                 c.close();
             }
             if(sc.group && sc.onjoined)
@@ -408,9 +406,9 @@ ServerConnection.prototype.newUpStream = function(id) {
     let pc = new RTCPeerConnection(sc.rtcConfiguration);
     if(!pc)
         throw new Error("Couldn't create peer connection");
-    if(sc.up[id]) {
+    if(sc.up[id])
         sc.up[id].close();
-    }
+
     let c = new Stream(this, id, pc, true);
     sc.up[id] = c;
 
@@ -530,7 +528,6 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         // SDP is rather inflexible as to what can be renegotiated.
         // Unless the server indicates that this is a renegotiation with
         // all parameters unchanged, tear down the existing connection.
-        delete(sc.down[id]);
         c.close(true);
         c = null;
     }
@@ -669,7 +666,6 @@ ServerConnection.prototype.gotClose = function(id) {
     let c = this.down[id];
     if(!c)
         throw new Error('unknown down stream');
-    delete(this.down[id]);
     c.close();
 };
 
@@ -888,19 +884,17 @@ function Stream(sc, id, pc, up) {
  */
 Stream.prototype.close = function(nocallback) {
     let c = this;
+
+    if(!c.sc) {
+        console.warn('Closing closed stream');
+        return;
+    }
+
     if(c.statsHandler) {
         clearInterval(c.statsHandler);
         c.statsHandler = null;
     }
 
-    if(c.stream) {
-        c.stream.getTracks().forEach(t => {
-            try {
-                t.stop();
-            } catch(e) {
-            }
-        });
-    }
     c.pc.close();
 
     if(c.up && c.localDescriptionSent) {
@@ -913,9 +907,21 @@ Stream.prototype.close = function(nocallback) {
         }
     }
 
+    if(c.up) {
+        if(c.sc.up[c.id] === c)
+            delete(c.sc.up[c.id]);
+        else
+            console.warn('Closing unknown stream');
+    } else {
+        if(c.sc.down[c.id] === c)
+            delete(c.sc.down[c.id]);
+        else
+            console.warn('Closing unknown stream');
+    }
+    c.sc = null;
+
     if(!nocallback && c.onclose)
         c.onclose.call(c);
-    c.sc = null;
 };
 
 /**

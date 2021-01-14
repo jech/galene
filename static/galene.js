@@ -309,7 +309,6 @@ function gotConnected() {
  * @param {string} reason
  */
 function gotClose(code, reason) {
-    delUpMediaKind(null);
     setConnected(false);
     if(code != 1000) {
         console.warn('Socket close', code, reason);
@@ -374,7 +373,7 @@ getButtonElement('presentbutton').onclick = async function(e) {
 
 getButtonElement('unpresentbutton').onclick = function(e) {
     e.preventDefault();
-    delUpMediaKind('local');
+    closeUpMediaKind('local');
     resizePeers();
 };
 
@@ -482,13 +481,13 @@ document.getElementById('sharebutton').onclick = function(e) {
 
 document.getElementById('unsharebutton').onclick = function(e) {
     e.preventDefault();
-    delUpMediaKind('screenshare');
+    closeUpMediaKind('screenshare');
     resizePeers();
 };
 
 document.getElementById('stopvideobutton').onclick = function(e) {
     e.preventDefault();
-    delUpMediaKind('video');
+    closeUpMediaKind('video');
     resizePeers();
 };
 
@@ -757,10 +756,6 @@ function newUpStream(id) {
     c.onerror = function(e) {
         console.error(e);
         displayError(e);
-        delUpMedia(c);
-    };
-    c.onabort = function() {
-        delUpMedia(c);
     };
     c.onnegotiationcompleted = function() {
         setMaxVideoThroughput(c, getMaxVideoThroughput());
@@ -928,23 +923,16 @@ function setFilter(c, f) {
             c.userdata.filter.stop();
             c.userdata.filter = null;
         }
-        if(!c.onclose) {
-            console.warn("onclose not set, this shouldn't happen");
-            c.onclose = null;
-        }
         return
     }
 
     if(c.userdata.filter)
         setFilter(c, null);
 
-    if(c.onclose)
-        throw new Error('onclose already taken');
     if(f.inputStream != c.stream)
         throw new Error('Setting filter for wrong stream');
     c.stream = f.outputStream;
     c.userdata.filter = f;
-    c.onclose = () => setFilter(c, null);
 }
 
 /**
@@ -1028,12 +1016,9 @@ async function addLocalMedia(id) {
 
     if(!audio && !video) {
         if(old)
-            delUpMedia(old);
+            old.close();
         return;
     }
-
-    if(old)
-        stopUpMedia(old);
 
     let constraints = {audio: audio, video: video};
     /** @type {MediaStream} */
@@ -1043,7 +1028,7 @@ async function addLocalMedia(id) {
     } catch(e) {
         displayError(e);
         if(old)
-            delUpMedia(old);
+            old.close();
         return;
     }
 
@@ -1058,8 +1043,22 @@ async function addLocalMedia(id) {
         try {
             let f = new Filter(stream, filter);
             setFilter(c, f);
+            c.onclose = () => {
+                stopStream(stream);
+                setFilter(c, null);
+                delMedia(c.id);
+            }
         } catch(e) {
             displayWarning(e);
+            c.onclose = () => {
+                stopStream(c.stream);
+                delMedia(c.id);
+            }
+        }
+    } else {
+        c.onclose = () => {
+            stopStream(c.stream);
+            delMedia(c.id);
         }
     }
 
@@ -1110,11 +1109,13 @@ async function addShareMedia() {
     let c = newUpStream();
     c.kind = 'screenshare';
     c.stream = stream;
+    c.onclose = () => {
+        stopStream(stream);
+        delMedia(c.id);
+    }
     stream.getTracks().forEach(t => {
         c.pc.addTrack(t, stream);
-        t.onended = e => {
-            delUpMedia(c);
-        };
+        t.onended = e => c.close();
         c.labels[t.id] = 'screenshare';
     });
     c.onstats = gotUpStats;
@@ -1144,12 +1145,14 @@ async function addFileMedia(file) {
     c.kind = 'video';
     c.stream = stream;
     c.onclose = function() {
+        stopStream(c.stream);
         let media = /** @type{HTMLVideoElement} */
             (document.getElementById('media-' + this.id));
         if(media && media.src) {
             URL.revokeObjectURL(media.src);
             media.src = null;
         }
+        delMedia(c.id);
     }
 
     stream.onaddtrack = function(e) {
@@ -1186,7 +1189,7 @@ async function addFileMedia(file) {
         if(Object.keys(c.labels).length === 0) {
             stream.onaddtrack = null;
             stream.onremovetrack = null;
-            delUpMedia(c);
+            c.close();
         }
     };
     await setMedia(c, true, false, video);
@@ -1195,13 +1198,10 @@ async function addFileMedia(file) {
 }
 
 /**
- * @param {Stream} c
+ * @param {MediaStream} s
  */
-function stopUpMedia(c) {
-    setFilter(c, null);
-    if(!c.stream)
-        return;
-    c.stream.getTracks().forEach(t => {
+function stopStream(s) {
+    s.getTracks().forEach(t => {
         try {
             t.stop();
         } catch(e) {
@@ -1211,31 +1211,18 @@ function stopUpMedia(c) {
 }
 
 /**
- * @param {Stream} c
- */
-function delUpMedia(c) {
-    stopUpMedia(c);
-    c.close();
-    delMedia(c.id);
-    delete(serverConnection.up[c.id]);
-    setButtonsVisibility();
-}
-
-/**
- * delUpMediaKind reoves all up media of the given kind.  If kind is
- * falseish, it removes all up media.
+ * closeUpMediaKind closes all up connections that correspond to a given
+ * kind of media.  If kind is null, it closes all up connections.
+ *
  * @param {string} kind
 */
-function delUpMediaKind(kind) {
+function closeUpMediaKind(kind) {
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
         if(kind && c.kind != kind)
             continue
-        delUpMedia(c);
+        c.close();
     }
-
-    setButtonsVisibility();
-    hideVideo();
 }
 
 /**
@@ -1501,6 +1488,7 @@ function delMedia(id) {
     media.srcObject = null;
     mediadiv.removeChild(peer);
 
+    setButtonsVisibility();
     resizePeers();
     hideVideo();
 }
