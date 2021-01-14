@@ -93,6 +93,10 @@ func (c *webClient) Challenge(group string, creds group.ClientCredentials) bool 
 	return m
 }
 
+func (c *webClient) Permissions() group.ClientPermissions {
+	return c.permissions
+}
+
 func (c *webClient) SetPermissions(perms group.ClientPermissions) {
 	c.permissions = perms
 }

@@ -96,6 +96,7 @@ type Client interface {
 	Group() *Group
 	Id() string
 	Challengeable
+	Permissions() ClientPermissions
 	SetPermissions(ClientPermissions)
 	OverridePermissions(*Group) bool
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack) error

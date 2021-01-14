@@ -235,6 +235,8 @@ the group.
  - `allow-anonymous`: if true, then users may connect with an empty username;
  - `allow-subgroups`: if true, then subgroups of the form `group/subgroup`
    are automatically created when first accessed;
+ - `autolock`: if true, the group will start locked and become locked
+   whenever there are no clients with operator privileges;
  - `redirect`: if set, then attempts to join the group will be redirected
    to the given URL; most other fields are ignored in this case;
  - `codecs`: this is a list of codecs allowed in this group.  The default

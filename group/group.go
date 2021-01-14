@@ -293,6 +293,7 @@ func Add(name string, desc *description) (*Group, error) {
 			timestamp:   time.Now(),
 			api:         APIFromNames(desc.Codecs),
 		}
+		autolock(g, g.getClientsUnlocked(nil))
 		groups.groups[name] = g
 		return g, nil
 	}
@@ -302,27 +303,24 @@ func Add(name string, desc *description) (*Group, error) {
 
 	if desc != nil {
 		g.description = desc
-		g.api = APIFromNames(desc.Codecs)
+	} else if time.Since(g.description.loadTime) < 5*time.Second {
+		return g, nil
+	} else if !descriptionChanged(name, g.description) {
+		g.description.loadTime = time.Now()
 		return g, nil
 	}
 
-	if time.Since(g.description.loadTime) > 5*time.Second {
-		if descriptionChanged(name, g.description) {
-			desc, err := GetDescription(name)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					log.Printf("Reading group %v: %v",
-						name, err)
-				}
-				deleteUnlocked(g)
-				return nil, err
-			}
-			g.description = desc
-			g.api = APIFromNames(desc.Codecs)
-		} else {
-			g.description.loadTime = time.Now()
+	desc, err = GetDescription(name)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("Reading group %v: %v", name, err)
 		}
+		deleteUnlocked(g)
+		return nil, err
 	}
+	g.description = desc
+	g.api = APIFromNames(desc.Codecs)
+	autolock(g, g.getClientsUnlocked(nil))
 
 	return g, nil
 }
@@ -451,7 +449,7 @@ func AddClient(group string, c Client) (*Group, error) {
 		if !perms.Op && g.locked != nil {
 			m := *g.locked
 			if m == "" {
-				m = "group is locked"
+				m = "this group is locked"
 			}
 			return nil, UserError(m)
 		}
@@ -483,6 +481,22 @@ func AddClient(group string, c Client) (*Group, error) {
 	return g, nil
 }
 
+// called locked
+func autolock(g *Group, clients []Client) {
+	if g.locked == nil && g.description.Autolock {
+		lock := true
+		for _, c := range clients {
+			if c.Permissions().Op {
+				lock = false
+			}
+		}
+		if lock {
+			m := "this group is locked"
+			g.locked = &m
+		}
+	}
+}
+
 func DelClient(c Client) {
 	g := c.Group()
 	if g == nil {
@@ -498,11 +512,15 @@ func DelClient(c Client) {
 	delete(g.clients, c.Id())
 	g.timestamp = time.Now()
 
+	clients := g.getClientsUnlocked(nil)
+
 	go func(clients []Client) {
 		for _, cc := range clients {
 			cc.PushClient(c.Id(), c.Username(), false)
 		}
-	}(g.getClientsUnlocked(nil))
+	}(clients)
+
+	autolock(g, clients)
 }
 
 func (g *Group) GetClients(except Client) []Client {
@@ -668,6 +686,7 @@ type description struct {
 	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
 	AllowRecording bool                `json:"allow-recording,omitempty"`
 	AllowSubgroups bool                `json:"allow-subgroups,omitempty"`
+	Autolock       bool                `json:"autolock,omitempty"`
 	Op             []ClientCredentials `json:"op,omitempty"`
 	Presenter      []ClientCredentials `json:"presenter,omitempty"`
 	Other          []ClientCredentials `json:"other,omitempty"`
