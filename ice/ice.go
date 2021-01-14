@@ -220,8 +220,6 @@ func RelayTest() (time.Duration, error) {
 		if err != nil {
 			return 0, err
 		}
-		log.Println(tm)
-		log.Println(time.Now())
 		return time.Now().Sub(tm), nil
 	case <-timer.C:
 		return 0, errors.New("timeout")
