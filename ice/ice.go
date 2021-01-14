@@ -125,10 +125,19 @@ func ICEConfiguration() *webrtc.Configuration {
 }
 
 func RelayTest() (time.Duration, error) {
+
 	conf := ICEConfiguration()
 	conf2 := *conf
 	conf2.ICETransportPolicy = webrtc.ICETransportPolicyRelay
-	pc1, err := webrtc.NewPeerConnection(conf2)
+
+	var s webrtc.SettingEngine
+	s.SetHostAcceptanceMinWait(0)
+	s.SetSrflxAcceptanceMinWait(0)
+	s.SetPrflxAcceptanceMinWait(0)
+	s.SetRelayAcceptanceMinWait(0)
+	api := webrtc.NewAPI(webrtc.WithSettingEngine(s))
+
+	pc1, err := api.NewPeerConnection(conf2)
 	if err != nil {
 		return 0, err
 	}
