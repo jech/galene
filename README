@@ -54,11 +54,16 @@ In practice, some of your users will be on restrictive networks: many
 enterprise networks only allow outgoing TCP to ports 80 and 443;
 university networks tend to additionally allow outgoing traffic to port
 1194.  For best performance, your TURN server should be located close to
-Galène and close to your users, so you will want to run your own (I use
-*coturn*, but other implementations of TURN should work too).
+Galène and close to your users, so you will want to run your own.  If you
+use *coturn*, your `/etc/turnserver.conf` could look like this:
 
-Your `ice-servers.json` should look like this, where `username` and
-`secret` are identical to the ones in your TURN server's configuration:
+    listening-port=443
+    lt-cred-mech
+    user=galene:secret
+    realm=galene.example.org
+    syslog
+
+Your `ice-servers.json` should look like this:
 
     [
         {
@@ -71,8 +76,8 @@ Your `ice-servers.json` should look like this, where `username` and
         }
     ]
 
-If you use coturn's `use-auth-secret` option, then your `ice-servers.json`
-should look like this:
+If you prefer to use coturn's `use-auth-secret` option, then your
+`ice-servers.json` should look like this:
 
     [
         {
