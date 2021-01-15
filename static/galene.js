@@ -1013,12 +1013,11 @@ async function addLocalMedia(id) {
     }
 
     let old = id && serverConnection.up[id];
+    if(old)
+        old.close();
 
-    if(!audio && !video) {
-        if(old)
-            old.close();
+    if(!audio && !video)
         return;
-    }
 
     let constraints = {audio: audio, video: video};
     /** @type {MediaStream} */
@@ -1027,8 +1026,6 @@ async function addLocalMedia(id) {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch(e) {
         displayError(e);
-        if(old)
-            old.close();
         return;
     }
 
