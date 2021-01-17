@@ -438,6 +438,8 @@ func AddClient(group string, c Client) (*Group, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	clients := g.getClientsUnlocked(nil)
+
 	if !c.OverridePermissions(g) {
 		perms, err := g.description.GetPermission(group, c)
 		if err != nil {
@@ -446,12 +448,29 @@ func AddClient(group string, c Client) (*Group, error) {
 
 		c.SetPermissions(perms)
 
-		if !perms.Op && g.locked != nil {
-			m := *g.locked
-			if m == "" {
-				m = "this group is locked"
+		if !perms.Op {
+			if g.locked != nil {
+				m := *g.locked
+				if m == "" {
+					m = "this group is locked"
+				}
+				return nil, UserError(m)
 			}
-			return nil, UserError(m)
+			if g.description.Autokick {
+				ops := false
+				for _, c := range clients {
+					if c.Permissions().Op {
+						ops = true
+						break
+					}
+				}
+				if !ops {
+					return nil, UserError(
+						"there are no operators " +
+							"in this group",
+					)
+				}
+			}
 		}
 
 		if !perms.Op && g.description.MaxClients > 0 {
@@ -461,25 +480,8 @@ func AddClient(group string, c Client) (*Group, error) {
 		}
 	}
 
-	clients := g.getClientsUnlocked(nil)
-
 	if g.clients[c.Id()] != nil {
 		return nil, ProtocolError("duplicate client id")
-	}
-
-	if !c.Permissions().Op && g.description.Autokick {
-		ops := false
-		for _, c := range clients {
-			if c.Permissions().Op {
-				ops = true
-				break
-			}
-		}
-		if !ops {
-			return nil, UserError(
-				"there are no operators in this group",
-			)
-		}
 	}
 
 	g.clients[c.Id()] = c

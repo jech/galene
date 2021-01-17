@@ -243,7 +243,8 @@ the group.
  - `autolock`: if true, the group will start locked and become locked
    whenever there are no clients with operator privileges;
  - `autokick`: if true, all clients will be kicked out whenever there are
-   no clients with operator privileges.
+   no clients with operator privileges; this is not recommended, prefer
+   the `autolock` option instead;
  - `redirect`: if set, then attempts to join the group will be redirected
    to the given URL; most other fields are ignored in this case;
  - `codecs`: this is a list of codecs allowed in this group.  The default
