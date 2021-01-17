@@ -320,8 +320,9 @@ function gotClose(code, reason) {
  * @param {Stream} c
  */
 function gotDownStream(c) {
-    c.onclose = function() {
-        delMedia(c.id);
+    c.onclose = function(replace) {
+        if(!replace)
+            delMedia(c.id);
     };
     c.onerror = function(e) {
         console.error(e);
@@ -1013,11 +1014,16 @@ async function addLocalMedia(id) {
     }
 
     let old = id && serverConnection.up[id];
-    if(old)
-        old.close();
-
-    if(!audio && !video)
+    if(!audio && !video) {
+        if(old)
+            old.close();
         return;
+    }
+
+    if(old && old.onclose) {
+        // make sure that the camera is released before we try to reopen it
+        old.onclose.call(old, true);
+    }
 
     let constraints = {audio: audio, video: video};
     /** @type {MediaStream} */
@@ -1040,22 +1046,25 @@ async function addLocalMedia(id) {
         try {
             let f = new Filter(stream, filter);
             setFilter(c, f);
-            c.onclose = () => {
+            c.onclose = replace => {
                 stopStream(stream);
                 setFilter(c, null);
-                delMedia(c.id);
+                if(!replace)
+                    delMedia(c.id);
             }
         } catch(e) {
             displayWarning(e);
-            c.onclose = () => {
+            c.onclose = replace => {
                 stopStream(c.stream);
-                delMedia(c.id);
+                if(!replace)
+                    delMedia(c.id);
             }
         }
     } else {
-        c.onclose = () => {
+        c.onclose = replace => {
             stopStream(c.stream);
-            delMedia(c.id);
+            if(!replace)
+                delMedia(c.id);
         }
     }
 
@@ -1106,9 +1115,10 @@ async function addShareMedia() {
     let c = newUpStream();
     c.kind = 'screenshare';
     c.stream = stream;
-    c.onclose = () => {
+    c.onclose = replace => {
         stopStream(stream);
-        delMedia(c.id);
+        if(!replace)
+            delMedia(c.id);
     }
     stream.getTracks().forEach(t => {
         c.pc.addTrack(t, stream);
@@ -1141,7 +1151,7 @@ async function addFileMedia(file) {
     let c = newUpStream();
     c.kind = 'video';
     c.stream = stream;
-    c.onclose = function() {
+    c.onclose = function(replace) {
         stopStream(c.stream);
         let media = /** @type{HTMLVideoElement} */
             (document.getElementById('media-' + this.id));
@@ -1149,8 +1159,9 @@ async function addFileMedia(file) {
             URL.revokeObjectURL(media.src);
             media.src = null;
         }
-        delMedia(c.id);
-    }
+        if(!replace)
+            delMedia(c.id);
+    };
 
     stream.onaddtrack = function(e) {
         let t = e.track;

@@ -634,7 +634,7 @@ ServerConnection.prototype.gotAnswer = async function(id, sdp) {
             if(c.onerror)
                 c.onerror.call(c, e);
         } finally {
-            c.close(true);
+            c.close();
         }
         return;
     }
@@ -825,9 +825,10 @@ function Stream(sc, id, pc, up) {
     /* Callbacks */
 
     /**
-     * onclose is called when the stream is closed.
+     * onclose is called when the stream is closed.  Replace will be true
+     * if the stream is being replaced by another one with the same id.
      *
-     * @type{(this: Stream) => void}
+     * @type{(this: Stream, replace: boolean) => void}
      */
     this.onclose = null;
     /**
@@ -880,9 +881,10 @@ function Stream(sc, id, pc, up) {
  * streams in the down direction, this will be called automatically when
  * the server signals that it is closing a stream.
  *
- * @param {boolean} [nocallback]
+ * @param {boolean} [replace]
+ *    - true if the stream is being replaced by another one with the same id
  */
-Stream.prototype.close = function(nocallback) {
+Stream.prototype.close = function(replace) {
     let c = this;
 
     if(!c.sc) {
@@ -920,8 +922,8 @@ Stream.prototype.close = function(nocallback) {
     }
     c.sc = null;
 
-    if(!nocallback && c.onclose)
-        c.onclose.call(c);
+    if(c.onclose)
+        c.onclose.call(c, replace);
 };
 
 /**
