@@ -293,7 +293,7 @@ func Add(name string, desc *description) (*Group, error) {
 			timestamp:   time.Now(),
 			api:         APIFromNames(desc.Codecs),
 		}
-		autolock(g, g.getClientsUnlocked(nil))
+		autoLockKick(g, g.getClientsUnlocked(nil))
 		groups.groups[name] = g
 		return g, nil
 	}
@@ -320,7 +320,7 @@ func Add(name string, desc *description) (*Group, error) {
 	}
 	g.description = desc
 	g.api = APIFromNames(desc.Codecs)
-	autolock(g, g.getClientsUnlocked(nil))
+	autoLockKick(g, g.getClientsUnlocked(nil))
 
 	return g, nil
 }
@@ -461,8 +461,25 @@ func AddClient(group string, c Client) (*Group, error) {
 		}
 	}
 
+	clients := g.getClientsUnlocked(nil)
+
 	if g.clients[c.Id()] != nil {
 		return nil, ProtocolError("duplicate client id")
+	}
+
+	if !c.Permissions().Op && g.description.Autokick {
+		ops := false
+		for _, c := range clients {
+			if c.Permissions().Op {
+				ops = true
+				break
+			}
+		}
+		if !ops {
+			return nil, UserError(
+				"there are no operators in this group",
+			)
+		}
 	}
 
 	g.clients[c.Id()] = c
@@ -476,24 +493,29 @@ func AddClient(group string, c Client) (*Group, error) {
 			c.PushClient(cc.Id(), uu, true)
 			cc.PushClient(c.Id(), u, true)
 		}
-	}(g.getClientsUnlocked(c))
+	}(clients)
 
 	return g, nil
 }
 
 // called locked
-func autolock(g *Group, clients []Client) {
-	if g.locked == nil && g.description.Autolock {
-		lock := true
-		for _, c := range clients {
-			if c.Permissions().Op {
-				lock = false
-			}
+func autoLockKick(g *Group, clients []Client) {
+	if !(g.description.Autolock && g.locked == nil) &&
+		!g.description.Autokick {
+		return
+	}
+	for _, c := range clients {
+		if c.Permissions().Op {
+			return
 		}
-		if lock {
-			m := "this group is locked"
-			g.locked = &m
-		}
+	}
+	if g.description.Autolock && g.locked == nil {
+		m := "this group is locked"
+		g.locked = &m
+	}
+
+	if g.description.Autokick {
+		go kickall(g, "there are no operators in this group")
 	}
 }
 
@@ -520,7 +542,7 @@ func DelClient(c Client) {
 		}
 	}(clients)
 
-	autolock(g, clients)
+	autoLockKick(g, clients)
 }
 
 func (g *Group) GetClients(except Client) []Client {
@@ -565,7 +587,7 @@ func (g *Group) Range(f func(c Client) bool) {
 	}
 }
 
-func (g *Group) Shutdown(message string) {
+func kickall(g *Group, message string) {
 	g.Range(func(c Client) bool {
 		cc, ok := c.(Kickable)
 		if ok {
@@ -573,6 +595,10 @@ func (g *Group) Shutdown(message string) {
 		}
 		return true
 	})
+}
+
+func (g *Group) Shutdown(message string) {
+	kickall(g, message)
 }
 
 type warner interface {
@@ -687,6 +713,7 @@ type description struct {
 	AllowRecording bool                `json:"allow-recording,omitempty"`
 	AllowSubgroups bool                `json:"allow-subgroups,omitempty"`
 	Autolock       bool                `json:"autolock,omitempty"`
+	Autokick       bool                `json:"autokick,omitempty"`
 	Op             []ClientCredentials `json:"op,omitempty"`
 	Presenter      []ClientCredentials `json:"presenter,omitempty"`
 	Other          []ClientCredentials `json:"other,omitempty"`
