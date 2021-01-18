@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/pion/webrtc/v3"
+
+	"github.com/jech/galene/turnserver"
 )
 
 type Server struct {
@@ -100,6 +102,8 @@ func updateICEConfiguration() *configuration {
 			}
 		}
 	}
+
+	cf.ICEServers = append(cf.ICEServers, turnserver.ICEServers()...)
 
 	if ICERelayOnly {
 		cf.ICETransportPolicy = webrtc.ICETransportPolicyRelay

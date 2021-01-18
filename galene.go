@@ -14,6 +14,7 @@ import (
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
+	"github.com/jech/galene/turnserver"
 	"github.com/jech/galene/webserver"
 )
 
@@ -42,6 +43,8 @@ func main() {
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
+	flag.StringVar(&turnserver.Address, "turn", ":1194",
+		"built-in TURN server address (\"\" to disable)")
 	flag.Parse()
 
 	if cpuprofile != "" {
@@ -85,6 +88,12 @@ func main() {
 	ice.ICEFilename = filepath.Join(dataDir, "ice-servers.json")
 
 	go group.ReadPublicGroups()
+
+	err := turnserver.Start()
+	if err != nil {
+		log.Printf("TURN: %v", err)
+	}
+	defer turnserver.Stop()
 
 	serverDone := make(chan struct{})
 	go func() {

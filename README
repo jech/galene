@@ -15,85 +15,6 @@ This step is optional.
 
     echo 'god:topsecret' > data/passwd
 
-## Set up an ICE server
-
-ICE is the NAT and firewall traversal protocol used by WebRTC.  ICE uses
-a variety of techniques for establishing a flow in the presence of
-a firewall; the two most effective techniques, STUN and TURN, require help
-from an external server.  Whether you need a helping server depends both
-on your firewalling setup and on the networks of your users; for
-production use, you should probably use your own TURN server.
-
-### No ICE server
-
-If Galène is not firewalled (high-numbered ports are accessible from the
-Internet) and none of your users are on a restrictive network, then you
-need no ICE servers.  There is nothing to do, skip to *Set up a group*
-below.
-
-### STUN server
-
-If Galène might be behind a firewall (high-numbered ports might or might
-not be accessible from the Internet), but none of your clients are on
-a restrictive network, then a STUN server is enough.  It is usually safe
-to use a third-party STUN server, although doing that might violate the
-privacy of your users.  Your `data/ice-servers.json` file should look like
-this:
-
-    [
-        {
-            "urls": [
-                "stun:stun.example.org"
-            ]
-        }
-    ]
-    
-### TURN server
-
-In practice, some of your users will be on restrictive networks: many
-enterprise networks only allow outgoing TCP to ports 80 and 443;
-university networks tend to additionally allow outgoing traffic to port
-1194.  For best performance, your TURN server should be located close to
-Galène and close to your users, so you will want to run your own.  If you
-use *coturn*, your `/etc/turnserver.conf` could look like this:
-
-    listening-port=443
-    lt-cred-mech
-    user=galene:secret
-    realm=galene.example.org
-    syslog
-
-Your `ice-servers.json` should look like this:
-
-    [
-        {
-            "urls": [
-                "turn:turn.example.org:443",
-                "turn:turn.example.org:443?transport=tcp"
-            ],
-            "username": "galene",
-            "credential": "secret"
-        }
-    ]
-
-If you prefer to use coturn's `use-auth-secret` option, then your
-`ice-servers.json` should look like this:
-
-    [
-        {
-            "urls": [
-                "turn:turn.example.com:443",
-                "turn:turn.example.com:443?transport=tcp"
-            ],
-            "username": "galene",
-            "credential": "secret",
-            "credentialType": "hmac-sha1"
-        }
-    ]
-    
-For redundancy, you may set up multiple TURN servers, and ICE will use the
-first one that works.
-
 ## Set up a group
 
 A group is set up by creating a file `groups/name.json`.
@@ -115,10 +36,7 @@ A group with one operator and two users looks like this:
         "op": [{"username": "jch", "password": "1234"}],
         "presenter": [
             {"username": "mom", "password": "0000"},
-            {
-                "username": "dad",
-                "password": "Pójdźże, kiń tę chmurność w głąb flaszy!"
-            }
+            {"username": "dad", "password": "1234"}
         ]
     }
     
@@ -137,6 +55,27 @@ the TURN server is properly configured, you should see a message saying
 that the relay test has been successful.  (The relay test will fail if you
 didn't configure a TURN server; this is normal, and nothing to worry
 about.)
+
+## Configure your server's firewall
+
+If your server has a global IPv4 address and there is no firewall, there
+is nothing to do.
+
+If your server has a global IPv4 address, then the firewall must, at
+a strict minimum, allow incoming traffic to TCP port 8443 (or whatever is
+configured with the `-http` command-line option) and TCP port 1194 (or
+whatever is configured with the `-turn` command-line option).  For best
+performance, it should also allow UDP traffic to the TURN port and UDP
+traffic to ephemeral (high-numbered) ports.
+
+If your server only has a global IPv6 address, then you should probably
+disable the built-in TURN server (`-turn ""`) and configure an external
+TURN server; see "ICE Servers" below.
+
+If your server is behind NAT, then you should configure your NAT device to
+forward, at a minimum, ports 8443 and 1194.  In addition, you should add
+the option `-turn 192.0.2.1:1194` to Galène's command line, where `192.0.2.1`
+is your NAT's external (global) IPv4 address.
 
 ## Deploy to your server
 
@@ -298,4 +237,70 @@ user entry with a hashed password looks like this:
         }
     }
 
---- Juliusz Chroboczek <https://www.irif.fr/~jch/>
+# ICE Servers
+
+ICE is the NAT and firewall traversal protocol used by WebRTC.  ICE can
+make use of two kinds of servers to help with NAT traversal: STUN servers,
+that simply help punching holes in NATs, and TURN servers, that serve as
+relays for traffic.  TURN is a superset of NAT: no STUN server is
+necessary if a TURN server is available.
+
+Galène includes a simple IPv4-only TURN server, which is controlled by the
+`-turn` command-line option.  If the value of this option is the empty
+string `""`, then the built-in server is disabled.  If the value of this
+option is a colon followed with a port number `:1194`, then the TURN
+server will listen on all public IPv4 addresses of the local host, over
+UDP and TCP.  If the value of this option is a socket address, such as
+`192.0.2.1:1194`, then the TURN server will listen on all addresses of the
+local host but assume that the address seen by the clients is the one
+given in the option; this is the recommended configuration when running
+behind NAT with port forwarding.
+
+Some users may prefer to disable Galène's built in TURN server (`-turn ""`)
+and configure an external ICE server.  In that case, the ICE configuration
+should appear in the file `data/ice-servers.json`.  In the case of a STUN
+server, it should look like this:
+
+    [
+        {
+            "urls": [
+                "stun:stun.example.org"
+            ]
+        }
+    ]
+    
+In the case of s single TURN server, the `ice-servers.json` file should
+look like this:
+
+    [
+        {
+            "urls": [
+                "turn:turn.example.org:443",
+                "turn:turn.example.org:443?transport=tcp"
+            ],
+            "username": "galene",
+            "credential": "secret"
+        }
+    ]
+
+If you prefer to use coturn's `use-auth-secret` option, then your
+`ice-servers.json` should look like this:
+
+    [
+        {
+            "Urls": [
+                "turn:turn.example.com:443",
+                "turn:turn.example.com:443?transport=tcp"
+            ],
+            "username": "galene",
+            "credential": "secret",
+            "credentialType": "hmac-sha1"
+        }
+    ]
+    
+For redundancy, you may set up multiple TURN servers, and ICE will use the
+first one that works.  If an `ice-servers.json` file is present and
+Galène's built-in TURN server is enabled, then the external server will be
+used in preference to the built-in server.
+
+-- Juliusz Chroboczek <https://www.irif.fr/~jch/>
