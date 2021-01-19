@@ -107,7 +107,7 @@ func Update() *configuration {
 		}
 	}
 
-	err := turnserver.StartStop(found)
+	err := turnserver.StartStop(!found)
 	if err != nil {
 		log.Printf("TURN: %v", err)
 	}

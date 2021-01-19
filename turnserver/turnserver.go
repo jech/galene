@@ -16,7 +16,6 @@ import (
 var username string
 var password string
 var Address string
-var Force bool
 
 var mu sync.Mutex
 var addresses []net.Addr
@@ -96,7 +95,12 @@ func Start() error {
 	if Address == "" {
 		return errors.New("built-in TURN server disabled")
 	}
-	addr, err := net.ResolveUDPAddr("udp4", Address)
+
+	ad := Address
+	if Address == "auto" {
+		ad = ":1194"
+	}
+	addr, err := net.ResolveUDPAddr("udp4", ad)
 	if err != nil {
 		return err
 	}
@@ -234,13 +238,14 @@ func Stop() error {
 	return err
 }
 
-func StartStop(found bool) error {
-	if Force && Address != "" {
-		return Start()
-	} else if found {
+func StartStop(start bool) error {
+	if Address == "auto" {
+		if start {
+			return Start()
+		}
 		return Stop()
-	} else if Address != "" {
-		return Start()
+	} else if Address == "" {
+		return Stop()
 	}
-	return nil
+	return Start()
 }

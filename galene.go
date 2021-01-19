@@ -43,15 +43,9 @@ func main() {
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
-	flag.StringVar(&turnserver.Address, "turn", ":1194",
+	flag.StringVar(&turnserver.Address, "turn", "auto",
 		"built-in TURN server `address` (\"\" to disable)")
 	flag.Parse()
-
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "turn" {
-			turnserver.Force = true
-		}
-	})
 
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)

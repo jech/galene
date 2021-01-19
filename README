@@ -242,24 +242,27 @@ user entry with a hashed password looks like this:
 ICE is the NAT and firewall traversal protocol used by WebRTC.  ICE can
 make use of two kinds of servers to help with NAT traversal: STUN servers,
 that simply help punching holes in NATs, and TURN servers, that serve as
-relays for traffic.  TURN is a superset of NAT: no STUN server is
+relays for traffic.  TURN is a superset of STUN: no STUN server is
 necessary if a TURN server is available.
 
 Galène includes a simple IPv4-only TURN server, which is controlled by the
-`-turn` command-line option.  If the value of this option is the empty
-string `""`, then the built-in server is disabled.  If the value of this
-option is a colon followed with a port number `:1194`, then the TURN
-server will listen on all public IPv4 addresses of the local host, over
-UDP and TCP.  If the value of this option is a socket address, such as
+`-turn` command-line option.  If its value is set to the empty string
+`""`, then the built-in server is disabled.  If its value is a colon
+followed with a port number, for example `:1194`, then the TURN server
+will listen on all public IPv4 addresses of the local host, over UDP and
+TCP.  If the value of this option is a socket address, such as
 `192.0.2.1:1194`, then the TURN server will listen on all addresses of the
 local host but assume that the address seen by the clients is the one
 given in the option; this is the recommended configuration when running
-behind NAT with port forwarding.
+behind NAT with port forwarding.  The default value is `-turn auto`, which
+enables the TURN server on port 1194 if there is no
+`data/ice-servers.json` file.
 
-Some users may prefer to disable Galène's built in TURN server (`-turn ""`)
-and configure an external ICE server.  In that case, the ICE configuration
-should appear in the file `data/ice-servers.json`.  In the case of a STUN
-server, it should look like this:
+Some users may prefer to use an external ICE server.  In that case, the
+built-in TURN server should be disabled (`-turn ""` or the default
+`-turn auto`), and a working ICE configuration should appear in the file
+`data/ice-servers.json`.  In the case of a single STUN server, it should
+look like this:
 
     [
         {
@@ -283,8 +286,8 @@ look like this:
         }
     ]
 
-If you prefer to use coturn's `use-auth-secret` option, then your
-`ice-servers.json` should look like this:
+If you prefer to use coturn's `use-auth-secret` option, then the
+`ice-servers.json` file should look like this:
 
     [
         {
