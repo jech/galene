@@ -2,16 +2,22 @@ Galène 0.3 (unreleased):
 
   * Implemented the command /muteall.  This allows muting all users except
     yourself.
+  * Implemented the autolock and autokick user group options, that cause,
+    a group to be locked or all users to be kicked out when the last
+    administrator leaves.
+  * Implemented client-side filters that are run over the video before it
+    is sent to the server.  A pair of mirroring filters are provided,
+    which are useful when using a mirror in front of a webcam.
+  * Included a built-in TURN server, which drastically simplifies
+    deployment in common cases.
   * Implemented testing of TURN servers, on both the client and the server
     side.  Connectivity will be checked by the server every 12 hours, and
     by the client whenever a user uses the /relay-test command.
   * Group configurations are now checked at startup, and any failures are
     logged.  This implies that it is no longer possible to use undefined
     keys in group definition files (this is a breaking change).
+  * Reworked the client API, which is now simpler and more uniform.
   * Subgroups can now be public.
-  * Implemented client-side filters that are run over the video before it
-    is sent to the server.  A pair of mirroring filters are provided,
-    which are useful when using a mirror in front of a webcam.
 
 9 January 2021: Galène 0.2
 
