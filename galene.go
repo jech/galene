@@ -44,8 +44,14 @@ func main() {
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
 	flag.StringVar(&turnserver.Address, "turn", ":1194",
-		"built-in TURN server address (\"\" to disable)")
+		"built-in TURN server `address` (\"\" to disable)")
 	flag.Parse()
+
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "turn" {
+			turnserver.Force = true
+		}
+	})
 
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
@@ -89,10 +95,8 @@ func main() {
 
 	go group.ReadPublicGroups()
 
-	err := turnserver.Start()
-	if err != nil {
-		log.Printf("TURN: %v", err)
-	}
+	// causes the built-in server to start if required
+	ice.Update()
 	defer turnserver.Stop()
 
 	serverDone := make(chan struct{})

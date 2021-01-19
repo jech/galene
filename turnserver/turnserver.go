@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/pion/turn/v2"
 	"github.com/pion/webrtc/v3"
@@ -14,9 +15,12 @@ import (
 
 var username string
 var password string
-var server *turn.Server
 var Address string
+var Force bool
+
+var mu sync.Mutex
 var addresses []net.Addr
+var server *turn.Server
 
 func publicAddresses() ([]net.IP, error) {
 	addrs, err := net.InterfaceAddrs()
@@ -82,8 +86,11 @@ func listener(a net.IP, port int, relay net.IP) (*turn.PacketConnConfig, *turn.L
 }
 
 func Start() error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if server != nil {
-		return errors.New("TURN server already started")
+		return nil
 	}
 
 	if Address == "" {
@@ -93,6 +100,8 @@ func Start() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("Starting built-in TURN server")
 
 	username = "galene"
 	buf := make([]byte, 6)
@@ -182,6 +191,9 @@ func Start() error {
 }
 
 func ICEServers() []webrtc.ICEServer {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if len(addresses) == 0 {
 		return nil
 	}
@@ -208,12 +220,27 @@ func ICEServers() []webrtc.ICEServer {
 
 }
 
-func Stop() {
+func Stop() error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	addresses = nil
 	if server == nil {
-		return
+		return nil
 	}
-	server.Close()
+	log.Printf("Stopping built-in TURN server")
+	err := server.Close()
 	server = nil
-	return
+	return err
+}
+
+func StartStop(found bool) error {
+	if Force && Address != "" {
+		return Start()
+	} else if found {
+		return Stop()
+	} else if Address != "" {
+		return Start()
+	}
+	return nil
 }

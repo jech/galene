@@ -74,15 +74,19 @@ type configuration struct {
 
 var conf atomic.Value
 
-func updateICEConfiguration() *configuration {
+func Update() *configuration {
 	now := time.Now()
 	var cf webrtc.Configuration
 
+	found := false
 	if ICEFilename != "" {
+		found = true
 		file, err := os.Open(ICEFilename)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				log.Printf("Open %v: %v", ICEFilename, err)
+			} else {
+				found = false
 			}
 		} else {
 			defer file.Close()
@@ -103,6 +107,11 @@ func updateICEConfiguration() *configuration {
 		}
 	}
 
+	err := turnserver.StartStop(found)
+	if err != nil {
+		log.Printf("TURN: %v", err)
+	}
+
 	cf.ICEServers = append(cf.ICEServers, turnserver.ICEServers()...)
 
 	if ICERelayOnly {
@@ -120,9 +129,9 @@ func updateICEConfiguration() *configuration {
 func ICEConfiguration() *webrtc.Configuration {
 	conf, ok := conf.Load().(*configuration)
 	if !ok || time.Since(conf.timestamp) > 5*time.Minute {
-		conf = updateICEConfiguration()
+		conf = Update()
 	} else if time.Since(conf.timestamp) > 2*time.Minute {
-		go updateICEConfiguration()
+		go Update()
 	}
 
 	return &conf.conf
