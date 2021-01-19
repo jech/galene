@@ -139,10 +139,20 @@ type rtpDownConnection struct {
 	id                string
 	pc                *webrtc.PeerConnection
 	remote            conn.Up
-	tracks            []*rtpDownTrack
 	maxREMBBitrate    *bitrate
 	iceCandidates     []*webrtc.ICECandidateInit
 	negotiationNeeded int
+
+	mu sync.Mutex
+	tracks            []*rtpDownTrack
+}
+
+func (down *rtpDownConnection) getTracks() []*rtpDownTrack {
+	down.mu.Lock()
+	defer down.mu.Unlock()
+	tracks := make([]*rtpDownTrack, len(down.tracks))
+	copy(tracks, down.tracks)
+	return tracks
 }
 
 func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
@@ -169,7 +179,8 @@ func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection,
 func (down *rtpDownConnection) GetMaxBitrate(now uint64) uint64 {
 	rate := down.maxREMBBitrate.Get(now)
 	var trackRate uint64
-	for _, t := range down.tracks {
+	tracks := down.getTracks()
+	for _, t := range tracks {
 		r := t.maxBitrate.Get(now)
 		if r == ^uint64(0) {
 			if t.track.Kind() == webrtc.RTPCodecTypeAudio {
@@ -779,8 +790,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 }
 
 func sendUpRTCP(conn *rtpUpConnection) error {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
+	tracks := conn.getTracks()
 
 	if len(conn.tracks) == 0 {
 		state := conn.pc.ConnectionState()
@@ -793,7 +803,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 	now := rtptime.Jiffies()
 
 	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
-	for _, t := range conn.tracks {
+	for _, t := range tracks {
 		updateUpTrack(t)
 		expected, lost, totalLost, eseqno := t.cache.GetStats(true)
 		if expected == 0 {
@@ -832,18 +842,21 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 	}
 
 	rate := ^uint64(0)
-	for _, l := range conn.local {
+
+	local := conn.getLocal()
+	for _, l := range local {
 		r := l.GetMaxBitrate(now)
 		if r < rate {
 			rate = r
 		}
 	}
+
 	if rate < group.MinBitrate {
 		rate = group.MinBitrate
 	}
 
 	var ssrcs []uint32
-	for _, t := range conn.tracks {
+	for _, t := range tracks {
 		if t.hasRtcpFb("goog-remb", "") {
 			continue
 		}
@@ -869,21 +882,21 @@ func rtcpUpSender(conn *rtpUpConnection) {
 			if err == io.EOF || err == io.ErrClosedPipe {
 				return
 			}
-			log.Printf("sendRR: %v", err)
+			log.Printf("sendUpRTCP: %v", err)
 		}
 	}
 }
 
 func sendSR(conn *rtpDownConnection) error {
-	// since this is only called after all tracks have been created,
-	// there is no need for locking.
-	packets := make([]rtcp.Packet, 0, len(conn.tracks))
+	tracks := conn.getTracks()
+
+	packets := make([]rtcp.Packet, 0, len(tracks))
 
 	now := time.Now()
 	nowNTP := rtptime.TimeToNTP(now)
 	jiffies := rtptime.TimeToJiffies(now)
 
-	for _, t := range conn.tracks {
+	for _, t := range tracks {
 		clockrate := t.track.Codec().ClockRate
 
 		var nowRTP uint32

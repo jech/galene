@@ -419,7 +419,10 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrac
 		rate:       estimator.New(time.Second),
 		atomics:    &downTrackAtomics{},
 	}
+
+	conn.mu.Lock()
 	conn.tracks = append(conn.tracks, track)
+	conn.mu.Unlock()
 
 	go rtcpDownListener(conn, track, sender)
 
