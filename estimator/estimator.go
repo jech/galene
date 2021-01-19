@@ -1,3 +1,5 @@
+// Package estimator implements a packet and byte rate estimator.
+
 package estimator
 
 import (
@@ -18,6 +20,7 @@ type Estimator struct {
 	packetRate   uint32
 }
 
+// New creates a new estimator that estimates rate over the last interval.
 func New(interval time.Duration) *Estimator {
 	return &Estimator{
 		interval: rtptime.FromDuration(interval, rtptime.JiffiesPerSec),
@@ -44,8 +47,9 @@ func (e *Estimator) swap(now uint64) {
 	atomic.StoreUint64(&e.time, now)
 }
 
-func (e *Estimator) Accumulate(count uint32) {
-	atomic.AddUint32(&e.bytes, count)
+// Accumulate records one packet of size bytes
+func (e *Estimator) Accumulate(bytes uint32) {
+	atomic.AddUint32(&e.bytes, bytes)
 	atomic.AddUint32(&e.packets, 1)
 }
 
@@ -58,10 +62,15 @@ func (e *Estimator) estimate(now uint64) (uint32, uint32) {
 	return atomic.LoadUint32(&e.rate), atomic.LoadUint32(&e.packetRate)
 }
 
+// Estimate returns an estimate of the rate over the last interval.
+// It starts a new interval if the last interval is larger than the value
+// passed to New.  It returns the byte rate and the packet rate, in units
+// per second.
 func (e *Estimator) Estimate() (uint32, uint32) {
 	return e.estimate(rtptime.Now(rtptime.JiffiesPerSec))
 }
 
+// Totals returns the total number of bytes and packets accumulated.
 func (e *Estimator) Totals() (uint32, uint32) {
 	b := atomic.LoadUint32(&e.totalBytes) + atomic.LoadUint32(&e.bytes)
 	p := atomic.LoadUint32(&e.totalPackets) + atomic.LoadUint32(&e.packets)
