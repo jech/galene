@@ -53,6 +53,8 @@ func (s *receiverStats) Set(loss uint8, jitter uint32, now uint64) {
 	atomic.StoreUint64(&s.jiffies, now)
 }
 
+const receiverReportTimeout = 30 * rtptime.JiffiesPerSec
+
 func (s *receiverStats) Get(now uint64) (uint8, uint32) {
 	ts := atomic.LoadUint64(&s.jiffies)
 	if now < ts || now > ts+receiverReportTimeout {
@@ -60,8 +62,6 @@ func (s *receiverStats) Get(now uint64) (uint8, uint32) {
 	}
 	return uint8(atomic.LoadUint32(&s.loss)), atomic.LoadUint32(&s.jitter)
 }
-
-const receiverReportTimeout = 8 * rtptime.JiffiesPerSec
 
 type iceConnection interface {
 	addICECandidate(candidate *webrtc.ICECandidateInit) error
