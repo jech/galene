@@ -227,9 +227,19 @@ function reflectSettings() {
         store = true;
     }
 
-    getInputElement('activitybox').checked = settings.activityDetection;
+    if(settings.hasOwnProperty('blackboardMode')) {
+        getInputElement('blackboardbox').checked = settings.blackboardMode;
+    } else {
+        settings.blackboardMode = getInputElement('blackboardbox').checked;
+        store = true;
+    }
 
-    getInputElement('blackboardbox').checked = settings.blackboardMode;
+    if(settings.hasOwnProperty('activityDetection')) {
+        getInputElement('activitybox').checked = settings.activityDetection;
+    } else {
+        settings.activityDetection = getInputElement('activitybox').checked;
+        store = true;
+    }
 
     if(store)
         storeSettings(settings);
