@@ -82,6 +82,7 @@ function getUserPass() {
  * @property {string} [request]
  * @property {boolean} [activityDetection]
  * @property {Array.<number>} [resolution]
+ * @property {boolean} [mirrorView]
  * @property {boolean} [blackboardMode]
  * @property {string} [filter]
  */
@@ -231,6 +232,13 @@ function reflectSettings() {
         getInputElement('blackboardbox').checked = settings.blackboardMode;
     } else {
         settings.blackboardMode = getInputElement('blackboardbox').checked;
+        store = true;
+    }
+
+    if(settings.hasOwnProperty('mirrorView')) {
+        getInputElement('mirrorbox').checked = settings.mirrorView;
+    } else {
+        settings.mirrorView = getInputElement('mirrorbox').checked;
         store = true;
     }
 
@@ -467,6 +475,14 @@ getSelectElement('audioselect').onchange = function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({audio: this.value});
+    changePresentation();
+};
+
+getInputElement('mirrorbox').onchange = function(e) {
+    e.preventDefault();
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
+    updateSettings({mirrorView: this.checked});
     changePresentation();
 };
 
@@ -1095,7 +1111,7 @@ async function addLocalMedia(id) {
 
     c.onstats = gotUpStats;
     c.setStatsInterval(2000);
-    await setMedia(c, true, true);
+    await setMedia(c, true, settings.mirrorView);
     setButtonsVisibility();
 }
 
