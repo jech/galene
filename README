@@ -306,4 +306,10 @@ first one that works.  If an `ice-servers.json` file is present and
 Galène's built-in TURN server is enabled, then the external server will be
 used in preference to the built-in server.
 
+# Further information
+
+Galène's web page is at <https://galene.org>.
+
+Answers to common questions and issues are at <https://galene.org#faq>.
+
 -- Juliusz Chroboczek <https://www.irif.fr/~jch/>
