@@ -50,7 +50,7 @@ You should be able to access Galène at `https://localhost:8443`.  Connect
 to the group that you have just set up in two distinct browser windows,
 then press *Ready* in one of the two; you should see a video in the other.
 
-If you have set up a TURN server, type */relay-test* in the chat box; if
+If you have set up a TURN server, type `/relay-test` in the chat box; if
 the TURN server is properly configured, you should see a message saying
 that the relay test has been successful.  (The relay test will fail if you
 didn't configure a TURN server; this is normal, and nothing to worry
@@ -76,6 +76,31 @@ If your server is behind NAT, then you should configure your NAT device to
 forward, at a minimum, ports 8443 and 1194.  In addition, you should add
 the option `-turn 192.0.2.1:1194` to Galène's command line, where `192.0.2.1`
 is your NAT's external (global) IPv4 address.
+
+## Cross-compile for your server
+
+If your server runs a different OS or has a different CPU than your build
+machine, you will need to recompile the binary for the server.
+
+For a Linux server with an Intel or AMD CPU:
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-s -w'
+
+For a Raspberry Pi 1:
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -ldflags='-s -w'
+
+For a BeagleBone or a Raspberry Pi 2 or later:
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags='-s -w'
+
+For a 64-bit ARM board (Olimex Olinuxino-A64, Pine64, etc.):
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags='-s -w'
+
+For a 32-bit MIPS board with no hardware floating point (WNDR3800, etc.):
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags='-s -w'
 
 ## Deploy to your server
 
