@@ -17,7 +17,8 @@ This step is optional.
 
 ## Set up a group
 
-A group is set up by creating a file `groups/name.json`.
+A group called *groupname* is is set up by creating a file
+`groups/groupname.json`.
 
     mkdir groups
     vi groups/groupname.json
@@ -65,17 +66,19 @@ If your server has a global IPv4 address, then the firewall must, at
 a strict minimum, allow incoming traffic to TCP port 8443 (or whatever is
 configured with the `-http` command-line option) and TCP port 1194 (or
 whatever is configured with the `-turn` command-line option).  For best
-performance, it should also allow UDP traffic to the TURN port and UDP
+performance, it should also allow UDP traffic to the TURN port, and UDP
 traffic to ephemeral (high-numbered) ports.
 
 If your server only has a global IPv6 address, then you should probably
-disable the built-in TURN server (`-turn ""`) and configure an external
-TURN server; see "ICE Servers" below.
+configure an external double-stack (IPv4 and IPv6) TURN server: see
+"ICE Servers" below.
 
-If your server is behind NAT, then you should configure your NAT device to
-forward, at a minimum, ports 8443 and 1194.  In addition, you should add
-the option `-turn 192.0.2.1:1194` to Galène's command line, where `192.0.2.1`
-is your NAT's external (global) IPv4 address.
+If your server is behind NAT, then the best solution is to run an external
+TURN server that is not behind NAT (see "ICE Servers" below).  If that is
+not possible, then you should configure your NAT device to forward, at
+a minimum, ports 8443 (TCP) and 1194 (TCP and UDP).  In addition, you
+should add the option `-turn 203.0.113.1:1194` to Galène's command line,
+where `203.0.113.1` is your NAT's external (global) IPv4 address.
 
 ## Cross-compile for your server
 
@@ -176,15 +179,15 @@ not.
 Groups are defined by files in the `./groups` directory (this may be
 configured by the `-groups` command-line option, try `./galene -help`).
 The definition for the group called *groupname* is in the file
-`groups/groupname.json` and does not contain the group name, which makes
+`groups/groupname.json`; it does not contain the group name, which makes
 it easy to copy or link group definitions.  You may use subdirectories:
 a file `groups/teaching/networking.json` defines a group called
 *teching/networking*.
 
-Every group definition file contains a JSON directory with the following
-fields.  All fields are optional, but unless you specify at least one user
-definition (`op`, `presenter`, or `other`), nobody will be able to join
-the group.
+Every group definition file contains a JSON directory.  All fields are
+optional, but unless you specify at least one user definition (`op`,
+`presenter`, or `other`), nobody will be able to join the group.  The
+following fields are allowed:
 
  - `op`, `presenter`, `other`: each of these is an array of user
    definitions (see below) and specifies the users allowed to connect
@@ -266,26 +269,25 @@ user entry with a hashed password looks like this:
 
 ICE is the NAT and firewall traversal protocol used by WebRTC.  ICE can
 make use of two kinds of servers to help with NAT traversal: STUN servers,
-that simply help punching holes in NATs, and TURN servers, that serve as
-relays for traffic.  TURN is a superset of STUN: no STUN server is
-necessary if a TURN server is available.
+that help punching holes in well-behaved NATs, and TURN servers, that
+serve as relays for traffic.  TURN is a superset of STUN: no STUN server
+is necessary if a TURN server is available.
 
-Galène includes a simple IPv4-only TURN server, which is controlled by the
+Galène includes an IPv4-only TURN server, which is controlled by the
 `-turn` command-line option.  If its value is set to the empty string
 `""`, then the built-in server is disabled.  If its value is a colon
 followed with a port number, for example `:1194`, then the TURN server
 will listen on all public IPv4 addresses of the local host, over UDP and
 TCP.  If the value of this option is a socket address, such as
-`192.0.2.1:1194`, then the TURN server will listen on all addresses of the
-local host but assume that the address seen by the clients is the one
-given in the option; this is the recommended configuration when running
-behind NAT with port forwarding.  The default value is `-turn auto`, which
-enables the TURN server on port 1194 if there is no
-`data/ice-servers.json` file.
+`203.0.113.1:1194`, then the TURN server will listen on all addresses of
+the local host but assume that the address seen by the clients is the one
+given in the option; this is useful when running behind NAT with port
+forwarding set up.  The default value is `-turn auto`, which starts a
+TURN server on port 1194 unless there is a `data/ice-servers.json` file.
 
 Some users may prefer to use an external ICE server.  In that case, the
-built-in TURN server should be disabled (`-turn ""` or the default
-`-turn auto`), and a working ICE configuration should appear in the file
+built-in TURN server should be disabled (`-turn ""` or the default `-turn
+auto`), and a working ICE configuration should be given in the file
 `data/ice-servers.json`.  In the case of a single STUN server, it should
 look like this:
 
