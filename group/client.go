@@ -99,7 +99,7 @@ type Client interface {
 	Permissions() ClientPermissions
 	SetPermissions(ClientPermissions)
 	OverridePermissions(*Group) bool
-	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack) error
+	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
 	PushClient(id, username string, add bool) error
 }
 

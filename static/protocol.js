@@ -36,13 +36,28 @@ function toHex(array) {
     return a.reduce((x, y) => x + hex(y), '');
 }
 
-/** randomid returns a random string of 32 hex digits (16 bytes).
+/**
+ * newRandomId returns a random string of 32 hex digits (16 bytes).
+ *
  * @returns {string}
  */
-function randomid() {
+function newRandomId() {
     let a = new Uint8Array(16);
     crypto.getRandomValues(a);
     return toHex(a);
+}
+
+let localIdCounter = 0;
+
+/**
+ * newLocalId returns a string that is unique in this session.
+ *
+ * @returns {string}
+ */
+function newLocalId() {
+    let id = `${localIdCounter}`
+    localIdCounter++;
+    return id;
 }
 
 /**
@@ -57,7 +72,7 @@ function ServerConnection() {
      * @type {string}
      * @const
      */
-    this.id = randomid();
+    this.id = newRandomId();
     /**
      * The group that we have joined, or null if we haven't joined yet.
      *
@@ -168,6 +183,7 @@ function ServerConnection() {
   * @property {string} type
   * @property {string} [kind]
   * @property {string} [id]
+  * @property {string} [replace]
   * @property {string} [source]
   * @property {string} [dest]
   * @property {string} [username]
@@ -259,7 +275,7 @@ ServerConnection.prototype.connect = async function(url) {
                 break;
             case 'offer':
                 sc.gotOffer(m.id, m.labels, m.source, m.username,
-                            m.sdp, m.kind === 'renegotiate');
+                            m.sdp, m.replace);
                 break;
             case 'answer':
                 sc.gotAnswer(m.id, m.sdp);
@@ -391,25 +407,51 @@ ServerConnection.prototype.request = function(what) {
 };
 
 /**
- * newUpStream requests the creation of a new up stream.
- *
- * @param {string} [id] - The id of the stream to create.
+ * @param {string} localId
  * @returns {Stream}
  */
-ServerConnection.prototype.newUpStream = function(id) {
-    let sc = this;
-    if(!id) {
-        id = randomid();
-        if(sc.up[id])
-            throw new Error('Eek!');
+
+ServerConnection.prototype.findByLocalId = function(localId) {
+    if(!localId)
+        return null;
+
+    for(let id in serverConnection.up) {
+        let s = serverConnection.up[id];
+        if(s.localId == localId)
+            return s;
     }
+    return null;
+}
+
+/**
+ * newUpStream requests the creation of a new up stream.
+ *
+ * @param {string} [localId]
+ *   - The local id of the stream to create.  If a stream already exists with
+ *     the same local id, it is replaced with the new stream.
+ * @returns {Stream}
+ */
+ServerConnection.prototype.newUpStream = function(localId) {
+    let sc = this;
+    let id = newRandomId();
+    if(sc.up[id])
+        throw new Error('Eek!');
+
     let pc = new RTCPeerConnection(sc.rtcConfiguration);
     if(!pc)
         throw new Error("Couldn't create peer connection");
-    if(sc.up[id])
-        sc.up[id].close();
 
-    let c = new Stream(this, id, pc, true);
+    let oldId = null;
+    if(localId) {
+        let old = sc.findByLocalId(localId);
+        oldId = old && old.id;
+        if(old)
+            old.close(true);
+    }
+
+    let c = new Stream(this, id, localId || newLocalId(), pc, true);
+    if(oldId)
+        c.replace = oldId;
     sc.up[id] = c;
 
     pc.onnegotiationneeded = async e => {
@@ -518,26 +560,32 @@ ServerConnection.prototype.groupAction = function(kind, message) {
  * @param {string} source
  * @param {string} username
  * @param {string} sdp
- * @param {boolean} renegotiate
+ * @param {string} replace
  * @function
  */
-ServerConnection.prototype.gotOffer = async function(id, labels, source, username, sdp, renegotiate) {
+ServerConnection.prototype.gotOffer = async function(id, labels, source, username, sdp, replace) {
     let sc = this;
-    let c = sc.down[id];
-    if(c && !renegotiate) {
-        // SDP is rather inflexible as to what can be renegotiated.
-        // Unless the server indicates that this is a renegotiation with
-        // all parameters unchanged, tear down the existing connection.
-        c.close(true);
-        c = null;
-    }
-
     if(sc.up[id])
         throw new Error('Duplicate connection id');
 
+    let oldLocalId = null;
+
+    if(replace) {
+        let old = sc.down[replace];
+        if(old) {
+            oldLocalId = old.localId;
+            old.close(true);
+        } else
+            console.error("Replacing unknown stream");
+    }
+
+    let c = sc.down[id];
+    if(c && oldLocalId)
+        console.error("Replacing duplicate stream");
+
     if(!c) {
         let pc = new RTCPeerConnection(sc.rtcConfiguration);
-        c = new Stream(this, id, pc, false);
+        c = new Stream(this, id, oldLocalId || newLocalId(), pc, false);
         sc.down[id] = c;
 
         c.pc.onicecandidate = function(e) {
@@ -709,11 +757,12 @@ ServerConnection.prototype.gotRemoteIce = async function(id, candidate) {
  *
  * @param {ServerConnection} sc
  * @param {string} id
+ * @param {string} localId
  * @param {RTCPeerConnection} pc
  *
  * @constructor
  */
-function Stream(sc, id, pc, up) {
+function Stream(sc, id, localId, pc, up) {
     /**
      * The associated ServerConnection.
      *
@@ -728,6 +777,13 @@ function Stream(sc, id, pc, up) {
      * @const
      */
     this.id = id;
+    /**
+     * The local id of this stream.
+     *
+     * @type {string}
+     * @const
+     */
+    this.localId = localId;
     /**
      * Indicates whether the stream is in the client->server direction.
      *
@@ -779,6 +835,12 @@ function Stream(sc, id, pc, up) {
      * @type {Object<string,string>}
      */
     this.labelsByMid = {};
+    /**
+     * The id of the stream that we are currently replacing.
+     *
+     * @type {string}
+     */
+    this.replace = null;
     /**
      * Indicates whether we have already sent a local description.
      *
@@ -899,7 +961,7 @@ Stream.prototype.close = function(replace) {
 
     c.pc.close();
 
-    if(c.up && c.localDescriptionSent) {
+    if(c.up && !replace && c.localDescriptionSent) {
         try {
             c.sc.send({
                 type: 'close',
@@ -1034,10 +1096,12 @@ Stream.prototype.negotiate = async function (restartIce) {
         username: c.sc.username,
         kind: this.localDescriptionSent ? 'renegotiate' : '',
         id: c.id,
+        replace: this.replace,
         labels: c.labelsByMid,
         sdp: c.pc.localDescription.sdp,
     });
     this.localDescriptionSent = true;
+    this.replace = null;
     c.flushLocalIceCandidates();
 };
 

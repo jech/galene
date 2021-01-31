@@ -143,8 +143,8 @@ type rtpDownConnection struct {
 	iceCandidates     []*webrtc.ICECandidateInit
 	negotiationNeeded int
 
-	mu sync.Mutex
-	tracks            []*rtpDownTrack
+	mu     sync.Mutex
+	tracks []*rtpDownTrack
 }
 
 func (down *rtpDownConnection) getTracks() []*rtpDownTrack {
@@ -333,10 +333,11 @@ type rtpUpConnection struct {
 	labels        map[string]string
 	iceCandidates []*webrtc.ICECandidateInit
 
-	mu     sync.Mutex
-	pushed bool
-	tracks []*rtpUpTrack
-	local  []conn.Down
+	mu      sync.Mutex
+	pushed  bool
+	replace string
+	tracks  []*rtpUpTrack
+	local   []conn.Down
 }
 
 func (up *rtpUpConnection) getTracks() []*rtpUpTrack {
@@ -345,6 +346,16 @@ func (up *rtpUpConnection) getTracks() []*rtpUpTrack {
 	tracks := make([]*rtpUpTrack, len(up.tracks))
 	copy(tracks, up.tracks)
 	return tracks
+}
+
+func (up *rtpUpConnection) getReplace(reset bool) string {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	replace := up.replace
+	if reset {
+		up.replace = ""
+	}
+	return replace
 }
 
 func (up *rtpUpConnection) Id() string {
@@ -443,6 +454,8 @@ func (up *rtpUpConnection) complete() bool {
 func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	up.mu.Lock()
 	up.pushed = true
+	replace := up.replace
+	up.replace = ""
 	tracks := make([]conn.UpTrack, len(up.tracks))
 	for i, t := range up.tracks {
 		tracks[i] = t
@@ -450,7 +463,7 @@ func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	up.mu.Unlock()
 
 	for _, c := range cs {
-		c.PushConn(g, up.id, up, tracks)
+		c.PushConn(g, up.id, up, tracks, replace)
 	}
 }
 

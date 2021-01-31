@@ -114,11 +114,7 @@ this point, you may set up an `audio` or `video` component straight away,
 or you may choose to wait until the `ondowntrack` callback is called.
 
 After a new stream is created, `ondowntrack` will be called whenever
-a track is added.  If the `MediaStream` passed to `ondowntrack` differs
-from the one previously received, then the stream has been torn down and
-recreated, and you must drop all previously received tracks; in practice,
-it is enough to set the `srcObject` property of the video component to the
-new stream.
+a track is added.
 
 The `onstatus` callback is invoked whenever the client library detects
 a change in the status of the stream; states `connected` and `complete`
@@ -126,7 +122,10 @@ indicate a functioning stream; other states indicate that the stream is
 not working right now but might recover in the future.
 
 The `onclose` callback is called when the stream is destroyed, either by
-the server or in response to a call to the `close` method.
+the server or in response to a call to the `close` method.  The optional
+parameter is true when the stream is being replaced by a new stream; in
+that case, the call to `onclose` will be followed with a call to
+`onstream` with the same `localId` value.
 
 ## Pushing outgoing video streams
 
@@ -144,6 +143,11 @@ localStream.getTracks().forEach(t => {
     c.pc.addTrack(t, c.stream);
 });
 ```
+
+The `newUpStream` method takes an optional parameter.  If this is set to
+the `localId` property of an existing stream, then the existing stream
+will be closed and the server will be informed that the new stream
+replaces the existing stream.
 
 See above for information about setting up the `labels` dictionary.
 

@@ -340,7 +340,7 @@ function gotClose(code, reason) {
 function gotDownStream(c) {
     c.onclose = function(replace) {
         if(!replace)
-            delMedia(c.id);
+            delMedia(c.localId);
     };
     c.onerror = function(e) {
         console.error(e);
@@ -397,10 +397,9 @@ getButtonElement('unpresentbutton').onclick = function(e) {
 };
 
 function changePresentation() {
-    let id = findUpMedia('local');
-    if(id) {
-        addLocalMedia(id);
-    }
+    let c = findUpMedia('local');
+    if(c)
+        addLocalMedia(c.localId);
 }
 
 /**
@@ -624,7 +623,7 @@ function gotUpStats(stats) {
  * @param {boolean} value
  */
 function setActive(c, value) {
-    let peer = document.getElementById('peer-' + c.id);
+    let peer = document.getElementById('peer-' + c.localId);
     if(value)
         peer.classList.add('peer-active');
     else
@@ -773,10 +772,10 @@ async function setMediaChoices(done) {
 
 
 /**
- * @param {string} [id]
+ * @param {string} [localId]
  */
-function newUpStream(id) {
-    let c = serverConnection.newUpStream(id);
+function newUpStream(localId) {
+    let c = serverConnection.newUpStream(localId);
     c.onstatus = function(status) {
         setMediaStatus(c);
     };
@@ -1012,9 +1011,9 @@ function isSafari() {
 }
 
 /**
- * @param {string} [id]
+ * @param {string} [localId]
  */
-async function addLocalMedia(id) {
+async function addLocalMedia(localId) {
     let settings = getSettings();
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
@@ -1039,13 +1038,7 @@ async function addLocalMedia(id) {
         }
     }
 
-    let old = id && serverConnection.up[id];
-    if(!audio && !video) {
-        if(old)
-            old.close();
-        return;
-    }
-
+    let old = serverConnection.findByLocalId(localId);
     if(old && old.onclose) {
         // make sure that the camera is released before we try to reopen it
         old.onclose.call(old, true);
@@ -1063,7 +1056,7 @@ async function addLocalMedia(id) {
 
     setMediaChoices(true);
 
-    let c = newUpStream(id);
+    let c = newUpStream(localId);
 
     c.kind = 'local';
     c.stream = stream;
@@ -1076,21 +1069,21 @@ async function addLocalMedia(id) {
                 stopStream(stream);
                 setFilter(c, null);
                 if(!replace)
-                    delMedia(c.id);
+                    delMedia(c.localId);
             }
         } catch(e) {
             displayWarning(e);
             c.onclose = replace => {
                 stopStream(c.stream);
                 if(!replace)
-                    delMedia(c.id);
+                    delMedia(c.localId);
             }
         }
     } else {
         c.onclose = replace => {
             stopStream(c.stream);
             if(!replace)
-                delMedia(c.id);
+                delMedia(c.localId);
         }
     }
 
@@ -1144,7 +1137,7 @@ async function addShareMedia() {
     c.onclose = replace => {
         stopStream(stream);
         if(!replace)
-            delMedia(c.id);
+            delMedia(c.localId);
     }
     stream.getTracks().forEach(t => {
         c.pc.addTrack(t, stream);
@@ -1180,13 +1173,13 @@ async function addFileMedia(file) {
     c.onclose = function(replace) {
         stopStream(c.stream);
         let media = /** @type{HTMLVideoElement} */
-            (document.getElementById('media-' + this.id));
+            (document.getElementById('media-' + this.localId));
         if(media && media.src) {
             URL.revokeObjectURL(media.src);
             media.src = null;
         }
         if(!replace)
-            delMedia(c.id);
+            delMedia(c.localId);
     };
 
     stream.onaddtrack = function(e) {
@@ -1261,11 +1254,13 @@ function closeUpMediaKind(kind) {
 
 /**
  * @param {string} kind
+ * @returns {Stream}
  */
 function findUpMedia(kind) {
     for(let id in serverConnection.up) {
-        if(serverConnection.up[id].kind === kind)
-            return id;
+        let c = serverConnection.up[id]
+        if(c.kind === kind)
+            return c;
     }
     return null;
 }
@@ -1304,16 +1299,16 @@ function muteLocalTracks(mute) {
 async function setMedia(c, isUp, mirror, video) {
     let peersdiv = document.getElementById('peers');
 
-    let div = document.getElementById('peer-' + c.id);
+    let div = document.getElementById('peer-' + c.localId);
     if(!div) {
         div = document.createElement('div');
-        div.id = 'peer-' + c.id;
+        div.id = 'peer-' + c.localId;
         div.classList.add('peer');
         peersdiv.appendChild(div);
     }
 
     let media = /** @type {HTMLVideoElement} */
-        (document.getElementById('media-' + c.id));
+        (document.getElementById('media-' + c.localId));
     if(media) {
         if(video) {
             throw new Error("Duplicate video");
@@ -1331,21 +1326,24 @@ async function setMedia(c, isUp, mirror, video) {
         media.autoplay = true;
         /** @ts-ignore */
         media.playsinline = true;
-        media.id = 'media-' + c.id;
+        media.id = 'media-' + c.localId;
         div.appendChild(media);
         if(!video)
             addCustomControls(media, div, c);
-        if(mirror)
-            media.classList.add('mirror');
     }
+
+    if(mirror)
+        media.classList.add('mirror');
+    else
+        media.classList.remove('mirror');
 
     if(!video && media.srcObject !== c.stream)
         media.srcObject = c.stream;
 
-    let label = document.getElementById('label-' + c.id);
+    let label = document.getElementById('label-' + c.localId);
     if(!label) {
         label = document.createElement('div');
-        label.id = 'label-' + c.id;
+        label.id = 'label-' + c.localId;
         label.classList.add('label');
         div.appendChild(label);
     }
@@ -1382,7 +1380,7 @@ function cloneHTMLElement(elt) {
  */
 function addCustomControls(media, container, c) {
     media.controls = false;
-    let controls = document.getElementById('controls-' + c.id);
+    let controls = document.getElementById('controls-' + c.localId);
     if(controls) {
         console.warn('Attempted to add duplicate controls');
         return;
@@ -1391,7 +1389,7 @@ function addCustomControls(media, container, c) {
     let template =
         document.getElementById('videocontrols-template').firstElementChild;
     controls = cloneHTMLElement(template);
-    controls.id = 'controls-' + c.id;
+    controls.id = 'controls-' + c.localId;
 
     let volume = getVideoButton(controls, 'volume');
     if(c.kind === 'local') {
@@ -1508,16 +1506,16 @@ function registerControlHandlers(media, container) {
 }
 
 /**
- * @param {string} id
+ * @param {string} localId
  */
-function delMedia(id) {
+function delMedia(localId) {
     let mediadiv = document.getElementById('peers');
-    let peer = document.getElementById('peer-' + id);
+    let peer = document.getElementById('peer-' + localId);
     if(!peer)
         throw new Error('Removing unknown media');
 
     let media = /** @type{HTMLVideoElement} */
-        (document.getElementById('media-' + id));
+        (document.getElementById('media-' + localId));
 
     media.srcObject = null;
     mediadiv.removeChild(peer);
@@ -1534,7 +1532,7 @@ function setMediaStatus(c) {
     let state = c && c.pc && c.pc.iceConnectionState;
     let good = state === 'connected' || state === 'completed';
 
-    let media = document.getElementById('media-' + c.id);
+    let media = document.getElementById('media-' + c.localId);
     if(!media) {
         console.warn('Setting status of unknown media.');
         return;
@@ -1560,7 +1558,7 @@ function setMediaStatus(c) {
  * @param {string} [fallback]
  */
 function setLabel(c, fallback) {
-    let label = document.getElementById('label-' + c.id);
+    let label = document.getElementById('label-' + c.localId);
     if(!label)
         return;
     let l = c.username;

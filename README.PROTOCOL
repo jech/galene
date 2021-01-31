@@ -142,8 +142,8 @@ A stream is created by the sender with the `offer` message:
 ```javascript
 {
     type: 'offer',
-    kind: '' or 'renegotiate'
     id: id,
+    replace: id,
     source: source-id,
     username: username,
     sdp: sdp,
@@ -151,12 +151,10 @@ A stream is created by the sender with the `offer` message:
 }
 ```
 
-If kind is the empty string, then this is a new offer that might or might
-not replace an existing stream; if a stream with the same id exists, it
-must be torn down before the new stream is created.  If kind is
-`renegotiate`, then a stream with the given id already exists, and the
-receiving peer may either tear down the existing stream or merely perform
-a renegotiation.
+If a stream with the same id exists, then this is a renegotation;
+otherwise this message creates a new stream.  If the field `replace` is
+not empty, then this request additionally requests that an existing stream
+with the given id should be closed, and the new stream should replace it.
 
 The field `sdp` contains the raw SDP string (i.e. the `sdp` field of
 a JSEP session description).  Galène will interpret the `nack`,

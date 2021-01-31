@@ -93,7 +93,7 @@ func (client *Client) Kick(id, user, message string) error {
 	return err
 }
 
-func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack) error {
+func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
 	if client.group != g {
 		return nil
 	}
@@ -103,6 +103,14 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 
 	if client.closed {
 		return errors.New("disk client is closed")
+	}
+
+	rp := client.down[replace]
+	if rp != nil {
+		rp.Close()
+		delete(client.down, replace)
+	} else {
+		log.Printf("Replacing unknown connection")
 	}
 
 	old := client.down[id]

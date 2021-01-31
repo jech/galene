@@ -169,6 +169,7 @@ type clientMessage struct {
 	Type             string                   `json:"type"`
 	Kind             string                   `json:"kind,omitempty"`
 	Id               string                   `json:"id,omitempty"`
+	Replace          string                   `json:"replace,omitempty"`
 	Source           string                   `json:"source,omitempty"`
 	Dest             string                   `json:"dest,omitempty"`
 	Username         string                   `json:"username,omitempty"`
@@ -246,17 +247,26 @@ func addUpConn(c *webClient, id string, labels map[string]string, offer string) 
 	return conn, true, nil
 }
 
-func delUpConn(c *webClient, id string) bool {
+var ErrUserMismatch = errors.New("user id mismatch")
+
+func delUpConn(c *webClient, id string, userId string) (string, error) {
 	c.mu.Lock()
 	if c.up == nil {
 		c.mu.Unlock()
-		return false
+		return "", os.ErrNotExist
 	}
 	conn := c.up[id]
 	if conn == nil {
 		c.mu.Unlock()
-		return false
+		return "", os.ErrNotExist
 	}
+	if userId != "" && conn.userId != userId {
+		c.mu.Unlock()
+		return "", ErrUserMismatch
+	}
+
+	replace := conn.getReplace(true)
+
 	delete(c.up, id)
 	c.mu.Unlock()
 
@@ -264,7 +274,7 @@ func delUpConn(c *webClient, id string) bool {
 	if g != nil {
 		go func(clients []group.Client) {
 			for _, c := range clients {
-				err := c.PushConn(g, conn.id, nil, nil)
+				err := c.PushConn(g, conn.id, nil, nil, replace)
 				if err != nil {
 					log.Printf("PushConn: %v", err)
 				}
@@ -275,7 +285,7 @@ func delUpConn(c *webClient, id string) bool {
 	}
 
 	conn.pc.Close()
-	return true
+	return conn.replace, nil
 }
 
 func getDownConn(c *webClient, id string) *rtpDownConnection {
@@ -355,13 +365,13 @@ func addDownConnHelper(c *webClient, conn *rtpDownConnection, remote conn.Up) er
 	return nil
 }
 
-func delDownConn(c *webClient, id string) bool {
+func delDownConn(c *webClient, id string) error {
 	conn := delDownConnHelper(c, id)
 	if conn != nil {
 		conn.pc.Close()
-		return true
+		return nil
 	}
-	return false
+	return os.ErrNotExist
 }
 
 func delDownConnHelper(c *webClient, id string) *rtpDownConnection {
@@ -429,7 +439,7 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrac
 	return sender, nil
 }
 
-func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bool) error {
+func negotiate(c *webClient, down *rtpDownConnection, restartIce bool, replace string) error {
 	if down.pc.SignalingState() == webrtc.SignalingStateHaveLocalOffer {
 		// avoid sending multiple offers back-to-back
 		if restartIce {
@@ -470,17 +480,12 @@ func negotiate(c *webClient, down *rtpDownConnection, renegotiate, restartIce bo
 		}
 	}
 
-	kind := ""
-	if renegotiate {
-		kind = "renegotiate"
-	}
-
 	source, username := down.remote.User()
 
 	return c.write(clientMessage{
 		Type:     "offer",
-		Kind:     kind,
 		Id:       down.id,
+		Replace:  replace,
 		Source:   source,
 		Username: username,
 		SDP:      down.pc.LocalDescription().SDP,
@@ -500,31 +505,21 @@ func sendICE(c *webClient, id string, candidate *webrtc.ICECandidate) error {
 	})
 }
 
-func gotOffer(c *webClient, id string, sdp string, renegotiate bool, labels map[string]string) error {
-	if !renegotiate {
-		// unless the client indicates that this is a compatible
-		// renegotiation, tear down the existing connection.
-		delUpConn(c, id)
-	}
-
-	up, isnew, err := addUpConn(c, id, labels, sdp)
+func gotOffer(c *webClient, id string, sdp string, labels map[string]string, replace string) error {
+	up, _, err := addUpConn(c, id, labels, sdp)
 	if err != nil {
 		return err
 	}
 
 	up.userId = c.Id()
 	up.username = c.Username()
+	up.replace = replace
 
 	err = up.pc.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
 		SDP:  sdp,
 	})
 	if err != nil {
-		if renegotiate && !isnew {
-			// create a new PC from scratch
-			log.Printf("SetRemoteDescription(offer): %v", err)
-			return gotOffer(c, id, sdp, false, labels)
-		}
 		return err
 	}
 
@@ -679,8 +674,8 @@ func addDownConnTracks(c *webClient, remote conn.Up, tracks []conn.UpTrack) (*rt
 	return down, nil
 }
 
-func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack) error {
-	err := c.action(pushConnAction{g, id, up, tracks})
+func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
+	err := c.action(pushConnAction{g, id, up, tracks, replace})
 	if err != nil {
 		return err
 	}
@@ -746,10 +741,11 @@ func StartClient(conn *websocket.Conn) (err error) {
 }
 
 type pushConnAction struct {
-	group  *group.Group
-	id     string
-	conn   conn.Up
-	tracks []conn.UpTrack
+	group   *group.Group
+	id      string
+	conn    conn.Up
+	tracks  []conn.UpTrack
+	replace string
 }
 
 type pushConnsAction struct {
@@ -811,15 +807,23 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					return nil
 				}
 				if a.conn == nil {
-					found := delDownConn(c, a.id)
-					if found {
+					if a.replace != "" {
+						err := delDownConn(
+							c, a.replace,
+						)
+						if err == nil {
+							c.write(clientMessage{
+								Type: "close",
+								Id:   a.replace,
+							})
+						}
+					}
+					err := delDownConn(c, a.id)
+					if err == nil {
 						c.write(clientMessage{
 							Type: "close",
 							Id:   a.id,
 						})
-					} else {
-						log.Printf("Deleting unknown " +
-							"down connection")
 					}
 					continue
 				}
@@ -830,7 +834,9 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					return err
 				}
 				if down != nil {
-					err = negotiate(c, down, false, false)
+					err = negotiate(
+						c, down, false, a.replace,
+					)
 					if err != nil {
 						log.Printf(
 							"Negotiation failed: %v",
@@ -852,13 +858,17 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 						continue
 					}
 					tracks := u.getTracks()
+					replace := u.getReplace(false)
+
 					ts := make([]conn.UpTrack, len(tracks))
 					for i, t := range tracks {
 						ts[i] = t
 					}
-					go func(u *rtpUpConnection, ts []conn.UpTrack) {
+					go func(u *rtpUpConnection,
+						ts []conn.UpTrack,
+						replace string) {
 						err := a.client.PushConn(
-							g, u.id, u, ts,
+							g, u.id, u, ts, replace,
 						)
 						if err != nil {
 							log.Printf(
@@ -866,11 +876,11 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 								err,
 							)
 						}
-					}(u, ts)
+					}(u, ts, replace)
 				}
 			case connectionFailedAction:
 				if down := getDownConn(c, a.id); down != nil {
-					err := negotiate(c, down, true, true)
+					err := negotiate(c, down, true, "")
 					if err != nil {
 						return err
 					}
@@ -883,7 +893,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					go c.PushConn(
 						c.group,
 						down.remote.Id(), down.remote,
-						tracks,
+						tracks, "",
 					)
 				} else if up := getUpConn(c, a.id); up != nil {
 					c.write(clientMessage{
@@ -912,8 +922,12 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				if !c.permissions.Present {
 					up := getUpConns(c)
 					for _, u := range up {
-						found := delUpConn(c, u.id)
-						if found {
+						replace, err :=
+							delUpConn(c, u.id, c.id)
+						if err == nil {
+							if replace != "" {
+								delUpConn(c, replace, c.id)
+							}
 							failUpConnection(
 								c, u.id,
 								"permission denied",
@@ -975,7 +989,7 @@ func leaveGroup(c *webClient) {
 	c.setRequested(map[string]uint32{})
 	if c.up != nil {
 		for id := range c.up {
-			delUpConn(c, id)
+			delUpConn(c, id, c.id)
 		}
 	}
 
@@ -1158,15 +1172,16 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		return c.setRequested(m.Request)
 	case "offer":
 		if !c.permissions.Present {
+			if m.Replace != "" {
+				delUpConn(c, m.Replace, c.id)
+			}
 			c.write(clientMessage{
 				Type: "abort",
 				Id:   m.Id,
 			})
 			return c.error(group.UserError("not authorised"))
 		}
-		err := gotOffer(
-			c, m.Id, m.SDP, m.Kind == "renegotiate", m.Labels,
-		)
+		err := gotOffer(c, m.Id, m.SDP, m.Labels, m.Replace)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
 			return failUpConnection(c, m.Id, "negotiation failed")
@@ -1184,8 +1199,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		down := getDownConn(c, m.Id)
 		if down.negotiationNeeded > negotiationUnneeded {
 			err := negotiate(
-				c, down, true,
+				c, down,
 				down.negotiationNeeded == negotiationRestartIce,
+				"",
 			)
 			if err != nil {
 				return failDownConnection(
@@ -1196,7 +1212,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 	case "renegotiate":
 		down := getDownConn(c, m.Id)
 		if down != nil {
-			err := negotiate(c, down, true, true)
+			err := negotiate(c, down, true, "")
 			if err != nil {
 				return failDownConnection(
 					c, m.Id, "renegotiation failed",
@@ -1206,14 +1222,22 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("Trying to renegotiate unknown connection")
 		}
 	case "close":
-		found := delUpConn(c, m.Id)
-		if !found {
-			log.Printf("Deleting unknown up connection %v", m.Id)
+		replace, err := delUpConn(c, m.Id, c.id)
+		if err != nil {
+			log.Printf("Deleting up connection %v: %v",
+				m.Id, err)
+			return nil
+		}
+		if replace != "" {
+			_, err := delUpConn(c, replace, c.id)
+			if err != nil && !os.IsNotExist(err) {
+				log.Printf("Replace up connection: %v", err)
+			}
 		}
 	case "abort":
-		found := delDownConn(c, m.Id)
-		if !found {
-			log.Printf("Attempted to abort unknown connection")
+		err := delDownConn(c, m.Id)
+		if err != nil {
+			log.Printf("Abort: %v", err)
 		}
 		c.write(clientMessage{
 			Type: "close",
