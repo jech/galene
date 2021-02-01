@@ -419,8 +419,11 @@ function setButtonsVisibility() {
     let local = !!findUpMedia('local');
     let share = !!findUpMedia('screenshare');
     let video = !!findUpMedia('video');
-    /** @ts-ignore */
-    let canFile = !!HTMLVideoElement.prototype.captureStream;
+    let canFile =
+        /** @ts-ignore */
+        !!HTMLVideoElement.prototype.captureStream ||
+        /** @ts-ignore */
+        !!HTMLVideoElement.prototype.mozCaptureStream;
 
     // don't allow multiple presentations
     setVisibility('presentbutton', permissions.present && !local);
@@ -1154,18 +1157,23 @@ async function addShareMedia() {
  * @param {File} file
  */
 async function addFileMedia(file) {
-    /** @ts-ignore */
-    if(!HTMLVideoElement.prototype.captureStream) {
-        displayError("This browser doesn't support file playback");
-        return;
-    }
-
     let url = URL.createObjectURL(file);
     let video = document.createElement('video');
     video.src = url;
     video.controls = true;
+    let stream;
     /** @ts-ignore */
-    let stream = video.captureStream();
+    if(video.captureStream)
+        /** @ts-ignore */
+        stream = video.captureStream();
+    /** @ts-ignore */
+    else if(video.mozCaptureStream)
+        /** @ts-ignore */
+        stream = video.mozCaptureStream();
+    else {
+        displayError("This browser doesn't support file playback");
+        return;
+    }
 
     let c = newUpStream();
     c.kind = 'video';
