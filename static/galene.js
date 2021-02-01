@@ -1057,6 +1057,11 @@ async function addLocalMedia(localId) {
         return;
     }
 
+    if (typeof RTCPeerConnection == 'undefined') {
+        displayError("WebRTC not enabled");
+        return;
+    }
+
     setMediaChoices(true);
 
     let c = newUpStream(localId);
