@@ -249,43 +249,44 @@ func addUpConn(c *webClient, id string, labels map[string]string, offer string) 
 
 var ErrUserMismatch = errors.New("user id mismatch")
 
-func delUpConn(c *webClient, id string, userId string) (string, error) {
+// delUpConn deletes an up connection.  If push is closed, the close is
+// pushed to all corresponding down connections.
+func delUpConn(c *webClient, id string, userId string, push bool) error {
 	c.mu.Lock()
 	if c.up == nil {
 		c.mu.Unlock()
-		return "", os.ErrNotExist
+		return os.ErrNotExist
 	}
 	conn := c.up[id]
 	if conn == nil {
 		c.mu.Unlock()
-		return "", os.ErrNotExist
+		return os.ErrNotExist
 	}
 	if userId != "" && conn.userId != userId {
 		c.mu.Unlock()
-		return "", ErrUserMismatch
+		return ErrUserMismatch
 	}
 
 	replace := conn.getReplace(true)
 
 	delete(c.up, id)
+	g := c.group
 	c.mu.Unlock()
 
-	g := c.group
-	if g != nil {
+	conn.pc.Close()
+
+	if push && g != nil {
 		go func(clients []group.Client) {
 			for _, c := range clients {
-				err := c.PushConn(g, conn.id, nil, nil, replace)
+				err := c.PushConn(g, id, nil, nil, replace)
 				if err != nil {
 					log.Printf("PushConn: %v", err)
 				}
 			}
 		}(g.GetClients(c))
-	} else {
-		log.Printf("Deleting connection for client with no group")
 	}
 
-	conn.pc.Close()
-	return conn.replace, nil
+	return nil
 }
 
 func getDownConn(c *webClient, id string) *rtpDownConnection {
@@ -513,7 +514,10 @@ func gotOffer(c *webClient, id string, sdp string, labels map[string]string, rep
 
 	up.userId = c.Id()
 	up.username = c.Username()
-	up.replace = replace
+	if replace != "" {
+		up.replace = replace
+		delUpConn(c, replace, c.Id(), false)
+	}
 
 	err = up.pc.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
@@ -922,12 +926,10 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				if !c.permissions.Present {
 					up := getUpConns(c)
 					for _, u := range up {
-						replace, err :=
-							delUpConn(c, u.id, c.id)
+						err := delUpConn(
+							c, u.id, c.id, true,
+						)
 						if err == nil {
-							if replace != "" {
-								delUpConn(c, replace, c.id)
-							}
 							failUpConnection(
 								c, u.id,
 								"permission denied",
@@ -989,7 +991,7 @@ func leaveGroup(c *webClient) {
 	c.setRequested(map[string]uint32{})
 	if c.up != nil {
 		for id := range c.up {
-			delUpConn(c, id, c.id)
+			delUpConn(c, id, c.id, true)
 		}
 	}
 
@@ -1173,7 +1175,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 	case "offer":
 		if !c.permissions.Present {
 			if m.Replace != "" {
-				delUpConn(c, m.Replace, c.id)
+				delUpConn(c, m.Replace, c.id, true)
 			}
 			c.write(clientMessage{
 				Type: "abort",
@@ -1222,17 +1224,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("Trying to renegotiate unknown connection")
 		}
 	case "close":
-		replace, err := delUpConn(c, m.Id, c.id)
+		err := delUpConn(c, m.Id, c.id, true)
 		if err != nil {
 			log.Printf("Deleting up connection %v: %v",
 				m.Id, err)
 			return nil
-		}
-		if replace != "" {
-			_, err := delUpConn(c, replace, c.id)
-			if err != nil && !os.IsNotExist(err) {
-				log.Printf("Replace up connection: %v", err)
-			}
 		}
 	case "abort":
 		err := delDownConn(c, m.Id)
