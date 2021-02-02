@@ -569,16 +569,12 @@ func gotAnswer(c *webClient, id string, sdp string) error {
 		return ErrUnknownId
 	}
 
-	if down.pc.SignalingState() == webrtc.SignalingStateStable {
-		log.Printf("Got answer in stable state -- this shouldn't happen")
-	} else {
-		err := down.pc.SetRemoteDescription(webrtc.SessionDescription{
-			Type: webrtc.SDPTypeAnswer,
-			SDP:  sdp,
-		})
-		if err != nil {
-			return err
-		}
+	err := down.pc.SetRemoteDescription(webrtc.SessionDescription{
+		Type: webrtc.SDPTypeAnswer,
+		SDP:  sdp,
+	})
+	if err != nil {
+		return err
 	}
 
 	for _, t := range down.tracks {
@@ -590,7 +586,7 @@ func gotAnswer(c *webClient, id string, sdp string) error {
 		}
 	}
 
-	err := down.flushICECandidates()
+	err = down.flushICECandidates()
 	if err != nil {
 		log.Printf("ICE: %v", err)
 	}
