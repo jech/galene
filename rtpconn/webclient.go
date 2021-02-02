@@ -403,6 +403,20 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrac
 		return nil, errors.New("unexpected up track type")
 	}
 
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+
+	remoteSSRC := rt.track.SSRC()
+	for _, t := range conn.tracks {
+		tt, ok := t.remote.(*rtpUpTrack)
+		if !ok {
+			return nil, errors.New("unexpected up track type")
+		}
+		if tt.track.SSRC() == remoteSSRC {
+			return nil, os.ErrExist
+		}
+	}
+
 	local, err := webrtc.NewTrackLocalStaticRTP(
 		remoteTrack.Codec(),
 		rt.track.ID(), rt.track.StreamID(),
@@ -431,9 +445,7 @@ func addDownTrack(c *webClient, conn *rtpDownConnection, remoteTrack conn.UpTrac
 		atomics:    &downTrackAtomics{},
 	}
 
-	conn.mu.Lock()
 	conn.tracks = append(conn.tracks, track)
-	conn.mu.Unlock()
 
 	go rtcpDownListener(conn, track, sender)
 
