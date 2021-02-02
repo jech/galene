@@ -480,7 +480,7 @@ func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	up.mu.Unlock()
 
 	go func(g *group.Group, cs []group.Client) {
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(4 * time.Second)
 		up.mu.Lock()
 		pushed := up.pushed
 		up.pushed = true
