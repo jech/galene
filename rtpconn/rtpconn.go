@@ -469,12 +469,13 @@ func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 
 // pushConn schedules a call to pushConnNow
 func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
+	up.mu.Lock()
 	if up.complete() {
+		up.mu.Unlock()
 		pushConnNow(up, g, cs)
 		return
 	}
 
-	up.mu.Lock()
 	up.pushed = false
 	up.mu.Unlock()
 
