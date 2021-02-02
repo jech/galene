@@ -751,6 +751,9 @@ func StartClient(conn *websocket.Conn) (err error) {
 			c.write(*m)
 		}
 		c.close(e)
+		if err != nil {
+			log.Printf("Client: %v", err)
+		}
 	}()
 
 	return clientLoop(c, conn)
