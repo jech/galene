@@ -78,6 +78,7 @@ type downTrackAtomics struct {
 
 type rtpDownTrack struct {
 	track      *webrtc.TrackLocalStaticRTP
+	sender     *webrtc.RTPSender
 	remote     conn.UpTrack
 	ssrc       webrtc.SSRC
 	maxBitrate *bitrate
@@ -156,7 +157,7 @@ func (down *rtpDownConnection) getTracks() []*rtpDownTrack {
 }
 
 func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
-	api := group.APIFromCodecs(remote.Codecs())
+	api := c.Group().API()
 	pc, err := api.NewPeerConnection(*ice.ICEConfiguration())
 	if err != nil {
 		return nil, err
@@ -364,17 +365,6 @@ func (up *rtpUpConnection) Id() string {
 
 func (up *rtpUpConnection) User() (string, string) {
 	return up.userId, up.username
-}
-
-func (up *rtpUpConnection) Codecs() []webrtc.RTPCodecCapability {
-	up.mu.Lock()
-	defer up.mu.Unlock()
-
-	codecs := make([]webrtc.RTPCodecCapability, len(up.tracks))
-	for i := range up.tracks {
-		codecs[i] = up.tracks[i].Codec()
-	}
-	return codecs
 }
 
 func (up *rtpUpConnection) AddLocal(local conn.Down) error {
