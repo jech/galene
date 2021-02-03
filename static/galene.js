@@ -349,6 +349,15 @@ function gotDownStream(c) {
     c.ondowntrack = function(track, transceiver, label, stream) {
         setMedia(c, false);
     };
+    c.onnegotiationcompleted = function() {
+        let found = false;
+        for(let key in c.labels) {
+            if(c.labels[key] === 'video')
+                found = true;
+        }
+        if(!found)
+            resetMedia(c);
+    }
     c.onstatus = function(status) {
         setMediaStatus(c);
     };
@@ -1370,6 +1379,22 @@ async function setMedia(c, isUp, mirror, video) {
         } catch(e) {
         }
     }
+}
+
+/**
+ * resetMedia resets the source stream of the media element associated
+ * with c.  This has the side-effect of resetting any frozen frames.
+ *
+ * @param {Stream} c
+ */
+function resetMedia(c) {
+    let media = /** @type {HTMLVideoElement} */
+        (document.getElementById('media-' + c.localId));
+    if(!media) {
+        console.error("Resetting unknown media element")
+        return;
+    }
+    media.srcObject = media.srcObject;
 }
 
 /**

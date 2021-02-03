@@ -622,6 +622,16 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
     }
 
     c.labelsByMid = labels;
+    c.labels = {};
+    c.pc.getTransceivers().forEach(transceiver => {
+        let label = c.labelsByMid[transceiver.mid];
+        let track = transceiver.receiver && transceiver.receiver.track;
+        if(label && track) {
+            c.labels[track.id] = label;
+        } else if(!track) {
+            console.warn("Couldn't find track for label");
+        }
+    });
     c.source = source;
     c.username = username;
 
