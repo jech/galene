@@ -64,7 +64,6 @@ const (
 
 type Group struct {
 	name string
-	api  *webrtc.API
 
 	mu          sync.Mutex
 	description *description
@@ -122,7 +121,11 @@ var groups struct {
 }
 
 func (g *Group) API() *webrtc.API {
-	return g.api
+	g.mu.Lock()
+	codecs := g.description.Codecs
+	g.mu.Unlock()
+
+	return APIFromNames(codecs)
 }
 
 func codecFromName(name string) (webrtc.RTPCodecCapability, error) {
@@ -291,7 +294,6 @@ func Add(name string, desc *description) (*Group, error) {
 			description: desc,
 			clients:     make(map[string]Client),
 			timestamp:   time.Now(),
-			api:         APIFromNames(desc.Codecs),
 		}
 		autoLockKick(g, g.getClientsUnlocked(nil))
 		groups.groups[name] = g
@@ -319,7 +321,6 @@ func Add(name string, desc *description) (*Group, error) {
 		return nil, err
 	}
 	g.description = desc
-	g.api = APIFromNames(desc.Codecs)
 	autoLockKick(g, g.getClientsUnlocked(nil))
 
 	return g, nil
