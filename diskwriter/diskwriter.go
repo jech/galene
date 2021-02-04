@@ -105,12 +105,14 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 		return errors.New("disk client is closed")
 	}
 
-	rp := client.down[replace]
-	if rp != nil {
-		rp.Close()
-		delete(client.down, replace)
-	} else {
-		log.Printf("Replacing unknown connection")
+	if replace != "" {
+		rp := client.down[replace]
+		if rp != nil {
+			rp.Close()
+			delete(client.down, replace)
+		} else {
+			log.Printf("Disk writer: replacing unknown connection")
+		}
 	}
 
 	old := client.down[id]
