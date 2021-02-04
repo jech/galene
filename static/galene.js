@@ -424,6 +424,7 @@ function setVisibility(id, visible) {
 }
 
 function setButtonsVisibility() {
+    let connected = serverConnection && serverConnection.socket;
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('local');
     let share = !!findUpMedia('screenshare');
@@ -438,7 +439,7 @@ function setButtonsVisibility() {
     setVisibility('presentbutton', permissions.present && !local);
     setVisibility('unpresentbutton', local);
 
-    setVisibility('mutebutton', permissions.present);
+    setVisibility('mutebutton', !connected || permissions.present);
 
     // allow multiple shared documents
     setVisibility('sharebutton', permissions.present &&
@@ -1768,6 +1769,7 @@ async function gotJoined(kind, group, perms, message) {
     case 'fail':
         displayError('The server said: ' + message);
         this.close();
+        setButtonsVisibility();
         return;
     case 'redirect':
         this.close();
@@ -1775,6 +1777,7 @@ async function gotJoined(kind, group, perms, message) {
         return;
     case 'leave':
         this.close();
+        setButtonsVisibility();
         return;
     case 'join':
     case 'change':
