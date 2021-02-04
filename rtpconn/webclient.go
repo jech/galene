@@ -831,23 +831,27 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				if g == nil || a.group != g {
 					return nil
 				}
-				if a.conn == nil {
+				var tracks []conn.UpTrack
+				if a.conn != nil {
+					tracks = make([]conn.UpTrack,
+						0, len(a.tracks),
+					)
+					for _, t := range a.tracks {
+						if c.isRequested(t.Label()) {
+							tracks = append(
+								tracks, t,
+							)
+						}
+					}
+				}
+
+				if len(tracks) == 0 {
+					closeDownConn(c, a.id, "")
 					if a.replace != "" {
-						closeDownConnection(
+						closeDownConn(
 							c, a.replace, "",
 						)
 					}
-					closeDownConnection(c, a.id, "")
-					continue
-				}
-				tracks := make([]conn.UpTrack, 0, len(a.tracks))
-				for _, t := range a.tracks {
-					if c.isRequested(t.Label()) {
-						tracks = append(tracks, t)
-					}
-				}
-				if len(tracks) == 0 {
-					closeDownConnection(c, a.id, "")
 					continue
 				}
 
@@ -859,6 +863,12 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				if err != nil {
 					return err
 				}
+				if a.replace != "" {
+					err := delDownConn(c, a.replace)
+					if err != nil {
+						log.Printf("Replace: %v", err)
+					}
+				}
 				err = negotiate(
 					c, down, false, a.replace,
 				)
@@ -866,10 +876,8 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 					log.Printf(
 						"Negotiation failed: %v",
 						err)
-					delDownConn(c, down.id)
-					c.error(group.UserError(
-						"Negotiation failed",
-					))
+					closeDownConn(c, down.id,
+						"negotiation failed")
 					continue
 				}
 			case pushConnsAction:
@@ -1020,7 +1028,7 @@ func leaveGroup(c *webClient) {
 	c.group = nil
 }
 
-func closeDownConnection(c *webClient, id string, message string) error {
+func closeDownConn(c *webClient, id string, message string) error {
 	err := delDownConn(c, id)
 	if err != nil && !os.IsNotExist(err) {
 		log.Printf("Close down connection: %v", err)
@@ -1220,7 +1228,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if err != ErrUnknownId {
 				message = "negotiation failed"
 			}
-			return closeDownConnection(c, m.Id, message)
+			return closeDownConn(c, m.Id, message)
 		}
 		down := getDownConn(c, m.Id)
 		if down.negotiationNeeded > negotiationUnneeded {
@@ -1230,7 +1238,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				"",
 			)
 			if err != nil {
-				return closeDownConnection(
+				return closeDownConn(
 					c, m.Id, "negotiation failed",
 				)
 			}
@@ -1240,7 +1248,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if down != nil {
 			err := negotiate(c, down, true, "")
 			if err != nil {
-				return closeDownConnection(
+				return closeDownConn(
 					c, m.Id, "renegotiation failed",
 				)
 			}
@@ -1255,7 +1263,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return nil
 		}
 	case "abort":
-		return closeDownConnection(c, m.Id, "")
+		return closeDownConn(c, m.Id, "")
 	case "ice":
 		if m.Candidate == nil {
 			return group.ProtocolError("null candidate")
