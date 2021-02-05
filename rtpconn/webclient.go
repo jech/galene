@@ -790,6 +790,8 @@ type kickAction struct {
 	message  string
 }
 
+var errEmptyId = group.ProtocolError("empty id")
+
 func clientLoop(c *webClient, ws *websocket.Conn) error {
 	read := make(chan interface{}, 1)
 	go clientReader(ws, read, c.done)
@@ -1038,14 +1040,12 @@ func closeDownConn(c *webClient, id string, message string) error {
 	if err != nil && !os.IsNotExist(err) {
 		log.Printf("Close down connection: %v", err)
 	}
-	if id != "" {
-		err := c.write(clientMessage{
-			Type: "close",
-			Id:   id,
-		})
-		if err != nil {
-			return err
-		}
+	err = c.write(clientMessage{
+		Type: "close",
+		Id:   id,
+	})
+	if err != nil {
+		return err
 	}
 	if message != "" {
 		err := c.error(group.UserError(message))
@@ -1210,6 +1210,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 	case "request":
 		return c.setRequested(m.Request)
 	case "offer":
+		if m.Id == "" {
+			return errEmptyId
+		}
 		if !c.permissions.Present {
 			if m.Replace != "" {
 				delUpConn(c, m.Replace, c.id, true)
@@ -1226,6 +1229,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return failUpConnection(c, m.Id, "negotiation failed")
 		}
 	case "answer":
+		if m.Id == "" {
+			return errEmptyId
+		}
 		err := gotAnswer(c, m.Id, m.SDP)
 		if err != nil {
 			log.Printf("gotAnswer: %v", err)
@@ -1249,6 +1255,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 		}
 	case "renegotiate":
+		if m.Id == "" {
+			return errEmptyId
+		}
 		down := getDownConn(c, m.Id)
 		if down != nil {
 			err := negotiate(c, down, true, "")
@@ -1261,6 +1270,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("Trying to renegotiate unknown connection")
 		}
 	case "close":
+		if m.Id == "" {
+			return errEmptyId
+		}
 		err := delUpConn(c, m.Id, c.id, true)
 		if err != nil {
 			log.Printf("Deleting up connection %v: %v",
@@ -1268,8 +1280,14 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return nil
 		}
 	case "abort":
+		if m.Id == "" {
+			return errEmptyId
+		}
 		return closeDownConn(c, m.Id, "")
 	case "ice":
+		if m.Id == "" {
+			return errEmptyId
+		}
 		if m.Candidate == nil {
 			return group.ProtocolError("null candidate")
 		}
