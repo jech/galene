@@ -1016,15 +1016,20 @@ func leaveGroup(c *webClient) {
 		return
 	}
 
-	c.setRequested(map[string]uint32{})
 	if c.up != nil {
 		for id := range c.up {
 			delUpConn(c, id, c.id, true)
 		}
 	}
+	if c.down != nil {
+		for id := range c.down {
+			delDownConn(c, id)
+		}
+	}
 
 	group.DelClient(c)
 	c.permissions = group.ClientPermissions{}
+	c.requested = map[string]uint32{}
 	c.group = nil
 }
 
