@@ -305,10 +305,7 @@ func Add(name string, desc *description) (*Group, error) {
 
 	if desc != nil {
 		g.description = desc
-	} else if time.Since(g.description.loadTime) < 5*time.Second {
-		return g, nil
 	} else if !descriptionChanged(name, g.description) {
-		g.description.loadTime = time.Now()
 		return g, nil
 	}
 
@@ -702,7 +699,6 @@ func matchClient(group string, c Challengeable, users []ClientCredentials) (bool
 
 type description struct {
 	fileName       string              `json:"-"`
-	loadTime       time.Time           `json:"-"`
 	modTime        time.Time           `json:"-"`
 	fileSize       int64               `json:"-"`
 	Description    string              `json:"description,omitempty"`
@@ -811,7 +807,6 @@ func GetDescription(name string) (*description, error) {
 	desc.fileName = fileName
 	desc.fileSize = fi.Size()
 	desc.modTime = fi.ModTime()
-	desc.loadTime = time.Now()
 
 	return &desc, nil
 }
