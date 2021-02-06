@@ -681,16 +681,23 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 }
 
 func matchClient(group string, c Challengeable, users []ClientCredentials) (bool, bool) {
+	matched := false
+	for _, u := range users {
+		if u.Username == c.Username() {
+			matched = true
+			if c.Challenge(group, u) {
+				return true, true
+			}
+		}
+	}
+	if matched {
+		return true, false
+	}
+
 	for _, u := range users {
 		if u.Username == "" {
 			if c.Challenge(group, u) {
 				return true, true
-			}
-		} else if u.Username == c.Username() {
-			if c.Challenge(group, u) {
-				return true, true
-			} else {
-				return true, false
 			}
 		}
 	}

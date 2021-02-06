@@ -23,36 +23,127 @@ func TestJSTime(t *testing.T) {
 	}
 }
 
-func TestDescriptionJSON(t *testing.T) {
-	d := `
+var descJSON = `
 {
-    "op":[{"username": "jch","password": "topsecret"}],
+    "op": [{"username": "jch","password": "topsecret"}],
     "max-history-age": 10,
     "allow-subgroups": true,
-    "presenter":[
-        {"user": "john", "password": "secret"},
+    "presenter": [
+        {"username": "john", "password": "secret"},
+        {"username": "john", "password": "secret2"}
+    ],
+    "other": [
+        {"username": "james", "password": "secret3"},
+        {"username": "peter", "password": "secret4"},
         {}
     ]
+
 }`
 
-	var dd description
-	err := json.Unmarshal([]byte(d), &dd)
+func TestDescriptionJSON(t *testing.T) {
+	var d description
+	err := json.Unmarshal([]byte(descJSON), &d)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	ddd, err := json.Marshal(dd)
+	dd, err := json.Marshal(d)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	var dddd description
-	err = json.Unmarshal([]byte(ddd), &dddd)
+	var ddd description
+	err = json.Unmarshal([]byte(dd), &ddd)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if !reflect.DeepEqual(dd, dddd) {
-		t.Errorf("Got %v, expected %v", dddd, dd)
+	if !reflect.DeepEqual(d, ddd) {
+		t.Errorf("Got %v, expected %v", ddd, d)
 	}
+}
+
+type testClient struct {
+	username string
+	password string
+}
+
+func (c testClient) Username() string {
+	return c.username
+}
+
+func (c testClient) Challenge(g string, creds ClientCredentials) bool {
+	if creds.Password == nil {
+		return true
+	}
+	m, err := creds.Password.Match(c.password)
+	if err != nil {
+		return false
+	}
+	return m
+}
+
+type testClientPerm struct {
+	c testClient
+	p ClientPermissions
+}
+
+var badClients = []testClient{
+	testClient{"jch", "foo"},
+	testClient{"john", "foo"},
+	testClient{"james", "foo"},
+}
+
+var goodClients = []testClientPerm{
+	{
+		testClient{"jch", "topsecret"},
+		ClientPermissions{true, true, false},
+	},
+	{
+		testClient{"john", "secret"},
+		ClientPermissions{false, true, false},
+	},
+	{
+		testClient{"john", "secret2"},
+		ClientPermissions{false, true, false},
+	},
+	{
+		testClient{"james", "secret3"},
+		ClientPermissions{false, false, false},
+	},
+	{
+		testClient{"paul", "secret3"},
+		ClientPermissions{false, false, false},
+	},
+}
+
+
+func TestPermissions(t *testing.T) {
+	var d description
+	err := json.Unmarshal([]byte(descJSON), &d)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	for _, c := range badClients {
+		t.Run("bad " + c.Username(), func(t *testing.T) {
+			p, err := d.GetPermission("test", c)
+			if err != ErrNotAuthorised {
+				t.Errorf("GetPermission %v: %v %v", c, err, p)
+			}
+		})
+	}
+
+	for _, cp := range goodClients {
+		t.Run("good " + cp.c.Username(), func(t *testing.T) {
+			p, err := d.GetPermission("test", cp.c)
+			if err != nil {
+				t.Errorf("GetPermission %v: %v", cp.c, err)
+			} else if !reflect.DeepEqual(p, cp.p) {
+				t.Errorf("%v: got %v, expected %v",
+					cp.c, p, cp.p)
+			}
+		})
+	}
+
 }
