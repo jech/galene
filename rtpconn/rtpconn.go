@@ -730,7 +730,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 		firstSR := false
 		n, _, err := r.Read(buf)
 		if err != nil {
-			if err != io.EOF {
+			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Printf("Read RTCP: %v", err)
 			}
 			return
@@ -1016,7 +1016,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 	for {
 		n, _, err := s.Read(buf)
 		if err != nil {
-			if err != io.EOF {
+			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Printf("Read RTCP: %v", err)
 			}
 			return
