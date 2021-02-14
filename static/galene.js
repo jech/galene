@@ -429,6 +429,7 @@ function setButtonsVisibility() {
     let local = !!findUpMedia('local');
     let share = !!findUpMedia('screenshare');
     let video = !!findUpMedia('video');
+    let canWebrtc = !(typeof RTCPeerConnection === 'undefined');
     let canFile =
         /** @ts-ignore */
         !!HTMLVideoElement.prototype.captureStream ||
@@ -436,13 +437,13 @@ function setButtonsVisibility() {
         !!HTMLVideoElement.prototype.mozCaptureStream;
 
     // don't allow multiple presentations
-    setVisibility('presentbutton', permissions.present && !local);
+    setVisibility('presentbutton', canWebrtc && permissions.present && !local);
     setVisibility('unpresentbutton', local);
 
     setVisibility('mutebutton', !connected || permissions.present);
 
     // allow multiple shared documents
-    setVisibility('sharebutton', permissions.present &&
+    setVisibility('sharebutton', canWebrtc && permissions.present &&
                   ('getDisplayMedia' in navigator.mediaDevices));
     setVisibility('unsharebutton', share);
 
@@ -1069,7 +1070,15 @@ async function addLocalMedia(localId) {
 
     setMediaChoices(true);
 
-    let c = newUpStream(localId);
+    let c;
+
+    try {
+        c = newUpStream(localId);
+    } catch(e) {
+        console.log(e);
+        displayError(e);
+        return;
+    }
 
     c.kind = 'local';
     c.stream = stream;
@@ -1797,7 +1806,10 @@ async function gotJoined(kind, group, perms, message) {
     input.placeholder = 'Type /help for help';
     setTimeout(() => {input.placeholder = '';}, 8000);
 
-    this.request(getSettings().request);
+    if(typeof RTCPeerConnection === 'undefined')
+        displayWarning("This browser doesn't support WebRTC");
+    else
+        this.request(getSettings().request);
 
     if(serverConnection.permissions.present && !findUpMedia('local')) {
         if(present) {

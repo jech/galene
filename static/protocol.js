@@ -437,6 +437,9 @@ ServerConnection.prototype.newUpStream = function(localId) {
     if(sc.up[id])
         throw new Error('Eek!');
 
+    if(typeof RTCPeerConnection === 'undefined')
+        throw new Error("This browser doesn't support WebRTC");
+
     let pc = new RTCPeerConnection(sc.rtcConfiguration);
     if(!pc)
         throw new Error("Couldn't create peer connection");
@@ -565,8 +568,15 @@ ServerConnection.prototype.groupAction = function(kind, message) {
  */
 ServerConnection.prototype.gotOffer = async function(id, labels, source, username, sdp, replace) {
     let sc = this;
-    if(sc.up[id])
-        throw new Error('Duplicate connection id');
+
+    if(sc.up[id]) {
+        console.error("Duplicate connection id");
+        sc.send({
+            type: 'abort',
+            id: id,
+        });
+        return;
+    }
 
     let oldLocalId = null;
 
@@ -584,7 +594,17 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         console.error("Replacing duplicate stream");
 
     if(!c) {
-        let pc = new RTCPeerConnection(sc.rtcConfiguration);
+        let pc;
+        try {
+            pc = new RTCPeerConnection(sc.rtcConfiguration);
+        } catch(e) {
+            console.error(e);
+            sc.send({
+                type: 'abort',
+                id: id,
+            });
+            return;
+        }
         c = new Stream(this, id, oldLocalId || newLocalId(), pc, false);
         sc.down[id] = c;
 
