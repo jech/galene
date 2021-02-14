@@ -8,6 +8,75 @@ import (
 	"time"
 )
 
+func TestGroup(t *testing.T) {
+	groups.groups = nil
+	Add("group", &description{})
+	Add("group/subgroup", &description{Public: true})
+	if len(groups.groups) != 2 {
+		t.Errorf("Expected 2, got %v", len(groups.groups))
+	}
+	g := Get("group")
+	g2 := Get("group/subgroup")
+	if g == nil {
+		t.Fatalf("Couldn't get group")
+	}
+	if g2 == nil {
+		t.Fatalf("Couldn't get group/subgroup")
+	}
+	if name := g.Name(); name != "group" {
+		t.Errorf("Name: expected group1, got %v", name)
+	}
+	if locked, _ := g.Locked(); locked {
+		t.Errorf("Locked: expected false, got %v", locked)
+	}
+	if public := g.Public(); public {
+		t.Errorf("Public: expected false, got %v", public)
+	}
+	if public := g2.Public(); !public {
+		t.Errorf("Public: expected true, got %v", public)
+	}
+	if redirect := g.Redirect(); redirect != "" {
+		t.Errorf("Redirect: expected empty, got %v", redirect)
+	}
+	if ar := g.AllowRecording(); ar {
+		t.Errorf("Allow Recording: expected false, got %v", ar)
+	}
+	api := g.API()
+	if api == nil {
+		t.Errorf("Couldn't get API")
+	}
+
+	if names := GetNames(); len(names) != 2 {
+		t.Errorf("Expected 2, got %v", names)
+	}
+
+	if subs := GetSubGroups("group"); len(subs) != 0 {
+		t.Errorf("Expected [], got %v", subs)
+	}
+
+	if public := GetPublic(); len(public) != 1 || public[0].Name != "group/subgroup" {
+		t.Errorf("Expeced group/subgroup, got %v", public)
+	}
+
+	Expire()
+
+	if names := GetNames(); len(names) != 2 {
+		t.Errorf("Expected 2, got %v", names)
+	}
+
+	if found := Delete("nosuchgroup"); found || len(GetNames()) != 2 {
+		t.Errorf("Expected 2, got %v", GetNames())
+	}
+
+	if found := Delete("group/subgroup"); !found {
+		t.Errorf("Failed to delete")
+	}
+
+	if names := GetNames(); len(names) != 1 || names[0] != "group" {
+		t.Errorf("Expected group, got %v", names)
+	}
+}
+
 func TestJSTime(t *testing.T) {
 	tm := time.Now()
 	js := ToJSTime(tm)
