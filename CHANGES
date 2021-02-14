@@ -18,6 +18,14 @@ Galène 0.3 (unreleased):
     keys in group definition files (this is a breaking change).
   * Reworked the client API, which is now simpler and more uniform.
   * Subgroups can now be public.
+  * Added an option to disable the mirror view, which is useful when writing.
+  * Ported file playback to Firefox.
+  * We now display a friendly error message when the user has disabled
+    WebRTC under Firefox.
+  * Implemented renegotiation of down streams, which reduces the amount of
+    flicker in the user interface.
+  * Fixed a number of race conditions that could cause audio tracks to
+    become muted or video tracks to freeze.
 
 9 January 2021: Galène 0.2
 
