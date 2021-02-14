@@ -746,7 +746,7 @@ func StartClient(conn *websocket.Conn) (err error) {
 
 	defer close(c.done)
 
-	c.writeCh = make(chan interface{}, 25)
+	c.writeCh = make(chan interface{}, 100)
 	c.writerDone = make(chan struct{})
 	go clientWriter(conn, c.writeCh, c.writerDone)
 	defer func() {
@@ -1497,7 +1497,8 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 			break
 		}
 		err := conn.SetWriteDeadline(
-			time.Now().Add(2 * time.Second))
+			time.Now().Add(500 * time.Millisecond),
+		)
 		if err != nil {
 			return
 		}
