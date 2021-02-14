@@ -64,9 +64,10 @@ type webClient struct {
 	writerDone  chan struct{}
 	actionCh    chan interface{}
 
-	mu   sync.Mutex
-	down map[string]*rtpDownConnection
-	up   map[string]*rtpUpConnection
+	mu      sync.Mutex
+	down    map[string]*rtpDownConnection
+	up      map[string]*rtpUpConnection
+	actions []interface{}
 }
 
 func (c *webClient) Group() *group.Group {
@@ -276,14 +277,12 @@ func delUpConn(c *webClient, id string, userId string, push bool) error {
 	conn.pc.Close()
 
 	if push && g != nil {
-		go func(clients []group.Client) {
-			for _, c := range clients {
-				err := c.PushConn(g, id, nil, nil, replace)
-				if err != nil {
-					log.Printf("PushConn: %v", err)
-				}
+		for _, c := range g.GetClients(c) {
+			err := c.PushConn(g, id, nil, nil, replace)
+			if err != nil {
+				log.Printf("PushConn: %v", err)
 			}
-		}(g.GetClients(c))
+		}
 	}
 
 	return nil
@@ -681,7 +680,7 @@ func gotICE(c *webClient, candidate *webrtc.ICECandidateInit, id string) error {
 func (c *webClient) setRequested(requested map[string]uint32) error {
 	c.requested = requested
 
-	go pushConns(c, c.group)
+	pushConns(c, c.group)
 	return nil
 }
 
@@ -811,6 +810,13 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 	}
 
 	for {
+		c.mu.Lock()
+		actions := c.actions
+		c.actions = nil
+		c.mu.Unlock()
+		for _, a := range actions {
+			handleAction(c, a)
+		}
 		select {
 		case m, ok := <-read:
 			if !ok {
@@ -921,19 +927,10 @@ func handleAction(c *webClient, a interface{}) error {
 			for i, t := range tracks {
 				ts[i] = t
 			}
-			go func(u *rtpUpConnection,
-				ts []conn.UpTrack,
-				replace string) {
-				err := a.client.PushConn(
-					g, u.id, u, ts, replace,
-				)
-				if err != nil {
-					log.Printf(
-						"PushConn: %v",
-						err,
-					)
-				}
-			}(u, ts, replace)
+			err := a.client.PushConn(g, u.id, u, ts, replace)
+			if err != nil {
+				log.Printf("PushConn: %v", err)
+			}
 		}
 	case connectionFailedAction:
 		if down := getDownConn(c, a.id); down != nil {
@@ -947,7 +944,7 @@ func handleAction(c *webClient, a interface{}) error {
 			for i, t := range down.tracks {
 				tracks[i] = t.remote
 			}
-			go c.PushConn(
+			c.PushConn(
 				c.group,
 				down.remote.Id(), down.remote,
 				tracks, "",
@@ -1393,7 +1390,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				disk.Close()
 				return c.error(err)
 			}
-			go pushConns(disk, c.group)
+			pushConns(disk, c.group)
 		case "unrecord":
 			if !c.permissions.Record {
 				return c.error(group.UserError("not authorised"))
@@ -1551,13 +1548,20 @@ func (c *webClient) Warn(oponly bool, message string) error {
 
 var ErrClientDead = errors.New("client is dead")
 
-func (c *webClient) action(m interface{}) error {
-	select {
-	case c.actionCh <- m:
-		return nil
-	case <-c.done:
-		return ErrClientDead
+func (c *webClient) action(a interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.actions) == 0 {
+		select {
+		case c.actionCh <- a:
+			return nil
+		case <-c.done:
+			return ErrClientDead
+		default:
+		}
 	}
+	c.actions = append(c.actions, a)
+	return nil
 }
 
 func (c *webClient) write(m clientMessage) error {
