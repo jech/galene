@@ -62,7 +62,7 @@ type webClient struct {
 	done        chan struct{}
 	writeCh     chan interface{}
 	writerDone  chan struct{}
-	actionCh    chan interface{}
+	actionCh    chan struct{}
 
 	mu      sync.Mutex
 	down    map[string]*rtpDownConnection
@@ -739,7 +739,7 @@ func StartClient(conn *websocket.Conn) (err error) {
 
 	c := &webClient{
 		id:       m.Id,
-		actionCh: make(chan interface{}, 10),
+		actionCh: make(chan struct{}, 1),
 		done:     make(chan struct{}),
 	}
 
@@ -810,13 +810,6 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 	}
 
 	for {
-		c.mu.Lock()
-		actions := c.actions
-		c.actions = nil
-		c.mu.Unlock()
-		for _, a := range actions {
-			handleAction(c, a)
-		}
 		select {
 		case m, ok := <-read:
 			if !ok {
@@ -832,10 +825,13 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 			case error:
 				return m
 			}
-		case a := <-c.actionCh:
-			err := handleAction(c, a)
-			if err != nil {
-				return err
+		case <-c.actionCh:
+			c.mu.Lock()
+			actions := c.actions
+			c.actions = nil
+			c.mu.Unlock()
+			for _, a := range actions {
+				handleAction(c, a)
 			}
 		case <-ticker.C:
 			if time.Since(readTime) > 75*time.Second {
@@ -1551,16 +1547,17 @@ var ErrClientDead = errors.New("client is dead")
 func (c *webClient) action(a interface{}) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if len(c.actions) == 0 {
+	empty := len(c.actions) == 0
+	c.actions = append(c.actions, a)
+	if empty {
 		select {
-		case c.actionCh <- a:
+		case c.actionCh <- struct{}{}:
 			return nil
 		case <-c.done:
 			return ErrClientDead
 		default:
 		}
 	}
-	c.actions = append(c.actions, a)
 	return nil
 }
 
