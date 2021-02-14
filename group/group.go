@@ -485,15 +485,14 @@ func AddClient(group string, c Client) (*Group, error) {
 	g.clients[c.Id()] = c
 	g.timestamp = time.Now()
 
-	go func(clients []Client) {
-		u := c.Username()
-		c.PushClient(c.Id(), u, true)
+	u := c.Username()
+	c.PushClient(c.Id(), u, true)
+	for _, c := range clients {
 		for _, cc := range clients {
-			uu := cc.Username()
-			c.PushClient(cc.Id(), uu, true)
+			c.PushClient(cc.Id(), cc.Username(), true)
 			cc.PushClient(c.Id(), u, true)
 		}
-	}(clients)
+	}
 
 	return g, nil
 }
