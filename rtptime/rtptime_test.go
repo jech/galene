@@ -26,9 +26,9 @@ func differs(a, b, delta uint64) bool {
 
 func TestTime(t *testing.T) {
 	a := Now(48000)
-	time.Sleep(4 * time.Millisecond)
+	time.Sleep(40 * time.Millisecond)
 	b := Now(48000) - a
-	if differs(b, 4*48, 16) {
+	if differs(b, 40*48, 160) {
 		t.Errorf("Expected %v, got %v", 4*48, b)
 	}
 
