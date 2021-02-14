@@ -2,6 +2,7 @@ package group
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -20,6 +21,27 @@ func TestJSTime(t *testing.T) {
 	delta := tm.Sub(tm2)
 	if delta < -time.Millisecond/2 || delta > time.Millisecond/2 {
 		t.Errorf("Delta %v, %v, %v", delta, tm, tm2)
+	}
+}
+
+func TestChatHistory(t *testing.T) {
+	g := Group{
+		description: &description{},
+	}
+	for i := 0; i < 2*maxChatHistory; i++ {
+		g.AddToChatHistory("id", "user", ToJSTime(time.Now()), "",
+			fmt.Sprintf("%v", i),
+		)
+	}
+	h := g.GetChatHistory()
+	if len(h) != maxChatHistory {
+		t.Errorf("Expected %v, got %v", maxChatHistory, len(g.history))
+	}
+	for i, s := range h {
+		e := fmt.Sprintf("%v", i+maxChatHistory)
+		if s.Value.(string) != e {
+			t.Errorf("Expected %v, got %v", e, s)
+		}
 	}
 }
 
@@ -117,7 +139,6 @@ var goodClients = []testClientPerm{
 	},
 }
 
-
 func TestPermissions(t *testing.T) {
 	var d description
 	err := json.Unmarshal([]byte(descJSON), &d)
@@ -126,7 +147,7 @@ func TestPermissions(t *testing.T) {
 	}
 
 	for _, c := range badClients {
-		t.Run("bad " + c.Username(), func(t *testing.T) {
+		t.Run("bad "+c.Username(), func(t *testing.T) {
 			p, err := d.GetPermission("test", c)
 			if err != ErrNotAuthorised {
 				t.Errorf("GetPermission %v: %v %v", c, err, p)
@@ -135,7 +156,7 @@ func TestPermissions(t *testing.T) {
 	}
 
 	for _, cp := range goodClients {
-		t.Run("good " + cp.c.Username(), func(t *testing.T) {
+		t.Run("good "+cp.c.Username(), func(t *testing.T) {
 			p, err := d.GetPermission("test", cp.c)
 			if err != nil {
 				t.Errorf("GetPermission %v: %v", cp.c, err)
