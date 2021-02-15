@@ -487,11 +487,9 @@ func AddClient(group string, c Client) (*Group, error) {
 
 	u := c.Username()
 	c.PushClient(c.Id(), u, true)
-	for _, c := range clients {
-		for _, cc := range clients {
-			c.PushClient(cc.Id(), cc.Username(), true)
-			cc.PushClient(c.Id(), u, true)
-		}
+	for _, cc := range clients {
+		c.PushClient(cc.Id(), cc.Username(), true)
+		cc.PushClient(c.Id(), u, true)
 	}
 
 	return g, nil
