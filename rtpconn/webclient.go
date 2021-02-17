@@ -831,7 +831,10 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 			c.actions = nil
 			c.mu.Unlock()
 			for _, a := range actions {
-				handleAction(c, a)
+				err := handleAction(c, a)
+				if err != nil {
+					return err
+				}
 			}
 		case <-ticker.C:
 			if time.Since(readTime) > 75*time.Second {
