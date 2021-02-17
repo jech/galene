@@ -1694,6 +1694,9 @@ function addUser(id, name) {
     user.classList.add("user-p");
     user.textContent = name ? name : '(anon)';
 
+    if(serverConnection.id === id)
+        user.textContent += ' (me)';
+         
     if(name) {
         let us = div.children;
         for(let i = 0; i < us.length; i++) {
