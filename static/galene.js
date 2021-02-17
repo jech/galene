@@ -2727,4 +2727,10 @@ function start() {
     document.getElementById("login-container").classList.remove('invisible');
 }
 
+document.getElementById('users').addEventListener('DOMSubtreeModified', userDivChanged, false);
+
+function userDivChanged(){
+    document.getElementById('user-count').innerText = "\xa0Users("+ Object.keys(users).length +")";
+}
+
 start();
