@@ -1,4 +1,4 @@
-Galène 0.3 (unreleased):
+18 February 2021: Galène 0.3
 
   * Implemented the command /muteall.  This allows muting all users except
     yourself.
