@@ -3,6 +3,7 @@ package webserver
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,6 +56,13 @@ func Serve(address string, dataDir string) error {
 		ReadHeaderTimeout: 60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+	if !Insecure {
+		s.TLSConfig = &tls.Config{
+			GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				return getCertificate(dataDir)
+			},
+		}
+	}
 	s.RegisterOnShutdown(func() {
 		group.Range(func(g *group.Group) bool {
 			go g.Shutdown("server is shutting down")
@@ -67,10 +75,7 @@ func Serve(address string, dataDir string) error {
 	var err error
 
 	if !Insecure {
-		err = s.ListenAndServeTLS(
-			filepath.Join(dataDir, "cert.pem"),
-			filepath.Join(dataDir, "key.pem"),
-		)
+		err = s.ListenAndServeTLS("", "")
 	} else {
 		err = s.ListenAndServe()
 	}
@@ -273,8 +278,8 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Path != "/group/" + name {
-		http.Redirect(w, r, "/group/" + name,
+	if r.URL.Path != "/group/"+name {
+		http.Redirect(w, r, "/group/"+name,
 			http.StatusPermanentRedirect)
 		return
 	}
@@ -433,7 +438,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 	fmt.Fprintf(w, "</body></html>\n")
 }
 
-var wsUpgrader = websocket.Upgrader {
+var wsUpgrader = websocket.Upgrader{
 	HandshakeTimeout: 30 * time.Second,
 }
 
