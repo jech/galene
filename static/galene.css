@@ -966,7 +966,9 @@ h1 {
 .sidenav-content {
     padding: 10px;
     background: #fff;
-    height: 100%;
+    height: calc(100% - 56px);
+    overflow-y: scroll;
+    overflow-x: hidden;
 }
 
 .sidenav-content h2 {
