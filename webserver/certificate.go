@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"log"
 	"math/big"
 	"os"
@@ -73,7 +74,11 @@ func getCertificate(dataDir string) (*tls.Certificate, error) {
 
 	if !ok || !info.certTime.Equal(certTime) || !info.keyTime.Equal(keyTime) {
 		var cert tls.Certificate
-		if certTime.Equal(time.Time{}) || keyTime.Equal(time.Time{}) {
+		nocert := certTime.Equal(time.Time{})
+		nokey := keyTime.Equal(time.Time{})
+		if nocert != nokey {
+			return nil, errors.New("only one of cert.pem and key.pem exists")
+		} else if nokey {
 			log.Printf("Generating self-signed certificate")
 			var err error
 			cert, err = generateCertificate(dataDir)
