@@ -101,8 +101,5 @@ type Client interface {
 	OverridePermissions(*Group) bool
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
 	PushClient(id, username string, add bool) error
-}
-
-type Kickable interface {
 	Kick(id, user, message string) error
 }

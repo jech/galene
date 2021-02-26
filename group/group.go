@@ -586,10 +586,7 @@ func (g *Group) Range(f func(c Client) bool) {
 
 func kickall(g *Group, message string) {
 	g.Range(func(c Client) bool {
-		cc, ok := c.(Kickable)
-		if ok {
-			cc.Kick("", "", message)
-		}
+		c.Kick("", "", message)
 		return true
 	})
 }

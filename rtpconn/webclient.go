@@ -1099,12 +1099,7 @@ func kickClient(g *group.Group, id, user, dest string, message string) error {
 		return group.UserError("no such user")
 	}
 
-	c, ok := client.(group.Kickable)
-	if !ok {
-		return group.UserError("this client is not kickable")
-	}
-
-	return c.Kick(id, user, message)
+	return client.Kick(id, user, message)
 }
 
 func handleClientMessage(c *webClient, m clientMessage) error {
