@@ -1,3 +1,7 @@
+  * We now notice when the TLS certificate has changed on disk; which can
+    therefore be rotated without a restart.
+  * We now generate a self-signed certificate if none is found on disk.
+
 18 February 2021: Galène 0.3
 
   * Implemented the command /muteall.  This allows muting all users except
