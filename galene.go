@@ -130,7 +130,7 @@ func main() {
 
 func relayTest() {
 	now := time.Now()
-	d, err := ice.RelayTest()
+	d, err := ice.RelayTest(20 * time.Second)
 	if err != nil {
 		log.Printf("Relay test failed: %v", err)
 		log.Printf("Perhaps you didn't configure a TURN server?")

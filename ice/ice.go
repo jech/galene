@@ -137,7 +137,7 @@ func ICEConfiguration() *webrtc.Configuration {
 	return &conf.conf
 }
 
-func RelayTest() (time.Duration, error) {
+func RelayTest(timeout time.Duration) (time.Duration, error) {
 
 	conf := ICEConfiguration()
 	conf2 := *conf
@@ -223,7 +223,7 @@ func RelayTest() (time.Duration, error) {
 		})
 	})
 
-	timer := time.NewTimer(20 * time.Second)
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
 	case err := <-ch1:
@@ -235,6 +235,6 @@ func RelayTest() (time.Duration, error) {
 		}
 		return time.Now().Sub(tm), nil
 	case <-timer.C:
-		return 0, errors.New("timeout")
+		return 0, os.ErrDeadlineExceeded
 	}
 }
