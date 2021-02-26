@@ -523,7 +523,7 @@ ServerConnection.prototype.userAction = function(kind, dest, value) {
  *
  * @param {string} kind - The kind of application-specific message.
  * @param {string} dest - The id to send the message to, empty for broadcast.
- * @param {string} [value] - An optional parameter.
+ * @param {unknown} [value] - An optional parameter.
  * @param {boolean} [noecho] - If set, don't echo back the message to the sender.
  */
 ServerConnection.prototype.userMessage = function(kind, dest, value, noecho) {
