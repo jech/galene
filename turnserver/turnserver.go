@@ -55,14 +55,23 @@ func listener(a net.IP, port int, relay net.IP) (*turn.PacketConnConfig, *turn.L
 	var lc *turn.ListenerConfig
 	s := net.JoinHostPort(a.String(), strconv.Itoa(port))
 
+	var g turn.RelayAddressGenerator
+	if relay == nil || relay.IsUnspecified() {
+		g = &turn.RelayAddressGeneratorNone{
+			Address: a.String(),
+		}
+	} else {
+		g = &turn.RelayAddressGeneratorStatic{
+			RelayAddress: relay,
+			Address:      a.String(),
+		}
+	}
+
 	p, err := net.ListenPacket("udp4", s)
 	if err == nil {
 		pcc = &turn.PacketConnConfig{
-			PacketConn: p,
-			RelayAddressGenerator: &turn.RelayAddressGeneratorStatic{
-				RelayAddress: relay,
-				Address:      a.String(),
-			},
+			PacketConn:            p,
+			RelayAddressGenerator: g,
 		}
 	} else {
 		log.Printf("TURN: listenPacket(%v): %v", s, err)
@@ -71,11 +80,8 @@ func listener(a net.IP, port int, relay net.IP) (*turn.PacketConnConfig, *turn.L
 	l, err := net.Listen("tcp4", s)
 	if err == nil {
 		lc = &turn.ListenerConfig{
-			Listener: l,
-			RelayAddressGenerator: &turn.RelayAddressGeneratorStatic{
-				RelayAddress: relay,
-				Address:      a.String(),
-			},
+			Listener:              l,
+			RelayAddressGenerator: g,
 		}
 	} else {
 		log.Printf("TURN: listen(%v): %v", s, err)
@@ -105,7 +111,7 @@ func Start() error {
 		return err
 	}
 
-	log.Printf("Starting built-in TURN server")
+	log.Printf("Starting built-in TURN server on %v", addr.String())
 
 	username = "galene"
 	buf := make([]byte, 6)
@@ -152,7 +158,7 @@ func Start() error {
 		}
 
 		for _, a := range as {
-			pcc, lc := listener(a, addr.Port, a)
+			pcc, lc := listener(a, addr.Port, nil)
 			if pcc != nil {
 				pccs = append(pccs, *pcc)
 				addresses = append(addresses, &net.UDPAddr{
