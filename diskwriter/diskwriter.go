@@ -251,7 +251,7 @@ type diskTrack struct {
 	// bit 32 is a boolean indicating that the origin is valid
 	origin uint64
 
-	lastKf uint32
+	lastKf  uint32
 	savedKf *rtp.Packet
 }
 
@@ -309,9 +309,17 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 			conn:    &conn,
 		}
 		conn.tracks = append(conn.tracks, track)
-		remote.AddLocal(track)
 	}
 
+	// Only do this after all tracks have been added to conn, to avoid
+	// racing on hasVideo.
+	for _, t := range conn.tracks {
+		err := t.remote.AddLocal(t)
+		if err != nil {
+			log.Printf("Couldn't add disk track: %v", err)
+			conn.warn("Couldn't add disk track: " + err.Error())
+		}
+	}
 	err := up.AddLocal(&conn)
 	if err != nil {
 		return nil, err
@@ -383,7 +391,7 @@ func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, 
 		if err != nil {
 			return 0, 0
 		}
-		if(!vp9.V) {
+		if !vp9.V {
 			return 0, 0
 		}
 		w := uint32(0)
