@@ -1,6 +1,8 @@
 # Installation
 
-## Build the server binary
+## Build the `galene` binary
+
+You will need Go 1.13 or later (type `go version`).  Then do:
 
     CGO_ENABLED=0 go build -ldflags='-s -w'
 
@@ -78,8 +80,8 @@ where `203.0.113.1` is your NAT's external (global) IPv4 address.
 
 ## Cross-compile for your server
 
-If your server runs a different OS or has a different CPU than your build
-machine, you will need to recompile the binary for the server.
+This step is only required if your server runs a different OS or has
+a different CPU than your build machine.
 
 For a Linux server with an Intel or AMD CPU:
 
