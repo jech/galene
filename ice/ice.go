@@ -18,6 +18,18 @@ import (
 	"github.com/jech/galene/turnserver"
 )
 
+type timeoutError struct{}
+
+func (e timeoutError) Error() string {
+	return "timeout"
+}
+
+func (e timeoutError) Timeout() bool {
+	return true
+}
+
+var errTimeout = timeoutError{}
+
 type Server struct {
 	URLs           []string    `json:"urls"`
 	Username       string      `json:"username,omitempty"`
@@ -235,6 +247,6 @@ func RelayTest(timeout time.Duration) (time.Duration, error) {
 		}
 		return time.Now().Sub(tm), nil
 	case <-timer.C:
-		return 0, os.ErrDeadlineExceeded
+		return 0, errTimeout
 	}
 }
