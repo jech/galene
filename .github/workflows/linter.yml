@@ -15,7 +15,7 @@ jobs:
           VALIDATE_CSS: true
           VALIDATE_GO: false    # Golang is currently broken with super-linter
           VALIDATE_HTML: true
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: true
           FILTER_REGEX_EXCLUDE: static/(css|scripts|webfonts)/.*
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
