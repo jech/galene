@@ -19,7 +19,7 @@
       <div class="row full-height">
         <nav id="left-sidebar">
           <div class="users-header">
-            <div class="galene-header">Galène</div>
+            <div class="galene-header" data-i18n="app"></div>
           </div>
           <div class="header-sep"></div>
           <div id="users"></div>
@@ -28,7 +28,7 @@
           <header>
             <nav class="topnav navbar navbar-expand navbar-light fixed-top">
               <div id="header">
-                <div class="collapse" title="Collapse left panel" id="sidebarCollapse">
+                <div class="collapse" data-i18n-title="collapse-left-panel" id="sidebarCollapse">
                   <svg class="svg-inline--fa" aria-hidden="true" data-icon="align-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
                     <path fill="currentColor" d="M288 44v40c0 8.837-7.163 16-16 16H16c-8.837 0-16-7.163-16-16V44c0-8.837 7.163-16 16-16h256c8.837 0 16 7.163 16 16zM0 172v40c0 8.837 7.163 16 16 16h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16zm16 312h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm256-200H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16h256c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16z"></path>
                   </svg>
@@ -39,36 +39,36 @@
               <ul class="nav-menu">
                 <li>
                   <button id="presentbutton" class="invisible btn btn-success">
-                    <i class="fas fa-play" aria-hidden="true"></i><span class="nav-text"> Ready</span>
+                    <i class="fas fa-play" aria-hidden="true"></i><span class="nav-text" data-i18n="ready">&nbsp;</span>
                   </button>
                 </li>
                 <li>
                   <button id="unpresentbutton" class="invisible btn btn-cancel">
-                    <i class="fas fa-stop" aria-hidden="true"></i><span class="nav-text"> Panic</span>
+                    <i class="fas fa-stop" aria-hidden="true"></i><span class="nav-text" data-i18n="panic">&nbsp;</span>
                   </button>
                 </li>
                 <li>
                   <div id="mutebutton" class="nav-link nav-button">
                     <span><i class="fas fa-microphone-slash" aria-hidden="true"></i></span>
-                    <label>Mute</label>
+                    <label data-i18n="mute"></label>
                   </div>
                 </li>
                 <li>
                   <div id="sharebutton" class="invisible nav-link nav-button">
                     <span><i class="fas fa-share-square" aria-hidden="true"></i></span>
-                    <label>Share Screen</label>
+                    <label data-i18n="share-screen"></label>
                   </div>
                 </li>
                 <li>
                   <div id="unsharebutton" class="invisible nav-link nav-button nav-cancel">
                     <span><i class="fas fa-window-close" aria-hidden="true"></i></span>
-                    <label>Unshare Screen</label>
+                    <label data-i18n="unshare-screen"></label>
                   </div>
                 </li>
                 <li>
                   <div id="stopvideobutton" class="invisible nav-link nav-button nav-cancel">
                     <span><i class="fas fa-window-close" aria-hidden="true"></i></span>
-                    <label>Stop Video</label>
+                    <label data-i18n="stop-video"></label>
                   </div>
                 </li>
                 <li>
@@ -83,7 +83,7 @@
             <div class="coln-left" id="left">
               <div id="chat">
                 <div id="chatbox">
-                  <div class="close-chat" id="close-chat"  title="Hide chat">
+                  <div class="close-chat" id="close-chat" data-i18n-title="hide-chat">
                     <span class="close-icon"></span>
                   </div>
                   <div id="box"></div>
@@ -100,7 +100,7 @@
             <div class="coln-right" id="right">
               <span class="show-video blink" id="switch-video"><i class="fas fa-exchange" aria-hidden="true"></i></span>
               <div class="collapse-video" id="collapse-video">
-                  <i class="far fa-comment-alt open-chat" title="Open chat"></i>
+                  <i class="far fa-comment-alt open-chat" data-i18n-title="open-chat"></i>
                 </div>
               <div class="video-container no-video" id="video-container">
                 <div id="expand-video" class="expand-video">
@@ -110,30 +110,30 @@
               <div class="login-container invisible" id="login-container">
                 <div class="login-box">
                   <form id="userform" class="userform">
-                    <label for="username">Username</label>
+                    <label for="username" data-i18n="username"></label>
                     <input id="username" type="text" name="username"
                            autocomplete="username" class="form-control"/>
-                    <label for="password">Password</label>
+                    <label for="password" data-i18n="password"></label>
                     <input id="password" type="password" name="password"
                            autocomplete="current-password" class="form-control"/>
-                    <label>Auto ready</label>
+                    <label data-i18n="auto-ready"></label>
                     <div class="present-switch">
                       <p class="switch-radio">
                         <input id="presentoff" type="radio" name="presentradio" value="" checked/>
-                        <label for="presentoff">Disabled</label>
+                        <label for="presentoff" data-i18n="disabled"></label>
                       </p>
                       <p class="switch-radio">
                         <input id="presentmike" type="radio" name="presentradio" value="mike"/>
-                        <label for="presentmike">Enable microphone</label>
+                        <label for="presentmike" data-i18n="enable-micro"></label>
                       </p>
                       <p class="switch-radio">
                         <input id="presentboth" type="radio" name="presentradio" value="both"/>
-                        <label for="presentboth">Enable camera and microphone</label>
+                        <label for="presentboth" data-i18n="enable-cam-micro"></label>
                       </p>
                     </div>
                     <div class="clear"></div>
                     <div class="connect">
-                      <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect"/>
+                      <input id="connectbutton" type="submit" class="btn btn-blue" data-i18n-value="connect"/>
                     </div>
                   </form>
                   <div class="clear"></div>
@@ -147,7 +147,7 @@
 
     <div id="sidebarnav" class="sidenav">
       <div class="sidenav-header">
-        <h2>Settings</h2>
+        <h2 data-i18n="settings"></h2>
         <a class="closebtn" id="clodeside"><i class="fas fa-times" aria-hidden="true"></i></a>
       </div>
       <div class="sidenav-content" id="optionsdiv">
@@ -163,76 +163,84 @@
             <div class="user-logout">
               <a id="disconnectbutton">
                 <span class="logout-icon"><i class="fas fa-sign-out-alt"></i></span>
-                <span class="logout-text">Logout</span>
+                <span class="logout-text" data-i18n="logout"></span>
               </a>
             </div>
           </div>
         </div>
         <div id="mediaoptions" class="invisible">
           <fieldset>
-            <legend>Media Options</legend>
-            <label for="videoselect" class="sidenav-label-first">Camera:</label>
+            <legend data-i18n="media-options"></legend>
+            <label for="videoselect" class="sidenav-label-first" data-i18n="camera"></label>
             <select id="videoselect" class="select select-inline">
               <option value="">off</option>
             </select>
-  
-            <label for="audioselect" class="sidenav-label">Microphone:</label>
+
+            <label for="audioselect" class="sidenav-label" data-i18n="micro"></label>
             <select id="audioselect" class="select select-inline">
-              <option value="">off</option>
+              <option value="" data-i18n="off"></option>
             </select>
 
             <form>
               <input id="mirrorbox" type="checkbox" checked/>
-              <label for="mirrorbox">Mirror view</label>
+              <label for="mirrorbox" data-i18n="mirror-view"></label>
             </form>
 
             <form>
               <input id="blackboardbox" type="checkbox"/>
-              <label for="blackboardbox">Blackboard mode</label>
+              <label for="blackboardbox" data-i18n="blackboard-mode"></label>
             </form>
-  
+
           </fieldset>
         </div>
 
         <fieldset>
-          <legend>Other Settings</legend>
+          <legend data-i18n="other-settings"></legend>
 
           <form id="filterform">
-            <label for="filterselect" class="sidenav-label-first">Filter:</label>
+            <label for="filterselect" class="sidenav-label-first" data-i18n="filter"></label>
             <select id="filterselect" class="select select-inline">
-              <option value="" selected>none</option>
+              <option value="" selected data-i18n="none"></option>
             </select>
           </form>
 
           <form id="sendform">
-            <label for="sendselect" class="sidenav-label-first">Send:</label>
+            <label for="sendselect" class="sidenav-label-first" data-i18n="send"></label>
             <select id="sendselect" class="select select-inline">
-              <option value="lowest">lowest</option>
-              <option value="low">low</option>
-              <option value="normal" selected>normal</option>
-              <option value="unlimited">unlimited</option>
+              <option value="lowest" data-i18n="lowest"></option>
+              <option value="low" data-i18n="low"></option>
+              <option value="normal" selected data-i18n="normal"></option>
+              <option value="unlimited" data-i18n="unlimited"></option>
+            </select>
+          </form>
+
+          <form id="languageform">
+            <label for="languageselect" class="sidenav-label" data-i18n="language"></label>
+            <select id="languageselect" class="select select-inline">
+              <option value="fr" data-i18n="fr">FR</option>
+              <option value="en" data-i18n="en">EN</option>
             </select>
           </form>
 
           <form id="requestform">
-            <label for="requestselect" class="sidenav-label">Receive:</label>
+            <label for="requestselect" class="sidenav-label" data-i18n="receive"></label>
             <select id="requestselect" class="select select-inline">
-              <option value="">nothing</option>
-              <option value="audio">audio only</option>
-              <option value="screenshare">screen share</option>
-              <option value="everything" selected>everything</option>
+              <option value="" data-i18n="nothing"></option>
+              <option value="audio" data-i18n="audio-only"></option>
+              <option value="screenshare" data-i18n="screen-share"></option>
+              <option value="everything" selected data-i18n="everything"></option>
             </select>
           </form>
-  
+
           <form>
             <input id="activitybox" type="checkbox"/>
-            <label for="activitybox">Activity detection</label>
+            <label for="activitybox" data-i18n="activity-detection"></label>
           </form>
 
         </fieldset>
 
         <form id="fileform">
-          <label for="fileinput" class=".sidenav-label-first">Play local file:</label>
+          <label for="fileinput" class=".sidenav-label-first" data-i18n="play-local-file"></label>
           <input type="file" id="fileinput" accept="audio/*,video/*" multiple/>
         </form>
       </div>
@@ -241,19 +249,19 @@
     <div id="videocontrols-template" class="invisible">
       <div class="video-controls vc-overlay">
         <div class="controls-button controls-left">
-          <span class="video-play" title="Play video">
+          <span class="video-play" data-i18n-title="play-video">
             <i class="fas fa-play"></i>
           </span>
-          <span class="volume" title="Volume">
+          <span class="volume" data-i18n-title="volume">
             <i class="fas fa-volume-up volume-mute" aria-hidden="true"></i>
             <input class="volume-slider" type="range" max="100" value="100" min="0" step="5" >
           </span>
         </div>
         <div class="controls-button controls-right">
-          <span class="pip" title="Picture In Picture">
+          <span class="pip" data-i18n-title="picture-in-picture">
             <i class="far fa-clone" aria-hidden="true"></i>
           </span>
-          <span class="fullscreen" title="Fullscreen">
+          <span class="fullscreen" data-i18n-title="Fullscreen">
             <i class="fas fa-expand" aria-hidden="true"></i>
           </span>
         </div>
@@ -262,6 +270,7 @@
 
     <script src="/protocol.js" defer></script>
     <script src="/scripts/toastify.js" defer></script>
+    <script src="/translations/translation.js" defer></script>
     <script src="/galene.js" defer></script>
   </body>
 </html>
