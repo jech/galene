@@ -151,7 +151,7 @@ func codecFromName(name string) (webrtc.RTPCodecCapability, error) {
 	case "opus":
 		return webrtc.RTPCodecCapability{
 			"audio/opus", 48000, 2,
-			"minptime=10;useinbandfec=1",
+			"minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1",
 			nil,
 		}, nil
 	case "g722":
