@@ -259,12 +259,9 @@ function reflectSettings() {
         storeSettings(settings);
 }
 
-function showVideo() {
+function isMobileLayout() {
     let width = window.innerWidth;
-    let video_container = document.getElementById('video-container');
-    video_container.classList.remove('no-video');
-    if (width <= mobileViewportWidth)
-        document.getElementById('collapse-video').style.display = "block";
+    return width <= mobileViewportWidth;
 }
 
 /**
@@ -274,19 +271,16 @@ function hideVideo(force) {
     let mediadiv = document.getElementById('peers');
     if(mediadiv.childElementCount > 0 && !force)
         return;
-    let video_container = document.getElementById('video-container');
-    video_container.classList.add('no-video');
-    let left = document.getElementById("left");
-    if (left.style.display !== "none") {
-        // hide all video buttons used to switch video on mobile layout
-        closeVideoControls();
-    }
+    setVisibility('video-container', false);
 }
 
-function closeVideoControls() {
-    // hide all video buttons used to switch video on mobile layout
-    document.getElementById('switch-video').style.display = "";
-    document.getElementById('collapse-video').style.display = "";
+function showVideo() {
+    let hasmedia = document.getElementById('peers').childElementCount > 0;
+    if(isMobileLayout()) {
+        setVisibility('show-video', false);
+        setVisibility('collapse-video', hasmedia);
+    }
+    setVisibility('video-container', hasmedia);
 }
 
 function fillLogin() {
@@ -316,7 +310,6 @@ function setConnected(connected) {
         connectionbox.classList.remove('invisible');
         displayError('Disconnected', 'error');
         hideVideo();
-        closeVideoControls();
     }
 }
 
@@ -379,6 +372,7 @@ function setViewportHeight() {
     document.documentElement.style.setProperty(
         '--vh', `${window.innerHeight/100}px`,
     );
+    showVideo();
     // Ajust video component size
     resizePeers();
 }
@@ -441,6 +435,8 @@ function setButtonsVisibility() {
         !!HTMLVideoElement.prototype.captureStream ||
         /** @ts-ignore */
         !!HTMLVideoElement.prototype.mozCaptureStream;
+    let mediacount = document.getElementById('peers').childElementCount;
+    let mobilelayout = isMobileLayout();
 
     // don't allow multiple presentations
     setVisibility('presentbutton', canWebrtc && permissions.present && !local);
@@ -458,6 +454,8 @@ function setButtonsVisibility() {
     setVisibility('mediaoptions', permissions.present);
     setVisibility('sendform', permissions.present);
     setVisibility('fileform', canFile && permissions.present);
+
+    setVisibility('collapse-video', mediacount && mobilelayout);
 }
 
 /**
@@ -2664,37 +2662,30 @@ document.getElementById('clodeside').onclick = function(e) {
 
 document.getElementById('collapse-video').onclick = function(e) {
     e.preventDefault();
-    if(!(this instanceof HTMLElement))
-        throw new Error('Unexpected type for this');
-    let width = window.innerWidth;
-    let left = document.getElementById("left");
-    if (left.style.display === "" || left.style.display === "none") {
-      //left chat is hidden, we show the chat and hide collapse button
-      left.style.display = "block";
-      this.style.display = "";
-    }
-    if (width <= mobileViewportWidth) {
-      // fixed div for small screen
-      this.style.display = "";
-      hideVideo(true);
-      document.getElementById('switch-video').style.display = "block";
-    }
+    setVisibility('collapse-video', false);
+    setVisibility('show-video', true);
+    hideVideo(true);
 };
 
-document.getElementById('switch-video').onclick = function(e) {
+document.getElementById('show-video').onclick = function(e) {
     e.preventDefault();
-    if(!(this instanceof HTMLElement))
-        throw new Error('Unexpected type for this');
-    showVideo();
-    this.style.display = "";
-    document.getElementById('collapse-video').style.display = "block";
+    setVisibility('video-container', true);
+    setVisibility('collapse-video', true);
+    setVisibility('show-video', false);
 };
 
 document.getElementById('close-chat').onclick = function(e) {
-  e.preventDefault();
-  let left = document.getElementById("left");
-  left.style.display = "none";
-  document.getElementById('collapse-video').style.display = "block";
+    e.preventDefault();
+    setVisibility('left', false);
+    setVisibility('show-chat', true);
+    resizePeers();
+};
+
+document.getElementById('show-chat').onclick = function(e) {
+    e.preventDefault();
+    setVisibility('left', true);
+    setVisibility('show-chat', false);
+    resizePeers();
 };
 
 async function serverConnect() {
