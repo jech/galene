@@ -40,6 +40,12 @@ let serverConnection;
 let fallbackUserPass = null;
 
 
+/* max-device-width which is defined in css for mobile layout */
+/**
+ * @type {number}
+ */
+let mobileViewportWidth = 1024;
+
 /**
  * @param {string} username
  * @param {string} password
@@ -257,7 +263,7 @@ function showVideo() {
     let width = window.innerWidth;
     let video_container = document.getElementById('video-container');
     video_container.classList.remove('no-video');
-    if (width <= 768)
+    if (width <= mobileViewportWidth)
         document.getElementById('collapse-video').style.display = "block";
 }
 
@@ -2667,7 +2673,7 @@ document.getElementById('collapse-video').onclick = function(e) {
       left.style.display = "block";
       this.style.display = "";
     }
-    if (width <= 768) {
+    if (width <= mobileViewportWidth) {
       // fixed div for small screen
       this.style.display = "";
       hideVideo(true);
