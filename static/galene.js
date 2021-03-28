@@ -40,12 +40,6 @@ let serverConnection;
 let fallbackUserPass = null;
 
 
-/* max-device-width which is defined in css for mobile layout */
-/**
- * @type {number}
- */
-let mobileViewportWidth = 1024;
-
 /**
  * @param {string} username
  * @param {string} password
@@ -260,8 +254,9 @@ function reflectSettings() {
 }
 
 function isMobileLayout() {
-    let width = window.innerWidth;
-    return width <= mobileViewportWidth;
+    if (window.matchMedia('only screen and (max-width: 1024px)').matches)
+        return true;
+    return false;
 }
 
 /**
