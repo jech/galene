@@ -420,7 +420,6 @@ function setButtonsVisibility() {
     let connected = serverConnection && serverConnection.socket;
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('local');
-    let share = !!findUpMedia('screenshare');
     let video = !!findUpMedia('video');
     let canWebrtc = !(typeof RTCPeerConnection === 'undefined');
     let canFile =
@@ -440,7 +439,6 @@ function setButtonsVisibility() {
     // allow multiple shared documents
     setVisibility('sharebutton', canWebrtc && permissions.present &&
                   ('getDisplayMedia' in navigator.mediaDevices));
-    setVisibility('unsharebutton', share);
 
     setVisibility('stopvideobutton', video);
 
@@ -514,12 +512,6 @@ document.getElementById('mutebutton').onclick = function(e) {
 document.getElementById('sharebutton').onclick = function(e) {
     e.preventDefault();
     addShareMedia();
-};
-
-document.getElementById('unsharebutton').onclick = function(e) {
-    e.preventDefault();
-    closeUpMediaKind('screenshare');
-    resizePeers();
 };
 
 document.getElementById('stopvideobutton').onclick = function(e) {
@@ -1428,10 +1420,18 @@ function addCustomControls(media, container, c) {
 
     let template =
         document.getElementById('videocontrols-template').firstElementChild;
+    let toptemplate =
+        document.getElementById('topvideocontrols-template').firstElementChild;
     controls = cloneHTMLElement(template);
     controls.id = 'controls-' + c.localId;
+    let topcontrols = cloneHTMLElement(toptemplate);
+    topcontrols.id = 'topcontrols-' + c.localId;
 
     let volume = getVideoButton(controls, 'volume');
+    let stopsharing = getVideoButton(topcontrols, 'video-stop');
+    if (c.kind !== "screenshare") {
+        stopsharing.remove();
+    }
     if(c.kind === 'local') {
         volume.remove();
     } else {
@@ -1440,8 +1440,9 @@ function addCustomControls(media, container, c) {
                         getVideoButton(controls, "volume-slider"));
     }
 
+    container.appendChild(topcontrols);
     container.appendChild(controls);
-    registerControlHandlers(media, container);
+    registerControlHandlers(media, container, c);
 }
 
 /**
@@ -1474,13 +1475,28 @@ function setVolumeButton(muted, button, slider) {
 /**
  * @param {HTMLVideoElement} media
  * @param {HTMLElement} container
+ * @param {Stream} c
  */
-function registerControlHandlers(media, container) {
+function registerControlHandlers(media, container, c) {
     let play = getVideoButton(container, 'video-play');
     if(play) {
         play.onclick = function(event) {
             event.preventDefault();
             media.play();
+        };
+    }
+
+    let stop = getVideoButton(container, 'video-stop');
+    if(stop) {
+        stop.onclick = function(event) {
+            event.preventDefault();
+            try {
+                c.close(true);
+                delMedia(c.localId);
+            } catch(e) {
+                console.error(e);
+                displayError(e);
+            }
         };
     }
 
