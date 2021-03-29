@@ -181,6 +181,7 @@ Both peers may then trickle ICE candidates with `ice` messages.
 ```javascript
 {
     type: 'ice',
+    id: id,
     candidate: candidate
 }
 ```
