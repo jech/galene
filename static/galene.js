@@ -2112,6 +2112,7 @@ commands.help = {
 };
 
 commands.me = {
+    description: "send an action message",
     f: (c, r) => {
         // handled as a special case
         throw new Error("this shouldn't happen");
