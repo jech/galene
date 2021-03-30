@@ -104,7 +104,7 @@ function storeSettings(settings) {
         window.sessionStorage.setItem('settings', JSON.stringify(settings));
         fallbackSettings = null;
     } catch(e) {
-        console.warn("Couldn't store password:", e);
+        console.warn("Couldn't store settings:", e);
         fallbackSettings = settings;
     }
 }
@@ -121,7 +121,7 @@ function getSettings() {
         let json = window.sessionStorage.getItem('settings');
         settings = JSON.parse(json);
     } catch(e) {
-        console.warn("Couldn't retrieve password:", e);
+        console.warn("Couldn't retrieve settings:", e);
         settings = fallbackSettings;
     }
     return settings || {};
@@ -910,7 +910,7 @@ function Filter(stream, definition) {
 }
 
 Filter.prototype.draw = function() {
-    // check framerate evecry 30 frames
+    // check framerate every 30 frames
     if((this.count % 30) === 0) {
         let frameRate = 0;
         this.inputStream.getTracks().forEach(t => {
