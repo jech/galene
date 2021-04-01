@@ -11,7 +11,7 @@ h1 {
     padding-top: 0;
     border-width: thin;
     clear: both;
-    height: 3.125rem;
+    min-height: 3.125rem;
     text-align: center;
 }
 
