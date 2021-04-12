@@ -412,7 +412,7 @@ func (cache *Cache) GetAt(seqno uint16, index uint16, result []byte) uint16 {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	if int(index) > len(cache.entries) {
+	if int(index) >= len(cache.entries) {
 		return 0
 	}
 	if cache.entries[index].seqno != seqno {
