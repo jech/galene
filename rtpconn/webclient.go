@@ -678,6 +678,9 @@ func gotICE(c *webClient, candidate *webrtc.ICECandidateInit, id string) error {
 }
 
 func (c *webClient) setRequested(requested map[string]uint32) error {
+	if c.group == nil {
+		return errors.New("attempted to request with no group joined")
+	}
 	c.requested = requested
 
 	pushConns(c, c.group)
