@@ -1,3 +1,4 @@
+<!-- vim: syntax=Markdown -->
 # Writing a new frontend
 
 The frontend is written in JavaScript and is split into two files:

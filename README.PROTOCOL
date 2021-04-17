@@ -1,3 +1,4 @@
+<!-- vim: syntax=Markdown -->
 # Galène's protocol
 
 Galène uses a symmetric, asynchronous protocol.  In client-server
