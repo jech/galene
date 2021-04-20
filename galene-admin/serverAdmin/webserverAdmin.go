@@ -103,14 +103,8 @@ func indexAdmin(w http.ResponseWriter, r *http.Request) {
 
 			f.Name = usernameAdmin
 
-			data, err := ioutil.ReadFile("admin.json")
-		    if err != nil {
-		        fmt.Println("File reading error", err)
-		        return
-		    }
+			config := getAdminUsers()
 
-			var config Config
-			json.Unmarshal([]byte(data), &config)
 			for i := range config.Admin {
 				if usernameAdmin == config.Admin[i].Username && passwordAdmin == config.Admin[i].Password {
 					tab := make([]byte, 18)
@@ -354,6 +348,17 @@ func getJson() (*FilesJson, error) {
 		}
 	}
 	return &fj, nil
+}
+
+func getAdminUsers() (*Config) {
+	var config Config
+	data, err := ioutil.ReadFile("admin.json")
+    if err != nil {
+        fmt.Println("File reading error", err)
+        return &config
+    }
+	json.Unmarshal([]byte(data), &config)
+	return &config
 }
 
 func sendNotHTMLPage(w http.ResponseWriter, r *http.Request, fileName string)  {
