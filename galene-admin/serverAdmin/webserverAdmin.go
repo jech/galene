@@ -46,8 +46,8 @@ type Form struct {
 	Error	string
 }
 
-type FileJson struct {
-	Name			string	`json:"-"`
+type Description struct {
+	FileName		string	`json:"-"`
 	Op				[]User	`json:"op"`
 	Presenter		[]User	`json:"presenter"`
 	Other			[]User	`json:"other"`
@@ -55,17 +55,17 @@ type FileJson struct {
 	Description		string	`json:"description,omitempty"`
 	Contact			string	`json:"contact,omitempty"`
 	Comment			string	`json:"comment,omitempty"`
-	MaxClient		int		`json:"max-clients,omitempty"`
-	MaxAge			int		`json:"max-history-age,omitempty"`
-	AllowRecord		bool	`json:"allow-recording,omitempty"`
-	AllowAnonym		bool	`json:"allow-anonymous,omitempty"`
-	AllowSubGroup	bool	`json:"allow-subgroups,omitempty"`
+	MaxClients		int		`json:"max-clients,omitempty"`
+	MaxHistoryAge	int		`json:"max-history-age,omitempty"`
+	AllowRecording	bool	`json:"allow-recording,omitempty"`
+	AllowAnonymous	bool	`json:"allow-anonymous,omitempty"`
+	AllowSubgroups	bool	`json:"allow-subgroups,omitempty"`
 	Autolock		bool	`json:"autolock,omitempty"`
 	Redirect		string	`json:"redirect,omitempty"`
 }
 
 type FilesJson struct {
-	Files	[]FileJson
+	Files	[]Description
 }
 
 type FilesJsonForm struct {
@@ -163,7 +163,7 @@ func groupAdmin(w http.ResponseWriter, r *http.Request) {
 			alreadyExists := false
 
 			for i := 0; i < len(fj.Files); i++ {
-				if nameGroup == fj.Files[0].Name {
+				if nameGroup == fj.Files[0].FileName {
 					alreadyExists = true
 				}
 			}
@@ -238,8 +238,8 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 		send404(w, r)
 		return
 	}
-	var fj FileJson
-	fj.Name = name
+	var fj Description
+	fj.FileName = name
 
 	json.Unmarshal([]byte(data), &fj)
 
@@ -265,21 +265,21 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 
 			convertInt, err := strconv.Atoi(r.FormValue("maxClientGroup"))
 			if err == nil {
-				fj.MaxClient = convertInt
+				fj.MaxClients = convertInt
 			}
 			convertInt, err = strconv.Atoi(r.FormValue("maxAgeGroup"))
 			if err == nil {
-				fj.MaxAge = convertInt
+				fj.MaxHistoryAge = convertInt
 			}
 
 			if r.FormValue("allowRecordGroup") == "on" {
-				fj.AllowRecord = true;
+				fj.AllowRecording = true;
 			}
 			if r.FormValue("allowAnonymGroup") == "on" {
-				fj.AllowAnonym = true;
+				fj.AllowAnonymous = true;
 			}
 			if r.FormValue("allowSubGroup") == "on" {
-				fj.AllowSubGroup = true;
+				fj.AllowSubgroups = true;
 			}
 			if r.FormValue("autolockGroup") == "on" {
 				fj.Autolock = true;
@@ -341,10 +341,10 @@ func getJson() (*FilesJson, error) {
 		return nil
 	});
 	if err != nil {
-		var fj = FilesJson{Files : make([]FileJson, 0)}
+		var fj = FilesJson{Files : make([]Description, 0)}
 		return &fj,err
 	}
-	var fj = FilesJson{Files : make([]FileJson, len(filesName))}
+	var fj = FilesJson{Files : make([]Description, len(filesName))}
 
 	for i := 0; i < len(filesName); i++ {
 		data, err := ioutil.ReadFile(filesName[i])
@@ -352,7 +352,8 @@ func getJson() (*FilesJson, error) {
 			fmt.Println("File reading error", err)
 		} else {
 			json.Unmarshal([]byte(data), &(fj.Files[i]))
-			fj.Files[i].Name = strings.TrimPrefix(strings.TrimSuffix(filesName[i], ".json"), dirGroups)
+			fj.Files[i].FileName = strings.TrimPrefix(strings.TrimSuffix(filesName[i], ".json"), dirGroups)
+			fmt.Printf("%s\n", fj.Files[i].FileName)
 		}
 	}
 	return &fj, nil

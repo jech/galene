@@ -22,7 +22,7 @@
 			<div>
 				<form id="modifyGroupForm" method="post">
 					<label for="nameGroup">Name:</label>
-					<input id="nameGroup" type="text" name="nameGroup" class="form-control form-control-inline" value="{{.Name}}"/>
+					<input id="nameGroup" type="text" name="nameGroup" class="form-control form-control-inline" value="{{.fileName}}"/>
 
 					{{if (len .Op) ne 0}}
 						{{if (index .Op 0 ).Username}}
@@ -114,11 +114,11 @@
 					<div class="double-input">
 						<div>
 							<label for="maxClientGroup">Max Client:</label>
-							<input id="maxClientGroup" type="number" name="maxClientGroup" placeholder="default" min="1" class="form-control form-control-inline" value="{{if ne .MaxClient 0}}{{.MaxClient}}{{end}}"/>
+							<input id="maxClientGroup" type="number" name="maxClientGroup" placeholder="default" min="1" class="form-control form-control-inline" value="{{if ne .MaxClients 0}}{{.MaxClients}}{{end}}"/>
 						</div>
 						<div>
 							<label for="maxAgeGroup">Max History age:</label>
-							<input id="maxAgeGroup" type="number" name="maxAgeGroup" placeholder="14400" min="1" class="form-control form-control-inline" value="{{if ne .MaxAge 0}}{{.MaxAge}}{{end}}"/>
+							<input id="maxAgeGroup" type="number" name="maxAgeGroup" placeholder="14400" min="1" class="form-control form-control-inline" value="{{if ne .MaxHistoryAge 0}}{{.MaxHistoryAge}}{{end}}"/>
 						</div>
 					</div>
 					<div class="double-input">
@@ -126,7 +126,7 @@
 							<label for="allowRecordGroup">Allow recording:</label>
 							<div id="allowRecordGroup" >
 								<label class="switch">
-									<input name="allowRecordGroup" type="checkbox" {{if .AllowRecord}} checked {{end}}>
+									<input name="allowRecordGroup" type="checkbox" {{if .AllowRecording}} checked {{end}}>
 									<span class="slider round"></span>
 								</label>
 							</div>
@@ -135,7 +135,7 @@
 							<label for="allowAnonymGroup">Allow anonymous:</label>
 							<div id="allowAnonymGroup" >
 								<label class="switch">
-									<input name="allowAnonymGroup" type="checkbox" {{if .AllowAnonym}} checked {{end}}>
+									<input name="allowAnonymGroup" type="checkbox" {{if .AllowAnonymous}} checked {{end}}>
 									<span class="slider round"></span>
 								</label>
 							</div>
@@ -146,7 +146,7 @@
 							<label for="allowSubGroup">Allow sub groups:</label>
 							<div id="allowSubGroup" >
 								<label class="switch">
-									<input name="allowSubGroup" type="checkbox" {{if .AllowSubGroup}} checked {{end}}>
+									<input name="allowSubGroup" type="checkbox" {{if .AllowSubgroups}} checked {{end}}>
 									<span class="slider round"></span>
 								</label>
 							</div>
