@@ -23,7 +23,10 @@ You can have several admin account, you can have an empty username or/and passwo
 
 ## Test locally
 
-	./galene-admin/galene-admin
+Please make sure you are in the galene-admin directory before launch the application
+
+	cd galene-admin
+	./galene-admin
 
 You should be able to access to the admin interface of Galène at `https://localhost:8444`
 
