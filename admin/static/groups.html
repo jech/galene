@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Galène</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" href="/common.css">
+		<link rel="stylesheet" href="/mainpage.css">
+		<link rel="stylesheet" type="text/css" href="/galene.css"/>
+		<link rel="author" href="https://www.irif.fr/~jch/"/>
+		<!-- Font Awesome File -->
+		<link href="/css/fontawesome.min.css" rel="stylesheet" type="text/css">
+		<link href="/css/solid.css" rel="stylesheet" type="text/css">
+	</head>
+
+	<body>
+		<div class="home">
+			<h1 id="title" class="navbar-brand">Galène</h1>
+			<div>
+				<p>{{.Form.Error}}</p>
+				<form id="createGroupForm" method="post">
+					<label for="nameGroup">Group:</label>
+					<input id="nameGroup" type="text" name="nameGroup" class="form-control form-control-inline" value="{{.Form.Name}}"/>
+					<input type="submit" name="submit" value="Create" class="btn btn-default btn-large form-control form-control-inline"/>
+				</form>
+			</div>
+			<div>
+				<h2>Groupes: </h2>
+				<ul>
+				{{range .Files.Files}}
+
+					<li><a href="/modify-group/{{.Name}}">{{.Name}}</a></li>
+				{{end}}
+				</ul>
+			</div>
+		</div>
+		<footer class="signature">
+			<p><a href="https://galene.org/">Galène</a> by <a href="https://www.irif.fr/~jch/" rel="author">Juliusz Chroboczek</a>
+		</footer>
+
+
+	</body>
+</html>

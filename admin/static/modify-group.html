@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Galène</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" href="/common.css">
+		<link rel="stylesheet" href="/mainpage.css">
+		<link rel="stylesheet" type="text/css" href="/galene.css"/>
+		<link rel="stylesheet" type="text/css" href="/index.css"/>
+		<link rel="stylesheet" type="text/css" href="/modify-group.css"/>
+		<link rel="author" href="https://www.irif.fr/~jch/"/>
+		<!-- Font Awesome File -->
+		<link href="/css/fontawesome.min.css" rel="stylesheet" type="text/css">
+		<link href="/css/solid.css" rel="stylesheet" type="text/css">
+	</head>
+
+	<body>
+
+		<div class="home">
+			<h1 id="title" class="navbar-brand">Galène</h1>
+			<div>
+				<form id="modifyGroupForm" method="post">
+					<label for="nameGroup">Name:</label>
+					<input id="nameGroup" type="text" name="nameGroup" class="form-control form-control-inline" value="{{.Name}}"/>
+
+					{{if (len .Op) ne 0}}
+						{{if (index .Op 0 ).Username}}
+							{{range $i, $a := .Op}}
+								<label for="opGroup{{$i}}">Op {{$i}}:</label>
+								<div id="opGroup{{$i}}" class="double-input">
+									<input type="text" name="opGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Username}}"/>
+									<input type="text" name="opGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password}}"/>
+								</div>
+							{{end}}
+						{{end}}
+					{{end}}
+					<div id="firstOpAdd">
+						<label for="opGroupSupp">Additional Op:</label>
+						<div id="opGroupSupp" class="double-input opSupp">
+							<input type="text" name="opGroupSupp" placeholder="default" class="form-control form-control-inline"/>
+							<input type="text" name="opGroupSupp" placeholder="default" class="form-control form-control-inline"/>
+						</div>
+					</div>
+					<button id="addOp" class="btn btn-default btn-large">Add an another op user</button>
+
+
+					{{if (len .Presenter) ne 0}}
+						{{if (index .Presenter 0 ).Username}}
+							{{range $i, $a := .Presenter}}
+								<label for="presenterGroup{{$i}}">Presenter {{$i}}:</label>
+								<div id="presenterGroup{{$i}}" class="double-input">
+									<input type="text" name="presenterGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Username}}"/>
+									<input type="text" name="presenterGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password}}"/>
+								</div>
+							{{end}}
+						{{end}}
+					{{end}}
+					<div id="firstPresenterAdd">
+						<label for="presenterGroupSupp">Additional Presenter :</label>
+						<div id="presenterGroupSupp" class="double-input presenterSupp">
+							<input type="text" name="presenterGroupSupp" placeholder="default" class="form-control form-control-inline"/>
+							<input type="text" name="presenterGroupSupp" placeholder="default" class="form-control form-control-inline"/>
+						</div>
+					</div>
+					<button id="addPresenter" class="btn btn-default btn-large">Add an another presenter user</button>
+
+
+					{{if (len .Other) ne 0}}
+						{{if (index .Other 0).Username}}
+							{{range $i, $a := .Other}}
+								<label for="otherGroup{{$i}}">Other {{$i}}:</label>
+								<div id="otherGroup{{$i}}" class="double-input">
+									<input type="text" name="otherGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Username}}"/>
+									<input type="text" name="otherGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password}}"/>
+								</div>
+							{{end}}
+						{{end}}
+					{{end}}
+					<div id="firstOtherAdd">
+						<label for="otherGroupSupp">Additional Other :</label>
+						<div id="otherGroupSupp" class="double-input otherSupp">
+							<input type="text" name="otherGroupSupp" placeholder="default" class="form-control form-control-inline"/>
+							<input type="text" name="otherGroupSupp" placeholder="default" class="form-control form-control-inline"/>
+						</div>
+					</div>
+					<button id="addOther" class="btn btn-default btn-large">Add an another other user</button>
+
+
+
+
+
+
+
+
+					<label for="publicGroup">Public:</label>
+					<div id="publicGroup" >
+						<label class="switch">
+							<input name="publicGroup" type="checkbox" {{if .Public}} checked {{end}}>
+							<span class="slider round"></span>
+						</label>
+					</div>
+
+					<label for="descriptionGroup">Description:</label>
+					<textarea id="descriptionGroup" name="descriptionGroup" rows="3" placeholder="default" class="form-control form-control-inline">{{.Description}}</textarea>
+
+					<label for="contactGroup">Contact:</label>
+					<input id="contactGroup" type="text" name="contactGroup" placeholder="default" class="form-control form-control-inline" value="{{.Contact}}"/>
+
+					<label for="commentGroup">Comment:</label>
+					<input id="commentGroup" type="text" name="commentGroup" placeholder="default" class="form-control form-control-inline" value="{{.Comment}}"/>
+
+
+					<div class="double-input">
+						<div>
+							<label for="maxClientGroup">Max Client:</label>
+							<input id="maxClientGroup" type="number" name="maxClientGroup" placeholder="default" min="1" class="form-control form-control-inline" value="{{if ne .MaxClient 0}}{{.MaxClient}}{{end}}"/>
+						</div>
+						<div>
+							<label for="maxAgeGroup">Max History age:</label>
+							<input id="maxAgeGroup" type="number" name="maxAgeGroup" placeholder="14400" min="1" class="form-control form-control-inline" value="{{if ne .MaxAge 0}}{{.MaxAge}}{{end}}"/>
+						</div>
+					</div>
+					<div class="double-input">
+						<div>
+							<label for="allowRecordGroup">Allow recording:</label>
+							<div id="allowRecordGroup" >
+								<label class="switch">
+									<input name="allowRecordGroup" type="checkbox" {{if .AllowRecord}} checked {{end}}>
+									<span class="slider round"></span>
+								</label>
+							</div>
+						</div>
+						<div>
+							<label for="allowAnonymGroup">Allow anonymous:</label>
+							<div id="allowAnonymGroup" >
+								<label class="switch">
+									<input name="allowAnonymGroup" type="checkbox" {{if .AllowAnonym}} checked {{end}}>
+									<span class="slider round"></span>
+								</label>
+							</div>
+						</div>
+					</div>
+					<div class="double-input">
+						<div>
+							<label for="allowSubGroup">Allow sub groups:</label>
+							<div id="allowSubGroup" >
+								<label class="switch">
+									<input name="allowSubGroup" type="checkbox" {{if .AllowSubGroup}} checked {{end}}>
+									<span class="slider round"></span>
+								</label>
+							</div>
+						</div>
+						<div>
+							<label for="autolockGroup">Autolock:</label>
+							<div id="autolockGroup" >
+								<label class="switch">
+									<input name="autolockGroup" type="checkbox" {{if .Autolock}} checked {{end}}>
+									<span class="slider round"></span>
+								</label>
+							</div>
+						</div>
+					</div>
+					<label for="redirectGroup">Redirect:</label>
+					<input id="redirectGroup" type="text" name="redirectGroup" placeholder="default" class="form-control form-control-inline" value="{{.Redirect}}"/>
+
+					</br>
+					<input type="submit" value="Modify" class="btn btn-default btn-primary btn-large form-control form-control-inline"/>
+				</form>
+			</div>
+		</div>
+		<footer class="signature">
+			<p><a href="https://galene.org/">Galène</a> by <a href="https://www.irif.fr/~jch/" rel="author">Juliusz Chroboczek</a>
+		</footer>
+		<script src="/modify-group.js" defer></script>
+	</body>
+</html>
