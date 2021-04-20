@@ -360,8 +360,7 @@ func getJson() (*FilesJson, error) {
 
 func sendNotHTMLPage(w http.ResponseWriter, r *http.Request, fileName string)  {
 	var filePath string
-	//Si ce n'est pas un html on regarde d'abord dans les fichiers css/js de Galène
-	//Autrement on regarde dans les fichiers css/js de Galène Admin
+	//If not HTML, try galene css/js, then galene-admin css/js
 	filePath = MainStaticRoot + fileName
 	_, err := os.Open(filePath)
 	if err != nil {

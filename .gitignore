@@ -5,5 +5,5 @@ galene-password-generator/galene-password-generator
 passwd
 groups/*.json
 static/*.d.ts
-admin/admin
-admin/*.json
+galene-admin/galene-admin
+galene-admin/*.json

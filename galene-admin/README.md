@@ -1,17 +1,17 @@
 # Installation
 
-## Build the `galene` binary
+## Build the `galene-admin` binary
 
 You will need Go 1.13 or later (type `go version`).  Then do:
 
-	cd admin
-    CGO_ENABLED=0 go build -ldflags='-s -w'
+	cd galene-admin
+	CGO_ENABLED=0 go build -ldflags='-s -w'
 
 ## Set up an administrator
 
-Create a file `admin/admin.json`:
+Create a file `galene-admin/admin.json`:
 
-	vi admin/admin.json
+	vi galene-admin/admin.json
 
 And write your admin's usernames and passwords:
 
@@ -23,7 +23,7 @@ You can have several admin account, you can have an empty username or/and passwo
 
 ## Test locally
 
-	./admin/admin
+	./galene-admin/galene-admin
 
 You should be able to access to the admin interface of Galène at `https://localhost:8444`
 

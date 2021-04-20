@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 	"log"
-	"galene/admin/serverAdmin"
+	"github.com/jech/galene/galene-admin/serverAdmin"
 )
 
 
