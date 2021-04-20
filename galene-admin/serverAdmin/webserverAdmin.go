@@ -251,8 +251,6 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 			fj.Presenter = make([]User, 1)
 			fj.Other = make([]User, 1)
 
-			fmt.Printf("Form : %s\n\n", r.FormValue("submit"))
-
 			if r.FormValue("publicGroup") == "on" {
 				fj.Public = true;
 			}
@@ -353,7 +351,6 @@ func getJson() (*FilesJson, error) {
 		} else {
 			json.Unmarshal([]byte(data), &(fj.Files[i]))
 			fj.Files[i].FileName = strings.TrimPrefix(strings.TrimSuffix(filesName[i], ".json"), dirGroups)
-			fmt.Printf("%s\n", fj.Files[i].FileName)
 		}
 	}
 	return &fj, nil
