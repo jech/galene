@@ -15,6 +15,8 @@ import(
 	"crypto/rand"
 	"io"
 	"encoding/base64"
+
+	"github.com/jech/galene/group"
 )
 
 var MainStaticRoot string
@@ -34,13 +36,8 @@ type TimeSession struct {
 	Expiration	time.Duration
 }
 
-type ClientCredentials struct {
-	Username	string
-	Password	string
-}
-
 type Config struct {
-	Admin	[]ClientCredentials
+	Admin	[]group.ClientCredentials
 }
 
 type Form struct {
@@ -48,30 +45,8 @@ type Form struct {
 	Error	string
 }
 
-type Description struct {
-	FileName       string              `json:"-"`
-	modTime        time.Time           `json:"-"`
-	fileSize       int64               `json:"-"`
-	Description    string              `json:"description,omitempty"`
-	Contact        string              `json:"contact,omitempty"`
-	Comment        string              `json:"comment,omitempty"`
-	Redirect       string              `json:"redirect,omitempty"`
-	Public         bool                `json:"public,omitempty"`
-	MaxClients     int                 `json:"max-clients,omitempty"`
-	MaxHistoryAge  int                 `json:"max-history-age,omitempty"`
-	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
-	AllowRecording bool                `json:"allow-recording,omitempty"`
-	AllowSubgroups bool                `json:"allow-subgroups,omitempty"`
-	Autolock       bool                `json:"autolock,omitempty"`
-	Autokick       bool                `json:"autokick,omitempty"`
-	Op             []ClientCredentials `json:"op,omitempty"`
-	Presenter      []ClientCredentials `json:"presenter,omitempty"`
-	Other          []ClientCredentials `json:"other,omitempty"`
-	Codecs         []string            `json:"codecs,omitempty"`
-}
-
 type FilesJson struct {
-	Files	[]Description
+	Files	[]group.Description
 }
 
 type FilesJsonForm struct {
@@ -112,7 +87,7 @@ func indexAdmin(w http.ResponseWriter, r *http.Request) {
 			config := getAdminUsers()
 
 			for i := range config.Admin {
-				if usernameAdmin == config.Admin[i].Username && passwordAdmin == config.Admin[i].Password {
+				if usernameAdmin == config.Admin[i].Username && passwordAdmin == config.Admin[i].Password.Key {
 					tab := make([]byte, 18)
 					io.ReadFull(rand.Reader, tab)
 					sessionToken := base64.URLEncoding.EncodeToString(tab)
@@ -237,7 +212,7 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 		send404(w, r)
 		return
 	}
-	var fj Description
+	var fj group.Description
 	fj.FileName = name
 
 	json.Unmarshal([]byte(data), &fj)
@@ -246,9 +221,9 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm();
 		if err == nil {
 
-			fj.Op = make([]ClientCredentials, 0)
-			fj.Presenter = make([]ClientCredentials, 1)
-			fj.Other = make([]ClientCredentials, 1)
+			fj.Op = make([]group.ClientCredentials, 0)
+			fj.Presenter = make([]group.ClientCredentials, 0)
+			fj.Other = make([]group.ClientCredentials, 0)
 
 			fj.Public = (r.FormValue("publicGroup") == "on");
 
@@ -274,24 +249,30 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 
 			fj.Redirect = r.FormValue("redirectGroup")
 
-			var u ClientCredentials
+			var u group.ClientCredentials
 			for key, values := range r.Form {
 				if len(values) == 2 {
 					if (values[0] != "" || values[1] != ""){
 						u.Username = values[0]
-						u.Password = values[1]
+						u.Password = &group.Password{Key: values[1]}
 
 						if strings.HasPrefix(key, "opGroup") {
 							fj.Op = append(fj.Op, u)
 						}
 						if strings.HasPrefix(key, "presenter") {
-							fj.Presenter = appendUser(fj.Presenter, u)
+							fj.Presenter = append(fj.Presenter, u)
 						}
 						if strings.HasPrefix(key, "other") {
-							fj.Other = appendUser(fj.Other, u)
+							fj.Other = append(fj.Other, u)
 						}
 					}
 				}
+			}
+			if len(fj.Presenter) == 0 {
+				fj.Presenter = make([]group.ClientCredentials, 1)
+			}
+			if len(fj.Other) == 0 {
+				fj.Other = make([]group.ClientCredentials, 1)
 			}
 			data, _ := json.Marshal(fj)
 
@@ -328,10 +309,10 @@ func getJson() (*FilesJson, error) {
 		return nil
 	});
 	if err != nil {
-		var fj = FilesJson{Files : make([]Description, 0)}
+		var fj = FilesJson{Files : make([]group.Description, 0)}
 		return &fj,err
 	}
-	var fj = FilesJson{Files : make([]Description, len(filesName))}
+	var fj = FilesJson{Files : make([]group.Description, len(filesName))}
 
 	for i := 0; i < len(filesName); i++ {
 		data, err := ioutil.ReadFile(filesName[i])
@@ -400,25 +381,15 @@ func send401(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, filename, time.Time{}, file)
 }
 
-func appendUser(users []ClientCredentials, u ClientCredentials) ([]ClientCredentials) {
-	for i := range users {
-		if users[i].Username == "" && users[i].Password == "" {
-			users[i] = u
-			return users
-		}
-	}
-	return append(users, u)
-}
-
 func makeJSONReadable(data string) (string) {
 	data = strings.Replace(data, "}],", "}],\n\t", 2)
 	data = strings.Replace(data, "{", "{\n\t", 1)
 	data = strings.ReplaceAll(data, ":", ": ")
 
-	lastTab := strings.LastIndex(data, "]")
+	firstTab := strings.Index(data, "[")
 
-	data = strings.ReplaceAll(data[0:lastTab], ",", ", ") + data[lastTab:]
-	data = data[0:lastTab] + strings.ReplaceAll(data[lastTab:], ",", ",\n\t")
+	data = data[0:firstTab] + strings.ReplaceAll(data[firstTab:], ",", ", ")
+	data = strings.ReplaceAll(data[0:firstTab], ",", ",\n\t") + data[firstTab:]
 
 	data = data[0:len(data) - 1] + "\n}"
 	return data

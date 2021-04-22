@@ -30,7 +30,7 @@
 								<label for="opGroup{{$i}}">Op {{$i}}:</label>
 								<div id="opGroup{{$i}}" class="double-input">
 									<input type="text" name="opGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Username}}"/>
-									<input type="text" name="opGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password}}"/>
+									<input type="text" name="opGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password.Key}}"/>
 								</div>
 							{{end}}
 						{{end}}
@@ -51,7 +51,7 @@
 								<label for="presenterGroup{{$i}}">Presenter {{$i}}:</label>
 								<div id="presenterGroup{{$i}}" class="double-input">
 									<input type="text" name="presenterGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Username}}"/>
-									<input type="text" name="presenterGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password}}"/>
+									<input type="text" name="presenterGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password.Key}}"/>
 								</div>
 							{{end}}
 						{{end}}
@@ -72,7 +72,7 @@
 								<label for="otherGroup{{$i}}">Other {{$i}}:</label>
 								<div id="otherGroup{{$i}}" class="double-input">
 									<input type="text" name="otherGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Username}}"/>
-									<input type="text" name="otherGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password}}"/>
+									<input type="text" name="otherGroup{{$i}}" placeholder="default" class="form-control form-control-inline" value="{{$a.Password.Key}}"/>
 								</div>
 							{{end}}
 						{{end}}
