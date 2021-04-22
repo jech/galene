@@ -22,7 +22,7 @@
 			<div>
 				<form id="modifyGroupForm" method="post">
 					<label for="nameGroup">Name:</label>
-					<input id="nameGroup" type="text" name="nameGroup" class="form-control form-control-inline" value="{{.fileName}}"/>
+					<input id="nameGroup" type="text" name="nameGroup" class="form-control form-control-inline" value="{{.FileName}}"/>
 
 					{{if (len .Op) ne 0}}
 						{{if (index .Op 0 ).Username}}
