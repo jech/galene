@@ -1,3 +1,9 @@
+body {
+    /* Used to move footer at bottom of the page */
+    display: flex;
+    flex-direction: column;
+}
+
 .groups {
 }
 
@@ -10,7 +16,7 @@
 }
 
 .home {
-  height: calc(100vh - 50px);
+  margin-bottom: auto;
   padding: 1.875rem;
 }
 

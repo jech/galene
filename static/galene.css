@@ -434,8 +434,8 @@ textarea.form-reply {
     display: block;
 }
 
-.collapse-video {
-    display: none;
+.chat-btn {
+    display: block;
     /*on top of video peers*/
     z-index: 1002;
     font-size: 1.8em;
@@ -445,15 +445,16 @@ textarea.form-reply {
     cursor: pointer;
 }
 
-.collapse-video .open-chat {
+.chat-btn .icon-chat {
     color: #cac7c7;
     height: 50px;
     padding: 10px;
     text-shadow: 0px 0px 1px #b3adad;
 }
 
-.no-video {
-    display: none;
+.collapse-video {
+    left: inherit;
+    right: 30px;
 }
 
 .video-controls, .top-video-controls {
@@ -1000,7 +1001,6 @@ legend {
 
 .show-video {
     position: absolute;
-    display: none;
     right: 30px;
     bottom: 120px;
     color: white;
@@ -1188,7 +1188,13 @@ header .collapse {
 
 /* END Sidebar Left */
 
-@media only screen and (max-device-width: 1024px) {
+@media only screen and (min-width: 1025px) {
+    .coln-right .collapse-video, .coln-right .show-video {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 1024px) {
     #presentbutton, #unpresentbutton {
         width: auto;
     }
@@ -1214,12 +1220,7 @@ header .collapse {
         height: calc(var(--vh, 1vh) * 100 - 56px);
     }
 
-    .collapse-video {
-        left: inherit;
-        right: 60px;
-    }
-
-    .close-chat {
+    .close-chat, .show-chat {
         display: none;
     }
 
@@ -1248,6 +1249,8 @@ header .collapse {
     .coln-left {
         flex: 100%;
         width: 100vw;
+        /* chat is always visible here */
+        display: block !important;
     }
 
     .coln-right {

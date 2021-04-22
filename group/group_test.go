@@ -10,8 +10,8 @@ import (
 
 func TestGroup(t *testing.T) {
 	groups.groups = nil
-	Add("group", &description{})
-	Add("group/subgroup", &description{Public: true})
+	Add("group", &Description{})
+	Add("group/subgroup", &Description{Public: true})
 	if len(groups.groups) != 2 {
 		t.Errorf("Expected 2, got %v", len(groups.groups))
 	}
@@ -95,7 +95,7 @@ func TestJSTime(t *testing.T) {
 
 func TestChatHistory(t *testing.T) {
 	g := Group{
-		description: &description{},
+		description: &Description{},
 	}
 	for i := 0; i < 2*maxChatHistory; i++ {
 		g.AddToChatHistory("id", "user", ToJSTime(time.Now()), "",
@@ -132,7 +132,7 @@ var descJSON = `
 }`
 
 func TestDescriptionJSON(t *testing.T) {
-	var d description
+	var d Description
 	err := json.Unmarshal([]byte(descJSON), &d)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -143,7 +143,7 @@ func TestDescriptionJSON(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	var ddd description
+	var ddd Description
 	err = json.Unmarshal([]byte(dd), &ddd)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -209,7 +209,7 @@ var goodClients = []testClientPerm{
 }
 
 func TestPermissions(t *testing.T) {
-	var d description
+	var d Description
 	err := json.Unmarshal([]byte(descJSON), &d)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)

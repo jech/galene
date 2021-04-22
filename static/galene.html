@@ -99,13 +99,16 @@
             </div>
             <div id="resizer"></div>
             <div class="coln-right" id="right">
-              <span class="show-video blink" id="switch-video">
+              <span class="show-video blink invisible" id="show-video">
                 <i class="fas fa-exchange-alt" aria-hidden="true"></i>
               </span>
-              <div class="collapse-video" id="collapse-video">
-                  <i class="far fa-comment-alt open-chat" title="Open chat"></i>
-                </div>
-              <div class="video-container no-video" id="video-container">
+              <div class="chat-btn show-chat invisible" id="show-chat">
+                <i class="far fa-comment-alt icon-chat" title="Show chat"></i>
+              </div>
+              <div class="chat-btn collapse-video invisible" id="collapse-video">
+                <i class="far fa-comment-alt icon-chat" title="Hide video and show chat"></i>
+              </div>
+              <div class="video-container invisible" id="video-container">
                 <div id="expand-video" class="expand-video">
                   <div id="peers"></div>
                 </div>

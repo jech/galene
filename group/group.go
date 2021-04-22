@@ -66,7 +66,7 @@ type Group struct {
 	name string
 
 	mu          sync.Mutex
-	description *description
+	description *Description
 	locked      *string
 	clients     map[string]Client
 	history     []ChatHistoryEntry
@@ -266,7 +266,7 @@ func APIFromNames(names []string) *webrtc.API {
 	return APIFromCodecs(codecs)
 }
 
-func Add(name string, desc *description) (*Group, error) {
+func Add(name string, desc *Description) (*Group, error) {
 	if name == "" || strings.HasSuffix(name, "/") {
 		return nil, UserError("illegal group name")
 	}
@@ -698,31 +698,72 @@ func matchClient(group string, c Challengeable, users []ClientCredentials) (bool
 	return false, false
 }
 
-type description struct {
-	fileName       string              `json:"-"`
-	modTime        time.Time           `json:"-"`
-	fileSize       int64               `json:"-"`
-	Description    string              `json:"description,omitempty"`
-	Contact        string              `json:"contact,omitempty"`
-	Comment        string              `json:"comment,omitempty"`
-	Redirect       string              `json:"redirect,omitempty"`
-	Public         bool                `json:"public,omitempty"`
-	MaxClients     int                 `json:"max-clients,omitempty"`
-	MaxHistoryAge  int                 `json:"max-history-age,omitempty"`
-	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
-	AllowRecording bool                `json:"allow-recording,omitempty"`
-	AllowSubgroups bool                `json:"allow-subgroups,omitempty"`
-	Autolock       bool                `json:"autolock,omitempty"`
-	Autokick       bool                `json:"autokick,omitempty"`
-	Op             []ClientCredentials `json:"op,omitempty"`
-	Presenter      []ClientCredentials `json:"presenter,omitempty"`
-	Other          []ClientCredentials `json:"other,omitempty"`
-	Codecs         []string            `json:"codecs,omitempty"`
+// Type Description represents a group description together with some
+// metadata about the JSON file it was deserialised from.
+type Description struct {
+	// The file this was deserialised from.  This is not necessarily
+	// the name of the group, for example in case of a subgroup.
+	FileName string `json:"-"`
+
+	// The modtime and size of the file.  These are used to detect
+	// when a file has changed on disk.
+	modTime time.Time `json:"-"`
+	fileSize int64 `json:"-"`
+
+	// A user-readable description of the group.
+	Description string `json:"description,omitempty"`
+
+	// A user-readable contact, typically an e-mail address.
+	Contact string `json:"contact,omitempty"`
+
+	// A user-readable comment.  Ignored by the server.
+	Comment string `json:"comment,omitempty"`
+
+	// Whether to display the group on the landing page.
+	Public bool `json:"public,omitempty"`
+
+	// A URL to redirect the group to.  If this is not empty, most
+	// other fields are ignored.
+	Redirect string `json:"redirect,omitempty"`
+
+	// The maximum number of simultaneous clients.  Unlimited if 0.
+	MaxClients int `json:"max-clients,omitempty"`
+
+	// The time for which history entries are kept.
+	MaxHistoryAge int `json:"max-history-age,omitempty"`
+
+	// Whether users are allowed to log in with an empty username.
+	AllowAnonymous bool `json:"allow-anonymous,omitempty"`
+
+	// Whether recording is allowed.
+	AllowRecording bool `json:"allow-recording,omitempty"`
+
+	// Whether subgroups are created on the fly.
+	AllowSubgroups bool `json:"allow-subgroups,omitempty"`
+
+	// Whether to lock the group when the last op logs out.
+	Autolock bool `json:"autolock,omitempty"`
+
+	// Whether to kick all users when the last op logs out.
+	Autokick bool `json:"autokick,omitempty"`
+
+	// A list of logins for ops.
+	Op []ClientCredentials `json:"op,omitempty"`
+
+	// A list of logins for presenters.
+	Presenter []ClientCredentials `json:"presenter,omitempty"`
+
+	// A list of logins for non-presenting users.
+	Other []ClientCredentials `json:"other,omitempty"`
+
+	// Codec preferences.  If empty, a suitable default is chosen in
+	// the APIFromNames function.
+	Codecs []string `json:"codecs,omitempty"`
 }
 
 const DefaultMaxHistoryAge = 4 * time.Hour
 
-func maxHistoryAge(desc *description) time.Duration {
+func maxHistoryAge(desc *Description) time.Duration {
 	if desc.MaxHistoryAge != 0 {
 		return time.Duration(desc.MaxHistoryAge) * time.Second
 	}
@@ -765,9 +806,9 @@ func statDescriptionFile(name string) (os.FileInfo, string, bool, error) {
 
 // descriptionChanged returns true if a group's description may have
 // changed since it was last read.
-func descriptionChanged(name string, desc *description) bool {
+func descriptionChanged(name string, desc *Description) bool {
 	fi, fileName, _, err := statDescriptionFile(name)
-	if err != nil || fileName != desc.fileName {
+	if err != nil || fileName != desc.FileName {
 		return true
 	}
 
@@ -777,14 +818,14 @@ func descriptionChanged(name string, desc *description) bool {
 	return false
 }
 
-func GetDescription(name string) (*description, error) {
+func GetDescription(name string) (*Description, error) {
 	r, fileName, isParent, err := openDescriptionFile(name)
 	if err != nil {
 		return nil, err
 	}
 	defer r.Close()
 
-	var desc description
+	var desc Description
 
 	fi, err := r.Stat()
 	if err != nil {
@@ -805,14 +846,14 @@ func GetDescription(name string) (*description, error) {
 		desc.Description = ""
 	}
 
-	desc.fileName = fileName
+	desc.FileName = fileName
 	desc.fileSize = fi.Size()
 	desc.modTime = fi.ModTime()
 
 	return &desc, nil
 }
 
-func (desc *description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
+func (desc *Description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
 	var p ClientPermissions
 	if !desc.AllowAnonymous && c.Username() == "" {
 		return p, UserError("anonymous users not allowed in this group, please choose a username")
