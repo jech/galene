@@ -17,28 +17,30 @@ import(
 	"encoding/base64"
 )
 
-var MainStaticRoot string = "../static"
+var MainStaticRoot string
 
-var StaticRoot string = "./static"
+var StaticRoot string
 
-var dirGroups string = "../groups/"
+var DirGroups string
+
+var AdminFile string
 
 var globalUser map[string]*TimeSession = make(map[string]*TimeSession)
 
-var cookie_token string = "session_token"
+var Cookie_token string
 
 type TimeSession struct {
 	LastAccess	time.Time
 	Expiration	time.Duration
 }
 
-type User struct {
+type ClientCredentials struct {
 	Username	string
 	Password	string
 }
 
 type Config struct {
-	Admin	[]User
+	Admin	[]ClientCredentials
 }
 
 type Form struct {
@@ -47,21 +49,25 @@ type Form struct {
 }
 
 type Description struct {
-	FileName		string	`json:"-"`
-	Op				[]User	`json:"op"`
-	Presenter		[]User	`json:"presenter"`
-	Other			[]User	`json:"other"`
-	Public			bool	`json:"public,omitempty"`
-	Description		string	`json:"description,omitempty"`
-	Contact			string	`json:"contact,omitempty"`
-	Comment			string	`json:"comment,omitempty"`
-	MaxClients		int		`json:"max-clients,omitempty"`
-	MaxHistoryAge	int		`json:"max-history-age,omitempty"`
-	AllowRecording	bool	`json:"allow-recording,omitempty"`
-	AllowAnonymous	bool	`json:"allow-anonymous,omitempty"`
-	AllowSubgroups	bool	`json:"allow-subgroups,omitempty"`
-	Autolock		bool	`json:"autolock,omitempty"`
-	Redirect		string	`json:"redirect,omitempty"`
+	FileName       string              `json:"-"`
+	modTime        time.Time           `json:"-"`
+	fileSize       int64               `json:"-"`
+	Description    string              `json:"description,omitempty"`
+	Contact        string              `json:"contact,omitempty"`
+	Comment        string              `json:"comment,omitempty"`
+	Redirect       string              `json:"redirect,omitempty"`
+	Public         bool                `json:"public,omitempty"`
+	MaxClients     int                 `json:"max-clients,omitempty"`
+	MaxHistoryAge  int                 `json:"max-history-age,omitempty"`
+	AllowAnonymous bool                `json:"allow-anonymous,omitempty"`
+	AllowRecording bool                `json:"allow-recording,omitempty"`
+	AllowSubgroups bool                `json:"allow-subgroups,omitempty"`
+	Autolock       bool                `json:"autolock,omitempty"`
+	Autokick       bool                `json:"autokick,omitempty"`
+	Op             []ClientCredentials `json:"op,omitempty"`
+	Presenter      []ClientCredentials `json:"presenter,omitempty"`
+	Other          []ClientCredentials `json:"other,omitempty"`
+	Codecs         []string            `json:"codecs,omitempty"`
 }
 
 type FilesJson struct {
@@ -112,7 +118,7 @@ func indexAdmin(w http.ResponseWriter, r *http.Request) {
 					sessionToken := base64.URLEncoding.EncodeToString(tab)
 
 					http.SetCookie(w, &http.Cookie{
-						Name:    cookie_token,
+						Name:    Cookie_token,
 						Value:   sessionToken,
 						Expires: time.Now().Add(120 * time.Second),
 					})
@@ -174,7 +180,7 @@ func groupAdmin(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if f.Error == "" {
-				emptyFile, err := os.Create(dirGroups + nameGroup + ".json")
+				emptyFile, err := os.Create(DirGroups + nameGroup + ".json")
 				if err != nil {
 					fmt.Printf("Error creation file\n")
 				} else {
@@ -208,7 +214,6 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	filename := r.URL.Path
 	if strings.HasPrefix(filename, "/modify-group/") {
 		filename = StaticRoot + "/modify-group.html"
@@ -225,7 +230,7 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileJson := dirGroups + name + ".json"
+	fileJson := DirGroups + name + ".json"
 	data, err := ioutil.ReadFile(fileJson)
 	if err != nil {
 		fmt.Println(err)
@@ -241,13 +246,11 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm();
 		if err == nil {
 
-			fj.Op = make([]User, 0)
-			fj.Presenter = make([]User, 1)
-			fj.Other = make([]User, 1)
+			fj.Op = make([]ClientCredentials, 0)
+			fj.Presenter = make([]ClientCredentials, 1)
+			fj.Other = make([]ClientCredentials, 1)
 
-			if r.FormValue("publicGroup") == "on" {
-				fj.Public = true;
-			}
+			fj.Public = (r.FormValue("publicGroup") == "on");
 
 			fj.Description = r.FormValue("descriptionGroup")
 			fj.Contact = r.FormValue("contactGroup")
@@ -264,22 +267,14 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 				fj.MaxHistoryAge = convertInt
 			}
 
-			if r.FormValue("allowRecordGroup") == "on" {
-				fj.AllowRecording = true;
-			}
-			if r.FormValue("allowAnonymGroup") == "on" {
-				fj.AllowAnonymous = true;
-			}
-			if r.FormValue("allowSubGroup") == "on" {
-				fj.AllowSubgroups = true;
-			}
-			if r.FormValue("autolockGroup") == "on" {
-				fj.Autolock = true;
-			}
+			fj.AllowRecording = (r.FormValue("allowRecordGroup") == "on");
+			fj.AllowAnonymous = (r.FormValue("allowAnonymGroup") == "on");
+			fj.AllowSubgroups = (r.FormValue("allowSubGroup") == "on");
+			fj.Autolock = (r.FormValue("autolockGroup") == "on");
 
 			fj.Redirect = r.FormValue("redirectGroup")
 
-			var u User
+			var u ClientCredentials
 			for key, values := range r.Form {
 				if len(values) == 2 {
 					if (values[0] != "" || values[1] != ""){
@@ -323,7 +318,7 @@ func modifyGroupAdmin(w http.ResponseWriter, r *http.Request) {
 
 func getJson() (*FilesJson, error) {
 	var filesName []string;
-	err := filepath.Walk(dirGroups, func(path string, fi os.FileInfo, err error) error {
+	err := filepath.Walk(DirGroups, func(path string, fi os.FileInfo, err error) error {
 		if fi.IsDir() {
 			return nil
 		}
@@ -344,7 +339,7 @@ func getJson() (*FilesJson, error) {
 			fmt.Println("File reading error", err)
 		} else {
 			json.Unmarshal([]byte(data), &(fj.Files[i]))
-			fj.Files[i].FileName = strings.TrimPrefix(strings.TrimSuffix(filesName[i], ".json"), dirGroups)
+			fj.Files[i].FileName = strings.TrimPrefix(strings.TrimSuffix(filesName[i], ".json"), DirGroups)
 		}
 	}
 	return &fj, nil
@@ -352,7 +347,7 @@ func getJson() (*FilesJson, error) {
 
 func getAdminUsers() (*Config) {
 	var config Config
-	data, err := ioutil.ReadFile("admin.json")
+	data, err := ioutil.ReadFile(AdminFile)
     if err != nil {
         fmt.Println("File reading error", err)
         return &config
@@ -404,7 +399,8 @@ func send401(w http.ResponseWriter, r *http.Request) {
 	_, filename := path.Split(filePath)
 	http.ServeContent(w, r, filename, time.Time{}, file)
 }
-func appendUser(users []User, u User) ([]User) {
+
+func appendUser(users []ClientCredentials, u ClientCredentials) ([]ClientCredentials) {
 	for i := range users {
 		if users[i].Username == "" && users[i].Password == "" {
 			users[i] = u
@@ -456,7 +452,7 @@ func checkUsers(sessionToken string) (bool) {
 }
 
 func testCookie(w http.ResponseWriter, r *http.Request) (bool) {
-	c, err := r.Cookie(cookie_token)
+	c, err := r.Cookie(Cookie_token)
 	if err != nil {
 		// If the cookie is not set, return an unauthorized status
 		send401(w, r)

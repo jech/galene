@@ -30,4 +30,10 @@ Please make sure you are in the galene-admin directory before launch the applica
 
 You should be able to access to the admin interface of Galène at `https://localhost:8444`
 
+If you want to use galene-admin on a different directory than Galene you can specify by passing the path as a parameter:
+
+	./galene-admin path
+
+By default the path is `../`
+
 For more information consult the Galène README
