@@ -410,14 +410,15 @@ ServerConnection.prototype.request = function(what) {
  * @param {string} localId
  * @returns {Stream}
  */
-
 ServerConnection.prototype.findByLocalId = function(localId) {
     if(!localId)
         return null;
 
-    for(let id in serverConnection.up) {
-        let s = serverConnection.up[id];
-        if(s.localId == localId)
+    let sc = this;
+
+    for(let id in sc.up) {
+        let s = sc.up[id];
+        if(s.localId === localId)
             return s;
     }
     return null;
