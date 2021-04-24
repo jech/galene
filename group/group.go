@@ -145,6 +145,12 @@ func codecFromName(name string) (webrtc.RTPCodecCapability, error) {
 			"profile-id=0",
 			nil,
 		}, nil
+	case "av1":
+		return webrtc.RTPCodecCapability{
+			"video/AV1X", 90000, 0,
+			"",
+			nil,
+		}, nil
 	case "h264":
 		return webrtc.RTPCodecCapability{
 			"video/H264", 90000, 0,
@@ -186,6 +192,8 @@ func payloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, error) {
 		return 96, nil
 	case "video/vp9":
 		return 98, nil
+	case "video/av1x":
+		return 104, nil
 	case "video/h264":
 		return 102, nil
 	case "audio/opus":

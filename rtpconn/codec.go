@@ -43,6 +43,75 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 			return (vp9.Payload[0] & 0xC) == 0, true
 		}
 		return (vp9.Payload[0] & 0x6) == 0, true
+	} else if strings.EqualFold(codec, "video/av1x") {
+		if len(packet.Payload) < 2 {
+			return false, true
+		}
+		if (packet.Payload[0] & 0x88) != 0x08 {
+			return false, true
+		}
+		w := (packet.Payload[0] & 0x30) >> 4
+
+		getObu := func(data []byte) ([]byte, int) {
+			offset := 0
+			length := 0
+			for {
+				if len(data) <= offset {
+					return nil, 0
+				}
+				l := data[offset]
+				length = length*128 + int(l&0x7f)
+				offset++
+				if (l & 0x80) == 0 {
+					break
+				}
+			}
+			if len(data) < offset+length {
+				return nil, 0
+			}
+			return data[offset : offset+length], offset + length
+		}
+		var obu1, obu2 []byte
+		if w == 1 {
+			obu1 = packet.Payload[1:]
+		} else {
+			var o int
+			obu1, o = getObu(packet.Payload[1:])
+			if len(obu1) == 0 {
+				return false, false
+			}
+			if w == 2 {
+				obu2 = packet.Payload[1+o:]
+			} else {
+				obu2, _ = getObu(packet.Payload[1+o:])
+			}
+		}
+		if len(obu1) < 1 {
+			return false, false
+		}
+		header := obu1[0]
+		tpe := (header & 0x38) >> 3
+		if tpe != 1 {
+			return false, true
+		}
+		if w == 1 {
+			return false, false
+		}
+		if len(obu2) < 1 {
+			return false, false
+		}
+		header2 := obu2[0]
+		tpe2 := (header2 & 0x38) >> 3
+		if tpe2 != 6 {
+			return false, false
+		}
+		if len(obu2) < 2 {
+			return false, false
+		}
+		if (obu2[1] & 0x80) != 0 {
+			return false, true
+		}
+		return (obu2[1] & 0x60) == 0, false
 	} else if strings.EqualFold(codec, "video/h264") {
 		if len(packet.Payload) < 1 {
 			return false, false

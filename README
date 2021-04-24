@@ -232,8 +232,9 @@ following fields are allowed:
 Supported video codecs include:
 
  - `"vp8"` (compatible with all supported browsers);
- - `"vp9"` (better video quality than `"vp8"`, but incompatible with
-   older versions of Mac OS);
+ - `"vp9"` (better video quality, but incompatible with Safari);
+ - `"av1"` (even better video quality, only supported by some browsers,
+   recording is not supported);
  - `"h264"` (incompatible with Debian, Ubuntu, and some Android devices,
    recording is not supported).
 
