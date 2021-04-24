@@ -247,7 +247,7 @@ ServerConnection.prototype.connect = async function(url) {
                 id: sc.id,
             });
             if(sc.onconnected)
-                sc.onconnected.call(sc);
+                sc.onconnected(sc);
             resolve(sc);
         };
         this.socket.onclose = function(e) {
@@ -261,11 +261,11 @@ ServerConnection.prototype.connect = async function(url) {
                 c.close();
             }
             if(sc.group && sc.onjoined)
-                sc.onjoined.call(sc, 'leave', sc.group, {}, '');
+                sc.onjoined(sc, 'leave', sc.group, {}, '');
             sc.group = null;
             sc.username = null;
             if(sc.onclose)
-                sc.onclose.call(sc, e.code, e.reason);
+                sc.onclose(sc, e.code, e.reason);
             reject(new Error('websocket close ' + e.code + ' ' + e.reason));
         };
         this.socket.onmessage = function(e) {
@@ -304,24 +304,24 @@ ServerConnection.prototype.connect = async function(url) {
                 sc.permissions = m.permissions || [];
                 sc.rtcConfiguration = m.rtcConfiguration || null;
                 if(sc.onjoined)
-                    sc.onjoined.call(sc, m.kind, m.group,
+                    sc.onjoined(sc, m.kind, m.group,
                                      m.permissions || {},
                                      m.value || null);
                 break;
             case 'user':
                 if(sc.onuser)
-                    sc.onuser.call(sc, m.id, m.kind, m.username);
+                    sc.onuser(sc, m.id, m.kind, m.username);
                 break;
             case 'chat':
                 if(sc.onchat)
-                    sc.onchat.call(
+                    sc.onchat(
                         sc, m.source, m.dest, m.username, m.time,
                         m.privileged, m.kind, m.value,
                     );
                 break;
             case 'usermessage':
                 if(sc.onusermessage)
-                    sc.onusermessage.call(
+                    sc.onusermessage(
                         sc, m.source, m.dest, m.username, m.time,
                         m.privileged, m.kind, m.value,
                     );
@@ -469,7 +469,7 @@ ServerConnection.prototype.newUpStream = function(localId) {
 
     pc.oniceconnectionstatechange = e => {
         if(c.onstatus)
-            c.onstatus.call(c, pc.iceConnectionState);
+            c.onstatus(c, pc.iceConnectionState);
         if(pc.iceConnectionState === 'failed')
             c.restartIce();
     };
@@ -616,7 +616,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
 
         pc.oniceconnectionstatechange = e => {
             if(c.onstatus)
-                c.onstatus.call(c, pc.iceConnectionState);
+                c.onstatus(c, pc.iceConnectionState);
             if(pc.iceConnectionState === 'failed') {
                 sc.send({
                     type: 'renegotiate',
@@ -634,7 +634,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
             }
             c.stream = e.streams[0];
             if(c.ondowntrack) {
-                c.ondowntrack.call(
+                c.ondowntrack(
                     c, e.track, e.transceiver, label, e.streams[0],
                 );
             }
@@ -656,7 +656,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
     c.username = username;
 
     if(sc.ondownstream)
-        sc.ondownstream.call(sc, c);
+        sc.ondownstream(sc, c);
 
     try {
         await c.pc.setRemoteDescription({
@@ -678,7 +678,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
     } catch(e) {
         try {
             if(c.onerror)
-                c.onerror.call(c, e);
+                c.onerror(c, e);
         } finally {
             c.abort();
         }
@@ -688,7 +688,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
     c.localDescriptionSent = true;
     c.flushLocalIceCandidates();
     if(c.onnegotiationcompleted)
-        c.onnegotiationcompleted.call(c);
+        c.onnegotiationcompleted(c);
 };
 
 /**
@@ -710,7 +710,7 @@ ServerConnection.prototype.gotAnswer = async function(id, sdp) {
     } catch(e) {
         try {
             if(c.onerror)
-                c.onerror.call(c, e);
+                c.onerror(c, e);
         } finally {
             c.close();
         }
@@ -718,7 +718,7 @@ ServerConnection.prototype.gotAnswer = async function(id, sdp) {
     }
     await c.flushRemoteIceCandidates();
     if(c.onnegotiationcompleted)
-        c.onnegotiationcompleted.call(c);
+        c.onnegotiationcompleted(c);
 };
 
 /**
@@ -757,7 +757,7 @@ ServerConnection.prototype.gotAbort = function(id) {
     if(!c)
         throw new Error('unknown up stream');
     if(c.onabort)
-        c.onabort.call(c);
+        c.onabort(c);
 };
 
 /**
@@ -1015,7 +1015,7 @@ Stream.prototype.close = function(replace) {
     c.sc = null;
 
     if(c.onclose)
-        c.onclose.call(c, replace);
+        c.onclose(c, replace);
 };
 
 /**
@@ -1242,7 +1242,7 @@ Stream.prototype.updateStats = async function() {
     c.stats = stats;
 
     if(c.onstats)
-        c.onstats.call(c, c.stats);
+        c.onstats(c, c.stats);
 };
 
 /**
