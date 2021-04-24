@@ -729,7 +729,7 @@ ServerConnection.prototype.gotAnswer = async function(id, sdp) {
  * @param {string} id
  * @function
  */
-ServerConnection.prototype.gotRenegotiate = async function(id) {
+ServerConnection.prototype.gotRenegotiate = function(id) {
     let c = this.up[id];
     if(!c)
         throw new Error('unknown up stream');
