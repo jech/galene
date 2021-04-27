@@ -136,7 +136,6 @@ to push a stream to the server.  Given a `MediaStream` called `localStream`
 ```javascript
 let stream = serverConnection.newUpStream();
 stream.onerror = ...;
-stream.onabort = ...;
 stream.onstatus = ...;
 localStream.getTracks().forEach(t => {
     c.labels[t.id] = t.kind;

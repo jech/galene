@@ -757,8 +757,7 @@ ServerConnection.prototype.gotAbort = function(id) {
     let c = this.up[id];
     if(!c)
         throw new Error('unknown up stream');
-    if(c.onabort)
-        c.onabort.call(c);
+    c.close();
 };
 
 /**
@@ -952,13 +951,6 @@ function Stream(sc, id, localId, pc, up) {
      * @type{(this: Stream, status: string) => void}
      */
     this.onstatus = null;
-    /**
-     * onabort is called when the server requested that an up stream be
-     * closed.  It is the resposibility of the client to close the stream.
-     *
-     * @type{(this: Stream) => void}
-     */
-    this.onabort = null;
     /**
      * onstats is called when we have new statistics about the connection
      *
