@@ -106,16 +106,13 @@ func (c *webClient) OverridePermissions(g *group.Group) bool {
 	return false
 }
 
-func (c *webClient) PushClient(id, username string, add bool) error {
-	kind := "add"
-	if !add {
-		kind = "delete"
-	}
+func (c *webClient) PushClient(id, username string, permissions group.ClientPermissions, kind string) error {
 	return c.write(clientMessage{
-		Type:     "user",
-		Kind:     kind,
-		Id:       id,
-		Username: username,
+		Type:        "user",
+		Kind:        kind,
+		Id:          id,
+		Username:    username,
+		Permissions: &permissions,
 	})
 }
 
@@ -989,6 +986,14 @@ func handleAction(c *webClient, a interface{}) error {
 				}
 			}
 		}
+		id := c.Id()
+		user := c.Username()
+		clients := g.GetClients(nil)
+		go func(clients []group.Client) {
+			for _, cc := range clients {
+				cc.PushClient(id, user, perms, "change")
+			}
+		}(clients)
 	case kickAction:
 		return group.KickError{
 			a.id, a.username, a.message,

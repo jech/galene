@@ -61,6 +61,12 @@ function newLocalId() {
 }
 
 /**
+ * @typedef {Object} user
+ * @property {string} username
+ * @property {Object<string,boolean>} permissions
+ */
+
+/**
  * ServerConnection encapsulates a websocket connection to the server and
  * all the associated streams.
  * @constructor
@@ -81,8 +87,16 @@ function ServerConnection() {
     this.group = null;
     /**
      * The username we joined as.
+     *
+     * @type {string}
      */
     this.username = null;
+    /**
+     * The set of users in this group, including ourself.
+     *
+     * @type {Object<string,user>}
+     */
+    this.users = {};
     /**
      * The underlying websocket.
      *
@@ -136,9 +150,10 @@ function ServerConnection() {
      */
     this.onclose = null;
     /**
-     * onuser is called whenever a user is added or removed from the group
+     * onuser is called whenever a user in the group changes.  The users
+     * array has already been updated.
      *
-     * @type{(this: ServerConnection, id: string, kind: string, username: string) => void}
+     * @type{(this: ServerConnection, id: string, kind: string) => void}
      */
     this.onuser = null;
     /**
@@ -260,6 +275,11 @@ ServerConnection.prototype.connect = async function(url) {
                 let c = sc.down[id];
                 c.close();
             }
+            for(let id in sc.users) {
+                delete(sc.users[id]);
+                if(sc.onuser)
+                    sc.onuser.call(sc, id, 'delete');
+            }
             if(sc.group && sc.onjoined)
                 sc.onjoined.call(sc, 'leave', sc.group, {}, '');
             sc.group = null;
@@ -303,14 +323,51 @@ ServerConnection.prototype.connect = async function(url) {
                 sc.username = m.username;
                 sc.permissions = m.permissions || [];
                 sc.rtcConfiguration = m.rtcConfiguration || null;
+                if(m.kind == 'leave') {
+                    for(let id in sc.users) {
+                        delete(sc.users[id]);
+                        if(sc.onuser)
+                            sc.onuser.call(sc, id, 'delete');
+                    }
+                }
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
                                      m.permissions || {},
                                      m.value || null);
                 break;
             case 'user':
+                switch(m.kind) {
+                case 'add':
+                    if(m.id in sc.users)
+                        console.warn(`Duplicate user ${m.id} ${m.username}`);
+                    sc.users[m.id] = {
+                        username: m.username,
+                        permissions: m.permissions,
+                    };
+                    break;
+                case 'change':
+                    if(!(m.id in sc.users)) {
+                        console.warn(`Unknown user ${m.id} ${m.username}`);
+                        sc.users[m.id] = {
+                            username: m.username,
+                            permissions: m.permissions,
+                        };
+                    } else {
+                        sc.users[m.id].username = m.username;
+                        sc.users[m.id].permissions = m.permissions;
+                    }
+                    break;
+                case 'delete':
+                    if(!(m.id in sc.users))
+                        console.warn(`Unknown user ${m.id} ${m.username}`);
+                    delete(sc.users[m.id]);
+                    break;
+                default:
+                    console.warn(`Unknown user action ${m.kind}`);
+                    return;
+                }
                 if(sc.onuser)
-                    sc.onuser.call(sc, m.id, m.kind, m.username);
+                    sc.onuser.call(sc, m.id, m.kind);
                 break;
             case 'chat':
                 if(sc.onchat)

@@ -115,9 +115,10 @@ users a `user` message:
 ```javascript
 {
     type: 'user',
-    kind: 'add' or 'delete',
+    kind: 'add' or 'change' or 'delete',
     id: id,
-    username: username
+    username: username,
+    permissions: permissions
 }
 ```
 

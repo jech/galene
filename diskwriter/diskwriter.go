@@ -71,7 +71,7 @@ func (client *Client) Permissions() group.ClientPermissions {
 	return group.ClientPermissions{}
 }
 
-func (client *Client) PushClient(id, username string, add bool) error {
+func (client *Client) PushClient(id, username string, permissions group.ClientPermissions, kind string) error {
 	return nil
 }
 

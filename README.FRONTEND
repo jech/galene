@@ -47,10 +47,12 @@ from the server; the field `kind` indicates the kind of message.
 
 Once you have joined a group (see below), the remaining callbacks may
 trigger.  The `onuser` callback is used to indicate that a user has joined
-or left the current group.  The `onchat` callback indicates that a chat
-message has been posted to the group, and `onclearchat` indicates that the
-chat history has been cleared.  Finally, `ondownstream` is called when the
-server pushes a stream to the client; see the section below about streams.
+or left the current group, or that their attributes have changed; the
+user's state can be found in the `users` dictionary.  The `onchat`
+callback indicates that a chat message has been posted to the group, and
+`onclearchat` indicates that the chat history has been cleared.  Finally,
+`ondownstream` is called when the server pushes a stream to the client;
+see the section below about streams.
 
 You may now connect to the server.
 
