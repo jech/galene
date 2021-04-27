@@ -1,3 +1,11 @@
+27 April 2021: Galène 0.3.4
+
+  * Fixed a bug in the loss estimator.  We will now reduce the rate more
+    aggressively when there is loss in the client->serer direction.
+  * Fixed display of the chat on some devices.
+  * Exported the group.Description data structure for the sake of external
+    configuration tools.
+
 16 April 2021: Galène 0.3.3
 
   * Fixed an off-by-one error that could occasionally lead to a server
