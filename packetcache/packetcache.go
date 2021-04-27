@@ -260,14 +260,15 @@ func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, marker 
 		cache.lastValid = true
 		cache.expected++
 	} else {
-		if compare(cache.last, seqno) <= 0 {
+		cmp := compare(cache.last, seqno)
+		if cmp < 0 {
 			cache.expected += uint32(seqno - cache.last)
 			cache.lost += uint32(seqno - cache.last - 1)
 			if seqno < cache.last {
 				cache.cycle++
 			}
 			cache.last = seqno
-		} else {
+		} else if cmp > 0 {
 			if cache.lost > 0 {
 				cache.lost--
 			}
@@ -346,7 +347,7 @@ func completeKeyframe(cache *Cache) {
 	}
 }
 
-// Expect records that we expect n packets.  It is used for loss statistics.
+// Expect records that we expect n additional packets.
 func (cache *Cache) Expect(n int) {
 	if n <= 0 {
 		return
@@ -354,6 +355,7 @@ func (cache *Cache) Expect(n int) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	cache.expected += uint32(n)
+	cache.lost++
 }
 
 // get retrieves a packet from a slice of entries.
