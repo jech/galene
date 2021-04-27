@@ -512,14 +512,14 @@ func TestCacheStatsFull(t *testing.T) {
 func TestCacheStatsDrop(t *testing.T) {
 	cache := New(16)
 	for i := 0; i < 32; i++ {
-		if i != 8 {
+		if i != 8 && i != 10 {
 			cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
 		}
 	}
 	expected, lost, totalLost, eseqno := cache.GetStats(false)
 	if expected != 32 ||
-		lost != 1 ||
-		totalLost != 1 ||
+		lost != 2 ||
+		totalLost != 2 ||
 		eseqno != 31 {
 		t.Errorf("Expected 32, 1, 1, 31, got %v, %v, %v, %v",
 			expected, lost, totalLost, eseqno)
@@ -529,17 +529,18 @@ func TestCacheStatsDrop(t *testing.T) {
 func TestCacheStatsUnordered(t *testing.T) {
 	cache := New(16)
 	for i := 0; i < 32; i++ {
-		if i != 8 {
+		if i != 8 && i != 10 {
 			cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
 		}
 	}
 	cache.Store(uint16(8), 0, false, false, []byte{8})
+	cache.Store(uint16(10), 0, false, false, []byte{10})
 	expected, lost, totalLost, eseqno := cache.GetStats(false)
 	if expected != 32 ||
 		lost != 0 ||
 		totalLost != 0 ||
 		eseqno != 31 {
-		t.Errorf("Expected 32, 1, 1, 31, got %v, %v, %v, %v",
+		t.Errorf("Expected 32, 0, 0, 31, got %v, %v, %v, %v",
 			expected, lost, totalLost, eseqno)
 	}
 }
@@ -547,18 +548,19 @@ func TestCacheStatsUnordered(t *testing.T) {
 func TestCacheStatsNack(t *testing.T) {
 	cache := New(16)
 	for i := 0; i < 32; i++ {
-		if i != 8 {
+		if i != 8 && i != 10 {
 			cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
 		}
 	}
-	cache.Expect(1)
+	cache.Expect(2)
 	cache.Store(uint16(8), 0, false, false, []byte{8})
+	cache.Store(uint16(10), 0, false, false, []byte{10})
 	expected, lost, totalLost, eseqno := cache.GetStats(false)
-	if expected != 33 ||
-		lost != 1 ||
-		totalLost != 1 ||
+	if expected != 34 ||
+		lost != 2 ||
+		totalLost != 2 ||
 		eseqno != 31 {
-		t.Errorf("Expected 33, 1, 1, 31, got %v, %v, %v, %v",
+		t.Errorf("Expected 34, 2, 2, 31, got %v, %v, %v, %v",
 			expected, lost, totalLost, eseqno)
 	}
 }

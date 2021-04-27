@@ -355,7 +355,7 @@ func (cache *Cache) Expect(n int) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	cache.expected += uint32(n)
-	cache.lost++
+	cache.lost += uint32(n)
 }
 
 // get retrieves a packet from a slice of entries.
