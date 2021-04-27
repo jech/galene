@@ -493,3 +493,72 @@ func TestToBitmapNack(t *testing.T) {
 		t.Errorf("Expected %v, got %v", l, n)
 	}
 }
+
+func TestCacheStatsFull(t *testing.T) {
+	cache := New(16)
+	for i := 0; i < 32; i++ {
+		cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
+	}
+	expected, lost, totalLost, eseqno := cache.GetStats(false)
+	if expected != 32 ||
+		lost != 0 ||
+		totalLost != 0 ||
+		eseqno != 31 {
+		t.Errorf("Expected 32, 0, 0, 31, got %v, %v, %v, %v",
+			expected, lost, totalLost, eseqno)
+	}
+}
+
+func TestCacheStatsDrop(t *testing.T) {
+	cache := New(16)
+	for i := 0; i < 32; i++ {
+		if i != 8 {
+			cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
+		}
+	}
+	expected, lost, totalLost, eseqno := cache.GetStats(false)
+	if expected != 32 ||
+		lost != 1 ||
+		totalLost != 1 ||
+		eseqno != 31 {
+		t.Errorf("Expected 32, 1, 1, 31, got %v, %v, %v, %v",
+			expected, lost, totalLost, eseqno)
+	}
+}
+
+func TestCacheStatsUnordered(t *testing.T) {
+	cache := New(16)
+	for i := 0; i < 32; i++ {
+		if i != 8 {
+			cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
+		}
+	}
+	cache.Store(uint16(8), 0, false, false, []byte{8})
+	expected, lost, totalLost, eseqno := cache.GetStats(false)
+	if expected != 32 ||
+		lost != 0 ||
+		totalLost != 0 ||
+		eseqno != 31 {
+		t.Errorf("Expected 32, 1, 1, 31, got %v, %v, %v, %v",
+			expected, lost, totalLost, eseqno)
+	}
+}
+
+func TestCacheStatsNack(t *testing.T) {
+	cache := New(16)
+	for i := 0; i < 32; i++ {
+		if i != 8 {
+			cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
+		}
+	}
+	cache.Expect(1)
+	cache.Store(uint16(8), 0, false, false, []byte{8})
+	expected, lost, totalLost, eseqno := cache.GetStats(false)
+	if expected != 33 ||
+		lost != 1 ||
+		totalLost != 1 ||
+		eseqno != 31 {
+		t.Errorf("Expected 33, 1, 1, 31, got %v, %v, %v, %v",
+			expected, lost, totalLost, eseqno)
+	}
+}
