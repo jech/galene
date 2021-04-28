@@ -11,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"regexp"
+	"bufio"
+	"os/exec"
 
 	"github.com/pion/ice/v2"
 	"github.com/pion/webrtc/v3"
@@ -759,6 +762,46 @@ type Description struct {
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
 	Codecs []string `json:"codecs,omitempty"`
+
+	// LDAP service preferences. can be empty
+	// example of value: ldap://ds.example.com:389/dc=example,dc=com
+	Ldap string `json:"ldapurl,omitempty"`
+	
+}
+
+// Some methods to help LDAP authentication
+
+func (desc *Description) LdapParams() (string, string, string, bool) {
+	// extract host, port, base from the LDAP-URL
+	re := regexp.MustCompile(`ldap:\/\/([^:]*):(\d*)\/(.*)`)
+	match := re.FindStringSubmatch(desc.Ldap)
+	if len(match) > 3 {
+		return match[1], match[2], match[3], true
+	} else {
+		return "", "", "", false
+	}
+}
+
+func (desc *Description) LdapCheck(user string, password string) bool {
+	// Check the credentials : requires the ldapsearch system command
+	host, port, base, ok := desc.LdapParams()
+	if ! ok {
+		return false
+	}
+	cmd := exec.Command(
+		"ldapsearch", "-U",  user, "-w",  password, "-LLL",
+		"-p", port, "-h", host, "-b", base, "cn=" + user, "dn")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return false
+	}
+	cmd.Start()
+	var lines []string
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return len(lines) > 0	
 }
 
 const DefaultMaxHistoryAge = 4 * time.Hour
@@ -855,6 +898,18 @@ func GetDescription(name string) (*Description, error) {
 
 func (desc *Description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
 	var p ClientPermissions
+	/////////// Let us attempt to get permissions from LDAP //////////////
+	if len(desc.Ldap) > 0 {
+		if desc.LdapCheck(c.Username(), c.Givenpassword()) {
+			p.Op = true
+			p.Present = true
+			if desc.AllowRecording {
+				p.Record = true
+			}
+			return p, nil
+		}
+	}
+	/// No permissions got from LDAP, consider the group's description ///
 	if !desc.AllowAnonymous && c.Username() == "" {
 		return p, UserError("anonymous users not allowed in this group, please choose a username")
 	}

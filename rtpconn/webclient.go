@@ -70,6 +70,11 @@ type webClient struct {
 	actions []interface{}
 }
 
+func (c *webClient) Givenpassword() string {
+	return c.password
+}
+
+
 func (c *webClient) Group() *group.Group {
 	return c.group
 }
