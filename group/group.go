@@ -488,10 +488,14 @@ func AddClient(group string, c Client) (*Group, error) {
 	id := c.Id()
 	u := c.Username()
 	p := c.Permissions()
-	c.PushClient(c.Id(), u, p, "add")
+	s := c.Status()
+	c.PushClient(c.Id(), u, p, s, "add")
 	for _, cc := range clients {
-		c.PushClient(cc.Id(), cc.Username(), cc.Permissions(), "add")
-		cc.PushClient(id, u, p, "add")
+		c.PushClient(
+			cc.Id(), cc.Username(), cc.Permissions(), cc.Status(),
+			"add",
+		)
+		cc.PushClient(id, u, p, s, "add")
 	}
 
 	return g, nil
@@ -537,7 +541,7 @@ func DelClient(c Client) {
 
 	go func(clients []Client) {
 		for _, cc := range clients {
-			cc.PushClient(c.Id(), c.Username(), c.Permissions(), "delete")
+			cc.PushClient(c.Id(), c.Username(), c.Permissions(), c.Status(), "delete")
 		}
 	}(clients)
 

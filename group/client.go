@@ -98,8 +98,9 @@ type Client interface {
 	Challengeable
 	Permissions() ClientPermissions
 	SetPermissions(ClientPermissions)
+	Status() map[string]interface{}
 	OverridePermissions(*Group) bool
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
-	PushClient(id, username string, permissions ClientPermissions, kind string) error
+	PushClient(id, username string, permissions ClientPermissions, status map[string]interface{}, kind string) error
 	Kick(id, user, message string) error
 }

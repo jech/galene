@@ -2365,6 +2365,24 @@ commands.wall = {
     },
 };
 
+commands.raise = {
+    description: 'raise hand',
+    f: (c, r) => {
+        serverConnection.userAction(
+            "setstatus", serverConnection.id, {"raisehand": true},
+        );
+    }
+}
+
+commands.unraise = {
+    description: 'unraise hand',
+    f: (c, r) => {
+        serverConnection.userAction(
+            "setstatus", serverConnection.id, {"raisehand": null},
+        );
+    }
+}
+
 /**
  * Test loopback through a TURN relay.
  *

@@ -58,6 +58,7 @@ type webClient struct {
 	username    string
 	password    string
 	permissions group.ClientPermissions
+	status      map[string]interface{}
 	requested   map[string]uint32
 	done        chan struct{}
 	writeCh     chan interface{}
@@ -98,6 +99,10 @@ func (c *webClient) Permissions() group.ClientPermissions {
 	return c.permissions
 }
 
+func (c *webClient) Status() map[string]interface{} {
+	return c.status
+}
+
 func (c *webClient) SetPermissions(perms group.ClientPermissions) {
 	c.permissions = perms
 }
@@ -106,13 +111,14 @@ func (c *webClient) OverridePermissions(g *group.Group) bool {
 	return false
 }
 
-func (c *webClient) PushClient(id, username string, permissions group.ClientPermissions, kind string) error {
+func (c *webClient) PushClient(id, username string, permissions group.ClientPermissions, status map[string]interface{}, kind string) error {
 	return c.write(clientMessage{
 		Type:        "user",
 		Kind:        kind,
 		Id:          id,
 		Username:    username,
 		Permissions: &permissions,
+		Status:      status,
 	})
 }
 
@@ -174,6 +180,7 @@ type clientMessage struct {
 	Password         string                   `json:"password,omitempty"`
 	Privileged       bool                     `json:"privileged,omitempty"`
 	Permissions      *group.ClientPermissions `json:"permissions,omitempty"`
+	Status           map[string]interface{}   `json:"status,omitempty"`
 	Group            string                   `json:"group,omitempty"`
 	Value            interface{}              `json:"value,omitempty"`
 	NoEcho           bool                     `json:"noecho,omitempty"`
@@ -988,10 +995,11 @@ func handleAction(c *webClient, a interface{}) error {
 		}
 		id := c.Id()
 		user := c.Username()
+		s := c.Status()
 		clients := g.GetClients(nil)
 		go func(clients []group.Client) {
 			for _, cc := range clients {
-				cc.PushClient(id, user, perms, "change")
+				cc.PushClient(id, user, perms, s, "change")
 			}
 		}(clients)
 	case kickAction:
@@ -1042,6 +1050,7 @@ func leaveGroup(c *webClient) {
 
 	group.DelClient(c)
 	c.permissions = group.ClientPermissions{}
+	c.status = nil
 	c.requested = map[string]uint32{}
 	c.group = nil
 }
@@ -1454,6 +1463,36 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if err != nil {
 				return c.error(err)
 			}
+		case "setstatus":
+			if m.Dest != c.Id() {
+				return c.error(group.UserError("not authorised"))
+			}
+			s, ok := m.Value.(map[string]interface{})
+			if !ok {
+				return c.error(group.UserError(
+					"Bad value in setstatus",
+				))
+			}
+			if c.status == nil {
+				c.status = make(map[string]interface{})
+			}
+			for k, v := range s {
+				if v == nil {
+					delete(c.status, k)
+				} else {
+					c.status[k] = v
+				}
+			}
+			id := c.Id()
+			user := c.Username()
+			perms := c.Permissions()
+			status := c.Status()
+			go func(clients []group.Client) {
+				for _, cc := range clients {
+					cc.PushClient(id, user, perms, status,
+						"change")
+				}
+			}(g.GetClients(nil))
 		default:
 			return group.ProtocolError("unknown user action")
 		}

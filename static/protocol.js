@@ -64,6 +64,7 @@ function newLocalId() {
  * @typedef {Object} user
  * @property {string} username
  * @property {Object<string,boolean>} permissions
+ * @property {Object<string,any>} status
  */
 
 /**
@@ -205,6 +206,7 @@ function ServerConnection() {
   * @property {string} [password]
   * @property {boolean} [privileged]
   * @property {Object<string,boolean>} [permissions]
+  * @property {Object<string,any>} [status]
   * @property {string} [group]
   * @property {unknown} [value]
   * @property {boolean} [noecho]
@@ -342,7 +344,8 @@ ServerConnection.prototype.connect = async function(url) {
                         console.warn(`Duplicate user ${m.id} ${m.username}`);
                     sc.users[m.id] = {
                         username: m.username,
-                        permissions: m.permissions,
+                        permissions: m.permissions || {},
+                        status: m.status || {},
                     };
                     break;
                 case 'change':
@@ -350,11 +353,13 @@ ServerConnection.prototype.connect = async function(url) {
                         console.warn(`Unknown user ${m.id} ${m.username}`);
                         sc.users[m.id] = {
                             username: m.username,
-                            permissions: m.permissions,
+                            permissions: m.permissions || {},
+                            status: m.status || {},
                         };
                     } else {
                         sc.users[m.id].username = m.username;
-                        sc.users[m.id].permissions = m.permissions;
+                        sc.users[m.id].permissions = m.permissions || {};
+                        sc.users[m.id].status = m.status || {};
                     }
                     break;
                 case 'delete':
@@ -562,7 +567,7 @@ ServerConnection.prototype.chat = function(kind, dest, value) {
  *
  * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
  * @param {string} dest - The id of the user to act upon.
- * @param {string} [value] - An optional user-readable message.
+ * @param {any} [value] - An action-dependent parameter.
  */
 ServerConnection.prototype.userAction = function(kind, dest, value) {
     this.send({

@@ -118,7 +118,8 @@ users a `user` message:
     kind: 'add' or 'change' or 'delete',
     id: id,
     username: username,
-    permissions: permissions
+    permissions: permissions,
+    status: status
 }
 ```
 
@@ -277,8 +278,8 @@ A user action requests that the server act upon a user.
     value: value
 }
 ```
-Currently defined kinds include `op`, `unop`, `present`, `unpresent`, and
-`kick`. 
+Currently defined kinds include `op`, `unop`, `present`, `unpresent`,
+`kick` and `setstatus`.
 
 Finally, a group action requests that the server act on the current group.
 
