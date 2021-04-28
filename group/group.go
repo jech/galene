@@ -766,6 +766,21 @@ type Description struct {
 	// LDAP service preferences. can be empty
 	// example of value: ldap://ds.example.com:389/dc=example,dc=com
 	Ldap string `json:"ldapurl,omitempty"`
+
+	// Regular expressions to guess operators, from the
+	// LDAP record: the list of matches will be ANDed
+	// example: ["^memberOf: CN=profs", "^memberOf: CN=c2d01_admin"]
+	Opldap []string `json:"op_ldap,omitempty"`
+	
+	// Regular expressions to guess presenters, from the
+	// LDAP record: the list of matches will be ANDed
+	// example: ["^memberOf: CN=profs", "^memberOf: CN=c2d01_admin"]
+	Presenterldap []string `json:"presenter_ldap,omitempty"`
+	
+	// Regular expressions to guess others, from the
+	// LDAP record: the list of matches will be ANDed
+	// example: ["^memberOf: CN=c2d01"]
+	Recordldap []string `json:"present_ldap,omitempty"`
 	
 }
 
@@ -782,18 +797,36 @@ func (desc *Description) LdapParams() (string, string, string, bool) {
 	}
 }
 
-func (desc *Description) LdapCheck(user string, password string) bool {
+func findPatterns(patterns []string, lines []string) (result bool) {
+	result = true
+	for _, p := range patterns {
+		re := regexp.MustCompile(p)
+		var found bool = false
+		for _,l := range lines {
+			if len(re.FindString(l)) > 0 {
+				found = true
+				break
+			}
+		}
+		result = result && found
+	}
+	return result
+}
+
+func (desc *Description) LdapCheck(user string, password string) (op bool, present bool, record bool, ok bool) {
+	op , present, record = false, false, false
 	// Check the credentials : requires the ldapsearch system command
 	host, port, base, ok := desc.LdapParams()
 	if ! ok {
-		return false
+		return op, present, record, ok
 	}
 	cmd := exec.Command(
 		"ldapsearch", "-U",  user, "-w",  password, "-LLL",
-		"-p", port, "-h", host, "-b", base, "cn=" + user, "dn")
+		"-p", port, "-h", host, "-b", base, "cn=" + user)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return false
+		ok := false
+		return op, present, record, ok
 	}
 	cmd.Start()
 	var lines []string
@@ -801,7 +834,11 @@ func (desc *Description) LdapCheck(user string, password string) bool {
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
-	return len(lines) > 0	
+	ok =      len(lines) > 0
+	op =      findPatterns(desc.Opldap, lines)
+	present = findPatterns(desc.Presenterldap, lines)
+	record =   findPatterns(desc.Recordldap, lines)
+	return 	op, present, record, ok
 }
 
 const DefaultMaxHistoryAge = 4 * time.Hour
@@ -900,12 +937,12 @@ func (desc *Description) GetPermission(group string, c Challengeable) (ClientPer
 	var p ClientPermissions
 	/////////// Let us attempt to get permissions from LDAP //////////////
 	if len(desc.Ldap) > 0 {
-		if desc.LdapCheck(c.Username(), c.Givenpassword()) {
-			p.Op = true
-			p.Present = true
-			if desc.AllowRecording {
-				p.Record = true
-			}
+		op, present, record, ok := desc.LdapCheck(
+			c.Username(), c.Givenpassword())
+		if ok {
+			p.Op = op
+			p.Present = present
+			p.Record = record
 			return p, nil
 		}
 	}
