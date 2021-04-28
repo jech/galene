@@ -65,7 +65,7 @@ You typically join a group and request media in the `onconnected` callback:
 ```javascript
 serverConnection.onconnected = function() {
     this.join(group, 'join', username, password); 
-    this.request('everything');
+    this.request({'':['audio','video']});
 }
 ```
 
@@ -110,10 +110,7 @@ serverConnection.ondownstream = function(stream) {
 }
 ```
 
-The `stream.labels` dictionary maps each track's id to one of `audio`,
-`video` or `screenshare`.  Since `stream.labels` is already available at
-this point, you may set up an `audio` or `video` component straight away,
-or you may choose to wait until the `ondowntrack` callback is called.
+The `stream.label` field is one of `camera`, `screenshare` or `video`.
 
 After a new stream is created, `ondowntrack` will be called whenever
 a track is added.
@@ -137,10 +134,10 @@ to push a stream to the server.  Given a `MediaStream` called `localStream`
 
 ```javascript
 let stream = serverConnection.newUpStream();
+stream.label = ...;
 stream.onerror = ...;
 stream.onstatus = ...;
 localStream.getTracks().forEach(t => {
-    c.labels[t.id] = t.kind;
     c.pc.addTrack(t, c.stream);
 });
 ```
@@ -149,8 +146,6 @@ The `newUpStream` method takes an optional parameter.  If this is set to
 the `localId` property of an existing stream, then the existing stream
 will be closed and the server will be informed that the new stream
 replaces the existing stream.
-
-See above for information about setting up the `labels` dictionary.
 
 ## Stream statistics
 

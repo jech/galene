@@ -135,7 +135,8 @@ A peer must explicitly request the streams that it wants to receive.
 ```
 
 The field `request` is a dictionary that maps the labels of requested
-tracks to the boolean `true`.
+streams to a list containing either 'audio', 'video' or both.  An entry
+with an empty key `''` serves as default.
 
 ## Pushing streams
 
@@ -145,11 +146,11 @@ A stream is created by the sender with the `offer` message:
 {
     type: 'offer',
     id: id,
+    label: label,
     replace: id,
     source: source-id,
     username: username,
     sdp: sdp,
-    labels: labels
 }
 ```
 
@@ -158,14 +159,13 @@ otherwise this message creates a new stream.  If the field `replace` is
 not empty, then this request additionally requests that an existing stream
 with the given id should be closed, and the new stream should replace it.
 
+The field `label` is one of `camera`, `screenshare` or `video`, as in the
+`request` message.
+
 The field `sdp` contains the raw SDP string (i.e. the `sdp` field of
 a JSEP session description).  Galène will interpret the `nack`,
 `nack pli`, `ccm fir` and `goog-remb` RTCP feedback types, and act
 accordingly.
-
-The field `labels` is a dictionary that maps track mids to one of `audio`,
-`video` or `screenshare`.  If a track does not appear in the `labels`
-dictionary, it should be ignored.
 
 The receiver may either abort the stream immediately (see below), or send
 an answer.

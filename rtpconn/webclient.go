@@ -59,7 +59,7 @@ type webClient struct {
 	password    string
 	permissions group.ClientPermissions
 	status      map[string]interface{}
-	requested   map[string]uint32
+	requested   map[string][]string
 	done        chan struct{}
 	writeCh     chan interface{}
 	writerDone  chan struct{}
@@ -122,53 +122,6 @@ func (c *webClient) PushClient(id, username string, permissions group.ClientPerm
 	})
 }
 
-type rateMap map[string]uint32
-
-func (v *rateMap) UnmarshalJSON(b []byte) error {
-	var m map[string]interface{}
-
-	err := json.Unmarshal(b, &m)
-	if err != nil {
-		return err
-	}
-
-	n := make(map[string]uint32, len(m))
-	for k, w := range m {
-		switch w := w.(type) {
-		case bool:
-			if w {
-				n[k] = ^uint32(0)
-			} else {
-				n[k] = 0
-			}
-		case float64:
-			if w < 0 || w >= float64(^uint32(0)) {
-				return errors.New("overflow")
-			}
-			n[k] = uint32(w)
-		default:
-			return errors.New("unexpected type in JSON map")
-		}
-	}
-	*v = n
-	return nil
-}
-
-func (v rateMap) MarshalJSON() ([]byte, error) {
-	m := make(map[string]interface{}, len(v))
-	for k, w := range v {
-		switch w {
-		case 0:
-			m[k] = false
-		case ^uint32(0):
-			m[k] = true
-		default:
-			m[k] = w
-		}
-	}
-	return json.Marshal(m)
-}
-
 type clientMessage struct {
 	Type             string                   `json:"type"`
 	Kind             string                   `json:"kind,omitempty"`
@@ -187,8 +140,8 @@ type clientMessage struct {
 	Time             int64                    `json:"time,omitempty"`
 	SDP              string                   `json:"sdp,omitempty"`
 	Candidate        *webrtc.ICECandidateInit `json:"candidate,omitempty"`
-	Labels           map[string]string        `json:"labels,omitempty"`
-	Request          rateMap                  `json:"request,omitempty"`
+	Label            string                   `json:"label,omitempty"`
+	Request          map[string][]string      `json:"request,omitempty"`
 	RTCConfiguration *webrtc.Configuration    `json:"rtcConfiguration,omitempty"`
 }
 
@@ -216,7 +169,7 @@ func getUpConns(c *webClient) []*rtpUpConnection {
 	return up
 }
 
-func addUpConn(c *webClient, id string, labels map[string]string, offer string) (*rtpUpConnection, bool, error) {
+func addUpConn(c *webClient, id, label string, offer string) (*rtpUpConnection, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -232,7 +185,7 @@ func addUpConn(c *webClient, id string, labels map[string]string, offer string) 
 		return old, false, nil
 	}
 
-	conn, err := newUpConn(c, id, labels, offer)
+	conn, err := newUpConn(c, id, label, offer)
 	if err != nil {
 		return nil, false, err
 	}
@@ -540,33 +493,16 @@ func negotiate(c *webClient, down *rtpDownConnection, restartIce bool, replace s
 		return err
 	}
 
-	labels := make(map[string]string)
-	for _, t := range down.pc.GetTransceivers() {
-		var track webrtc.TrackLocal
-		if t.Sender() != nil {
-			track = t.Sender().Track()
-		}
-		if track == nil {
-			continue
-		}
-
-		for _, tr := range down.tracks {
-			if tr.track == track {
-				labels[t.Mid()] = tr.remote.Label()
-			}
-		}
-	}
-
 	source, username := down.remote.User()
 
 	return c.write(clientMessage{
 		Type:     "offer",
 		Id:       down.id,
+		Label:    down.remote.Label(),
 		Replace:  replace,
 		Source:   source,
 		Username: username,
 		SDP:      down.pc.LocalDescription().SDP,
-		Labels:   labels,
 	})
 }
 
@@ -582,8 +518,8 @@ func sendICE(c *webClient, id string, candidate *webrtc.ICECandidate) error {
 	})
 }
 
-func gotOffer(c *webClient, id string, sdp string, labels map[string]string, replace string) error {
-	up, _, err := addUpConn(c, id, labels, sdp)
+func gotOffer(c *webClient, id, label string, sdp string, replace string) error {
+	up, _, err := addUpConn(c, id, label, sdp)
 	if err != nil {
 		return err
 	}
@@ -681,7 +617,7 @@ func gotICE(c *webClient, candidate *webrtc.ICECandidateInit, id string) error {
 	return conn.addICECandidate(candidate)
 }
 
-func (c *webClient) setRequested(requested map[string]uint32) error {
+func (c *webClient) setRequested(requested map[string][]string) error {
 	if c.group == nil {
 		return errors.New("attempted to request with no group joined")
 	}
@@ -701,8 +637,46 @@ func pushConns(c group.Client, g *group.Group) {
 	}
 }
 
-func (c *webClient) isRequested(label string) bool {
-	return c.requested[label] != 0
+func requestedTracks(c *webClient, up conn.Up, tracks []conn.UpTrack) []conn.UpTrack {
+	r, ok := c.requested[up.Label()]
+	if !ok {
+		r, ok = c.requested[""]
+	}
+	if !ok || len(r) == 0 {
+		return nil
+	}
+
+	var audio, video bool
+	for _, s := range r {
+		switch s {
+		case "audio":
+			audio = true
+		case "video":
+			video = true
+		default:
+			log.Printf("client requested unknown value %v", s)
+		}
+	}
+
+	var ts []conn.UpTrack
+	if audio {
+		for _, t := range tracks {
+			if t.Kind() == webrtc.RTPCodecTypeAudio {
+				ts = append(ts, t)
+				break
+			}
+		}
+	}
+	if video {
+		for _, t := range tracks {
+			if t.Kind() == webrtc.RTPCodecTypeVideo {
+				ts = append(ts, t)
+				break
+			}
+		}
+	}
+
+	return ts
 }
 
 func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
@@ -871,16 +845,7 @@ func handleAction(c *webClient, a interface{}) error {
 		}
 		var tracks []conn.UpTrack
 		if a.conn != nil {
-			tracks = make([]conn.UpTrack,
-				0, len(a.tracks),
-			)
-			for _, t := range a.tracks {
-				if c.isRequested(t.Label()) {
-					tracks = append(
-						tracks, t,
-					)
-				}
-			}
+			tracks = requestedTracks(c, a.conn, a.tracks)
 		}
 
 		if len(tracks) == 0 {
@@ -923,9 +888,6 @@ func handleAction(c *webClient, a interface{}) error {
 			return nil
 		}
 		for _, u := range c.up {
-			if !u.complete() {
-				continue
-			}
 			tracks := u.getTracks()
 			replace := u.getReplace(false)
 
@@ -1051,7 +1013,7 @@ func leaveGroup(c *webClient) {
 	group.DelClient(c)
 	c.permissions = group.ClientPermissions{}
 	c.status = nil
-	c.requested = map[string]uint32{}
+	c.requested = make(map[string][]string)
 	c.group = nil
 }
 
@@ -1238,7 +1200,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			})
 			return c.error(group.UserError("not authorised"))
 		}
-		err := gotOffer(c, m.Id, m.SDP, m.Labels, m.Replace)
+		err := gotOffer(c, m.Id, m.Label, m.SDP, m.Replace)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
 			return failUpConnection(c, m.Id, "negotiation failed")

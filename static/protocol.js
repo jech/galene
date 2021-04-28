@@ -212,8 +212,8 @@ function ServerConnection() {
   * @property {boolean} [noecho]
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
-  * @property {Object<string,string>} [labels]
-  * @property {Object<string,(boolean|number)>} [request]
+  * @property {string} [label]
+  * @property {Object<string,Array<string>>} [request]
   * @property {Object<string,any>} [rtcConfiguration]
   */
 
@@ -296,7 +296,7 @@ ServerConnection.prototype.connect = async function(url) {
             case 'handshake':
                 break;
             case 'offer':
-                sc.gotOffer(m.id, m.labels, m.source, m.username,
+                sc.gotOffer(m.id, m.label, m.source, m.username,
                             m.sdp, m.replace);
                 break;
             case 'answer':
@@ -439,32 +439,14 @@ ServerConnection.prototype.leave = function(group) {
 /**
  * request sets the list of requested media types.
  *
- * @param {string} what - One of '', 'audio', 'screenshare' or 'everything'.
+ * @param {Object<string,Array<string>>} what
+ *     - A dictionary that maps labels to a sequence of 'audio' and 'video'.
+ *       An entry with an empty label '' provides the default.
  */
 ServerConnection.prototype.request = function(what) {
-    /** @type {Object<string,boolean>} */
-    let request = {};
-    switch(what) {
-    case '':
-        request = {};
-        break;
-    case 'audio':
-        request = {audio: true};
-        break;
-    case 'screenshare':
-        request = {audio: true, screenshare: true};
-        break;
-    case 'everything':
-        request = {audio: true, screenshare: true, video: true};
-        break;
-    default:
-        console.error(`Unknown value ${what} in request`);
-        break;
-    }
-
     this.send({
         type: 'request',
-        request: request,
+        request: what,
     });
 };
 
@@ -622,14 +604,14 @@ ServerConnection.prototype.groupAction = function(kind, message) {
  * Called when we receive an offer from the server.  Don't call this.
  *
  * @param {string} id
- * @param {Object<string, string>} labels
+ * @param {string} label
  * @param {string} source
  * @param {string} username
  * @param {string} sdp
  * @param {string} replace
  * @function
  */
-ServerConnection.prototype.gotOffer = async function(id, labels, source, username, sdp, replace) {
+ServerConnection.prototype.gotOffer = async function(id, label, source, username, sdp, replace) {
     let sc = this;
 
     if(sc.up[id]) {
@@ -669,6 +651,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
             return;
         }
         c = new Stream(this, id, oldLocalId || newLocalId(), pc, false);
+        c.label = label;
         sc.down[id] = c;
 
         c.pc.onicecandidate = function(e) {
@@ -689,32 +672,15 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         };
 
         c.pc.ontrack = function(e) {
-            let label = e.transceiver && c.labelsByMid[e.transceiver.mid];
-            if(label) {
-                c.labels[e.track.id] = label;
-            } else {
-                console.warn("Couldn't find label for track");
-            }
             c.stream = e.streams[0];
             if(c.ondowntrack) {
                 c.ondowntrack.call(
-                    c, e.track, e.transceiver, label, e.streams[0],
+                    c, e.track, e.transceiver, e.streams[0],
                 );
             }
         };
     }
 
-    c.labelsByMid = labels;
-    c.labels = {};
-    c.pc.getTransceivers().forEach(transceiver => {
-        let label = c.labelsByMid[transceiver.mid];
-        let track = transceiver.receiver && transceiver.receiver.track;
-        if(label && track) {
-            c.labels[track.id] = label;
-        } else if(!track) {
-            console.warn("Couldn't find track for label");
-        }
-    });
     c.source = source;
     c.username = username;
 
@@ -884,12 +850,6 @@ function Stream(sc, id, localId, pc, up) {
      */
     this.up = up;
     /**
-     * For up streams, one of "local" or "screenshare".
-     *
-     * @type {string}
-     */
-    this.kind = null;
-    /**
      * For down streams, the id of the client that created the stream.
      *
      * @type {string}
@@ -916,17 +876,11 @@ function Stream(sc, id, localId, pc, up) {
      */
     this.stream = null;
     /**
-     * Track labels, indexed by track id.
+     * The label assigned by the originator to this stream.
      *
-     * @type {Object<string,string>}
+     * @type {string}
      */
-    this.labels = {};
-    /**
-     * Track labels, indexed by mid.
-     *
-     * @type {Object<string,string>}
-     */
-    this.labelsByMid = {};
+    this.label = null;
     /**
      * The id of the stream that we are currently replacing.
      *
@@ -1004,7 +958,7 @@ function Stream(sc, id, localId, pc, up) {
      * If the stream parameter differs from its previous value, then it
      * indicates that the old stream has been discarded.
      *
-     * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, label: string, stream: MediaStream) => void}
+     * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, stream: MediaStream) => void}
      */
     this.ondowntrack = null;
     /**
@@ -1164,17 +1118,6 @@ Stream.prototype.negotiate = async function (restartIce) {
         throw(new Error("Didn't create offer"));
     await c.pc.setLocalDescription(offer);
 
-    // mids are not known until this point
-    c.pc.getTransceivers().forEach(t => {
-        if(t.sender && t.sender.track) {
-            let label = c.labels[t.sender.track.id];
-            if(label)
-                c.labelsByMid[t.mid] = label;
-            else
-                console.warn("Couldn't find label for track");
-        }
-    });
-
     c.sc.send({
         type: 'offer',
         source: c.sc.id,
@@ -1182,7 +1125,7 @@ Stream.prototype.negotiate = async function (restartIce) {
         kind: this.localDescriptionSent ? 'renegotiate' : '',
         id: c.id,
         replace: this.replace,
-        labels: c.labelsByMid,
+        label: c.label,
         sdp: c.pc.localDescription.sdp,
     });
     this.localDescriptionSent = true;

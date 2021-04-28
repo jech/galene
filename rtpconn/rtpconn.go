@@ -313,6 +313,10 @@ func (up *rtpUpTrack) Label() string {
 	return up.label
 }
 
+func (up *rtpUpTrack) Kind() webrtc.RTPCodecType {
+	return up.track.Kind()
+}
+
 func (up *rtpUpTrack) Codec() webrtc.RTPCodecCapability {
 	return up.track.Codec().RTPCodecCapability
 }
@@ -328,10 +332,10 @@ func (up *rtpUpTrack) hasRtcpFb(tpe, parameter string) bool {
 
 type rtpUpConnection struct {
 	id            string
+	label         string
 	userId        string
 	username      string
 	pc            *webrtc.PeerConnection
-	labels        map[string]string
 	iceCandidates []*webrtc.ICECandidateInit
 
 	mu      sync.Mutex
@@ -361,6 +365,10 @@ func (up *rtpUpConnection) getReplace(reset bool) string {
 
 func (up *rtpUpConnection) Id() string {
 	return up.id
+}
+
+func (up *rtpUpConnection) Label() string {
+	return up.label
 }
 
 func (up *rtpUpConnection) User() (string, string) {
@@ -413,33 +421,6 @@ func (up *rtpUpConnection) flushICECandidates() error {
 	return err
 }
 
-func getTrackMid(pc *webrtc.PeerConnection, track *webrtc.TrackRemote) string {
-	for _, t := range pc.GetTransceivers() {
-		if t.Receiver() != nil && t.Receiver().Track() == track {
-			return t.Mid()
-		}
-	}
-	return ""
-}
-
-// called locked
-func (up *rtpUpConnection) complete() bool {
-	for mid := range up.labels {
-		found := false
-		for _, t := range up.tracks {
-			m := getTrackMid(up.pc, t.track)
-			if m == mid {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
-
 // pushConnNow pushes a connection to all of the clients in a group
 func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	up.mu.Lock()
@@ -460,17 +441,11 @@ func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 // pushConn schedules a call to pushConnNow
 func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	up.mu.Lock()
-	if up.complete() {
-		up.mu.Unlock()
-		pushConnNow(up, g, cs)
-		return
-	}
-
 	up.pushed = false
 	up.mu.Unlock()
 
 	go func(g *group.Group, cs []group.Client) {
-		time.Sleep(4 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 		up.mu.Lock()
 		pushed := up.pushed
 		up.pushed = true
@@ -481,7 +456,7 @@ func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	}(g, cs)
 }
 
-func newUpConn(c group.Client, id string, labels map[string]string, offer string) (*rtpUpConnection, error) {
+func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpConnection, error) {
 	var o sdp.SessionDescription
 	err := o.Unmarshal([]byte(offer))
 	if err != nil {
@@ -506,31 +481,13 @@ func newUpConn(c group.Client, id string, labels map[string]string, offer string
 		}
 	}
 
-	up := &rtpUpConnection{id: id, pc: pc, labels: labels}
+	up := &rtpUpConnection{id: id, label: label, pc: pc}
 
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		up.mu.Lock()
 
-		mid := getTrackMid(pc, remote)
-		if mid == "" {
-			log.Printf("Couldn't get track's mid")
-			return
-		}
-
-		label, ok := up.labels[mid]
-		if !ok {
-			log.Printf("Couldn't get track's label")
-			isvideo := remote.Kind() == webrtc.RTPCodecTypeVideo
-			if isvideo {
-				label = "video"
-			} else {
-				label = "audio"
-			}
-		}
-
 		track := &rtpUpTrack{
 			track:      remote,
-			label:      label,
 			cache:      packetcache.New(minPacketCache(remote)),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),

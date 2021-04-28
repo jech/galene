@@ -16,6 +16,7 @@ type Up interface {
 	AddLocal(Down) error
 	DelLocal(Down) bool
 	Id() string
+	Label() string
 	User() (string, string)
 }
 
@@ -23,7 +24,7 @@ type Up interface {
 type UpTrack interface {
 	AddLocal(DownTrack) error
 	DelLocal(DownTrack) bool
-	Label() string
+	Kind() webrtc.RTPCodecType
 	Codec() webrtc.RTPCodecCapability
 	// get a recent packet.  Returns 0 if the packet is not in cache.
 	GetRTP(seqno uint16, result []byte) uint16
