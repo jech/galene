@@ -157,7 +157,10 @@ func (down *rtpDownConnection) getTracks() []*rtpDownTrack {
 }
 
 func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection, error) {
-	api := c.Group().API()
+	api, err := c.Group().API()
+	if err != nil {
+		return nil, err
+	}
 	pc, err := api.NewPeerConnection(*ice.ICEConfiguration())
 	if err != nil {
 		return nil, err
@@ -463,7 +466,11 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 		return nil, err
 	}
 
-	pc, err := c.Group().API().NewPeerConnection(*ice.ICEConfiguration())
+	api, err := c.Group().API()
+	if err != nil {
+		return nil, err
+	}
+	pc, err := api.NewPeerConnection(*ice.ICEConfiguration())
 	if err != nil {
 		return nil, err
 	}

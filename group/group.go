@@ -120,7 +120,7 @@ var groups struct {
 	groups map[string]*Group
 }
 
-func (g *Group) API() *webrtc.API {
+func (g *Group) API() (*webrtc.API, error) {
 	g.mu.Lock()
 	codecs := g.description.Codecs
 	g.mu.Unlock()
@@ -198,7 +198,7 @@ func payloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, error) {
 	}
 }
 
-func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
+func APIFromCodecs(codecs []webrtc.RTPCodecCapability) (*webrtc.API, error) {
 	s := webrtc.SettingEngine{}
 	s.SetSRTPReplayProtectionWindow(512)
 	if !UseMDNS {
@@ -229,7 +229,7 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
 			log.Printf("%v", err)
 			continue
 		}
-		m.RegisterCodec(
+		err = m.RegisterCodec(
 			webrtc.RTPCodecParameters{
 				RTPCodecCapability: webrtc.RTPCodecCapability{
 					MimeType:     codec.MimeType,
@@ -242,14 +242,18 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
 			},
 			tpe,
 		)
+		if err != nil {
+			log.Printf("%v", err)
+			continue
+		}
 	}
 	return webrtc.NewAPI(
 		webrtc.WithSettingEngine(s),
 		webrtc.WithMediaEngine(&m),
-	)
+	), nil
 }
 
-func APIFromNames(names []string) *webrtc.API {
+func APIFromNames(names []string) (*webrtc.API, error) {
 	if len(names) == 0 {
 		names = []string{"vp8", "opus"}
 	}
@@ -713,8 +717,8 @@ type Description struct {
 
 	// The modtime and size of the file.  These are used to detect
 	// when a file has changed on disk.
-	modTime time.Time `json:"-"`
-	fileSize int64 `json:"-"`
+	modTime  time.Time `json:"-"`
+	fileSize int64     `json:"-"`
 
 	// A user-readable description of the group.
 	Description string `json:"description,omitempty"`
