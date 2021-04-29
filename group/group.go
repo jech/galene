@@ -18,6 +18,7 @@ import (
 
 var Directory string
 var UseMDNS bool
+var UDPMin, UDPMax uint16
 
 var ErrNotAuthorised = errors.New("not authorised")
 
@@ -247,6 +248,11 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) (*webrtc.API, error) {
 			continue
 		}
 	}
+
+	if UDPMin > 0 && UDPMax > 0 {
+		s.SetEphemeralUDPPortRange(UDPMin, UDPMax)
+	}
+
 	return webrtc.NewAPI(
 		webrtc.WithSettingEngine(s),
 		webrtc.WithMediaEngine(&m),
