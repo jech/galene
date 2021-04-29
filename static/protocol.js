@@ -65,6 +65,7 @@ function newLocalId() {
  * @property {string} username
  * @property {Object<string,boolean>} permissions
  * @property {Object<string,any>} status
+ * @property {Object<string,Object<string,boolean>>} down
  */
 
 /**
@@ -346,6 +347,7 @@ ServerConnection.prototype.connect = async function(url) {
                         username: m.username,
                         permissions: m.permissions || {},
                         status: m.status || {},
+                        down: {},
                     };
                     break;
                 case 'change':
@@ -355,6 +357,7 @@ ServerConnection.prototype.connect = async function(url) {
                             username: m.username,
                             permissions: m.permissions || {},
                             status: m.status || {},
+                            down: {},
                         };
                     } else {
                         sc.users[m.id].username = m.username;
@@ -673,11 +676,14 @@ ServerConnection.prototype.gotOffer = async function(id, label, source, username
 
         c.pc.ontrack = function(e) {
             c.stream = e.streams[0];
+            let changed = recomputeUserStreams(sc, source, c);
             if(c.ondowntrack) {
                 c.ondowntrack.call(
                     c, e.track, e.transceiver, e.streams[0],
                 );
             }
+            if(changed && sc.onuser)
+                sc.onuser.call(sc, source, "change");
         };
     }
 
@@ -1020,12 +1026,58 @@ Stream.prototype.close = function(replace) {
             delete(c.sc.down[c.id]);
         else
             console.warn('Closing unknown stream');
+        recomputeUserStreams(c.sc, c.source);
     }
     c.sc = null;
 
     if(c.onclose)
         c.onclose.call(c, replace);
 };
+
+/**
+ * @param {ServerConnection} sc
+ * @param {string} id
+ * @param {Stream} [c]
+ * @returns {boolean}
+ */
+function recomputeUserStreams(sc, id, c) {
+    let user = sc.users[id];
+    if(!user) {
+        console.warn("recomputing streams for unknown user");
+        return false;
+    }
+
+    if(c) {
+        let changed = false;
+        if(!user.down[c.label])
+            user.down[c.label] = {};
+        c.stream.getTracks().forEach(t => {
+            if(!user.down[c.label][t.kind]) {
+                user.down[c.label][t.kind] = true;
+                changed = true;
+            }
+        });
+        return changed;
+    }
+
+    if(!user.down || Object.keys(user.down).length === 0)
+        return false;
+
+    let old = user.down;
+    user.down = {};
+
+    for(id in sc.down) {
+        let c = sc.down[id];
+        if(!user.down[c.label])
+            user.down[c.label] = {};
+        c.stream.getTracks().forEach(t => {
+            user.down[c.label][t.kind] = true;
+        });
+    }
+
+    // might lead to false positives.  Oh, well.
+    return JSON.stringify(old) != JSON.stringify(user.down);
+}
 
 /**
  * abort requests that the server close a down stream.
