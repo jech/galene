@@ -44,6 +44,8 @@ func main() {
 		"store mutex profile in `file`")
 	flag.StringVar(&udpRange, "udp-range", "",
 		"UDP port `range`")
+	flag.StringVar(&group.UDPAddr, "udp", "",
+		"UDP `address:port` (default dynamic)")
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")

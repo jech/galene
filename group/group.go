@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,6 +20,10 @@ import (
 var Directory string
 var UseMDNS bool
 var UDPMin, UDPMax uint16
+
+var UDPAddr string
+var udpListenerMu sync.Mutex
+var udpListener *net.UDPConn
 
 var ErrNotAuthorised = errors.New("not authorised")
 
@@ -199,6 +204,27 @@ func payloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, error) {
 	}
 }
 
+func getUDPListener() (*net.UDPConn, error) {
+	if UDPAddr == "" {
+		return nil, nil
+	}
+	udpListenerMu.Lock()
+	defer udpListenerMu.Unlock()
+	if udpListener == nil {
+		addr, err := net.ResolveUDPAddr("udp", UDPAddr)
+		if err != nil {
+			return nil, err
+		}
+		udpListener, err = net.ListenUDP("udp", addr)
+		if err != nil {
+			udpListener = nil
+			return nil, err
+		}
+	}
+	return udpListener, nil
+
+}
+
 func APIFromCodecs(codecs []webrtc.RTPCodecCapability) (*webrtc.API, error) {
 	s := webrtc.SettingEngine{}
 	s.SetSRTPReplayProtectionWindow(512)
@@ -251,6 +277,14 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) (*webrtc.API, error) {
 
 	if UDPMin > 0 && UDPMax > 0 {
 		s.SetEphemeralUDPPortRange(UDPMin, UDPMax)
+	}
+
+	listener, err := getUDPListener()
+	if err != nil {
+		return nil, err
+	}
+	if listener != nil {
+		s.SetICEUDPMux(webrtc.NewICEUDPMux(nil, listener))
 	}
 
 	return webrtc.NewAPI(
