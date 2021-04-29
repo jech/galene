@@ -47,7 +47,6 @@ func (c *webClient) GetStats() *stats.Client {
 	for _, down := range c.down {
 		conns := stats.Conn{
 			Id:         down.id,
-			MaxBitrate: down.GetMaxBitrate(jiffies),
 		}
 		for _, t := range down.tracks {
 			rate, _ := t.rate.Estimate()

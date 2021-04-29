@@ -25,6 +25,7 @@ type UpTrack interface {
 	AddLocal(DownTrack) error
 	DelLocal(DownTrack) bool
 	Kind() webrtc.RTPCodecType
+	Label() string
 	Codec() webrtc.RTPCodecCapability
 	// get a recent packet.  Returns 0 if the packet is not in cache.
 	GetRTP(seqno uint16, result []byte) uint16
@@ -33,7 +34,6 @@ type UpTrack interface {
 
 // Type Down represents a connection in the server to client direction.
 type Down interface {
-	GetMaxBitrate(now uint64) uint64
 }
 
 // Type DownTrack represents a track in the server to client direction.
@@ -42,4 +42,5 @@ type DownTrack interface {
 	Accumulate(bytes uint32)
 	SetTimeOffset(ntp uint64, rtp uint32)
 	SetCname(string)
+	GetMaxBitrate() uint64
 }

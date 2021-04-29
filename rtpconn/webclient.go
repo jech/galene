@@ -380,14 +380,15 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 	}
 
 	track := &rtpDownTrack{
-		track:      local,
-		sender:     sender,
-		ssrc:       parms.Encodings[0].SSRC,
-		remote:     remoteTrack,
-		maxBitrate: new(bitrate),
-		stats:      new(receiverStats),
-		rate:       estimator.New(time.Second),
-		atomics:    &downTrackAtomics{},
+		track:          local,
+		sender:         sender,
+		ssrc:           parms.Encodings[0].SSRC,
+		remote:         remoteTrack,
+		maxBitrate:     new(bitrate),
+		maxREMBBitrate: new(bitrate),
+		stats:          new(receiverStats),
+		rate:           estimator.New(time.Second),
+		atomics:        &downTrackAtomics{},
 	}
 
 	conn.tracks = append(conn.tracks, track)
@@ -646,33 +647,60 @@ func requestedTracks(c *webClient, up conn.Up, tracks []conn.UpTrack) []conn.UpT
 		return nil
 	}
 
-	var audio, video bool
+	var audio, video, videoLow bool
 	for _, s := range r {
 		switch s {
 		case "audio":
 			audio = true
 		case "video":
 			video = true
+		case "video-low":
+			videoLow = true
 		default:
 			log.Printf("client requested unknown value %v", s)
 		}
 	}
 
+	find := func(kind webrtc.RTPCodecType, labels ...string) conn.UpTrack {
+		for _, l := range labels {
+			for _, t := range tracks {
+				if t.Kind() != kind {
+					continue
+				}
+				if t.Label() == l {
+					return t
+				}
+			}
+		}
+		for _, t := range tracks {
+			if t.Kind() != kind {
+				continue
+			}
+			return t
+		}
+		return nil
+	}
+
 	var ts []conn.UpTrack
 	if audio {
-		for _, t := range tracks {
-			if t.Kind() == webrtc.RTPCodecTypeAudio {
-				ts = append(ts, t)
-				break
-			}
+		t := find(webrtc.RTPCodecTypeAudio)
+		if t != nil {
+			ts = append(ts, t)
 		}
 	}
 	if video {
-		for _, t := range tracks {
-			if t.Kind() == webrtc.RTPCodecTypeVideo {
-				ts = append(ts, t)
-				break
-			}
+		t := find(
+			webrtc.RTPCodecTypeVideo, "h", "m", "video",
+		)
+		if t != nil {
+			ts = append(ts, t)
+		}
+	} else if videoLow {
+		t := find(
+			webrtc.RTPCodecTypeVideo, "l", "m", "video",
+		)
+		if t != nil {
+			ts = append(ts, t)
 		}
 	}
 

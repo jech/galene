@@ -135,8 +135,17 @@ A peer must explicitly request the streams that it wants to receive.
 ```
 
 The field `request` is a dictionary that maps the labels of requested
-streams to a list containing either 'audio', 'video' or both.  An entry
-with an empty key `''` serves as default.
+streams to a list containing either 'audio', or one of 'video' or
+'video-low'.  The empty key `''` serves as default.  For example:
+
+```javascript
+{
+    type: 'request',
+    request: {
+        camera: ['audio', 'video-low'],
+        '': ['audio', 'video']
+    }
+}
 
 ## Pushing streams
 
@@ -157,15 +166,21 @@ A stream is created by the sender with the `offer` message:
 If a stream with the same id exists, then this is a renegotation;
 otherwise this message creates a new stream.  If the field `replace` is
 not empty, then this request additionally requests that an existing stream
-with the given id should be closed, and the new stream should replace it.
+with the given id should be closed, and the new stream should replace it;
+this is used most notably when changing the simulcast envelope.
 
-The field `label` is one of `camera`, `screenshare` or `video`, as in the
-`request` message.
+The field `label` is one of `camera`, `screenshare` or `video`, and will
+be matched against the keys sent by the receiver in their `request` message.
 
 The field `sdp` contains the raw SDP string (i.e. the `sdp` field of
 a JSEP session description).  Galène will interpret the `nack`,
 `nack pli`, `ccm fir` and `goog-remb` RTCP feedback types, and act
 accordingly.
+
+The sender may either send a single stream per media section in the SDP,
+or use rid-based simulcasting.  In the latter case, it should send two
+video streams, one with rid 'h' and high throughput, and one with rid 'l'
+and throughput limited to roughly 100kbit/s.
 
 The receiver may either abort the stream immediately (see below), or send
 an answer.

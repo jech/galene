@@ -78,6 +78,7 @@ function getUserPass() {
  * @property {boolean} [localMute]
  * @property {string} [video]
  * @property {string} [audio]
+ * @property {boolean} [simulcast]
  * @property {string} [send]
  * @property {string} [request]
  * @property {boolean} [activityDetection]
@@ -550,8 +551,14 @@ function mapRequest(what) {
     case 'audio':
         return {'': ['audio']};
         break;
+    case 'screenshare-low':
+        return {screenshare: ['audio','video-low'], '': ['audio']};
+        break;
     case 'screenshare':
         return {screenshare: ['audio','video'], '': ['audio']};
+        break;
+    case 'everything-low':
+        return {'': ['audio','video-low']};
         break;
     case 'everything':
         return {'': ['audio','video']}
@@ -611,20 +618,25 @@ getInputElement('fileinput').onchange = function(e) {
 function gotUpStats(stats) {
     let c = this;
 
-    let text = '';
+    let values = [];
 
-    c.pc.getSenders().forEach(s => {
-        let tid = s.track && s.track.id;
-        let stats = tid && c.stats[tid];
-        let rate = stats && stats['outbound-rtp'] && stats['outbound-rtp'].rate;
-        if(typeof rate === 'number') {
-            if(text)
-                text = text + ' + ';
-            text = text + Math.round(rate / 1000) + 'kbps';
+    for(let id in stats) {
+        if(stats[id] && stats[id]['outbound-rtp']) {
+            let rate = stats[id]['outbound-rtp'].rate;
+            if(typeof rate === 'number') {
+                values.push(rate);
+            }
         }
-    });
+    }
 
-    setLabel(c, text);
+    if(values.length === 0) {
+        setLabel(c, '');
+    } else {
+        values.sort((x,y) => x - y);
+        setLabel(c, values
+                 .map(x => Math.round(x / 1000).toString())
+                 .reduce((x, y) => x + '+' + y));
+    }
 }
 
 /**
@@ -800,6 +812,7 @@ function newUpStream(localId) {
  * @param {number} [bps]
  */
 async function setMaxVideoThroughput(c, bps) {
+    let simulcast = doSimulcast();
     let senders = c.pc.getSenders();
     for(let i = 0; i < senders.length; i++) {
         let s = senders[i];
@@ -808,17 +821,17 @@ async function setMaxVideoThroughput(c, bps) {
         let p = s.getParameters();
         if(!p.encodings)
             p.encodings = [{}];
-        p.encodings.forEach(e => {
-            if(bps > 0)
-                e.maxBitrate = bps;
-            else
-                delete e.maxBitrate;
-        });
-        try {
-            await s.setParameters(p);
-        } catch(e) {
-            console.error(e);
+        if((!simulcast && p.encodings.length != 1) ||
+           (simulcast && p.encodings.length != 2)) {
+            // change the simulcast envelope
+            await replaceUpStream(c);
+            return;
         }
+        p.encodings.forEach(e => {
+            if(!e.rid || e.rid === 'h')
+                e.maxBitrate = bps || unlimitedRate;
+        });
+        await s.setParameters(p);
     }
 }
 
@@ -1022,6 +1035,19 @@ function isSafari() {
     return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
 }
 
+const unlimitedRate = 1000000000;
+const simulcastRate = 100000;
+
+/**
+ * @returns {boolean}
+ */
+function doSimulcast() {
+    if(!getSettings().simulcast)
+        return false;
+    let bps = getMaxVideoThroughput();
+    return bps <= 0 || bps >= 2 * simulcastRate;
+}
+
 /**
  * Sets up c to send the given stream.  Some extra parameters are stored
  * in c.userdata.
@@ -1029,6 +1055,7 @@ function isSafari() {
  * @param {Stream} c
  * @param {MediaStream} stream
  */
+
 function setUpStream(c, stream) {
     if(c.stream != null)
         throw new Error("Setting nonempty stream");
@@ -1073,11 +1100,20 @@ function setUpStream(c, stream) {
             c.close();
         };
 
-        let encodings = [{}];
+        let encodings = [];
         if(t.kind === 'video') {
+            let simulcast = doSimulcast();
             let bps = getMaxVideoThroughput();
-            if(bps > 0)
-                encodings[0].maxBitrate = bps;
+            encodings.push({
+                rid: 'h',
+                maxBitrate: bps || unlimitedRate,
+            });
+            if(simulcast)
+                encodings.push({
+                    rid: 'l',
+                    scaleResolutionDownBy: 2,
+                    maxBitrate: simulcastRate,
+                });
         }
         c.pc.addTransceiver(t, {
             direction: 'sendonly',

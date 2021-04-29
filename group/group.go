@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pion/ice/v2"
+	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -60,7 +61,8 @@ type ChatHistoryEntry struct {
 }
 
 const (
-	MinBitrate = 200000
+	LowBitrate = 100000
+	MinBitrate = 2 * LowBitrate
 )
 
 type Group struct {
@@ -252,6 +254,12 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) (*webrtc.API, error) {
 	if UDPMin > 0 && UDPMax > 0 {
 		s.SetEphemeralUDPPortRange(UDPMin, UDPMax)
 	}
+	m.RegisterHeaderExtension(
+		webrtc.RTPHeaderExtensionCapability{sdp.SDESMidURI},
+		webrtc.RTPCodecTypeVideo)
+	m.RegisterHeaderExtension(
+		webrtc.RTPHeaderExtensionCapability{sdp.SDESRTPStreamIDURI},
+		webrtc.RTPCodecTypeVideo)
 
 	return webrtc.NewAPI(
 		webrtc.WithSettingEngine(s),

@@ -77,15 +77,16 @@ type downTrackAtomics struct {
 }
 
 type rtpDownTrack struct {
-	track      *webrtc.TrackLocalStaticRTP
-	sender     *webrtc.RTPSender
-	remote     conn.UpTrack
-	ssrc       webrtc.SSRC
-	maxBitrate *bitrate
-	rate       *estimator.Estimator
-	stats      *receiverStats
-	atomics    *downTrackAtomics
-	cname      atomic.Value
+	track          *webrtc.TrackLocalStaticRTP
+	sender         *webrtc.RTPSender
+	remote         conn.UpTrack
+	ssrc           webrtc.SSRC
+	maxBitrate     *bitrate
+	maxREMBBitrate *bitrate
+	rate           *estimator.Estimator
+	stats          *receiverStats
+	atomics        *downTrackAtomics
+	cname          atomic.Value
 }
 
 func (down *rtpDownTrack) WriteRTP(packet *rtp.Packet) error {
@@ -140,7 +141,6 @@ type rtpDownConnection struct {
 	id                string
 	pc                *webrtc.PeerConnection
 	remote            conn.Up
-	maxREMBBitrate    *bitrate
 	iceCandidates     []*webrtc.ICECandidateInit
 	negotiationNeeded int
 
@@ -174,31 +174,22 @@ func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection,
 		id:             id,
 		pc:             pc,
 		remote:         remote,
-		maxREMBBitrate: new(bitrate),
 	}
 
 	return conn, nil
 }
 
-func (down *rtpDownConnection) GetMaxBitrate(now uint64) uint64 {
-	rate := down.maxREMBBitrate.Get(now)
-	var trackRate uint64
-	tracks := down.getTracks()
-	for _, t := range tracks {
-		r := t.maxBitrate.Get(now)
-		if r == ^uint64(0) {
-			if t.track.Kind() == webrtc.RTPCodecTypeAudio {
-				r = 128 * 1024
-			} else {
-				r = 512 * 1024
-			}
-		}
-		trackRate += r
+func (t *rtpDownTrack) GetMaxBitrate() uint64 {
+	now := rtptime.Jiffies()
+	r := t.maxBitrate.Get(now)
+	if r == ^uint64(0) {
+		r = 512 * 1024
 	}
-	if trackRate < rate {
-		return trackRate
+	rr := t.maxREMBBitrate.Get(now)
+	if rr == 0 || r < rr {
+		return r
 	}
-	return rate
+	return rr
 }
 
 func (down *rtpDownConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
@@ -309,6 +300,10 @@ func (up *rtpUpTrack) getLocal() []conn.DownTrack {
 
 func (up *rtpUpTrack) GetRTP(seqno uint16, result []byte) uint16 {
 	return up.cache.Get(seqno, result)
+}
+
+func (up *rtpUpTrack) Label() string {
+	return up.track.RID()
 }
 
 func (up *rtpUpTrack) Kind() webrtc.RTPCodecType {
@@ -687,7 +682,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 
 	for {
 		firstSR := false
-		n, _, err := r.Read(buf)
+		n, _, err := r.ReadSimulcast(buf, track.track.RID())
 		if err != nil {
 			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Printf("Read RTCP: %v", err)
@@ -752,11 +747,11 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 	}
 }
 
-func sendUpRTCP(conn *rtpUpConnection) error {
-	tracks := conn.getTracks()
+func sendUpRTCP(up *rtpUpConnection) error {
+	tracks := up.getTracks()
 
-	if len(conn.tracks) == 0 {
-		state := conn.pc.ConnectionState()
+	if len(up.tracks) == 0 {
+		state := up.pc.ConnectionState()
 		if state == webrtc.PeerConnectionStateClosed {
 			return io.ErrClosedPipe
 		}
@@ -765,7 +760,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 
 	now := rtptime.Jiffies()
 
-	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
+	reports := make([]rtcp.ReceptionReport, 0, len(up.tracks))
 	for _, t := range tracks {
 		updateUpTrack(t)
 		stats := t.cache.GetStats(true)
@@ -810,29 +805,38 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 		},
 	}
 
-	rate := ^uint64(0)
-
-	local := conn.getLocal()
-	for _, l := range local {
-		r := l.GetMaxBitrate(now)
-		if r < rate {
-			rate = r
-		}
-	}
-
-	if rate < group.MinBitrate {
-		rate = group.MinBitrate
-	}
-
 	var ssrcs []uint32
+	var rate uint64
 	for _, t := range tracks {
 		if !t.hasRtcpFb("goog-remb", "") {
 			continue
 		}
 		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
+		var r uint64
+		if t.Kind() == webrtc.RTPCodecTypeAudio {
+			r = 100 * 1024
+		} else if t.Label() == "l" {
+			r = group.LowBitrate
+		} else {
+			local := t.getLocal()
+			r = ^uint64(0)
+			for _, down := range local {
+				rr := down.GetMaxBitrate()
+				if rr < group.MinBitrate {
+					rr = group.MinBitrate
+				}
+				if r > rr {
+					r = rr
+				}
+			}
+			if r == ^uint64(0) {
+				r = 512 * 1024
+			}
+		}
+		rate += r
 	}
 
-	if len(ssrcs) > 0 {
+	if rate < ^uint64(0) && len(ssrcs) > 0 {
 		packets = append(packets,
 			&rtcp.ReceiverEstimatedMaximumBitrate{
 				Bitrate: rate,
@@ -840,7 +844,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 			},
 		)
 	}
-	return conn.pc.WriteRTCP(packets)
+	return up.pc.WriteRTCP(packets)
 }
 
 func rtcpUpSender(conn *rtpUpConnection) {
@@ -1049,7 +1053,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					log.Printf("sendFIR: %v", err)
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				conn.maxREMBBitrate.Set(p.Bitrate, jiffies)
+				track.maxREMBBitrate.Set(p.Bitrate, jiffies)
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == uint32(track.ssrc) {

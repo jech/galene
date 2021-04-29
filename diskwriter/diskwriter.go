@@ -600,7 +600,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	return nil
 }
 
-func (down *diskConn) GetMaxBitrate(now uint64) uint64 {
+func (t *diskTrack) GetMaxBitrate() uint64 {
 	return ^uint64(0)
 }
 

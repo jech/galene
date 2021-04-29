@@ -1246,17 +1246,20 @@ Stream.prototype.updateStats = async function() {
         if(report) {
             for(let r of report.values()) {
                 if(stid && r.type === 'outbound-rtp') {
+                    let id = stid;
+                    if(r.rid)
+                        id = id + '-' + r.rid
                     if(!('bytesSent' in r))
                         continue;
-                    if(!stats[stid])
-                        stats[stid] = {};
-                    stats[stid][r.type] = {};
-                    stats[stid][r.type].timestamp = r.timestamp;
-                    stats[stid][r.type].bytesSent = r.bytesSent;
-                    if(old[stid] && old[stid][r.type])
-                        stats[stid][r.type].rate =
-                        ((r.bytesSent - old[stid][r.type].bytesSent) * 1000 /
-                         (r.timestamp - old[stid][r.type].timestamp)) * 8;
+                    if(!stats[id])
+                        stats[id] = {};
+                    stats[id][r.type] = {};
+                    stats[id][r.type].timestamp = r.timestamp;
+                    stats[id][r.type].bytesSent = r.bytesSent;
+                    if(old[id] && old[id][r.type])
+                        stats[id][r.type].rate =
+                        ((r.bytesSent - old[id][r.type].bytesSent) * 1000 /
+                         (r.timestamp - old[id][r.type].timestamp)) * 8;
                 }
             }
         }

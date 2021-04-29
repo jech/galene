@@ -149,6 +149,16 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 		kf, _ := isKeyframe(codec.MimeType, &packet)
 
+		if packet.Extension {
+			packet.Extension = false
+			packet.Extensions = nil
+			bytes, err = packet.MarshalTo(buf)
+			if err != nil {
+				log.Printf("%v", err)
+				continue
+			}
+		}
+
 		first, index := track.cache.Store(
 			packet.SequenceNumber, packet.Timestamp,
 			kf, packet.Marker, buf[:bytes],
