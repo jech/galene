@@ -805,9 +805,6 @@ function newUpStream(localId) {
         console.error(e);
         displayError(e);
     };
-    c.onnegotiationcompleted = function() {
-        setMaxVideoThroughput(c, getMaxVideoThroughput());
-    };
     return c;
 }
 
@@ -1033,6 +1030,25 @@ function isSafari() {
 }
 
 /**
+ * @param {Stream} c
+ * @param {MediaStreamTrack} t
+ * @param {MediaStream} stream
+ */
+function addUpTrack(c, t, stream) {
+    let encodings = [{}];
+    if(t.kind === 'video') {
+        let bps = getMaxVideoThroughput();
+        if(bps > 0)
+            encodings[0].maxBitrate = bps;
+    }
+    c.pc.addTransceiver(t, {
+        direction: 'sendonly',
+        streams: [stream],
+        sendEncodings: encodings,
+    });
+}
+
+/**
  * @param {string} [localId]
  */
 async function addLocalMedia(localId) {
@@ -1128,7 +1144,7 @@ async function addLocalMedia(localId) {
                 t.contentHint = 'detail';
             }
         }
-        c.pc.addTrack(t, stream);
+        addUpTrack(c, t, stream);
     });
 
     c.onstats = gotUpStats;
@@ -1169,7 +1185,7 @@ async function addShareMedia() {
             delMedia(c.localId);
     }
     stream.getTracks().forEach(t => {
-        c.pc.addTrack(t, stream);
+        addUpTrack(c, t, stream)
         t.onended = e => c.close();
     });
     c.onstats = gotUpStats;
@@ -1225,7 +1241,7 @@ async function addFileMedia(file) {
                 displayWarning('You have been muted');
             }
         }
-        c.pc.addTrack(t, stream);
+        addUpTrack(c, t, stream);
         c.onstats = gotUpStats;
         c.setStatsInterval(2000);
     };
