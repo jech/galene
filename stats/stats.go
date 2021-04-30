@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"encoding/json"
 	"sort"
 	"time"
 
@@ -8,13 +9,14 @@ import (
 )
 
 type GroupStats struct {
-	Name    string
-	Clients []*Client
+	Name    string    `json:"name"`
+	Clients []*Client `json:"clients,omitempty"`
 }
 
 type Client struct {
-	Id       string
-	Up, Down []Conn
+	Id   string `json:"id"`
+	Up   []Conn `json:"up,omitempty"`
+	Down []Conn `json:"down,omitempty"`
 }
 
 type Statable interface {
@@ -22,17 +24,34 @@ type Statable interface {
 }
 
 type Conn struct {
-	Id         string
-	MaxBitrate uint64
-	Tracks     []Track
+	Id         string  `json:"id"`
+	MaxBitrate uint64  `json:"maxBitrate,omitempty"`
+	Tracks     []Track `json:"tracks"`
+}
+
+type Duration time.Duration
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	s := float64(d) / float64(time.Millisecond)
+	return json.Marshal(s)
+}
+
+func (d *Duration) UnmarshalJSON(buf []byte) error {
+	var s float64
+	err := json.Unmarshal(buf, &s)
+	if err != nil {
+		return err
+	}
+	*d = Duration(s * float64(time.Millisecond))
+	return nil
 }
 
 type Track struct {
-	Bitrate    uint64
-	MaxBitrate uint64
-	Loss       uint8
-	Rtt        time.Duration
-	Jitter     time.Duration
+	Bitrate    uint64   `json:"bitrate"`
+	MaxBitrate uint64   `json:"maxBitrate,omitempty"`
+	Loss       float64  `json:"loss"`
+	Rtt        Duration `json:"rtt,omitempty"`
+	Jitter     Duration `json:"jitter,omitempty"`
 }
 
 func GetGroups() []GroupStats {

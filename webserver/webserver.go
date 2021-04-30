@@ -47,9 +47,10 @@ func Serve(address string, dataDir string) error {
 	http.HandleFunc("/recordings/", recordingsHandler)
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/public-groups.json", publicHandler)
-	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		statsHandler(w, r, dataDir)
-	})
+	http.HandleFunc("/stats.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			statsHandler(w, r, dataDir)
+		})
 
 	s := &http.Server{
 		Addr:              address,
@@ -361,81 +362,16 @@ func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 		return
 	}
 
-	w.Header().Set("content-type", "text/html; charset=utf-8")
+	w.Header().Set("content-type", "application/json")
 	w.Header().Set("cache-control", "no-cache")
 	if r.Method == "HEAD" {
 		return
 	}
 
 	ss := stats.GetGroups()
-
-	fmt.Fprintf(w, "<!DOCTYPE html>\n<html><head>\n")
-	fmt.Fprintf(w, "<title>Stats</title>\n")
-	fmt.Fprintf(w, "<link rel=\"stylesheet\" type=\"text/css\" href=\"/common.css\"/>")
-	fmt.Fprintf(w, "<head><body>\n")
-
-	printBitrate := func(w io.Writer, rate, maxRate uint64) error {
-		var err error
-		if maxRate != 0 && maxRate != ^uint64(0) {
-			_, err = fmt.Fprintf(w, "%v/%v", rate, maxRate)
-		} else {
-			_, err = fmt.Fprintf(w, "%v", rate)
-		}
-		return err
-	}
-
-	printTrack := func(w io.Writer, t stats.Track) {
-		fmt.Fprintf(w, "<tr><td></td><td></td><td></td>")
-		fmt.Fprintf(w, "<td>")
-		printBitrate(w, t.Bitrate, t.MaxBitrate)
-		fmt.Fprintf(w, "</td>")
-		fmt.Fprintf(w, "<td>%d%%</td>",
-			t.Loss,
-		)
-		fmt.Fprintf(w, "<td>")
-		if t.Rtt > 0 {
-			fmt.Fprintf(w, "%v", t.Rtt)
-		}
-		if t.Jitter > 0 {
-			fmt.Fprintf(w, "&#177;%v", t.Jitter)
-		}
-		fmt.Fprintf(w, "</td>")
-		fmt.Fprintf(w, "</tr>")
-	}
-
-	for _, gs := range ss {
-		fmt.Fprintf(w, "<p>%v</p>\n", html.EscapeString(gs.Name))
-		fmt.Fprintf(w, "<table>")
-		for _, cs := range gs.Clients {
-			fmt.Fprintf(w, "<tr><td>%v</td></tr>\n", cs.Id)
-			for _, up := range cs.Up {
-				fmt.Fprintf(w, "<tr><td></td><td>Up</td><td>%v</td>",
-					up.Id)
-				if up.MaxBitrate > 0 {
-					fmt.Fprintf(w, "<td>%v</td>",
-						up.MaxBitrate)
-				}
-				fmt.Fprintf(w, "</tr>\n")
-				for _, t := range up.Tracks {
-					printTrack(w, t)
-				}
-			}
-			for _, down := range cs.Down {
-				fmt.Fprintf(w, "<tr><td></td><td>Down</td><td> %v</td>",
-					down.Id)
-				if down.MaxBitrate > 0 {
-					fmt.Fprintf(w, "<td>%v</td>",
-						down.MaxBitrate)
-				}
-				fmt.Fprintf(w, "</tr>\n")
-				for _, t := range down.Tracks {
-					printTrack(w, t)
-				}
-			}
-		}
-		fmt.Fprintf(w, "</table>\n")
-	}
-	fmt.Fprintf(w, "</body></html>\n")
+	e := json.NewEncoder(w)
+	e.Encode(ss)
+	return
 }
 
 var wsUpgrader = websocket.Upgrader{
