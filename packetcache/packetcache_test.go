@@ -499,13 +499,13 @@ func TestCacheStatsFull(t *testing.T) {
 	for i := 0; i < 32; i++ {
 		cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
 	}
-	expected, lost, totalLost, eseqno := cache.GetStats(false)
-	if expected != 32 ||
-		lost != 0 ||
-		totalLost != 0 ||
-		eseqno != 31 {
-		t.Errorf("Expected 32, 0, 0, 31, got %v, %v, %v, %v",
-			expected, lost, totalLost, eseqno)
+	stats := cache.GetStats(false)
+	if stats.Received != 32 ||
+		stats.TotalReceived != 32 ||
+		stats.Expected != 32 ||
+		stats.TotalExpected != 32 ||
+		stats.ESeqno != 31 {
+		t.Errorf("Expected 32, 32, 32, 32, 31, got %v", stats)
 	}
 }
 
@@ -516,13 +516,13 @@ func TestCacheStatsDrop(t *testing.T) {
 			cache.Store(uint16(i), 0, false, false, []byte{uint8(i)})
 		}
 	}
-	expected, lost, totalLost, eseqno := cache.GetStats(false)
-	if expected != 32 ||
-		lost != 2 ||
-		totalLost != 2 ||
-		eseqno != 31 {
-		t.Errorf("Expected 32, 1, 1, 31, got %v, %v, %v, %v",
-			expected, lost, totalLost, eseqno)
+	stats := cache.GetStats(false)
+	if stats.Received != 30 ||
+		stats.TotalReceived != 30 ||
+		stats.Expected != 32 ||
+		stats.TotalExpected != 32 ||
+		stats.ESeqno != 31 {
+		t.Errorf("Expected 30, 30, 32, 32, 31, got %v", stats)
 	}
 }
 
@@ -535,13 +535,13 @@ func TestCacheStatsUnordered(t *testing.T) {
 	}
 	cache.Store(uint16(8), 0, false, false, []byte{8})
 	cache.Store(uint16(10), 0, false, false, []byte{10})
-	expected, lost, totalLost, eseqno := cache.GetStats(false)
-	if expected != 32 ||
-		lost != 0 ||
-		totalLost != 0 ||
-		eseqno != 31 {
-		t.Errorf("Expected 32, 0, 0, 31, got %v, %v, %v, %v",
-			expected, lost, totalLost, eseqno)
+	stats := cache.GetStats(false)
+	if stats.Received != 32 ||
+		stats.TotalReceived != 32 ||
+		stats.Expected != 32 ||
+		stats.TotalExpected != 32 ||
+		stats.ESeqno != 31 {
+		t.Errorf("Expected 32, 32, 32, 32, 31, got %v", stats)
 	}
 }
 
@@ -555,12 +555,12 @@ func TestCacheStatsNack(t *testing.T) {
 	cache.Expect(2)
 	cache.Store(uint16(8), 0, false, false, []byte{8})
 	cache.Store(uint16(10), 0, false, false, []byte{10})
-	expected, lost, totalLost, eseqno := cache.GetStats(false)
-	if expected != 34 ||
-		lost != 2 ||
-		totalLost != 2 ||
-		eseqno != 31 {
-		t.Errorf("Expected 34, 2, 2, 31, got %v, %v, %v, %v",
-			expected, lost, totalLost, eseqno)
+	stats := cache.GetStats(false)
+	if stats.Received != 32 ||
+		stats.TotalReceived != 32 ||
+		stats.Expected != 34 ||
+		stats.TotalExpected != 34 ||
+		stats.ESeqno != 31 {
+		t.Errorf("Expected 32, 32, 34, 34, 31, got %v", stats)
 	}
 }

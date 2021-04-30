@@ -48,12 +48,13 @@ type frame struct {
 type Cache struct {
 	mu sync.Mutex
 	//stats
-	last      uint16
-	cycle     uint16
-	lastValid bool
-	expected  uint32
-	lost      uint32
-	totalLost uint32
+	last          uint16
+	cycle         uint16
+	lastValid     bool
+	expected      uint32
+	totalExpected uint32
+	received      uint32
+	totalReceived uint32
 	// bitmap
 	bitmap bitmap
 	// buffered keyframe
@@ -259,18 +260,19 @@ func (cache *Cache) Store(seqno uint16, timestamp uint32, keyframe bool, marker 
 		cache.last = seqno
 		cache.lastValid = true
 		cache.expected++
+		cache.received++
 	} else {
 		cmp := compare(cache.last, seqno)
 		if cmp < 0 {
+			cache.received++
 			cache.expected += uint32(seqno - cache.last)
-			cache.lost += uint32(seqno - cache.last - 1)
 			if seqno < cache.last {
 				cache.cycle++
 			}
 			cache.last = seqno
 		} else if cmp > 0 {
-			if cache.lost > 0 {
-				cache.lost--
+			if cache.received < cache.expected {
+				cache.received++
 			}
 		}
 	}
@@ -355,7 +357,6 @@ func (cache *Cache) Expect(n int) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	cache.expected += uint32(n)
-	cache.lost += uint32(n)
 }
 
 // get retrieves a packet from a slice of entries.
@@ -510,23 +511,34 @@ func (cache *Cache) ResizeCond(capacity int) bool {
 	return true
 }
 
+// Stats contains cache statistics
+type Stats struct {
+	Received, TotalReceived uint32
+	Expected, TotalExpected uint32
+	ESeqno                  uint32
+}
+
 // GetStats returns statistics about received packets.  If reset is true,
 // the statistics are reset.
-func (cache *Cache) GetStats(reset bool) (uint32, uint32, uint32, uint32) {
+func (cache *Cache) GetStats(reset bool) Stats {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	expected := cache.expected
-	lost := cache.lost
-	totalLost := cache.totalLost + cache.lost
-	eseqno := uint32(cache.cycle)<<16 | uint32(cache.last)
+	s := Stats{
+		Received:      cache.received,
+		TotalReceived: cache.totalReceived + cache.received,
+		Expected:      cache.expected,
+		TotalExpected: cache.totalExpected + cache.expected,
+		ESeqno:        uint32(cache.cycle)<<16 | uint32(cache.last),
+	}
 
 	if reset {
+		cache.totalExpected += cache.expected
 		cache.expected = 0
-		cache.totalLost += cache.lost
-		cache.lost = 0
+		cache.totalReceived += cache.received
+		cache.received = 0
 	}
-	return expected, lost, totalLost, eseqno
+	return s
 }
 
 // ToBitmap takes a non-empty sorted list of seqnos, and computes a bitmap

@@ -773,12 +773,18 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
 	for _, t := range tracks {
 		updateUpTrack(t)
-		expected, lost, totalLost, eseqno := t.cache.GetStats(true)
-		if expected == 0 {
-			expected = 1
+		stats := t.cache.GetStats(true)
+		var totalLost uint32
+		if stats.TotalExpected > stats.TotalReceived {
+			totalLost = stats.TotalExpected - stats.TotalReceived
 		}
-		if lost >= expected {
-			lost = expected - 1
+		var fractionLost uint32
+		if stats.Expected > stats.Received {
+			lost := stats.Expected - stats.Received
+			fractionLost = lost * 256 / stats.Expected
+			if fractionLost >= 255 {
+				fractionLost = 255
+			}
 		}
 
 		t.mu.Lock()
@@ -794,9 +800,9 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 
 		reports = append(reports, rtcp.ReceptionReport{
 			SSRC:               uint32(t.track.SSRC()),
-			FractionLost:       uint8((lost * 256) / expected),
+			FractionLost:       uint8(fractionLost),
 			TotalLost:          totalLost,
-			LastSequenceNumber: eseqno,
+			LastSequenceNumber: stats.ESeqno,
 			Jitter:             t.jitter.Jitter(),
 			LastSenderReport:   uint32(srNTPTime >> 16),
 			Delay:              uint32(delay),
