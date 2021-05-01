@@ -11,12 +11,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"regexp"
-	"bufio"
-	"os/exec"
+	"fmt"
 
 	"github.com/pion/ice/v2"
 	"github.com/pion/webrtc/v3"
+	"github.com/go-ldap/ldap/v3"
 )
 
 var Directory string
@@ -763,82 +762,47 @@ type Description struct {
 	// the APIFromNames function.
 	Codecs []string `json:"codecs,omitempty"`
 
-	// LDAP service preferences. can be empty
-	// example of value: ldap://ds.example.com:389/dc=example,dc=com
-	Ldap string `json:"ldapurl,omitempty"`
+	// LDAP URL. can be empty
+	// example of value: "ldap://ds.example.com:389"
+	Ldapurl string `json:"ldapurl,omitempty"`
+
+	// LDAP base. can be empty
+	// example of value: "dc=example,dc=com"
+	Ldapbase string `json:"ldapbase,omitempty"`
+
+	// LDAP user branch. can be empty
+	// example of value: "cn=Users,dc=example,dc=com"
+	Ldapuserbranch string `json:"ldapuserbranch,omitempty"`
+
+	// LDAP bind user; no need to have write privilege; can be empty
+	// example of value: "unprivilegeduser"
+	Ldapbinduser string `json:"ldapbinduser,omitempty"`
+
+	// LDAP bind password; can be empty
+	// example of value: cn=unprivilegeduser,dc=example,dc=com
+	Ldapbindpassword string `json:"ldapbindpassword,omitempty"`
 
 	// Regular expressions to guess operators, from the
 	// LDAP record: the list of matches will be ANDed
-	// example: ["^memberOf: CN=profs", "^memberOf: CN=c2d01_admin"]
-	Opldap []string `json:"op_ldap,omitempty"`
+	// example: [
+	//            {"field": "memberOf", "begins": "CN=profs"},
+	//            {"field": "memberOf", "begins": "CN=c2d01_smbadmin"}]
+	Opldap []LdapProperty `json:"op_ldap,omitempty"`
 	
 	// Regular expressions to guess presenters, from the
 	// LDAP record: the list of matches will be ANDed
-	// example: ["^memberOf: CN=profs", "^memberOf: CN=c2d01_admin"]
-	Presenterldap []string `json:"presenter_ldap,omitempty"`
+	// example: [
+	//            {"field": "memberOf", "begins": "CN=profs"},
+	//            {"field": "memberOf", "begins": "CN=c2d01_smbadmin"}]
+	Presenterldap []LdapProperty `json:"presenter_ldap,omitempty"`
 	
 	// Regular expressions to guess others, from the
 	// LDAP record: the list of matches will be ANDed
-	// example: ["^memberOf: CN=c2d01"]
-	Recordldap []string `json:"present_ldap,omitempty"`
+	// example: [
+	//            {"field": "memberOf", "begins": "CN=profs"},
+	//            {"field": "memberOf", "begins": "CN=c2d01_smbadmin"}]
+	Recordldap []LdapProperty `json:"present_ldap,omitempty"`
 	
-}
-
-// Some methods to help LDAP authentication
-
-func (desc *Description) LdapParams() (string, string, string, bool) {
-	// extract host, port, base from the LDAP-URL
-	re := regexp.MustCompile(`ldap:\/\/([^:]*):(\d*)\/(.*)`)
-	match := re.FindStringSubmatch(desc.Ldap)
-	if len(match) > 3 {
-		return match[1], match[2], match[3], true
-	} else {
-		return "", "", "", false
-	}
-}
-
-func findPatterns(patterns []string, lines []string) (result bool) {
-	result = true
-	for _, p := range patterns {
-		re := regexp.MustCompile(p)
-		var found bool = false
-		for _,l := range lines {
-			if len(re.FindString(l)) > 0 {
-				found = true
-				break
-			}
-		}
-		result = result && found
-	}
-	return result
-}
-
-func (desc *Description) LdapCheck(user string, password string) (op bool, present bool, record bool, ok bool) {
-	op , present, record = false, false, false
-	// Check the credentials : requires the ldapsearch system command
-	host, port, base, ok := desc.LdapParams()
-	if ! ok {
-		return op, present, record, ok
-	}
-	cmd := exec.Command(
-		"ldapsearch", "-U",  user, "-w",  password, "-LLL",
-		"-p", port, "-h", host, "-b", base, "cn=" + user)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		ok := false
-		return op, present, record, ok
-	}
-	cmd.Start()
-	var lines []string
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	ok =      len(lines) > 0
-	op =      findPatterns(desc.Opldap, lines)
-	present = findPatterns(desc.Presenterldap, lines)
-	record =   findPatterns(desc.Recordldap, lines)
-	return 	op, present, record, ok
 }
 
 const DefaultMaxHistoryAge = 4 * time.Hour
@@ -933,16 +897,90 @@ func GetDescription(name string) (*Description, error) {
 	return &desc, nil
 }
 
+type LdapProperty struct {
+	Field string   `json:"field,omitempty"` // name of a field
+	Begins string  `json:"begins,omitempty"` // how its value should begin
+}
+
+func (desc *Description) MatchLdapPassword(user string, password string) bool {
+	l, err := ldap.DialURL(desc.Ldapurl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer l.Close()
+	err = l.Bind(
+		fmt.Sprintf("cn=%s,%s",
+			ldap.EscapeFilter(user),
+			desc.Ldapuserbranch),
+		password)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (desc *Description) CheckLdapProperties(user string, props []LdapProperty) (ok bool) {
+	ok = true
+	if len(props) == 0 {
+		// list of properties to satisfy is empty: success
+		return ok
+	}
+	l, err := ldap.DialURL(desc.Ldapurl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer l.Close()
+	fmt.Printf("l.Bind(%s, %s)\n", fmt.Sprintf("cn=%s,%s",
+			ldap.EscapeFilter(desc.Ldapbinduser),
+			desc.Ldapuserbranch), desc.Ldapbindpassword)
+	err = l.Bind(
+		fmt.Sprintf("cn=%s,%s",
+			ldap.EscapeFilter(desc.Ldapbinduser),
+			desc.Ldapuserbranch),
+		desc.Ldapbindpassword)
+	if err != nil {
+		ok = false
+		return ok
+	}
+	filter := fmt.Sprintf("(cn=%s)", ldap.EscapeFilter(user))
+	fmt.Printf("ldap.NewSearchRequest(\n%s,\nldap.ScopeWholeSubtree, 0, 0, 0, false,\n%s\n%s\n%s)\n",
+		desc.Ldapbase, filter,[]string{"email", "memberOf"},[]ldap.Control{})
+	searchReq := ldap.NewSearchRequest(
+		desc.Ldapbase,
+		ldap.ScopeWholeSubtree, 0, 0, 0, false,
+		filter,
+		//[]string{props[0].Field},
+		[]string{"email", "memberOf"},
+		[]ldap.Control{})
+	result, err := l.Search(searchReq)
+	if err != nil {
+		fmt.Errorf("failed to query LDAP: %w", err)
+	}
+	if len(result.Entries) == 0 {
+		ok = false
+		return ok
+	}
+	fmt.Printf("result.Entries[0].Attributes[0].Values[0] = %v\nlength = %d\n", result.Entries[0].Attributes[0].Values[0], len(result.Entries))
+	values := result.Entries[0].Attributes[0].Values[0]
+	ok = props[0].Begins == strings.Split(values,",")[0]
+	return ok
+}
+
 func (desc *Description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
 	var p ClientPermissions
 	/////////// Let us attempt to get permissions from LDAP //////////////
-	if len(desc.Ldap) > 0 {
-		op, present, record, ok := desc.LdapCheck(
-			c.Username(), c.Givenpassword())
-		if ok {
-			p.Op = op
-			p.Present = present
-			p.Record = record
+	fmt.Printf("desc.Ldapurl = %s\n", desc.Ldapurl)
+	if len(desc.Ldapurl) > 0 {
+		if desc.MatchLdapPassword(c.Username(), c.Givenpassword()){
+			p.Op = desc.CheckLdapProperties(
+				c.Username(),
+				desc.Opldap)
+			p.Present = desc.CheckLdapProperties(
+				c.Username(),
+				desc.Presenterldap)
+			p.Record = desc.CheckLdapProperties(
+				c.Username(),
+				desc.Recordldap)
 			return p, nil
 		}
 	}
