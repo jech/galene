@@ -930,9 +930,6 @@ func (desc *Description) CheckLdapProperties(user string, props []LdapProperty) 
 		log.Fatal(err)
 	}
 	defer l.Close()
-	fmt.Printf("l.Bind(%s, %s)\n", fmt.Sprintf("cn=%s,%s",
-			ldap.EscapeFilter(desc.Ldapbinduser),
-			desc.Ldapuserbranch), desc.Ldapbindpassword)
 	err = l.Bind(
 		fmt.Sprintf("cn=%s,%s",
 			ldap.EscapeFilter(desc.Ldapbinduser),
@@ -943,14 +940,11 @@ func (desc *Description) CheckLdapProperties(user string, props []LdapProperty) 
 		return ok
 	}
 	filter := fmt.Sprintf("(cn=%s)", ldap.EscapeFilter(user))
-	fmt.Printf("ldap.NewSearchRequest(\n%s,\nldap.ScopeWholeSubtree, 0, 0, 0, false,\n%s\n%s\n%s)\n",
-		desc.Ldapbase, filter,[]string{"email", "memberOf"},[]ldap.Control{})
 	searchReq := ldap.NewSearchRequest(
 		desc.Ldapbase,
 		ldap.ScopeWholeSubtree, 0, 0, 0, false,
 		filter,
-		//[]string{props[0].Field},
-		[]string{"email", "memberOf"},
+		[]string{props[0].Field},
 		[]ldap.Control{})
 	result, err := l.Search(searchReq)
 	if err != nil {
@@ -960,7 +954,6 @@ func (desc *Description) CheckLdapProperties(user string, props []LdapProperty) 
 		ok = false
 		return ok
 	}
-	fmt.Printf("result.Entries[0].Attributes[0].Values[0] = %v\nlength = %d\n", result.Entries[0].Attributes[0].Values[0], len(result.Entries))
 	values := result.Entries[0].Attributes[0].Values[0]
 	ok = props[0].Begins == strings.Split(values,",")[0]
 	return ok
@@ -969,7 +962,6 @@ func (desc *Description) CheckLdapProperties(user string, props []LdapProperty) 
 func (desc *Description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
 	var p ClientPermissions
 	/////////// Let us attempt to get permissions from LDAP //////////////
-	fmt.Printf("desc.Ldapurl = %s\n", desc.Ldapurl)
 	if len(desc.Ldapurl) > 0 {
 		if desc.MatchLdapPassword(c.Username(), c.Givenpassword()){
 			p.Op = desc.CheckLdapProperties(
