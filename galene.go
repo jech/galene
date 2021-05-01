@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -20,6 +21,7 @@ import (
 
 func main() {
 	var cpuprofile, memprofile, mutexprofile, httpAddr, dataDir string
+	var udpRange string
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
@@ -40,12 +42,29 @@ func main() {
 		"store memory profile in `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "",
 		"store mutex profile in `file`")
+	flag.StringVar(&udpRange, "udp-range", "",
+		"UDP port `range`")
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
 	flag.StringVar(&turnserver.Address, "turn", "auto",
 		"built-in TURN server `address` (\"\" to disable)")
 	flag.Parse()
+
+	if udpRange != "" {
+		var min, max uint16
+		n, err := fmt.Sscanf(udpRange, "%v-%v", &min, &max)
+		if err != nil {
+			log.Printf("UDP range: %v", err)
+			os.Exit(1)
+		}
+		if n != 2 || min <= 0 || max <= 0 || min > max {
+			log.Printf("UDP range: bad range")
+			os.Exit(1)
+		}
+		group.UDPMin = min
+		group.UDPMax = max
+	}
 
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)

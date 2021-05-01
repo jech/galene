@@ -61,6 +61,14 @@ function newLocalId() {
 }
 
 /**
+ * @typedef {Object} user
+ * @property {string} username
+ * @property {Object<string,boolean>} permissions
+ * @property {Object<string,any>} status
+ * @property {Object<string,Object<string,boolean>>} down
+ */
+
+/**
  * ServerConnection encapsulates a websocket connection to the server and
  * all the associated streams.
  * @constructor
@@ -81,8 +89,16 @@ function ServerConnection() {
     this.group = null;
     /**
      * The username we joined as.
+     *
+     * @type {string}
      */
     this.username = null;
+    /**
+     * The set of users in this group, including ourself.
+     *
+     * @type {Object<string,user>}
+     */
+    this.users = {};
     /**
      * The underlying websocket.
      *
@@ -136,9 +152,10 @@ function ServerConnection() {
      */
     this.onclose = null;
     /**
-     * onuser is called whenever a user is added or removed from the group
+     * onuser is called whenever a user in the group changes.  The users
+     * array has already been updated.
      *
-     * @type{(this: ServerConnection, id: string, kind: string, username: string) => void}
+     * @type{(this: ServerConnection, id: string, kind: string) => void}
      */
     this.onuser = null;
     /**
@@ -190,13 +207,14 @@ function ServerConnection() {
   * @property {string} [password]
   * @property {boolean} [privileged]
   * @property {Object<string,boolean>} [permissions]
+  * @property {Object<string,any>} [status]
   * @property {string} [group]
   * @property {unknown} [value]
   * @property {boolean} [noecho]
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
-  * @property {Object<string,string>} [labels]
-  * @property {Object<string,(boolean|number)>} [request]
+  * @property {string} [label]
+  * @property {Object<string,Array<string>>} [request]
   * @property {Object<string,any>} [rtcConfiguration]
   */
 
@@ -260,6 +278,11 @@ ServerConnection.prototype.connect = async function(url) {
                 let c = sc.down[id];
                 c.close();
             }
+            for(let id in sc.users) {
+                delete(sc.users[id]);
+                if(sc.onuser)
+                    sc.onuser.call(sc, id, 'delete');
+            }
             if(sc.group && sc.onjoined)
                 sc.onjoined.call(sc, 'leave', sc.group, {}, '');
             sc.group = null;
@@ -274,7 +297,7 @@ ServerConnection.prototype.connect = async function(url) {
             case 'handshake':
                 break;
             case 'offer':
-                sc.gotOffer(m.id, m.labels, m.source, m.username,
+                sc.gotOffer(m.id, m.label, m.source, m.username,
                             m.sdp, m.replace);
                 break;
             case 'answer':
@@ -303,14 +326,56 @@ ServerConnection.prototype.connect = async function(url) {
                 sc.username = m.username;
                 sc.permissions = m.permissions || [];
                 sc.rtcConfiguration = m.rtcConfiguration || null;
+                if(m.kind == 'leave') {
+                    for(let id in sc.users) {
+                        delete(sc.users[id]);
+                        if(sc.onuser)
+                            sc.onuser.call(sc, id, 'delete');
+                    }
+                }
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
                                      m.permissions || {},
                                      m.value || null);
                 break;
             case 'user':
+                switch(m.kind) {
+                case 'add':
+                    if(m.id in sc.users)
+                        console.warn(`Duplicate user ${m.id} ${m.username}`);
+                    sc.users[m.id] = {
+                        username: m.username,
+                        permissions: m.permissions || {},
+                        status: m.status || {},
+                        down: {},
+                    };
+                    break;
+                case 'change':
+                    if(!(m.id in sc.users)) {
+                        console.warn(`Unknown user ${m.id} ${m.username}`);
+                        sc.users[m.id] = {
+                            username: m.username,
+                            permissions: m.permissions || {},
+                            status: m.status || {},
+                            down: {},
+                        };
+                    } else {
+                        sc.users[m.id].username = m.username;
+                        sc.users[m.id].permissions = m.permissions || {};
+                        sc.users[m.id].status = m.status || {};
+                    }
+                    break;
+                case 'delete':
+                    if(!(m.id in sc.users))
+                        console.warn(`Unknown user ${m.id} ${m.username}`);
+                    delete(sc.users[m.id]);
+                    break;
+                default:
+                    console.warn(`Unknown user action ${m.kind}`);
+                    return;
+                }
                 if(sc.onuser)
-                    sc.onuser.call(sc, m.id, m.kind, m.username);
+                    sc.onuser.call(sc, m.id, m.kind);
                 break;
             case 'chat':
                 if(sc.onchat)
@@ -377,32 +442,14 @@ ServerConnection.prototype.leave = function(group) {
 /**
  * request sets the list of requested media types.
  *
- * @param {string} what - One of '', 'audio', 'screenshare' or 'everything'.
+ * @param {Object<string,Array<string>>} what
+ *     - A dictionary that maps labels to a sequence of 'audio' and 'video'.
+ *       An entry with an empty label '' provides the default.
  */
 ServerConnection.prototype.request = function(what) {
-    /** @type {Object<string,boolean>} */
-    let request = {};
-    switch(what) {
-    case '':
-        request = {};
-        break;
-    case 'audio':
-        request = {audio: true};
-        break;
-    case 'screenshare':
-        request = {audio: true, screenshare: true};
-        break;
-    case 'everything':
-        request = {audio: true, screenshare: true, video: true};
-        break;
-    default:
-        console.error(`Unknown value ${what} in request`);
-        break;
-    }
-
     this.send({
         type: 'request',
-        request: request,
+        request: what,
     });
 };
 
@@ -505,7 +552,7 @@ ServerConnection.prototype.chat = function(kind, dest, value) {
  *
  * @param {string} kind - One of "op", "unop", "kick", "present", "unpresent".
  * @param {string} dest - The id of the user to act upon.
- * @param {string} [value] - An optional user-readable message.
+ * @param {any} [value] - An action-dependent parameter.
  */
 ServerConnection.prototype.userAction = function(kind, dest, value) {
     this.send({
@@ -560,14 +607,14 @@ ServerConnection.prototype.groupAction = function(kind, message) {
  * Called when we receive an offer from the server.  Don't call this.
  *
  * @param {string} id
- * @param {Object<string, string>} labels
+ * @param {string} label
  * @param {string} source
  * @param {string} username
  * @param {string} sdp
  * @param {string} replace
  * @function
  */
-ServerConnection.prototype.gotOffer = async function(id, labels, source, username, sdp, replace) {
+ServerConnection.prototype.gotOffer = async function(id, label, source, username, sdp, replace) {
     let sc = this;
 
     if(sc.up[id]) {
@@ -607,6 +654,7 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
             return;
         }
         c = new Stream(this, id, oldLocalId || newLocalId(), pc, false);
+        c.label = label;
         sc.down[id] = c;
 
         c.pc.onicecandidate = function(e) {
@@ -627,32 +675,18 @@ ServerConnection.prototype.gotOffer = async function(id, labels, source, usernam
         };
 
         c.pc.ontrack = function(e) {
-            let label = e.transceiver && c.labelsByMid[e.transceiver.mid];
-            if(label) {
-                c.labels[e.track.id] = label;
-            } else {
-                console.warn("Couldn't find label for track");
-            }
             c.stream = e.streams[0];
+            let changed = recomputeUserStreams(sc, source, c);
             if(c.ondowntrack) {
                 c.ondowntrack.call(
-                    c, e.track, e.transceiver, label, e.streams[0],
+                    c, e.track, e.transceiver, e.streams[0],
                 );
             }
+            if(changed && sc.onuser)
+                sc.onuser.call(sc, source, "change");
         };
     }
 
-    c.labelsByMid = labels;
-    c.labels = {};
-    c.pc.getTransceivers().forEach(transceiver => {
-        let label = c.labelsByMid[transceiver.mid];
-        let track = transceiver.receiver && transceiver.receiver.track;
-        if(label && track) {
-            c.labels[track.id] = label;
-        } else if(!track) {
-            console.warn("Couldn't find track for label");
-        }
-    });
     c.source = source;
     c.username = username;
 
@@ -757,8 +791,7 @@ ServerConnection.prototype.gotAbort = function(id) {
     let c = this.up[id];
     if(!c)
         throw new Error('unknown up stream');
-    if(c.onabort)
-        c.onabort.call(c);
+    c.close();
 };
 
 /**
@@ -823,12 +856,6 @@ function Stream(sc, id, localId, pc, up) {
      */
     this.up = up;
     /**
-     * For up streams, one of "local" or "screenshare".
-     *
-     * @type {string}
-     */
-    this.kind = null;
-    /**
      * For down streams, the id of the client that created the stream.
      *
      * @type {string}
@@ -855,17 +882,11 @@ function Stream(sc, id, localId, pc, up) {
      */
     this.stream = null;
     /**
-     * Track labels, indexed by track id.
+     * The label assigned by the originator to this stream.
      *
-     * @type {Object<string,string>}
+     * @type {string}
      */
-    this.labels = {};
-    /**
-     * Track labels, indexed by mid.
-     *
-     * @type {Object<string,string>}
-     */
-    this.labelsByMid = {};
+    this.label = null;
     /**
      * The id of the stream that we are currently replacing.
      *
@@ -943,7 +964,7 @@ function Stream(sc, id, localId, pc, up) {
      * If the stream parameter differs from its previous value, then it
      * indicates that the old stream has been discarded.
      *
-     * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, label: string, stream: MediaStream) => void}
+     * @type{(this: Stream, track: MediaStreamTrack, transceiver: RTCRtpTransceiver, stream: MediaStream) => void}
      */
     this.ondowntrack = null;
     /**
@@ -952,13 +973,6 @@ function Stream(sc, id, localId, pc, up) {
      * @type{(this: Stream, status: string) => void}
      */
     this.onstatus = null;
-    /**
-     * onabort is called when the server requested that an up stream be
-     * closed.  It is the resposibility of the client to close the stream.
-     *
-     * @type{(this: Stream) => void}
-     */
-    this.onabort = null;
     /**
      * onstats is called when we have new statistics about the connection
      *
@@ -1012,12 +1026,58 @@ Stream.prototype.close = function(replace) {
             delete(c.sc.down[c.id]);
         else
             console.warn('Closing unknown stream');
+        recomputeUserStreams(c.sc, c.source);
     }
     c.sc = null;
 
     if(c.onclose)
         c.onclose.call(c, replace);
 };
+
+/**
+ * @param {ServerConnection} sc
+ * @param {string} id
+ * @param {Stream} [c]
+ * @returns {boolean}
+ */
+function recomputeUserStreams(sc, id, c) {
+    let user = sc.users[id];
+    if(!user) {
+        console.warn("recomputing streams for unknown user");
+        return false;
+    }
+
+    if(c) {
+        let changed = false;
+        if(!user.down[c.label])
+            user.down[c.label] = {};
+        c.stream.getTracks().forEach(t => {
+            if(!user.down[c.label][t.kind]) {
+                user.down[c.label][t.kind] = true;
+                changed = true;
+            }
+        });
+        return changed;
+    }
+
+    if(!user.down || Object.keys(user.down).length === 0)
+        return false;
+
+    let old = user.down;
+    user.down = {};
+
+    for(id in sc.down) {
+        let c = sc.down[id];
+        if(!user.down[c.label])
+            user.down[c.label] = {};
+        c.stream.getTracks().forEach(t => {
+            user.down[c.label][t.kind] = true;
+        });
+    }
+
+    // might lead to false positives.  Oh, well.
+    return JSON.stringify(old) != JSON.stringify(user.down);
+}
 
 /**
  * abort requests that the server close a down stream.
@@ -1110,17 +1170,6 @@ Stream.prototype.negotiate = async function (restartIce) {
         throw(new Error("Didn't create offer"));
     await c.pc.setLocalDescription(offer);
 
-    // mids are not known until this point
-    c.pc.getTransceivers().forEach(t => {
-        if(t.sender && t.sender.track) {
-            let label = c.labels[t.sender.track.id];
-            if(label)
-                c.labelsByMid[t.mid] = label;
-            else
-                console.warn("Couldn't find label for track");
-        }
-    });
-
     c.sc.send({
         type: 'offer',
         source: c.sc.id,
@@ -1128,7 +1177,7 @@ Stream.prototype.negotiate = async function (restartIce) {
         kind: this.localDescriptionSent ? 'renegotiate' : '',
         id: c.id,
         replace: this.replace,
-        labels: c.labelsByMid,
+        label: c.label,
         sdp: c.pc.localDescription.sdp,
     });
     this.localDescriptionSent = true;

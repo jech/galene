@@ -22,18 +22,16 @@ func (c *webClient) GetStats() *stats.Client {
 		}
 		tracks := up.getTracks()
 		for _, t := range tracks {
-			expected, lost, _, _ := t.cache.GetStats(false)
-			if expected == 0 {
-				expected = 1
-			}
-			loss := uint8(lost * 100 / expected)
+			s := t.cache.GetStats(false)
+			loss :=  float64(s.Expected - s.Received) /
+				float64(s.Expected)
 			jitter := time.Duration(t.jitter.Jitter()) *
 				(time.Second / time.Duration(t.jitter.HZ()))
 			rate, _ := t.rate.Estimate()
 			conns.Tracks = append(conns.Tracks, stats.Track{
 				Bitrate: uint64(rate) * 8,
 				Loss:    loss,
-				Jitter:  jitter,
+				Jitter:  stats.Duration(jitter),
 			})
 		}
 		cs.Up = append(cs.Up, conns)
@@ -58,9 +56,9 @@ func (c *webClient) GetStats() *stats.Client {
 			conns.Tracks = append(conns.Tracks, stats.Track{
 				Bitrate:    uint64(rate) * 8,
 				MaxBitrate: t.maxBitrate.Get(jiffies),
-				Loss:       uint8(uint32(loss) * 100 / 256),
-				Rtt:        rtt,
-				Jitter:     j,
+				Loss:       float64(loss) / 256.0,
+				Rtt:        stats.Duration(rtt),
+				Jitter:     stats.Duration(j),
 			})
 		}
 		cs.Down = append(cs.Down, conns)

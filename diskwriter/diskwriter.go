@@ -78,7 +78,11 @@ func (client *Client) Permissions() group.ClientPermissions {
 	return group.ClientPermissions{}
 }
 
-func (client *Client) PushClient(id, username string, add bool) error {
+func (client *Client) Status() map[string]interface{} {
+	return nil
+}
+
+func (client *Client) PushClient(id, username string, permissions group.ClientPermissions, status map[string]interface{}, kind string) error {
 	return nil
 }
 

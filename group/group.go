@@ -20,6 +20,7 @@ import (
 
 var Directory string
 var UseMDNS bool
+var UDPMin, UDPMax uint16
 
 var ErrNotAuthorised = errors.New("not authorised")
 
@@ -122,7 +123,7 @@ var groups struct {
 	groups map[string]*Group
 }
 
-func (g *Group) API() *webrtc.API {
+func (g *Group) API() (*webrtc.API, error) {
 	g.mu.Lock()
 	codecs := g.description.Codecs
 	g.mu.Unlock()
@@ -200,7 +201,7 @@ func payloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, error) {
 	}
 }
 
-func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
+func APIFromCodecs(codecs []webrtc.RTPCodecCapability) (*webrtc.API, error) {
 	s := webrtc.SettingEngine{}
 	s.SetSRTPReplayProtectionWindow(512)
 	if !UseMDNS {
@@ -231,7 +232,7 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
 			log.Printf("%v", err)
 			continue
 		}
-		m.RegisterCodec(
+		err = m.RegisterCodec(
 			webrtc.RTPCodecParameters{
 				RTPCodecCapability: webrtc.RTPCodecCapability{
 					MimeType:     codec.MimeType,
@@ -244,14 +245,23 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
 			},
 			tpe,
 		)
+		if err != nil {
+			log.Printf("%v", err)
+			continue
+		}
 	}
+
+	if UDPMin > 0 && UDPMax > 0 {
+		s.SetEphemeralUDPPortRange(UDPMin, UDPMax)
+	}
+
 	return webrtc.NewAPI(
 		webrtc.WithSettingEngine(s),
 		webrtc.WithMediaEngine(&m),
-	)
+	), nil
 }
 
-func APIFromNames(names []string) *webrtc.API {
+func APIFromNames(names []string) (*webrtc.API, error) {
 	if len(names) == 0 {
 		names = []string{"vp8", "opus"}
 	}
@@ -487,11 +497,17 @@ func AddClient(group string, c Client) (*Group, error) {
 	g.clients[c.Id()] = c
 	g.timestamp = time.Now()
 
+	id := c.Id()
 	u := c.Username()
-	c.PushClient(c.Id(), u, true)
+	p := c.Permissions()
+	s := c.Status()
+	c.PushClient(c.Id(), u, p, s, "add")
 	for _, cc := range clients {
-		c.PushClient(cc.Id(), cc.Username(), true)
-		cc.PushClient(c.Id(), u, true)
+		c.PushClient(
+			cc.Id(), cc.Username(), cc.Permissions(), cc.Status(),
+			"add",
+		)
+		cc.PushClient(id, u, p, s, "add")
 	}
 
 	return g, nil
@@ -537,7 +553,7 @@ func DelClient(c Client) {
 
 	go func(clients []Client) {
 		for _, cc := range clients {
-			cc.PushClient(c.Id(), c.Username(), false)
+			cc.PushClient(c.Id(), c.Username(), c.Permissions(), c.Status(), "delete")
 		}
 	}(clients)
 
@@ -709,8 +725,8 @@ type Description struct {
 
 	// The modtime and size of the file.  These are used to detect
 	// when a file has changed on disk.
-	modTime time.Time `json:"-"`
-	fileSize int64 `json:"-"`
+	modTime  time.Time `json:"-"`
+	fileSize int64     `json:"-"`
 
 	// A user-readable description of the group.
 	Description string `json:"description,omitempty"`

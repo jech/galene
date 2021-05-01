@@ -163,8 +163,8 @@ with others, there is no need to go through the landing page.
 Recordings can be accessed under `/recordings/groupname`.  This is only
 available to the administrator of the group.
 
-Some statistics are available under `/stats`.  This is only available to
-the server administrator.
+Some statistics are available under `/stats.json`, with a human-readable
+version at `/stats.html`.  This is only available to the server administrator.
 
 ## Side menu
 

@@ -478,7 +478,10 @@ textarea.form-reply {
 .top-video-controls {
     text-align: right;
     bottom: inherit;
-    top: 5px;
+    top: 0;
+    line-height: 1.1;
+    font-size: 1.3em;
+    text-shadow: 1px 1px 2px rgb(90 86 86);
 }
 
 .controls-button {
@@ -512,7 +515,7 @@ textarea.form-reply {
     cursor: pointer;
 }
 
-.video-controls span:last-child {
+.video-controls span:last-child, .top-video-controls span:last-child {
     margin-right: 0;
 }
 
@@ -528,6 +531,10 @@ textarea.form-reply {
 
 .video-controls .video-play {
     font-size: 0.85em;
+}
+
+.video-controls .video-stop {
+    color: #d03e3e;
 }
 
 .video-controls span.disabled, .video-controls span.disabled:hover, .top-video-controls span.disabled:hover{
@@ -1231,6 +1238,10 @@ header .collapse {
         right: 0;
         left: 0;
         margin-bottom: 60px;
+    }
+
+    .top-video-controls {
+        opacity: 1;
     }
 
     .login-container {
