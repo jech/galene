@@ -921,41 +921,43 @@ func (desc *Description) MatchLdapPassword(user string, password string) bool {
 
 func (desc *Description) CheckLdapProperties(user string, props []LdapProperty) (ok bool) {
 	ok = true
-	if len(props) == 0 {
-		// list of properties to satisfy is empty: success
-		return ok
+	for _, prop := range props {
+		// ok will be ANDed with each property to check
+		l, err := ldap.DialURL(desc.Ldapurl)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer l.Close()
+		err = l.Bind(
+			fmt.Sprintf("cn=%s,%s",
+				ldap.EscapeFilter(desc.Ldapbinduser),
+				desc.Ldapuserbranch),
+			desc.Ldapbindpassword)
+		if err != nil {
+			ok = false
+			break
+		}
+		filter := fmt.Sprintf("(cn=%s)", ldap.EscapeFilter(user))
+		searchReq := ldap.NewSearchRequest(
+			desc.Ldapbase,
+			ldap.ScopeWholeSubtree, 0, 0, 0, false,
+			filter,
+			[]string{prop.Field},
+			[]ldap.Control{})
+		result, err := l.Search(searchReq)
+		if err != nil {
+			fmt.Errorf("failed to query LDAP: %w", err)
+		}
+		if len(result.Entries) == 0 {
+			ok = false
+			break
+		}
+		values := result.Entries[0].Attributes[0].Values[0]
+		if prop.Begins != strings.Split(values,",")[0]{
+			ok= false
+			break
+		}
 	}
-	l, err := ldap.DialURL(desc.Ldapurl)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer l.Close()
-	err = l.Bind(
-		fmt.Sprintf("cn=%s,%s",
-			ldap.EscapeFilter(desc.Ldapbinduser),
-			desc.Ldapuserbranch),
-		desc.Ldapbindpassword)
-	if err != nil {
-		ok = false
-		return ok
-	}
-	filter := fmt.Sprintf("(cn=%s)", ldap.EscapeFilter(user))
-	searchReq := ldap.NewSearchRequest(
-		desc.Ldapbase,
-		ldap.ScopeWholeSubtree, 0, 0, 0, false,
-		filter,
-		[]string{props[0].Field},
-		[]ldap.Control{})
-	result, err := l.Search(searchReq)
-	if err != nil {
-		fmt.Errorf("failed to query LDAP: %w", err)
-	}
-	if len(result.Entries) == 0 {
-		ok = false
-		return ok
-	}
-	values := result.Entries[0].Attributes[0].Values[0]
-	ok = props[0].Begins == strings.Split(values,",")[0]
 	return ok
 }
 
