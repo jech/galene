@@ -392,12 +392,6 @@ getButtonElement('unpresentbutton').onclick = function(e) {
     resizePeers();
 };
 
-function changePresentation() {
-    let c = findUpMedia('camera');
-    if(c)
-        addLocalMedia(c.localId);
-}
-
 /**
  * @param {string} id
  * @param {boolean} visible
@@ -466,7 +460,7 @@ getSelectElement('videoselect').onchange = function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({video: this.value});
-    changePresentation();
+    replaceCameraStream();
 };
 
 getSelectElement('audioselect').onchange = function(e) {
@@ -474,7 +468,7 @@ getSelectElement('audioselect').onchange = function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({audio: this.value});
-    changePresentation();
+    replaceCameraStream();
 };
 
 getInputElement('mirrorbox').onchange = function(e) {
@@ -482,7 +476,8 @@ getInputElement('mirrorbox').onchange = function(e) {
     if(!(this instanceof HTMLInputElement))
         throw new Error('Unexpected type for this');
     updateSettings({mirrorView: this.checked});
-    changePresentation();
+    // no need to reopen the camera
+    replaceUpStreams('camera');
 };
 
 getInputElement('blackboardbox').onchange = function(e) {
@@ -490,7 +485,7 @@ getInputElement('blackboardbox').onchange = function(e) {
     if(!(this instanceof HTMLInputElement))
         throw new Error('Unexpected type for this');
     updateSettings({blackboardMode: this.checked});
-    changePresentation();
+    replaceCameraStream();
 };
 
 document.getElementById('mutebutton').onclick = function(e) {
@@ -509,7 +504,8 @@ getSelectElement('filterselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({filter: this.value});
-    changePresentation();
+    // no need to reopen the camera
+    replaceUpStreams('camera');
 };
 
 /** @returns {number} */
@@ -944,31 +940,37 @@ Filter.prototype.stop = function() {
 };
 
 /**
+ * Removes any filter set on c.
+ *
  * @param {Stream} c
- * @param {Filter} f
  */
-function setFilter(c, f) {
-    if(!f) {
-        let filter = c.userdata.filter;
-        if(!filter)
-            return null;
-        if(!(filter instanceof Filter))
-            throw new Error('userdata.filter is not a filter');
-        if(c.userdata.filter) {
-            c.stream = c.userdata.filter.inputStream;
-            c.userdata.filter.stop();
-            c.userdata.filter = null;
-        }
-        return
-    }
+function removeFilter(c) {
+    let old = c.userdata.filter;
+    if(!old)
+        return;
 
-    if(c.userdata.filter)
-        setFilter(c, null);
+    if(!(old instanceof Filter))
+        throw new Error('userdata.filter is not a filter');
 
-    if(f.inputStream != c.stream)
-        throw new Error('Setting filter for wrong stream');
-    c.stream = f.outputStream;
-    c.userdata.filter = f;
+    c.stream = old.inputStream;
+    old.stop();
+    c.userdata.filter = null;
+}
+
+/**
+ * Sets the filter described by c.userdata.filterDefinition on c.
+ *
+ * @param {Stream} c
+ */
+function setFilter(c) {
+    removeFilter(c);
+
+    if(!c.userdata.filterDefinition)
+        return;
+
+    let filter = new Filter(c.stream, c.userdata.filterDefinition);
+    c.stream = filter.outputStream;
+    c.userdata.filter = filter;
 }
 
 /**
@@ -1021,22 +1023,155 @@ function isSafari() {
 }
 
 /**
+ * Sets up c to send the given stream.  Some extra parameters are stored
+ * in c.userdata.
+ *
  * @param {Stream} c
- * @param {MediaStreamTrack} t
  * @param {MediaStream} stream
  */
-function addUpTrack(c, t, stream) {
-    let encodings = [{}];
-    if(t.kind === 'video') {
-        let bps = getMaxVideoThroughput();
-        if(bps > 0)
-            encodings[0].maxBitrate = bps;
+function setUpStream(c, stream) {
+    if(c.stream != null)
+        throw new Error("Setting nonempty stream");
+
+    c.stream = stream;
+
+    try {
+        setFilter(c);
+    } catch(e) {
+        displayWarning("Couldn't set filter: " + e);
     }
-    c.pc.addTransceiver(t, {
-        direction: 'sendonly',
-        streams: [stream],
-        sendEncodings: encodings,
-    });
+
+    c.onclose = replace => {
+        removeFilter(c);
+        if(!replace) {
+            stopStream(c.stream);
+            if(c.userdata.onclose)
+                c.userdata.onclose.call(c);
+            delMedia(c.localId);
+        }
+    }
+
+    /**
+     * @param {MediaStreamTrack} t
+     */
+    function addUpTrack(t) {
+        if(c.label === 'camera') {
+            let settings = getSettings();
+            if(t.kind == 'audio') {
+                if(settings.localMute)
+                    t.enabled = false;
+            } else if(t.kind == 'video') {
+                if(settings.blackboardMode) {
+                    /** @ts-ignore */
+                    t.contentHint = 'detail';
+                }
+            }
+        }
+        t.onended = e => {
+            stream.onaddtrack = null;
+            stream.onremovetrack = null;
+            c.close();
+        };
+
+        let encodings = [{}];
+        if(t.kind === 'video') {
+            let bps = getMaxVideoThroughput();
+            if(bps > 0)
+                encodings[0].maxBitrate = bps;
+        }
+        c.pc.addTransceiver(t, {
+            direction: 'sendonly',
+            streams: [stream],
+            sendEncodings: encodings,
+        });
+    }
+
+    // c.stream might be different from stream if there's a filter
+    c.stream.getTracks().forEach(addUpTrack);
+
+    stream.onaddtrack = function(e) {
+        addUpTrack(e.track);
+    };
+
+    stream.onremovetrack = function(e) {
+        let t = e.track;
+
+        /** @type {RTCRtpSender} */
+        let sender;
+        c.pc.getSenders().forEach(s => {
+            if(s.track === t)
+                sender = s;
+        });
+        if(sender) {
+            c.pc.removeTrack(sender);
+        } else {
+            console.warn('Removing unknown track');
+        }
+
+        let found = false;
+        c.pc.getSenders().forEach(s => {
+            if(s.track)
+                found = true;
+        });
+        if(!found) {
+            stream.onaddtrack = null;
+            stream.onremovetrack = null;
+            c.close();
+        }
+    };
+
+    c.onstats = gotUpStats;
+    c.setStatsInterval(2000);
+}
+
+/**
+ * Replaces c with a freshly created stream, duplicating any relevant
+ * parameters in c.userdata.
+ *
+ * @param {Stream} c
+ * @returns {Promise<Stream>}
+ */
+async function replaceUpStream(c) {
+    removeFilter(c);
+    let cn = newUpStream(c.localId);
+    cn.label = c.label;
+    if(c.userdata.filterDefinition)
+        cn.userdata.filterDefinition = c.userdata.filterDefinition;
+    if(c.userdata.onclose)
+        cn.userdata.onclose = c.userdata.onclose;
+    let media = /** @type{HTMLVideoElement} */
+        (document.getElementById('media-' + c.localId));
+    setUpStream(cn, c.stream);
+    await setMedia(c, true,
+                   c.label == 'camera' && getSettings().mirrorView,
+                   c.label == 'video' && media);
+    return cn;
+}
+
+/**
+ * Replaces all up streams with the given label.  If label is null,
+ * replaces all up stream.
+ *
+ * @param {string} label
+ */
+async function replaceUpStreams(label) {
+    let promises = [];
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
+        if(label && c.label !== label)
+            continue
+        promises.push(replaceUpStream(c));
+    }
+    await Promise.all(promises);
+}
+
+/**
+ * Closes and reopens the camera then replaces the camera stream.
+ */
+function replaceCameraStream() {
+    let c = findUpMedia('camera');
+    if(c)
+        addLocalMedia(c.localId);
 }
 
 /**
@@ -1047,14 +1182,6 @@ async function addLocalMedia(localId) {
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
     let video = settings.video ? {deviceId: settings.video} : false;
-
-    let filter = null;
-    if(settings.filter) {
-        filter = filters[settings.filter];
-        if(!filter) {
-            displayWarning(`Unknown filter ${settings.filter}`);
-        }
-    }
 
     if(video) {
         let resolution = settings.resolution;
@@ -1095,51 +1222,17 @@ async function addLocalMedia(localId) {
         return;
     }
 
-    c.stream = stream;
     c.label = 'camera';
 
-    if(filter) {
-        try {
-            let f = new Filter(stream, filter);
-            setFilter(c, f);
-            c.onclose = replace => {
-                stopStream(stream);
-                setFilter(c, null);
-                if(!replace)
-                    delMedia(c.localId);
-            }
-        } catch(e) {
-            displayWarning(e);
-            c.onclose = replace => {
-                stopStream(c.stream);
-                if(!replace)
-                    delMedia(c.localId);
-            }
-        }
-    } else {
-        c.onclose = replace => {
-            stopStream(c.stream);
-            if(!replace)
-                delMedia(c.localId);
-        }
+    if(settings.filter) {
+        let filter = filters[settings.filter];
+        if(filter)
+            c.userdata.filterDefinition = filter;
+        else
+            displayWarning(`Unknown filter ${settings.filter}`);
     }
 
-    let mute = getSettings().localMute;
-    c.stream.getTracks().forEach(t => {
-        if(t.kind == 'audio') {
-            if(mute)
-                t.enabled = false;
-        } else if(t.kind == 'video') {
-            if(settings.blackboardMode) {
-                /** @ts-ignore */
-                t.contentHint = 'detail';
-            }
-        }
-        addUpTrack(c, t, stream);
-    });
-
-    c.onstats = gotUpStats;
-    c.setStatsInterval(2000);
+    setUpStream(c, stream);
     await setMedia(c, true, settings.mirrorView);
     setButtonsVisibility();
 }
@@ -1168,19 +1261,8 @@ async function addShareMedia() {
     }
 
     let c = newUpStream();
-    c.stream = stream;
     c.label = 'screenshare';
-    c.onclose = replace => {
-        stopStream(stream);
-        if(!replace)
-            delMedia(c.localId);
-    }
-    stream.getTracks().forEach(t => {
-        addUpTrack(c, t, stream)
-        t.onended = e => c.close();
-    });
-    c.onstats = gotUpStats;
-    c.setStatsInterval(2000);
+    setUpStream(c, stream);
     await setMedia(c, true);
     setButtonsVisibility();
 }
@@ -1208,60 +1290,24 @@ async function addFileMedia(file) {
     }
 
     let c = newUpStream();
-    c.stream = stream;
     c.label = 'video';
-    c.onclose = function(replace) {
-        stopStream(c.stream);
+    c.userdata.onclose = function() {
         let media = /** @type{HTMLVideoElement} */
             (document.getElementById('media-' + this.localId));
         if(media && media.src) {
             URL.revokeObjectURL(media.src);
             media.src = null;
         }
-        if(!replace)
-            delMedia(c.localId);
     };
+    await setUpStream(c, stream);
 
-    stream.onaddtrack = function(e) {
-        let t = e.track;
-        if(t.kind === 'audio') {
-            let presenting = !!findUpMedia('camera');
-            let muted = getSettings().localMute;
-            if(presenting && !muted) {
-                setLocalMute(true, true);
-                displayWarning('You have been muted');
-            }
-        }
-        addUpTrack(c, t, stream);
-        c.onstats = gotUpStats;
-        c.setStatsInterval(2000);
-    };
-    stream.onremovetrack = function(e) {
-        let t = e.track;
+    let presenting = !!findUpMedia('camera');
+    let muted = getSettings().localMute;
+    if(presenting && !muted) {
+        setLocalMute(true, true);
+        displayWarning('You have been muted');
+    }
 
-        /** @type {RTCRtpSender} */
-        let sender;
-        c.pc.getSenders().forEach(s => {
-            if(s.track === t)
-                sender = s;
-        });
-        if(sender) {
-            c.pc.removeTrack(sender);
-        } else {
-            console.warn('Removing unknown track');
-        }
-
-        let found = false;
-        c.pc.getSenders().forEach(s => {
-            if(s.track)
-                found = true;
-        });
-        if(!found) {
-            stream.onaddtrack = null;
-            stream.onremovetrack = null;
-            c.close();
-        }
-    };
     await setMedia(c, true, false, video);
     c.userdata.play = true;
     setButtonsVisibility();
@@ -1352,11 +1398,7 @@ async function setMedia(c, isUp, mirror, video) {
 
     let media = /** @type {HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
-    if(media) {
-        if(video) {
-            throw new Error("Duplicate video");
-        }
-    } else {
+    if(!media) {
         if(video) {
             media = video;
         } else {
@@ -1464,7 +1506,7 @@ function addCustomControls(media, container, c, toponly) {
         topcontrols.id = 'topcontrols-' + c.localId;
         container.appendChild(topcontrols);
     }
-    registerControlHandlers(media, container, c);
+    registerControlHandlers(c.localId, media, container);
 }
 
 /**
@@ -1495,11 +1537,11 @@ function setVolumeButton(muted, button, slider) {
 }
 
 /**
+ * @param {string} localId
  * @param {HTMLVideoElement} media
  * @param {HTMLElement} container
- * @param {Stream} c
  */
-function registerControlHandlers(media, container, c) {
+function registerControlHandlers(localId, media, container) {
     let play = getVideoButton(container, 'video-play');
     if(play) {
         play.onclick = function(event) {
@@ -1513,6 +1555,9 @@ function registerControlHandlers(media, container, c) {
         stop.onclick = function(event) {
             event.preventDefault();
             try {
+                let c = serverConnection.findByLocalId(localId);
+                if(!c)
+                    throw new Error('Closing unknown stream');
                 c.close();
             } catch(e) {
                 console.error(e);
@@ -2242,6 +2287,13 @@ commands.renegotiate = {
             serverConnection.down[id].restartIce();
     }
 };
+
+commands.replace = {
+    f: (c, r) => {
+        replaceUpStreams(null);
+    }
+};
+
 
 /**
  * parseCommand splits a string into two space-separated parts.  The first
