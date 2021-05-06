@@ -518,6 +518,10 @@ func (c httpClient) Username() string {
 	return c.username
 }
 
+func (c httpClient) Givenpassword() string {
+	return c.password
+}
+
 func (c httpClient) Challenge(group string, creds group.ClientCredentials) bool {
 	if creds.Password == nil {
 		return true

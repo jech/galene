@@ -33,6 +33,13 @@ type Client struct {
 	closed bool
 }
 
+func (c *Client) Givenpassword() string {
+	// no need to forward the password given at authentication time
+	// here, we do not need to access any LDAP service, so we return
+	// a fake password
+	return ""
+}
+
 func newId() string {
 	b := make([]byte, 16)
 	crand.Read(b)

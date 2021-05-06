@@ -89,6 +89,7 @@ type ClientPermissions struct {
 
 type Challengeable interface {
 	Username() string
+	Givenpassword() string
 	Challenge(string, ClientCredentials) bool
 }
 
