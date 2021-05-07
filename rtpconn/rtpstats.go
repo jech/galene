@@ -23,8 +23,11 @@ func (c *webClient) GetStats() *stats.Client {
 		tracks := up.getTracks()
 		for _, t := range tracks {
 			s := t.cache.GetStats(false)
-			loss :=  float64(s.Expected - s.Received) /
-				float64(s.Expected)
+			var loss float64
+			if s.Expected > 0 {
+				loss = float64(s.Expected-s.Received) /
+					float64(s.Expected)
+			}
 			jitter := time.Duration(t.jitter.Jitter()) *
 				(time.Second / time.Duration(t.jitter.HZ()))
 			rate, _ := t.rate.Estimate()

@@ -56,11 +56,15 @@ function formatGroup(group) {
             tr2.appendChild(td3);
             table.appendChild(tr2);
             if(client.up)
-                for(let j = 0; j < client.up.length; j++)
-                    table.appendChild(formatConn('↑', client.up[j]));
+                for(let j = 0; j < client.up.length; j++) {
+                    let rows = formatConn('↑', client.up[j]);
+                    rows.forEach(r => table.appendChild(r));
+                }
             if(client.down)
-                for(let j = 0; j < client.down.length; j++)
-                    table.appendChild(formatConn('↓', client.down[j]));
+                for(let j = 0; j < client.down.length; j++) {
+                    let rows = formatConn('↓', client.down[j]);
+                    rows.forEach(r => table.appendChild(r));
+                }
         }
         td2.appendChild(table);
         tr.appendChild(td2);
@@ -76,24 +80,25 @@ function formatConn(direction, conn) {
     td2.textContent = conn.id;
     tr.appendChild(td2);
     let td3 = document.createElement('td');
-    if(conn.maxBitrate)
-        td3.textContent = direction + ' ' + conn.maxBitrate;
-    else
-        td3.textContent = direction;
+    td3.textContent = direction;
     tr.appendChild(td3);
     let td4 = document.createElement('td');
-    if(conn.tracks) {
-        let table = document.createElement('table');
-        for(let i = 0; i < conn.tracks.length; i++)
-            table.appendChild(formatTrack(conn.tracks[i]));
-        td4.appendChild(table);
-    }
+    if(conn.maxBitrate)
+        td4.textContent = `${conn.maxBitrate}`;
     tr.appendChild(td4);
-    return tr;
+    let rows = [tr];
+    if(conn.tracks) {
+        for(let i = 0; i < conn.tracks.length; i++)
+            rows.push(formatTrack(conn.tracks[i]));
+    }
+    return rows;
 }
 
 function formatTrack(track) {
     let tr = document.createElement('tr');
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
     if(track.maxBitrate)
         td.textContent = `${track.bitrate||0}/${track.maxBitrate}`;
