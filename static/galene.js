@@ -1527,8 +1527,7 @@ function registerControlHandlers(media, container, c) {
         stop.onclick = function(event) {
             event.preventDefault();
             try {
-                c.close(true);
-                delMedia(c.localId);
+                c.close();
             } catch(e) {
                 console.error(e);
                 displayError(e);
