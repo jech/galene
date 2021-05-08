@@ -1447,7 +1447,7 @@ function addCustomControls(media, container, c, toponly) {
 
         let volume = getVideoButton(controls, 'volume');
 
-        if(c.label === 'camera') {
+        if(c.up && c.label === 'camera') {
             volume.remove();
         } else {
             setVolumeButton(media.muted,
@@ -1457,7 +1457,7 @@ function addCustomControls(media, container, c, toponly) {
         container.appendChild(controls);
     }
 
-    if(!document.getElementById('topcontrols-' + c.localId)) {
+    if(c.up && !document.getElementById('topcontrols-' + c.localId)) {
         let toptemplate =
             document.getElementById('topvideocontrols-template').firstElementChild;
         let topcontrols = cloneHTMLElement(toptemplate);
