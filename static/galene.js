@@ -78,7 +78,7 @@ function getUserPass() {
  * @property {boolean} [localMute]
  * @property {string} [video]
  * @property {string} [audio]
- * @property {boolean} [simulcast]
+ * @property {string} [simulcast]
  * @property {string} [send]
  * @property {string} [request]
  * @property {boolean} [activityDetection]
@@ -226,6 +226,13 @@ function reflectSettings() {
         getSelectElement('sendselect').value = settings.send;
     } else {
         settings.send = getSelectElement('sendselect').value;
+        store = true;
+    }
+
+    if(settings.hasOwnProperty('simulcast')) {
+        getSelectElement('simulcastselect').value = settings.simulcast
+    } else {
+        settings.simulcast = getSelectElement('simulcastselect').value;
         store = true;
     }
 
@@ -531,6 +538,17 @@ getSelectElement('sendselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({send: this.value});
+    let t = getMaxVideoThroughput();
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
+        await setMaxVideoThroughput(c, t);
+    }
+};
+
+getSelectElement('simulcastselect').onchange = async function(e) {
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
+    updateSettings({simulcast: this.value});
     let t = getMaxVideoThroughput();
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
@@ -1042,10 +1060,15 @@ const simulcastRate = 100000;
  * @returns {boolean}
  */
 function doSimulcast() {
-    if(!getSettings().simulcast)
+    switch(getSettings().simulcast) {
+    case 'on':
+        return true;
+    case 'off':
         return false;
-    let bps = getMaxVideoThroughput();
-    return bps <= 0 || bps >= 2 * simulcastRate;
+    default:
+        let bps = getMaxVideoThroughput();
+        return bps <= 0 || bps >= 2 * simulcastRate;
+    }
 }
 
 /**
