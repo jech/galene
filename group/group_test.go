@@ -41,9 +41,9 @@ func TestGroup(t *testing.T) {
 	if ar := g.AllowRecording(); ar {
 		t.Errorf("Allow Recording: expected false, got %v", ar)
 	}
-	api := g.API()
-	if api == nil {
-		t.Errorf("Couldn't get API")
+	api, err := g.API()
+	if err != nil || api == nil {
+		t.Errorf("Couldn't get API: %v", err)
 	}
 
 	if names := GetNames(); len(names) != 2 {
