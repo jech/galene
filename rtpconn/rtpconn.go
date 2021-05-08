@@ -826,7 +826,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 
 	var ssrcs []uint32
 	for _, t := range tracks {
-		if t.hasRtcpFb("goog-remb", "") {
+		if !t.hasRtcpFb("goog-remb", "") {
 			continue
 		}
 		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
