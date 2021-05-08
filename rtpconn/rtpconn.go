@@ -238,7 +238,6 @@ type upTrackAtomics struct {
 
 type rtpUpTrack struct {
 	track   *webrtc.TrackRemote
-	label   string
 	rate    *estimator.Estimator
 	cache   *packetcache.Cache
 	jitter  *jitter.Estimator
@@ -310,10 +309,6 @@ func (up *rtpUpTrack) getLocal() []conn.DownTrack {
 
 func (up *rtpUpTrack) GetRTP(seqno uint16, result []byte) uint16 {
 	return up.cache.Get(seqno, result)
-}
-
-func (up *rtpUpTrack) Label() string {
-	return up.label
 }
 
 func (up *rtpUpTrack) Kind() webrtc.RTPCodecType {
