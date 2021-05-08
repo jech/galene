@@ -414,7 +414,6 @@ function setButtonsVisibility() {
     let connected = serverConnection && serverConnection.socket;
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('camera');
-    let video = !!findUpMedia('video');
     let canWebrtc = !(typeof RTCPeerConnection === 'undefined');
     let canFile =
         /** @ts-ignore */
@@ -433,8 +432,6 @@ function setButtonsVisibility() {
     // allow multiple shared documents
     setVisibility('sharebutton', canWebrtc && permissions.present &&
                   ('getDisplayMedia' in navigator.mediaDevices));
-
-    setVisibility('stopvideobutton', video);
 
     setVisibility('mediaoptions', permissions.present);
     setVisibility('sendform', permissions.present);
@@ -506,12 +503,6 @@ document.getElementById('mutebutton').onclick = function(e) {
 document.getElementById('sharebutton').onclick = function(e) {
     e.preventDefault();
     addShareMedia();
-};
-
-document.getElementById('stopvideobutton').onclick = function(e) {
-    e.preventDefault();
-    closeUpMedia('video');
-    resizePeers();
 };
 
 getSelectElement('filterselect').onchange = async function(e) {
@@ -1380,8 +1371,7 @@ async function setMedia(c, isUp, mirror, video) {
         media.playsinline = true;
         media.id = 'media-' + c.localId;
         div.appendChild(media);
-        if(!video)
-            addCustomControls(media, div, c);
+        addCustomControls(media, div, c, !!video);
     }
 
     if(mirror)
@@ -1446,38 +1436,34 @@ function cloneHTMLElement(elt) {
  * @param {HTMLElement} container
  * @param {Stream} c
  */
-function addCustomControls(media, container, c) {
-    media.controls = false;
-    let controls = document.getElementById('controls-' + c.localId);
-    if(controls) {
-        console.warn('Attempted to add duplicate controls');
-        return;
+function addCustomControls(media, container, c, toponly) {
+    if(!toponly && !document.getElementById('controls-' + c.localId)) {
+        media.controls = false;
+
+        let template =
+            document.getElementById('videocontrols-template').firstElementChild;
+        let controls = cloneHTMLElement(template);
+        controls.id = 'controls-' + c.localId;
+
+        let volume = getVideoButton(controls, 'volume');
+
+        if(c.label === 'camera') {
+            volume.remove();
+        } else {
+            setVolumeButton(media.muted,
+                            getVideoButton(controls, "volume-mute"),
+                            getVideoButton(controls, "volume-slider"));
+        }
+        container.appendChild(controls);
     }
 
-    let template =
-        document.getElementById('videocontrols-template').firstElementChild;
-    let toptemplate =
-        document.getElementById('topvideocontrols-template').firstElementChild;
-    controls = cloneHTMLElement(template);
-    controls.id = 'controls-' + c.localId;
-    let topcontrols = cloneHTMLElement(toptemplate);
-    topcontrols.id = 'topcontrols-' + c.localId;
-
-    let volume = getVideoButton(controls, 'volume');
-    let stopsharing = getVideoButton(topcontrols, 'video-stop');
-    if (c.label !== "screenshare") {
-        stopsharing.remove();
+    if(!document.getElementById('topcontrols-' + c.localId)) {
+        let toptemplate =
+            document.getElementById('topvideocontrols-template').firstElementChild;
+        let topcontrols = cloneHTMLElement(toptemplate);
+        topcontrols.id = 'topcontrols-' + c.localId;
+        container.appendChild(topcontrols);
     }
-    if(c.label === 'camera') {
-        volume.remove();
-    } else {
-        setVolumeButton(media.muted,
-                        getVideoButton(controls, "volume-mute"),
-                        getVideoButton(controls, "volume-slider"));
-    }
-
-    container.appendChild(topcontrols);
-    container.appendChild(controls);
     registerControlHandlers(media, container, c);
 }
 
