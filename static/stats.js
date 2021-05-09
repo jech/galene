@@ -37,64 +37,59 @@ async function listStats() {
     }
 
     for(let i = 0; i < l.length; i++)
-        table.appendChild(formatGroup(l[i]));
+        formatGroup(table, l[i]);
 }
 
-function formatGroup(group) {
+function formatGroup(table, group) {
     let tr = document.createElement('tr');
     let td = document.createElement('td');
     td.textContent = group.name;
     tr.appendChild(td);
+    table.appendChild(tr);
     if(group.clients) {
-        let td2 = document.createElement('td');
-        let table = document.createElement('table');
         for(let i = 0; i < group.clients.length; i++) {
             let client = group.clients[i];
             let tr2 = document.createElement('tr');
-            let td3 = document.createElement('td');
-            td3.textContent = client.id;
-            tr2.appendChild(td3);
+            tr2.appendChild(document.createElement('td'));
+            let td2 = document.createElement('td');
+            td2.textContent = client.id;
+            tr2.appendChild(td2);
             table.appendChild(tr2);
             if(client.up)
                 for(let j = 0; j < client.up.length; j++) {
-                    let rows = formatConn('↑', client.up[j]);
-                    rows.forEach(r => table.appendChild(r));
+                    formatConn(table, '↑', client.up[j]);
                 }
             if(client.down)
                 for(let j = 0; j < client.down.length; j++) {
-                    let rows = formatConn('↓', client.down[j]);
-                    rows.forEach(r => table.appendChild(r));
+                    formatConn(table, '↓', client.down[j]);
                 }
         }
-        td2.appendChild(table);
-        tr.appendChild(td2);
     }
     return tr;
 }
 
-function formatConn(direction, conn) {
+function formatConn(table, direction, conn) {
     let tr = document.createElement('tr');
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
+    td.textContent = conn.id;
     tr.appendChild(td);
     let td2 = document.createElement('td');
-    td2.textContent = conn.id;
+    td2.textContent = direction;
     tr.appendChild(td2);
     let td3 = document.createElement('td');
-    td3.textContent = direction;
-    tr.appendChild(td3);
-    let td4 = document.createElement('td');
     if(conn.maxBitrate)
-        td4.textContent = `${conn.maxBitrate}`;
-    tr.appendChild(td4);
-    let rows = [tr];
+        td3.textContent = `${conn.maxBitrate}`;
+    tr.appendChild(td3);
+    table.appendChild(tr);
     if(conn.tracks) {
         for(let i = 0; i < conn.tracks.length; i++)
-            rows.push(formatTrack(conn.tracks[i]));
+            formatTrack(table, conn.tracks[i]);
     }
-    return rows;
 }
 
-function formatTrack(track) {
+function formatTrack(table, track) {
     let tr = document.createElement('tr');
     tr.appendChild(document.createElement('td'));
     tr.appendChild(document.createElement('td'));
@@ -117,7 +112,7 @@ function formatTrack(track) {
         text = text + `±${Math.round(track.jitter * 1000) / 1000}ms`;
     td3.textContent = text;
     tr.appendChild(td3);
-    return tr;
+    table.appendChild(tr);
 }
 
 listStats();
