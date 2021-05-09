@@ -512,8 +512,15 @@ getSelectElement('filterselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({filter: this.value});
-    // no need to reopen the camera
-    replaceUpStreams('camera');
+    let c = findUpMedia('camera');
+    if(c) {
+        let filter = (this.value && filters[this.value]) || null;
+        if(filter)
+            c.userdata.filterDefinition = filter;
+        else
+            delete c.userdata.filterDefinition;
+        replaceUpStream(c);
+    }
 };
 
 /** @returns {number} */
@@ -1235,9 +1242,9 @@ async function replaceUpStream(c) {
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
     setUpStream(cn, c.stream);
-    await setMedia(c, true,
-                   c.label == 'camera' && getSettings().mirrorView,
-                   c.label == 'video' && media);
+    await setMedia(cn, true,
+                   cn.label == 'camera' && getSettings().mirrorView,
+                   cn.label == 'video' && media);
     return cn;
 }
 
