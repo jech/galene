@@ -538,22 +538,14 @@ getSelectElement('sendselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({send: this.value});
-    let t = getMaxVideoThroughput();
-    for(let id in serverConnection.up) {
-        let c = serverConnection.up[id];
-        await setMaxVideoThroughput(c, t);
-    }
+    await reconsiderSendParameters();
 };
 
 getSelectElement('simulcastselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({simulcast: this.value});
-    let t = getMaxVideoThroughput();
-    for(let id in serverConnection.up) {
-        let c = serverConnection.up[id];
-        await setMaxVideoThroughput(c, t);
-    }
+    await reconsiderSendParameters();
 };
 
 /**
@@ -826,11 +818,15 @@ function newUpStream(localId) {
 }
 
 /**
+ * Sets an up stream's video throughput and simulcast parameters.
+ *
  * @param {Stream} c
- * @param {number} [bps]
+ * @param {number} bps
+ * @param {boolean} simulcast
  */
-async function setMaxVideoThroughput(c, bps) {
-    let simulcast = doSimulcast();
+async function setSendParameters(c, bps, simulcast) {
+    if(!c.up)
+        throw new Error('Setting throughput of down stream');
     let senders = c.pc.getSenders();
     for(let i = 0; i < senders.length; i++) {
         let s = senders[i];
@@ -850,6 +846,40 @@ async function setMaxVideoThroughput(c, bps) {
                 e.maxBitrate = bps || unlimitedRate;
         });
         await s.setParameters(p);
+    }
+}
+
+let reconsiderParametersTimer = null;
+
+/**
+ * Sets the send parameters for all up streams.
+ */
+async function reconsiderSendParameters() {
+    cancelReconsiderParameters();
+    let t = getMaxVideoThroughput();
+    let s = doSimulcast();
+    let promises = [];
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
+        promises.push(setSendParameters(c, t, s));
+    }
+    await Promise.all(promises);
+}
+
+/**
+ * Schedules a call to reconsiderSendParameters after a delay.
+ * The delay avoids excessive flapping.
+ */
+function scheduleReconsiderParameters() {
+    cancelReconsiderParameters();
+    reconsiderParametersTimer =
+        setTimeout(reconsiderSendParameters, 10000 + Math.random() * 10000);
+}
+
+function cancelReconsiderParameters() {
+    if(reconsiderParametersTimer) {
+        clearTimeout(reconsiderParametersTimer);
+        reconsiderParametersTimer = null;
     }
 }
 
@@ -1057,6 +1087,8 @@ const unlimitedRate = 1000000000;
 const simulcastRate = 100000;
 
 /**
+ * Decide whether we want to send simulcast.
+ *
  * @returns {boolean}
  */
 function doSimulcast() {
@@ -1066,6 +1098,8 @@ function doSimulcast() {
     case 'off':
         return false;
     default:
+        if(Object.keys(serverConnection.users).length <= 2)
+            return false;
         let bps = getMaxVideoThroughput();
         return bps <= 0 || bps >= 2 * simulcastRate;
     }
@@ -1872,9 +1906,13 @@ function gotUser(id, kind) {
     switch(kind) {
     case 'add':
         addUser(id, serverConnection.users[id].username);
+        if(Object.keys(serverConnection.users).length == 3)
+            reconsiderSendParameters();
         break;
     case 'delete':
         delUser(id);
+        if(Object.keys(serverConnection.users).length < 3)
+            scheduleReconsiderParameters();
         break;
     case 'change':
         changeUser(id, serverConnection.users[id].username);
