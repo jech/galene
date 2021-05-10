@@ -1165,8 +1165,8 @@ function setUpStream(c, stream) {
         };
 
         let encodings = [];
+        let simulcast = doSimulcast();
         if(t.kind === 'video') {
-            let simulcast = doSimulcast();
             let bps = getMaxVideoThroughput();
             encodings.push({
                 rid: 'h',
@@ -1179,11 +1179,21 @@ function setUpStream(c, stream) {
                     maxBitrate: simulcastRate,
                 });
         }
-        c.pc.addTransceiver(t, {
+        let tr = c.pc.addTransceiver(t, {
             direction: 'sendonly',
             streams: [stream],
             sendEncodings: encodings,
         });
+        // Disable simulcast on Firefox
+        if(t.kind === 'video') {
+            let p = tr.sender.getParameters();
+            if(!p.encodings && simulcast) {
+                updateSettings({simulcast: 'off'});
+                reflectSettings();
+                p.encodings = [encodings[0]];
+                tr.sender.setParameters(p);
+            }
+        }
     }
 
     // c.stream might be different from stream if there's a filter
