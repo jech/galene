@@ -4,7 +4,6 @@ package conn
 import (
 	"errors"
 
-	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -38,7 +37,7 @@ type Down interface {
 
 // Type DownTrack represents a track in the server to client direction.
 type DownTrack interface {
-	WriteRTP(packat *rtp.Packet) error
+	Write(buf []byte) (int, error)
 	SetTimeOffset(ntp uint64, rtp uint32)
 	SetCname(string)
 	GetMaxBitrate() uint64

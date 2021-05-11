@@ -89,15 +89,12 @@ type rtpDownTrack struct {
 	cname          atomic.Value
 }
 
-func (down *rtpDownTrack) WriteRTP(packet *rtp.Packet) error {
-	err := down.track.WriteRTP(packet)
+func (down *rtpDownTrack) Write(buf []byte) (int, error) {
+	n, err := down.track.Write(buf)
 	if err == nil {
-		// we should account for extensions
-		down.rate.Accumulate(
-			uint32(12 + 4*len(packet.CSRC) + len(packet.Payload)),
-		)
+		down.rate.Accumulate(uint32(n))
 	}
-	return err
+	return n, err
 }
 
 func (down *rtpDownTrack) SetTimeOffset(ntp uint64, rtp uint32) {

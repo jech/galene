@@ -338,19 +338,6 @@ func (t *diskTrack) SetTimeOffset(ntp uint64, rtp uint32) {
 func (t *diskTrack) SetCname(string) {
 }
 
-func clonePacket(packet *rtp.Packet) *rtp.Packet {
-	buf, err := packet.Marshal()
-	if err != nil {
-		return nil
-	}
-	var p rtp.Packet
-	err = p.Unmarshal(buf)
-	if err != nil {
-		return nil
-	}
-	return &p
-}
-
 func isKeyframe(codec string, data []byte) bool {
 	switch strings.ToLower(codec) {
 	case "video/vp8":
@@ -417,20 +404,24 @@ func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, 
 	}
 }
 
-func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
+func (t *diskTrack) Write(buf []byte) (int, error) {
 	// since we call initWriter, we take the connection lock for simplicity.
 	t.conn.mu.Lock()
 	defer t.conn.mu.Unlock()
 
 	if t.builder == nil {
-		return nil
+		return 0, nil
 	}
 
 	codec := t.remote.Codec()
 
-	p := clonePacket(packet)
-	if p == nil {
-		return nil
+	data := make([]byte, len(buf))
+	copy(data, buf)
+	p := new(rtp.Packet)
+	err := p.Unmarshal(data)
+	if err != nil {
+		log.Printf("Diskwriter: %v", err)
+		return 0, nil
 	}
 
 	if strings.ToLower(codec.MimeType) == "video/vp9" {
@@ -459,8 +450,9 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		if sample == nil {
 			if kfNeeded {
 				t.remote.RequestKeyframe()
+				return 0, nil
 			}
-			return nil
+			return len(buf), nil
 		}
 
 		keyframe := true
@@ -479,7 +471,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 					t.conn.warn(
 						"Write to disk " + err.Error(),
 					)
-					return err
+					return 0, err
 				}
 				t.lastKf = ts
 			} else if t.writer != nil {
@@ -498,7 +490,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 							"Write to disk " +
 								err.Error(),
 						)
-						return err
+						return 0, err
 					}
 				}
 			}
@@ -508,7 +500,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 			if !keyframe {
 				t.remote.RequestKeyframe()
 			}
-			return nil
+			return 0, nil
 		}
 
 		if t.origin == 0 {
@@ -519,7 +511,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		tm := ts / (t.remote.Codec().ClockRate / 1000)
 		_, err := t.writer.Write(keyframe, int64(tm), sample.Data)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 }

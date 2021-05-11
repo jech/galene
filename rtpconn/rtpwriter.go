@@ -6,8 +6,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pion/rtp"
-
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
@@ -211,17 +209,13 @@ func (writer *rtpWriter) add(track conn.DownTrack, add bool, max int) error {
 
 func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
 	buf := make([]byte, packetcache.BufSize)
-	var packet rtp.Packet
 	for _, seqno := range kf {
 		bytes := cache.Get(seqno, buf)
 		if bytes == 0 {
 			return
 		}
-		err := packet.Unmarshal(buf[:bytes])
-		if err != nil {
-			return
-		}
-		err = track.WriteRTP(&packet)
+
+		_, err := track.Write(buf[:bytes])
 		if err != nil {
 			return
 		}
@@ -233,8 +227,6 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 	defer close(writer.done)
 
 	buf := make([]byte, packetcache.BufSize)
-	var packet rtp.Packet
-
 	local := make([]conn.DownTrack, 0)
 
 	for {
@@ -310,13 +302,8 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				continue
 			}
 
-			err := packet.Unmarshal(buf[:bytes])
-			if err != nil {
-				continue
-			}
-
 			for _, l := range local {
-				err := l.WriteRTP(&packet)
+				_, err := l.Write(buf[:bytes])
 				if err != nil {
 					continue
 				}
