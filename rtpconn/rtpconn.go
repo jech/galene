@@ -171,9 +171,9 @@ func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection,
 	})
 
 	conn := &rtpDownConnection{
-		id:             id,
-		pc:             pc,
-		remote:         remote,
+		id:     id,
+		pc:     pc,
+		remote: remote,
 	}
 
 	return conn, nil
@@ -235,7 +235,7 @@ type rtpUpTrack struct {
 	atomics *upTrackAtomics
 	cname   atomic.Value
 
-	localCh    chan localTrackAction
+	localCh    chan trackAction
 	readerDone chan struct{}
 
 	mu            sync.Mutex
@@ -246,14 +246,20 @@ type rtpUpTrack struct {
 	bufferedNACKs []uint16
 }
 
-type localTrackAction struct {
-	add   bool
-	track conn.DownTrack
+const (
+	trackActionAdd = iota
+	trackActionDel
+	trackActionKeyframe
+)
+
+type trackAction struct {
+	action int
+	track  conn.DownTrack
 }
 
-func (up *rtpUpTrack) notifyLocal(add bool, track conn.DownTrack) {
+func (up *rtpUpTrack) action(action int, track conn.DownTrack) {
 	select {
-	case up.localCh <- localTrackAction{add, track}:
+	case up.localCh <- trackAction{action, track}:
 	case <-up.readerDone:
 	}
 }
@@ -271,7 +277,12 @@ func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 
 	// do this asynchronously, to avoid deadlocks when multiple
 	// clients call this simultaneously.
-	go up.notifyLocal(true, local)
+	go up.action(trackActionAdd, local)
+	return nil
+}
+
+func (up *rtpUpTrack) RequestKeyframe() error {
+	go up.action(trackActionKeyframe, nil)
 	return nil
 }
 
@@ -283,7 +294,7 @@ func (up *rtpUpTrack) DelLocal(local conn.DownTrack) bool {
 			up.local = append(up.local[:i], up.local[i+1:]...)
 			// do this asynchronously, to avoid deadlocking when
 			// multiple clients call this simultaneously.
-			go up.notifyLocal(false, l)
+			go up.action(trackActionDel, l)
 			return true
 		}
 	}
@@ -489,7 +500,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
 			atomics:    &upTrackAtomics{},
-			localCh:    make(chan localTrackAction, 2),
+			localCh:    make(chan trackAction, 2),
 			readerDone: make(chan struct{}),
 		}
 
@@ -977,7 +988,6 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 }
 
 func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RTPSender) {
-	var gotFir bool
 	lastFirSeqno := uint8(0)
 
 	buf := make([]byte, 1500)
@@ -1001,18 +1011,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.PictureLossIndication:
-				remote, ok := conn.remote.(*rtpUpConnection)
-				if !ok {
-					continue
-				}
-				rt, ok := track.remote.(*rtpUpTrack)
-				if !ok {
-					continue
-				}
-				err := remote.sendPLI(rt)
-				if err != nil && err != ErrRateLimited {
-					log.Printf("sendPLI: %v", err)
-				}
+				track.remote.RequestKeyframe()
 			case *rtcp.FullIntraRequest:
 				found := false
 				var seqno uint8
@@ -1028,29 +1027,8 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					continue
 				}
 
-				increment := true
-				if gotFir {
-					increment = seqno != lastFirSeqno
-				}
-				gotFir = true
-				lastFirSeqno = seqno
-
-				remote, ok := conn.remote.(*rtpUpConnection)
-				if !ok {
-					continue
-				}
-				rt, ok := track.remote.(*rtpUpTrack)
-				if !ok {
-					continue
-				}
-				err := remote.sendFIR(rt, increment)
-				if err == ErrUnsupportedFeedback {
-					err := remote.sendPLI(rt)
-					if err != nil && err != ErrRateLimited {
-						log.Printf("sendPLI: %v", err)
-					}
-				} else if err != nil && err != ErrRateLimited {
-					log.Printf("sendFIR: %v", err)
+				if seqno != lastFirSeqno {
+					track.remote.RequestKeyframe()
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				track.maxREMBBitrate.Set(p.Bitrate, jiffies)

@@ -9,7 +9,6 @@ import (
 )
 
 var ErrConnectionClosed = errors.New("connection is closed")
-var ErrKeyframeNeeded = errors.New("keyframe needed")
 
 // Type Up represents a connection in the client to server direction.
 type Up interface {
@@ -30,6 +29,7 @@ type UpTrack interface {
 	// get a recent packet.  Returns 0 if the packet is not in cache.
 	GetRTP(seqno uint16, result []byte) uint16
 	Nack(conn Up, seqnos []uint16) error
+	RequestKeyframe() error
 }
 
 // Type Down represents a connection in the server to client direction.

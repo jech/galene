@@ -21,6 +21,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
 	codec := track.track.Codec()
 	sendNACK := track.hasRtcpFb("nack", "")
+	var kfNeeded bool
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	for {
@@ -41,8 +42,10 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 		track.jitter.Accumulate(packet.Timestamp)
 
-		kf, _ := isKeyframe(codec.MimeType, &packet)
-
+		kf, kfKnown := isKeyframe(codec.MimeType, &packet)
+		if kf || !kfKnown {
+			kfNeeded = false
+		}
 		if packet.Extension {
 			packet.Extension = false
 			packet.Extensions = nil
@@ -102,11 +105,29 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 		select {
 		case action := <-track.localCh:
-			err := writers.add(action.track, action.add)
-			if err != nil {
-				log.Printf("add/remove track: %v", err)
+			switch action.action {
+			case trackActionAdd, trackActionDel:
+				err := writers.add(
+					action.track,
+					action.action == trackActionAdd,
+				)
+				if err != nil {
+					log.Printf("add/remove track: %v", err)
+				}
+			case trackActionKeyframe:
+				kfNeeded = true
+			default:
+				log.Printf("Unknown action %v", action.action)
 			}
 		default:
+		}
+
+		if kfNeeded {
+			err := conn.sendPLI(track)
+			if err != nil && err != ErrRateLimited {
+				log.Printf("sendPLI: %v", err)
+				kfNeeded = false
+			}
 		}
 	}
 }

@@ -458,7 +458,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		sample, ts := t.builder.PopWithTimestamp()
 		if sample == nil {
 			if kfNeeded {
-				return conn.ErrKeyframeNeeded
+				t.remote.RequestKeyframe()
 			}
 			return nil
 		}
@@ -506,7 +506,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 		if t.writer == nil {
 			if !keyframe {
-				return conn.ErrKeyframeNeeded
+				t.remote.RequestKeyframe()
 			}
 			return nil
 		}
