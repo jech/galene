@@ -20,6 +20,7 @@ import (
 	"github.com/jech/galene/ice"
 	"github.com/jech/galene/jitter"
 	"github.com/jech/galene/packetcache"
+	"github.com/jech/galene/packetmap"
 	"github.com/jech/galene/rtptime"
 )
 
@@ -74,6 +75,7 @@ type downTrackAtomics struct {
 	srNTP     uint64
 	remoteNTP uint64
 	remoteRTP uint32
+	layerInfo uint32
 }
 
 type rtpDownTrack struct {
@@ -81,20 +83,13 @@ type rtpDownTrack struct {
 	sender         *webrtc.RTPSender
 	remote         conn.UpTrack
 	ssrc           webrtc.SSRC
+	packetmap      packetmap.Map
 	maxBitrate     *bitrate
 	maxREMBBitrate *bitrate
 	rate           *estimator.Estimator
 	stats          *receiverStats
 	atomics        *downTrackAtomics
 	cname          atomic.Value
-}
-
-func (down *rtpDownTrack) Write(buf []byte) (int, error) {
-	n, err := down.track.Write(buf)
-	if err == nil {
-		down.rate.Accumulate(uint32(n))
-	}
-	return n, err
 }
 
 func (down *rtpDownTrack) SetTimeOffset(ntp uint64, rtp uint32) {
@@ -129,6 +124,17 @@ func (down *rtpDownTrack) setSRTime(tm uint64, ntp uint64) {
 
 func (down *rtpDownTrack) SetCname(cname string) {
 	down.cname.Store(cname)
+}
+
+func (down *rtpDownTrack) getLayerInfo() (uint8, uint8, uint8) {
+	info := atomic.LoadUint32(&down.atomics.layerInfo)
+	return uint8(info >> 16), uint8(info >> 8), uint8(info)
+}
+
+func (down *rtpDownTrack) setLayerInfo(layer, wanted, max uint8) {
+	atomic.StoreUint32(&down.atomics.layerInfo,
+		(uint32(layer)<<16)|(uint32(wanted)<<8)|uint32(max),
+	)
 }
 
 const (
@@ -179,17 +185,108 @@ func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection,
 	return conn, nil
 }
 
-func (t *rtpDownTrack) GetMaxBitrate() uint64 {
+var packetBufPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, packetcache.BufSize)
+	},
+}
+
+func (down *rtpDownTrack) Write(buf []byte) (int, error) {
+	codec := down.remote.Codec().MimeType
+
+	seqno, start, pid, tid, _, u, _, err := packetFlags(codec, buf)
+	if err != nil {
+		return 0, err
+	}
+
+	layer, wantedLayer, maxLayer := down.getLayerInfo()
+
+	if tid > maxLayer {
+		if layer == maxLayer {
+			wantedLayer = tid
+			layer = tid
+		}
+		maxLayer = tid
+		if wantedLayer > maxLayer {
+			wantedLayer = maxLayer
+		}
+		down.setLayerInfo(layer, wantedLayer, maxLayer)
+		down.adjustLayer()
+	}
+	if start && layer != wantedLayer {
+		if u || wantedLayer < layer {
+			layer = wantedLayer
+			down.setLayerInfo(layer, wantedLayer, maxLayer)
+		}
+	}
+
+	if tid > layer {
+		ok := down.packetmap.Drop(seqno, pid)
+		if ok {
+			return 0, nil
+		}
+	}
+
+	ok, newseqno, piddelta := down.packetmap.Map(seqno, pid)
+	if !ok {
+		return 0, nil
+	}
+
+	if newseqno == seqno && piddelta == 0 {
+		return down.write(buf)
+	}
+
+	ibuf2 := packetBufPool.Get()
+	defer packetBufPool.Put(ibuf2)
+	buf2 := ibuf2.([]byte)
+
+	n := copy(buf2, buf)
+	err = rewritePacket(codec, buf2[:n], newseqno, piddelta)
+	if err != nil {
+		return 0, err
+	}
+	return down.write(buf2[:n])
+}
+
+func (down *rtpDownTrack) write(buf []byte) (int, error) {
+	n, err := down.track.Write(buf)
+	if err == nil {
+		down.rate.Accumulate(uint32(n))
+	}
+	return n, err
+}
+
+func (t *rtpDownTrack) GetMaxBitrate() (uint64, int) {
 	now := rtptime.Jiffies()
+	layer, _, _ := t.getLayerInfo()
 	r := t.maxBitrate.Get(now)
 	if r == ^uint64(0) {
 		r = 512 * 1024
 	}
 	rr := t.maxREMBBitrate.Get(now)
 	if rr == 0 || r < rr {
-		return r
+		return r, int(layer)
 	}
-	return rr
+	return rr, int(layer)
+}
+
+func (t *rtpDownTrack) adjustLayer() {
+	max, _ := t.GetMaxBitrate()
+	r, _ := t.rate.Estimate()
+	rate := uint64(r) * 8
+	if rate < max*7/8 {
+		layer, wanted, max := t.getLayerInfo()
+		if layer < max {
+			wanted = layer + 1
+			t.setLayerInfo(layer, wanted, max)
+		}
+	} else if rate > max*3/2 {
+		layer, wanted, max := t.getLayerInfo()
+		if layer > 0 {
+			wanted = layer - 1
+			t.setLayerInfo(layer, wanted, max)
+		}
+	}
 }
 
 func (down *rtpDownConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
@@ -240,6 +337,7 @@ type rtpUpTrack struct {
 	srTime        uint64
 	srNTPTime     uint64
 	srRTPTime     uint32
+	maxLayer      uint8
 	local         []conn.DownTrack
 	bufferedNACKs []uint16
 }
@@ -598,7 +696,11 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 	var packet rtp.Packet
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
-		nack.Range(func(seqno uint16) bool {
+		nack.Range(func(s uint16) bool {
+			ok, seqno, _ := track.packetmap.Reverse(s)
+			if !ok {
+				return true
+			}
 			l := track.remote.GetRTP(seqno, buf)
 			if l == 0 {
 				unhandled = append(unhandled, seqno)
@@ -785,28 +887,44 @@ func sendUpRTCP(up *rtpUpConnection) error {
 			continue
 		}
 		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
-		var r uint64
 		if t.Kind() == webrtc.RTPCodecTypeAudio {
-			r = 100 * 1024
+			rate += 100 * 1024
 		} else if t.Label() == "l" {
-			r = group.LowBitrate
+			rate += group.LowBitrate
 		} else {
+			minrate := ^uint64(0)
+			maxrate := uint64(group.MinBitrate)
+			maxlayer := 0
 			local := t.getLocal()
-			r = ^uint64(0)
 			for _, down := range local {
-				rr := down.GetMaxBitrate()
-				if rr < group.MinBitrate {
-					rr = group.MinBitrate
+				r, l := down.GetMaxBitrate()
+				if maxlayer < l {
+					maxlayer = l
 				}
-				if r > rr {
-					r = rr
+				if r < group.MinBitrate {
+					r = group.MinBitrate
+				}
+				if minrate > r {
+					minrate = r
+				}
+				if maxrate < r {
+					maxrate = r
 				}
 			}
-			if r == ^uint64(0) {
-				r = 512 * 1024
+			// assume that each layer takes two times less
+			// throughput than the higher one.  Then we've
+			// got enough slack for a factor of 2^(layers-1).
+			for i := 0; i < maxlayer; i++ {
+				if minrate < ^uint64(0)/2 {
+					minrate *= 2
+				}
+			}
+			if minrate < maxrate {
+				rate += minrate
+			} else {
+				rate += maxrate
 			}
 		}
-		rate += r
 	}
 
 	if rate < ^uint64(0) && len(ssrcs) > 0 {
@@ -968,6 +1086,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 			continue
 		}
 
+		adjust := false
 		jiffies := rtptime.Jiffies()
 
 		for _, p := range ps {
@@ -994,10 +1113,12 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				track.maxREMBBitrate.Set(p.Bitrate, jiffies)
+				adjust = true
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == uint32(track.ssrc) {
 						handleReport(track, r, jiffies)
+						adjust = true
 					}
 				}
 			case *rtcp.SenderReport:
@@ -1009,6 +1130,9 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 			case *rtcp.TransportLayerNack:
 				gotNACK(conn, track, p)
 			}
+		}
+		if adjust {
+			track.adjustLayer()
 		}
 	}
 }

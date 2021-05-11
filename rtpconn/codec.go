@@ -1,6 +1,7 @@
 package rtpconn
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/pion/rtp"
@@ -107,4 +108,102 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 	} else {
 		return false, false
 	}
+}
+
+var errTruncated = errors.New("truncated packet")
+var errUnsupportedCodec = errors.New("unsupported codec")
+
+func packetFlags(codec string, buf []byte) (seqno uint16, start bool, pid uint16, tid uint8, sid uint8, layersync bool, discardable bool, err error) {
+	if len(buf) < 12 {
+		err = errTruncated
+		return
+	}
+
+	seqno = (uint16(buf[2]) << 8) | uint16(buf[3])
+
+	if strings.EqualFold(codec, "video/vp8") {
+		var packet rtp.Packet
+		err = packet.Unmarshal(buf)
+		if err != nil {
+			return
+		}
+		var vp8 codecs.VP8Packet
+		_, err = vp8.Unmarshal(packet.Payload)
+		if err != nil {
+			return
+		}
+
+		start = vp8.S == 1 && vp8.PID == 0
+		pid = vp8.PictureID
+		tid = vp8.TID
+		layersync = vp8.Y == 1
+		discardable = vp8.N == 1
+		return
+	} else if strings.EqualFold(codec, "video/vp9") {
+		var packet rtp.Packet
+		err = packet.Unmarshal(buf)
+		if err != nil {
+			return
+		}
+		var vp9 codecs.VP9Packet
+		_, err = vp9.Unmarshal(packet.Payload)
+		if err != nil {
+			return
+		}
+		start = vp9.B
+		tid = vp9.TID
+		sid = vp9.SID
+		layersync = vp9.U
+		return
+	}
+	return
+}
+
+func rewritePacket(codec string, data []byte, seqno uint16, delta uint16) error {
+	if len(data) < 12 {
+		return errTruncated
+	}
+
+	data[2] = uint8(seqno >> 8)
+	data[3] = uint8(seqno)
+	if delta == 0 {
+		return nil
+	}
+
+	offset := 12
+	offset += int(data[0]&0x0F) * 4
+	if len(data) < offset+4 {
+		return errTruncated
+	}
+
+	if (data[0] & 0x10) != 0 {
+		length := uint16(data[offset+2])<<8 | uint16(data[offset+3])
+		offset += 4 + int(length)*4
+		if len(data) < offset+4 {
+			return errTruncated
+		}
+	}
+
+	if strings.EqualFold(codec, "video/vp8") {
+		x := (data[offset] & 0x80) != 0
+		if !x {
+			return nil
+		}
+		i := (data[offset+1] & 0x80) != 0
+		if !i {
+			return nil
+		}
+		m := (data[offset+2] & 0x80) != 0
+		if m {
+			pid := (uint16(data[offset+2]&0x7F) << 8) |
+				uint16(data[offset+3])
+			pid = (pid + delta) & 0x7FFF
+			data[offset+2] = 0x80 | byte((pid>>8)&0x7F)
+			data[offset+3] = byte(pid & 0xFF)
+		} else {
+			data[offset+2] = (data[offset+2] + uint8(delta)) & 0x7F
+		}
+		return nil
+	}
+	return errUnsupportedCodec
 }

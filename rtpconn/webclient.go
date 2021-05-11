@@ -1270,6 +1270,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return closeDownConn(c, m.Id, message)
 		}
 		down := getDownConn(c, m.Id)
+		if down == nil {
+			return ErrUnknownId
+		}
 		if down.negotiationNeeded > negotiationUnneeded {
 			err := negotiate(
 				c, down,

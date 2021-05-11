@@ -40,5 +40,5 @@ type DownTrack interface {
 	Write(buf []byte) (int, error)
 	SetTimeOffset(ntp uint64, rtp uint32)
 	SetCname(string)
-	GetMaxBitrate() uint64
+	GetMaxBitrate() (uint64, int)
 }

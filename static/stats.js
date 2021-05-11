@@ -95,23 +95,26 @@ function formatTrack(table, track) {
     tr.appendChild(document.createElement('td'));
     tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
-    if(track.maxBitrate)
-        td.textContent = `${track.bitrate||0}/${track.maxBitrate}`;
-    else
-        td.textContent = `${track.bitrate||0}`;
+    td.textContent = track.layer;
     tr.appendChild(td);
     let td2 = document.createElement('td');
-    td2.textContent = `${Math.round(track.loss * 100)}%`;
+    if(track.maxBitrate)
+        td2.textContent = `${track.bitrate||0}/${track.maxBitrate}`;
+    else
+        td2.textContent = `${track.bitrate||0}`;
     tr.appendChild(td2);
     let td3 = document.createElement('td');
+    td3.textContent = `${Math.round(track.loss * 100)}%`;
+    tr.appendChild(td3);
+    let td4 = document.createElement('td');
     let text = '';
     if(track.rtt) {
         text = text + `${Math.round(track.rtt * 1000) / 1000}ms`;
     }
     if(track.jitter)
         text = text + `±${Math.round(track.jitter * 1000) / 1000}ms`;
-    td3.textContent = text;
-    tr.appendChild(td3);
+    td4.textContent = text;
+    tr.appendChild(td4);
     table.appendChild(tr);
 }
 

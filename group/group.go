@@ -61,8 +61,8 @@ type ChatHistoryEntry struct {
 }
 
 const (
-	LowBitrate = 100000
-	MinBitrate = 2 * LowBitrate
+	LowBitrate = 100 * 1024
+	MinBitrate = LowBitrate * 2
 )
 
 type Group struct {
