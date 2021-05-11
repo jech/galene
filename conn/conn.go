@@ -39,7 +39,6 @@ type Down interface {
 // Type DownTrack represents a track in the server to client direction.
 type DownTrack interface {
 	WriteRTP(packat *rtp.Packet) error
-	Accumulate(bytes uint32)
 	SetTimeOffset(ntp uint64, rtp uint32)
 	SetCname(string)
 	GetMaxBitrate() uint64

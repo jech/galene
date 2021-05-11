@@ -603,7 +603,3 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 func (t *diskTrack) GetMaxBitrate() uint64 {
 	return ^uint64(0)
 }
-
-func (t *diskTrack) Accumulate(bytes uint32) {
-	return
-}

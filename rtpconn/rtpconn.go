@@ -90,11 +90,14 @@ type rtpDownTrack struct {
 }
 
 func (down *rtpDownTrack) WriteRTP(packet *rtp.Packet) error {
-	return down.track.WriteRTP(packet)
-}
-
-func (down *rtpDownTrack) Accumulate(bytes uint32) {
-	down.rate.Accumulate(bytes)
+	err := down.track.WriteRTP(packet)
+	if err == nil {
+		// we should account for extensions
+		down.rate.Accumulate(
+			uint32(12 + 4*len(packet.CSRC) + len(packet.Payload)),
+		)
+	}
+	return err
 }
 
 func (down *rtpDownTrack) SetTimeOffset(ntp uint64, rtp uint32) {
@@ -650,7 +653,6 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 				log.Printf("WriteRTP: %v", err)
 				return false
 			}
-			track.rate.Accumulate(uint32(l))
 			return true
 		})
 	}

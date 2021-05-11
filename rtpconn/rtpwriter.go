@@ -225,7 +225,6 @@ func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
 		if err != nil {
 			return
 		}
-		track.Accumulate(uint32(bytes))
 	}
 }
 
@@ -321,7 +320,6 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				if err != nil {
 					continue
 				}
-				l.Accumulate(uint32(bytes))
 			}
 		}
 	}
