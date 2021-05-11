@@ -225,9 +225,7 @@ func (down *rtpDownConnection) flushICECandidates() error {
 }
 
 type upTrackAtomics struct {
-	lastPLI  uint64
-	lastFIR  uint64
-	firSeqno uint32
+	lastPLI uint64
 }
 
 type rtpUpTrack struct {
@@ -543,41 +541,6 @@ func (up *rtpUpConnection) sendPLI(track *rtpUpTrack) error {
 func sendPLI(pc *webrtc.PeerConnection, ssrc webrtc.SSRC) error {
 	return pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.PictureLossIndication{MediaSSRC: uint32(ssrc)},
-	})
-}
-
-func (up *rtpUpConnection) sendFIR(track *rtpUpTrack, increment bool) error {
-	// we need to reliably increment the seqno, even if we are going
-	// to drop the packet due to rate limiting.
-	var seqno uint8
-	if increment {
-		seqno = uint8(atomic.AddUint32(&track.atomics.firSeqno, 1) & 0xFF)
-	} else {
-		seqno = uint8(atomic.LoadUint32(&track.atomics.firSeqno) & 0xFF)
-	}
-
-	if !track.hasRtcpFb("ccm", "fir") {
-		return ErrUnsupportedFeedback
-	}
-	last := atomic.LoadUint64(&track.atomics.lastFIR)
-	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec/2 {
-		return ErrRateLimited
-	}
-	atomic.StoreUint64(&track.atomics.lastFIR, now)
-	return sendFIR(up.pc, track.track.SSRC(), seqno)
-}
-
-func sendFIR(pc *webrtc.PeerConnection, ssrc webrtc.SSRC, seqno uint8) error {
-	return pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.FullIntraRequest{
-			FIR: []rtcp.FIREntry{
-				{
-					SSRC:           uint32(ssrc),
-					SequenceNumber: seqno,
-				},
-			},
-		},
 	})
 }
 
