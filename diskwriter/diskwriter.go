@@ -260,15 +260,50 @@ type diskTrack struct {
 }
 
 func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
+	var audio, video conn.UpTrack
+
+	for _, remote := range remoteTracks {
+		codec := remote.Codec().MimeType
+		if strings.EqualFold(codec, "audio/opus") {
+			if audio == nil {
+				audio = remote
+			} else {
+				client.group.WallOps("Multiple audio tracks, recording just one")
+			}
+		} else if strings.EqualFold(codec, "video/vp8") ||
+			strings.EqualFold(codec, "video/vp9") {
+			println(remote.Label())
+			if video == nil || video.Label() == "l" {
+				video = remote
+			} else if remote.Label() != "l" {
+				client.group.WallOps("Multiple video tracks, recording just one")
+			}
+		} else {
+			client.group.WallOps("Unknown codec, " + codec + ", not recording")
+		}
+	}
+
+	if video == nil && audio == nil {
+		return nil, errors.New("no usable tracks found")
+	}
+
+	tracks := make([]conn.UpTrack, 0, 2)
+	if audio != nil {
+		tracks = append(tracks, audio)
+	}
+	if video != nil {
+		tracks = append(tracks, video)
+	}
+
 	_, username := up.User()
 	conn := diskConn{
 		client:    client,
 		directory: directory,
 		username:  username,
-		tracks:    make([]*diskTrack, 0, len(remoteTracks)),
+		tracks:    make([]*diskTrack, 0, len(tracks)),
 		remote:    up,
 	}
-	for _, remote := range remoteTracks {
+	for _, remote := range tracks {
 		var builder *samplebuilder.SampleBuilder
 		codec := remote.Codec()
 		if strings.EqualFold(codec.MimeType, "audio/opus") {
@@ -279,9 +314,6 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				),
 			)
 		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
-			if conn.hasVideo {
-				return nil, errors.New("multiple video tracks not supported")
-			}
 			builder = samplebuilder.New(
 				128, &codecs.VP8Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
@@ -290,9 +322,6 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
-			if conn.hasVideo {
-				return nil, errors.New("multiple video tracks not supported")
-			}
 			builder = samplebuilder.New(
 				128, &codecs.VP9Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
@@ -301,8 +330,9 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 			)
 			conn.hasVideo = true
 		} else {
-			client.group.WallOps(
-				"Cannot record codec " + codec.MimeType,
+			// this shouldn't happen
+			return nil, errors.New(
+				"cannot record codec " + codec.MimeType,
 			)
 			continue
 		}
