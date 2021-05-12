@@ -1184,10 +1184,10 @@ function setUpStream(c, stream) {
             streams: [stream],
             sendEncodings: encodings,
         });
-        // Disable simulcast on Firefox
         if(t.kind === 'video') {
             let p = tr.sender.getParameters();
-            if(!p.encodings && simulcast) {
+            if(!p.encodings) {
+                // Firefox workaround
                 updateSettings({simulcast: 'off'});
                 reflectSettings();
                 p.encodings = [encodings[0]];
