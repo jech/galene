@@ -12,8 +12,7 @@ import (
 // definitely not the case, and (false, false) if the information cannot
 // be determined.
 func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
-	switch strings.ToLower(codec) {
-	case "video/vp8":
+	if strings.EqualFold(codec, "video/vp8") {
 		var vp8 codecs.VP8Packet
 		_, err := vp8.Unmarshal(packet.Payload)
 		if err != nil || len(vp8.Payload) < 1 {
@@ -24,7 +23,7 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 			return true, true
 		}
 		return false, true
-	case "video/vp9":
+	} else if strings.EqualFold(codec, "video/vp9") {
 		var vp9 codecs.VP9Packet
 		_, err := vp9.Unmarshal(packet.Payload)
 		if err != nil || len(vp9.Payload) < 1 {
@@ -43,7 +42,7 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 			return (vp9.Payload[0] & 0xC) == 0, true
 		}
 		return (vp9.Payload[0] & 0x6) == 0, true
-	case "video/h264":
+	} else if strings.EqualFold(codec, "video/h264") {
 		if len(packet.Payload) < 1 {
 			return false, false
 		}
@@ -105,8 +104,7 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 			return (packet.Payload[1]&0x1F == 5), true
 		}
 		return false, false
-
-	default:
+	} else {
 		return false, false
 	}
 }

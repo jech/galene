@@ -271,15 +271,14 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 	for _, remote := range remoteTracks {
 		var builder *samplebuilder.SampleBuilder
 		codec := remote.Codec()
-		switch strings.ToLower(codec.MimeType) {
-		case "audio/opus":
+		if strings.EqualFold(codec.MimeType, "audio/opus") {
 			builder = samplebuilder.New(
 				16, &codecs.OpusPacket{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.OpusPartitionHeadChecker{},
 				),
 			)
-		case "video/vp8":
+		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			if conn.hasVideo {
 				return nil, errors.New("multiple video tracks not supported")
 			}
@@ -290,7 +289,7 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				),
 			)
 			conn.hasVideo = true
-		case "video/vp9":
+		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			if conn.hasVideo {
 				return nil, errors.New("multiple video tracks not supported")
 			}
@@ -301,7 +300,7 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				),
 			)
 			conn.hasVideo = true
-		default:
+		} else {
 			client.group.WallOps(
 				"Cannot record codec " + codec.MimeType,
 			)
@@ -339,13 +338,12 @@ func (t *diskTrack) SetCname(string) {
 }
 
 func isKeyframe(codec string, data []byte) bool {
-	switch strings.ToLower(codec) {
-	case "video/vp8":
+	if strings.EqualFold(codec, "video/vp8") {
 		if len(data) < 1 {
 			return false
 		}
 		return (data[0] & 0x1) == 0
-	case "video/vp9":
+	} else if strings.EqualFold(codec, "video/vp9") {
 		if len(data) < 1 {
 			return false
 		}
@@ -357,14 +355,13 @@ func isKeyframe(codec string, data []byte) bool {
 			return (data[0] & 0xC) == 0
 		}
 		return (data[0] & 0x6) == 0
-	default:
+	} else {
 		panic("Eek!")
 	}
 }
 
 func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, uint32) {
-	switch strings.ToLower(codec) {
-	case "video/vp8":
+	if strings.EqualFold(codec, "video/vp8") {
 		if len(data) < 10 {
 			return 0, 0
 		}
@@ -373,7 +370,7 @@ func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, 
 		width := raw & 0x3FFF
 		height := (raw >> 16) & 0x3FFF
 		return width, height
-	case "video/vp9":
+	} else if strings.EqualFold(codec, "video/vp9") {
 		if packet == nil {
 			return 0, 0
 		}
@@ -399,7 +396,7 @@ func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, 
 			}
 		}
 		return w, h
-	default:
+	} else {
 		return 0, 0
 	}
 }
@@ -424,7 +421,7 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 		return 0, nil
 	}
 
-	if strings.ToLower(codec.MimeType) == "video/vp9" {
+	if strings.EqualFold(codec.MimeType, "video/vp9") {
 		var vp9 codecs.VP9Packet
 		_, err := vp9.Unmarshal(p.Payload)
 		if err == nil && vp9.B && len(vp9.Payload) >= 1 {
@@ -457,8 +454,8 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 
 		keyframe := true
 
-		switch strings.ToLower(codec.MimeType) {
-		case "video/vp8", "video/vp9":
+		if strings.EqualFold(codec.MimeType, "video/vp8") ||
+			strings.EqualFold(codec.MimeType, "video/vp9") {
 			keyframe = isKeyframe(codec.MimeType, sample.Data)
 			if keyframe {
 				err := t.conn.initWriter(
@@ -481,7 +478,7 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 					kfNeeded = true
 				}
 			}
-		default:
+		} else {
 			if t.writer == nil {
 				if !t.conn.hasVideo {
 					err := t.conn.initWriter(0, 0)
@@ -525,8 +522,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	for i, t := range conn.tracks {
 		var entry webm.TrackEntry
 		codec := t.remote.Codec()
-		switch strings.ToLower(codec.MimeType) {
-		case "audio/opus":
+		if strings.EqualFold(codec.MimeType, "audio/opus") {
 			entry = webm.TrackEntry{
 				Name:        "Audio",
 				TrackNumber: uint64(i + 1),
@@ -537,7 +533,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					Channels:          uint64(codec.Channels),
 				},
 			}
-		case "video/vp8":
+		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			entry = webm.TrackEntry{
 				Name:        "Video",
 				TrackNumber: uint64(i + 1),
@@ -548,7 +544,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					PixelHeight: uint64(height),
 				},
 			}
-		case "video/vp9":
+		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			entry = webm.TrackEntry{
 				Name:        "Video",
 				TrackNumber: uint64(i + 1),
@@ -559,7 +555,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					PixelHeight: uint64(height),
 				},
 			}
-		default:
+		} else {
 			return errors.New("unknown track type")
 		}
 		entries = append(entries, entry)
