@@ -930,7 +930,7 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 		// bottleneck
 		r, _ := track.rate.Estimate()
 		actual := 8 * uint64(r)
-		if actual >= (rate*7)/8 {
+		if actual >= (rate*3)/4 {
 			// loss < 0.02, multiply by 1.05
 			rate = rate * 269 / 256
 			if rate > maxLossRate {
