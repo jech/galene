@@ -361,9 +361,25 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 		}
 	}
 
+	id := remoteTrack.track.ID()
+	if id == "" {
+		log.Println("Got track with empty id")
+		id = remoteTrack.track.RID()
+	}
+	if id == "" {
+		id = remoteTrack.track.Kind().String()
+	}
+	msid := remoteTrack.track.StreamID()
+	if msid == "" {
+		log.Println("Got track with empty msid")
+		msid = remoteConn.Label()
+	}
+	if msid == "" {
+		msid = "dummy"
+	}
+
 	local, err := webrtc.NewTrackLocalStaticRTP(
-		remoteTrack.Codec(),
-		remoteTrack.track.ID(), remoteTrack.track.StreamID(),
+		remoteTrack.Codec(), id, msid,
 	)
 	if err != nil {
 		return err
