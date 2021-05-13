@@ -142,7 +142,7 @@ func codecFromName(name string) (webrtc.RTPCodecCapability, error) {
 	case "vp9":
 		return webrtc.RTPCodecCapability{
 			"video/VP9", 90000, 0,
-			"profile-id=2",
+			"profile-id=0",
 			nil,
 		}, nil
 	case "h264":
