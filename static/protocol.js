@@ -1068,6 +1068,8 @@ function recomputeUserStreams(sc, id, c) {
 
     for(id in sc.down) {
         let c = sc.down[id];
+        if(!c.stream)
+            continue;
         if(!user.down[c.label])
             user.down[c.label] = {};
         c.stream.getTracks().forEach(t => {
