@@ -79,6 +79,10 @@ func (client *Client) PushClient(id, username string, permissions *group.ClientP
 	return nil
 }
 
+func (client *Client) RequestConns(target group.Client, g *group.Group, id string) error {
+	return nil
+}
+
 func (client *Client) Close() error {
 	client.mu.Lock()
 	defer client.mu.Unlock()

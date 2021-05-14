@@ -644,17 +644,18 @@ func (c *webClient) setRequested(requested map[string][]string) error {
 	}
 	c.requested = requested
 
-	pushConns(c, c.group)
+	requestConns(c, c.group, "")
 	return nil
 }
 
-func pushConns(c group.Client, g *group.Group) {
-	clients := g.GetClients(c)
-	for _, cc := range clients {
-		ccc, ok := cc.(*webClient)
-		if ok {
-			ccc.action(pushConnsAction{g, c})
-		}
+func (c *webClient) RequestConns(target group.Client, g *group.Group, id string) error {
+	return c.action(requestConnsAction{g, target, id})
+}
+
+func requestConns(target group.Client, g *group.Group, id string) {
+	clients := g.GetClients(target)
+	for _, c := range clients {
+		c.RequestConns(target, g, id)
 	}
 }
 
@@ -801,9 +802,10 @@ type pushConnAction struct {
 	replace string
 }
 
-type pushConnsAction struct {
+type requestConnsAction struct {
 	group  *group.Group
-	client group.Client
+	target group.Client
+	id     string
 }
 
 type connectionFailedAction struct {
@@ -933,12 +935,15 @@ func handleAction(c *webClient, a interface{}) error {
 			closeDownConn(c, down.id,
 				"negotiation failed")
 		}
-	case pushConnsAction:
+	case requestConnsAction:
 		g := c.group
 		if g == nil || a.group != g {
 			return nil
 		}
 		for _, u := range c.up {
+			if a.id != "" && a.id != u.id {
+				continue
+			}
 			tracks := u.getTracks()
 			replace := u.getReplace(false)
 
@@ -946,7 +951,7 @@ func handleAction(c *webClient, a interface{}) error {
 			for i, t := range tracks {
 				ts[i] = t
 			}
-			err := a.client.PushConn(g, u.id, u, ts, replace)
+			err := a.target.PushConn(g, u.id, u, ts, replace)
 			if err != nil {
 				log.Printf("PushConn: %v", err)
 			}
@@ -1417,7 +1422,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				disk.Close()
 				return c.error(err)
 			}
-			pushConns(disk, c.group)
+			requestConns(disk, c.group, "")
 		case "unrecord":
 			if !c.permissions.Record {
 				return c.error(group.UserError("not authorised"))
