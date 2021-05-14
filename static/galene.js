@@ -371,7 +371,6 @@ function setViewportHeight() {
     // Ajust video component size
     resizePeers();
 }
-setViewportHeight();
 
 // On resize and orientation change, we update viewport height
 addEventListener('resize', setViewportHeight);
@@ -2937,6 +2936,8 @@ function start() {
 
     fillLogin();
     document.getElementById("login-container").classList.remove('invisible');
+
+    setViewportHeight();
 }
 
 start();
