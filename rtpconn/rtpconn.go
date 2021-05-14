@@ -1022,7 +1022,7 @@ func sendSR(conn *rtpDownConnection) error {
 
 func rtcpDownSender(conn *rtpDownConnection) {
 	for {
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / 2)
 		err := sendSR(conn)
 		if err != nil {
 			if err == io.EOF || err == io.ErrClosedPipe {
