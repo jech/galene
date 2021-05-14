@@ -275,6 +275,7 @@ function hideVideo(force) {
     if(mediadiv.childElementCount > 0 && !force)
         return;
     setVisibility('video-container', false);
+    scheduleReconsiderDownRate();
 }
 
 function showVideo() {
@@ -284,6 +285,7 @@ function showVideo() {
         setVisibility('collapse-video', hasmedia);
     }
     setVisibility('video-container', hasmedia);
+    scheduleReconsiderDownRate();
 }
 
 function fillLogin() {
@@ -305,12 +307,16 @@ function setConnected(connected) {
         userbox.classList.remove('invisible');
         connectionbox.classList.add('invisible');
         displayUsername();
+        window.onresize = function(e) {
+            scheduleReconsiderDownRate();
+        }
     } else {
         fillLogin();
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         displayError('Disconnected', 'error');
         hideVideo();
+        window.onresize = null;
     }
 }
 
@@ -580,10 +586,24 @@ function mapRequest(what) {
         return {'': ['audio','video']}
         break;
     default:
-        displayError(`Unknown value ${what} in request`);
-        return {};
+        throw new Error(`Unknown value ${what} in request`);
     }
 }
+
+/**
+ * @param {string} what
+ * @param {string} label
+ * @returns {Array<string>}
+ */
+
+function mapRequestLabel(what, label) {
+    let r = mapRequest(what);
+    if(label in r)
+        return r[label];
+    else
+        return r[''];
+}
+
 
 getSelectElement('requestselect').onchange = function(e) {
     e.preventDefault();
@@ -591,6 +611,7 @@ getSelectElement('requestselect').onchange = function(e) {
         throw new Error('Unexpected type for this');
     updateSettings({request: this.value});
     serverConnection.request(mapRequest(this.value));
+    reconsiderDownRate();
 };
 
 const activityDetectionInterval = 200;
@@ -1483,6 +1504,113 @@ function muteLocalTracks(mute) {
 }
 
 /**
+ * @param {string} id
+ * @param {boolean} force
+ * @param {boolean} [value]
+ */
+function forceDownRate(id, force, value) {
+    let c = serverConnection.down[id];
+    if(!c)
+        throw new Error("Unknown down stream");
+    if('requested' in c.userdata) {
+        if(force)
+            c.userdata.requested.force = !!value;
+        else
+            delete(c.userdata.requested.force);
+    } else {
+        if(force)
+            c.userdata.requested = {force: value};
+    }
+    reconsiderDownRate(id);
+}
+
+/**
+ * Maps 'video' to 'video-low'.  Returns null if nothing changed.
+ *
+ * @param {string[]} requested
+ * @returns {string[]}
+ */
+function mapVideoToLow(requested) {
+    let result = [];
+    let found = false;
+    for(let i = 0; i < requested.length; i++) {
+        let r = requested[i];
+        if(r === 'video') {
+            r = 'video-low';
+            found = true;
+        }
+        result.push(r);
+    }
+    if(!found)
+        return null;
+    return result;
+}
+
+/**
+ * Reconsider the video track requested for a given down stream.
+ *
+ * @param {string} [id] - the id of the track to reconsider, all if null.
+ */
+function reconsiderDownRate(id) {
+    if(!serverConnection)
+        return;
+    if(!id) {
+        for(let id in serverConnection.down) {
+            reconsiderDownRate(id);
+        }
+        return;
+    }
+    let c = serverConnection.down[id];
+    if(!c)
+        throw new Error("Unknown down stream");
+    let normalrequest = mapRequestLabel(getSettings().request, c.label);
+
+    let requestlow = mapVideoToLow(normalrequest);
+    if(requestlow === null)
+        return;
+
+    let old = c.userdata.requested;
+    let low = false;
+    if(old && ('force' in old)) {
+        low = old.force;
+    } else {
+        let media = /** @type {HTMLVideoElement} */
+            (document.getElementById('media-' + c.localId));
+        if(!media)
+            throw new Error("No media for stream");
+        let w = media.scrollWidth;
+        let h = media.scrollHeight;
+        if(w && h && w * h <= 320 * 240) {
+            low = true;
+        }
+    }
+
+    if(low !== !!(old && old.low)) {
+        if('requested' in c.userdata)
+            c.userdata.requested.low = low;
+        else
+            c.userdata.requested = {low: low};
+        c.request(low ? requestlow : null);
+    }
+}
+
+let reconsiderDownRateTimer = null;
+
+/**
+ * Schedules reconsiderDownRate() to be run later.  The delay avoids too
+ * much recomputations when resizing the window.
+ */
+function scheduleReconsiderDownRate() {
+    if(reconsiderDownRateTimer)
+        return;
+    reconsiderDownRateTimer =
+        setTimeout(() => {
+            reconsiderDownRateTimer = null;
+            reconsiderDownRate();
+        }, 200);
+}
+
+/**
  * setMedia adds a new media element corresponding to stream c.
  *
  * @param {Stream} c
@@ -1532,6 +1660,12 @@ async function setMedia(c, isUp, mirror, video) {
 
     if(!video && media.srcObject !== c.stream)
         media.srcObject = c.stream;
+
+    if(!isUp) {
+        media.onfullscreenchange = function(e) {
+            forceDownRate(c.id, document.fullscreenElement === media, false);
+        }
+    }
 
     let label = document.getElementById('label-' + c.localId);
     if(!label) {
@@ -2936,7 +3070,6 @@ function start() {
 
     fillLogin();
     document.getElementById("login-container").classList.remove('invisible');
-
     setViewportHeight();
 }
 
