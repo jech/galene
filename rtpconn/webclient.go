@@ -426,7 +426,7 @@ func delDownTrackUnlocked(conn *rtpDownConnection, track *rtpDownTrack) error {
 	return os.ErrNotExist
 }
 
-func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack, remoteConn conn.Up) error {
+func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack, remoteConn conn.Up) (bool, error) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
@@ -437,12 +437,12 @@ outer:
 	for _, rtrack := range remote {
 		rt, ok := rtrack.(*rtpUpTrack)
 		if !ok {
-			return errUnexpectedTrackType
+			return false, errUnexpectedTrackType
 		}
 		for _, track := range conn.tracks {
 			rt2, ok := track.remote.(*rtpUpTrack)
 			if !ok {
-				return errUnexpectedTrackType
+				return false, errUnexpectedTrackType
 			}
 			if rt == rt2 {
 				continue outer
@@ -455,12 +455,12 @@ outer2:
 	for _, track := range conn.tracks {
 		rt, ok := track.remote.(*rtpUpTrack)
 		if !ok {
-			return errUnexpectedTrackType
+			return false, errUnexpectedTrackType
 		}
 		for _, rtrack := range remote {
 			rt2, ok := rtrack.(*rtpUpTrack)
 			if !ok {
-				return errUnexpectedTrackType
+				return false, errUnexpectedTrackType
 			}
 			if rt == rt2 {
 				continue outer2
@@ -469,21 +469,25 @@ outer2:
 		del = append(del, track)
 	}
 
+	if len(del) == 0 && len(add) == 0 {
+		return false, nil
+	}
+
 	for _, t := range del {
 		err := delDownTrackUnlocked(conn, t)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	for _, rt := range add {
 		err := addDownTrackUnlocked(conn, rt, remoteConn)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return true, nil
 }
 
 func negotiate(c *webClient, down *rtpDownConnection, restartIce bool, replace string) error {
@@ -906,9 +910,12 @@ func handleAction(c *webClient, a interface{}) error {
 		if err != nil {
 			return err
 		}
-		err = replaceTracks(down, tracks, a.conn)
+		done, err := replaceTracks(down, tracks, a.conn)
 		if err != nil {
 			return err
+		}
+		if !done {
+			return nil
 		}
 		if a.replace != "" {
 			err := delDownConn(c, a.replace)
