@@ -214,7 +214,7 @@ function ServerConnection() {
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
   * @property {string} [label]
-  * @property {Object<string,Array<string>>} [request]
+  * @property {Object<string,Array<string>>|Array<string>} [request]
   * @property {Object<string,any>} [rtcConfiguration]
   */
 
@@ -440,11 +440,11 @@ ServerConnection.prototype.leave = function(group) {
 };
 
 /**
- * request sets the list of requested media types.
+ * request sets the list of requested tracks
  *
  * @param {Object<string,Array<string>>} what
- *     - A dictionary that maps labels to a sequence of 'audio' and 'video'.
- *       An entry with an empty label '' provides the default.
+ *     - A dictionary that maps labels to a sequence of 'audio', 'video'
+ *       or 'video-low.  An entry with an empty label '' provides the default.
  */
 ServerConnection.prototype.request = function(what) {
     this.send({
@@ -1217,6 +1217,21 @@ Stream.prototype.restartIce = function () {
 
     // negotiate is async, but this returns immediately.
     c.negotiate(true);
+};
+
+/**
+ * request sets the list of tracks.  If this is not called, or called with
+ * a null argument, then the default is provided by ServerConnection.request.
+ *
+ * @param {Array<string>} what - a sequence of 'audio', 'video' or 'video-low'.
+ */
+Stream.prototype.request = function(what) {
+    let c = this;
+    c.sc.send({
+        type: 'requestStream',
+        id: c.id,
+        request: what,
+    });
 };
 
 /**

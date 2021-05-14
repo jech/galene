@@ -213,6 +213,16 @@ restart by sending a `renegotiate` message:
 }
 ```
 
+At any time after answering, the client may change the set of streams
+being offered by sending a 'requestStream' request:
+```javascript
+{
+    type: 'answerStream'
+    id: id,
+    request: [audio, video]
+}
+```
+
 ## Closing streams
 
 The offerer may close a stream at any time by sending a `close` message.

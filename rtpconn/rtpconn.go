@@ -149,6 +149,7 @@ type rtpDownConnection struct {
 	remote            conn.Up
 	iceCandidates     []*webrtc.ICECandidateInit
 	negotiationNeeded int
+	requested         []string
 
 	mu     sync.Mutex
 	tracks []*rtpDownTrack
@@ -432,6 +433,7 @@ func (up *rtpUpTrack) hasRtcpFb(tpe, parameter string) bool {
 
 type rtpUpConnection struct {
 	id            string
+	client        group.Client
 	label         string
 	userId        string
 	username      string
@@ -585,7 +587,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 		}
 	}
 
-	up := &rtpUpConnection{id: id, label: label, pc: pc}
+	up := &rtpUpConnection{id: id, client: c, label: label, pc: pc}
 
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		up.mu.Lock()
