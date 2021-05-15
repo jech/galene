@@ -442,6 +442,7 @@ function setButtonsVisibility() {
 
     setVisibility('mediaoptions', permissions.present);
     setVisibility('sendform', permissions.present);
+    setVisibility('simulcastform', permissions.present);
     setVisibility('fileform', canFile && permissions.present);
 
     setVisibility('collapse-video', mediacount && mobilelayout);
