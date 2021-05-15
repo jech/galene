@@ -370,7 +370,10 @@ func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 
 	ss := stats.GetGroups()
 	e := json.NewEncoder(w)
-	e.Encode(ss)
+	err = e.Encode(ss)
+	if err != nil {
+		log.Printf("stats.json: %v", err)
+	}
 	return
 }
 

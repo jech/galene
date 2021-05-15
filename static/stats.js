@@ -37,82 +37,85 @@ async function listStats() {
     }
 
     for(let i = 0; i < l.length; i++)
-        table.appendChild(formatGroup(l[i]));
+        formatGroup(table, l[i]);
 }
 
-function formatGroup(group) {
+function formatGroup(table, group) {
     let tr = document.createElement('tr');
     let td = document.createElement('td');
     td.textContent = group.name;
     tr.appendChild(td);
+    table.appendChild(tr);
     if(group.clients) {
-        let td2 = document.createElement('td');
-        let table = document.createElement('table');
         for(let i = 0; i < group.clients.length; i++) {
             let client = group.clients[i];
             let tr2 = document.createElement('tr');
-            let td3 = document.createElement('td');
-            td3.textContent = client.id;
-            tr2.appendChild(td3);
+            tr2.appendChild(document.createElement('td'));
+            let td2 = document.createElement('td');
+            td2.textContent = client.id;
+            tr2.appendChild(td2);
             table.appendChild(tr2);
             if(client.up)
-                for(let j = 0; j < client.up.length; j++)
-                    table.appendChild(formatConn('↑', client.up[j]));
+                for(let j = 0; j < client.up.length; j++) {
+                    formatConn(table, '↑', client.up[j]);
+                }
             if(client.down)
-                for(let j = 0; j < client.down.length; j++)
-                    table.appendChild(formatConn('↓', client.down[j]));
+                for(let j = 0; j < client.down.length; j++) {
+                    formatConn(table, '↓', client.down[j]);
+                }
         }
-        td2.appendChild(table);
-        tr.appendChild(td2);
     }
     return tr;
 }
 
-function formatConn(direction, conn) {
+function formatConn(table, direction, conn) {
     let tr = document.createElement('tr');
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
+    td.textContent = conn.id;
     tr.appendChild(td);
     let td2 = document.createElement('td');
-    td2.textContent = conn.id;
+    td2.textContent = direction;
     tr.appendChild(td2);
     let td3 = document.createElement('td');
     if(conn.maxBitrate)
-        td3.textContent = direction + ' ' + conn.maxBitrate;
-    else
-        td3.textContent = direction;
+        td3.textContent = `${conn.maxBitrate}`;
     tr.appendChild(td3);
-    let td4 = document.createElement('td');
+    table.appendChild(tr);
     if(conn.tracks) {
-        let table = document.createElement('table');
         for(let i = 0; i < conn.tracks.length; i++)
-            table.appendChild(formatTrack(conn.tracks[i]));
-        td4.appendChild(table);
+            formatTrack(table, conn.tracks[i]);
     }
-    tr.appendChild(td4);
-    return tr;
 }
 
-function formatTrack(track) {
+function formatTrack(table, track) {
     let tr = document.createElement('tr');
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
-    if(track.maxBitrate)
-        td.textContent = `${track.bitrate||0}/${track.maxBitrate}`;
-    else
-        td.textContent = `${track.bitrate||0}`;
+    td.textContent = track.layer;
     tr.appendChild(td);
     let td2 = document.createElement('td');
-    td2.textContent = `${Math.round(track.loss * 100)}%`;
+    if(track.maxBitrate)
+        td2.textContent = `${track.bitrate||0}/${track.maxBitrate}`;
+    else
+        td2.textContent = `${track.bitrate||0}`;
     tr.appendChild(td2);
     let td3 = document.createElement('td');
+    td3.textContent = `${Math.round(track.loss * 100)}%`;
+    tr.appendChild(td3);
+    let td4 = document.createElement('td');
     let text = '';
     if(track.rtt) {
         text = text + `${Math.round(track.rtt * 1000) / 1000}ms`;
     }
     if(track.jitter)
         text = text + `±${Math.round(track.jitter * 1000) / 1000}ms`;
-    td3.textContent = text;
-    tr.appendChild(td3);
-    return tr;
+    td4.textContent = text;
+    tr.appendChild(td4);
+    table.appendChild(tr);
 }
 
 listStats();

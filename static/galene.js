@@ -78,6 +78,7 @@ function getUserPass() {
  * @property {boolean} [localMute]
  * @property {string} [video]
  * @property {string} [audio]
+ * @property {string} [simulcast]
  * @property {string} [send]
  * @property {string} [request]
  * @property {boolean} [activityDetection]
@@ -228,6 +229,13 @@ function reflectSettings() {
         store = true;
     }
 
+    if(settings.hasOwnProperty('simulcast')) {
+        getSelectElement('simulcastselect').value = settings.simulcast
+    } else {
+        settings.simulcast = getSelectElement('simulcastselect').value;
+        store = true;
+    }
+
     if(settings.hasOwnProperty('blackboardMode')) {
         getInputElement('blackboardbox').checked = settings.blackboardMode;
     } else {
@@ -267,6 +275,7 @@ function hideVideo(force) {
     if(mediadiv.childElementCount > 0 && !force)
         return;
     setVisibility('video-container', false);
+    scheduleReconsiderDownRate();
 }
 
 function showVideo() {
@@ -276,6 +285,7 @@ function showVideo() {
         setVisibility('collapse-video', hasmedia);
     }
     setVisibility('video-container', hasmedia);
+    scheduleReconsiderDownRate();
 }
 
 function fillLogin() {
@@ -297,12 +307,16 @@ function setConnected(connected) {
         userbox.classList.remove('invisible');
         connectionbox.classList.add('invisible');
         displayUsername();
+        window.onresize = function(e) {
+            scheduleReconsiderDownRate();
+        }
     } else {
         fillLogin();
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         displayError('Disconnected', 'error');
         hideVideo();
+        window.onresize = null;
     }
 }
 
@@ -363,7 +377,6 @@ function setViewportHeight() {
     // Ajust video component size
     resizePeers();
 }
-setViewportHeight();
 
 // On resize and orientation change, we update viewport height
 addEventListener('resize', setViewportHeight);
@@ -392,12 +405,6 @@ getButtonElement('unpresentbutton').onclick = function(e) {
     resizePeers();
 };
 
-function changePresentation() {
-    let c = findUpMedia('camera');
-    if(c)
-        addLocalMedia(c.localId);
-}
-
 /**
  * @param {string} id
  * @param {boolean} visible
@@ -414,7 +421,6 @@ function setButtonsVisibility() {
     let connected = serverConnection && serverConnection.socket;
     let permissions = serverConnection.permissions;
     let local = !!findUpMedia('camera');
-    let video = !!findUpMedia('video');
     let canWebrtc = !(typeof RTCPeerConnection === 'undefined');
     let canFile =
         /** @ts-ignore */
@@ -434,10 +440,9 @@ function setButtonsVisibility() {
     setVisibility('sharebutton', canWebrtc && permissions.present &&
                   ('getDisplayMedia' in navigator.mediaDevices));
 
-    setVisibility('stopvideobutton', video);
-
     setVisibility('mediaoptions', permissions.present);
     setVisibility('sendform', permissions.present);
+    setVisibility('simulcastform', permissions.present);
     setVisibility('fileform', canFile && permissions.present);
 
     setVisibility('collapse-video', mediacount && mobilelayout);
@@ -469,7 +474,7 @@ getSelectElement('videoselect').onchange = function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({video: this.value});
-    changePresentation();
+    replaceCameraStream();
 };
 
 getSelectElement('audioselect').onchange = function(e) {
@@ -477,7 +482,7 @@ getSelectElement('audioselect').onchange = function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({audio: this.value});
-    changePresentation();
+    replaceCameraStream();
 };
 
 getInputElement('mirrorbox').onchange = function(e) {
@@ -485,7 +490,8 @@ getInputElement('mirrorbox').onchange = function(e) {
     if(!(this instanceof HTMLInputElement))
         throw new Error('Unexpected type for this');
     updateSettings({mirrorView: this.checked});
-    changePresentation();
+    // no need to reopen the camera
+    replaceUpStreams('camera');
 };
 
 getInputElement('blackboardbox').onchange = function(e) {
@@ -493,7 +499,7 @@ getInputElement('blackboardbox').onchange = function(e) {
     if(!(this instanceof HTMLInputElement))
         throw new Error('Unexpected type for this');
     updateSettings({blackboardMode: this.checked});
-    changePresentation();
+    replaceCameraStream();
 };
 
 document.getElementById('mutebutton').onclick = function(e) {
@@ -508,17 +514,19 @@ document.getElementById('sharebutton').onclick = function(e) {
     addShareMedia();
 };
 
-document.getElementById('stopvideobutton').onclick = function(e) {
-    e.preventDefault();
-    closeUpMedia('video');
-    resizePeers();
-};
-
 getSelectElement('filterselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({filter: this.value});
-    changePresentation();
+    let c = findUpMedia('camera');
+    if(c) {
+        let filter = (this.value && filters[this.value]) || null;
+        if(filter)
+            c.userdata.filterDefinition = filter;
+        else
+            delete c.userdata.filterDefinition;
+        replaceUpStream(c);
+    }
 };
 
 /** @returns {number} */
@@ -543,11 +551,14 @@ getSelectElement('sendselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
     updateSettings({send: this.value});
-    let t = getMaxVideoThroughput();
-    for(let id in serverConnection.up) {
-        let c = serverConnection.up[id];
-        await setMaxVideoThroughput(c, t);
-    }
+    await reconsiderSendParameters();
+};
+
+getSelectElement('simulcastselect').onchange = async function(e) {
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
+    updateSettings({simulcast: this.value});
+    await reconsiderSendParameters();
 };
 
 /**
@@ -563,17 +574,37 @@ function mapRequest(what) {
     case 'audio':
         return {'': ['audio']};
         break;
+    case 'screenshare-low':
+        return {screenshare: ['audio','video-low'], '': ['audio']};
+        break;
     case 'screenshare':
         return {screenshare: ['audio','video'], '': ['audio']};
+        break;
+    case 'everything-low':
+        return {'': ['audio','video-low']};
         break;
     case 'everything':
         return {'': ['audio','video']}
         break;
     default:
-        displayError(`Unknown value ${what} in request`);
-        return {};
+        throw new Error(`Unknown value ${what} in request`);
     }
 }
+
+/**
+ * @param {string} what
+ * @param {string} label
+ * @returns {Array<string>}
+ */
+
+function mapRequestLabel(what, label) {
+    let r = mapRequest(what);
+    if(label in r)
+        return r[label];
+    else
+        return r[''];
+}
+
 
 getSelectElement('requestselect').onchange = function(e) {
     e.preventDefault();
@@ -581,6 +612,7 @@ getSelectElement('requestselect').onchange = function(e) {
         throw new Error('Unexpected type for this');
     updateSettings({request: this.value});
     serverConnection.request(mapRequest(this.value));
+    reconsiderDownRate();
 };
 
 const activityDetectionInterval = 200;
@@ -624,20 +656,25 @@ getInputElement('fileinput').onchange = function(e) {
 function gotUpStats(stats) {
     let c = this;
 
-    let text = '';
+    let values = [];
 
-    c.pc.getSenders().forEach(s => {
-        let tid = s.track && s.track.id;
-        let stats = tid && c.stats[tid];
-        let rate = stats && stats['outbound-rtp'] && stats['outbound-rtp'].rate;
-        if(typeof rate === 'number') {
-            if(text)
-                text = text + ' + ';
-            text = text + Math.round(rate / 1000) + 'kbps';
+    for(let id in stats) {
+        if(stats[id] && stats[id]['outbound-rtp']) {
+            let rate = stats[id]['outbound-rtp'].rate;
+            if(typeof rate === 'number') {
+                values.push(rate);
+            }
         }
-    });
+    }
 
-    setLabel(c, text);
+    if(values.length === 0) {
+        setLabel(c, '');
+    } else {
+        values.sort((x,y) => x - y);
+        setLabel(c, values
+                 .map(x => Math.round(x / 1000).toString())
+                 .reduce((x, y) => x + '+' + y));
+    }
 }
 
 /**
@@ -809,10 +846,15 @@ function newUpStream(localId) {
 }
 
 /**
+ * Sets an up stream's video throughput and simulcast parameters.
+ *
  * @param {Stream} c
- * @param {number} [bps]
+ * @param {number} bps
+ * @param {boolean} simulcast
  */
-async function setMaxVideoThroughput(c, bps) {
+async function setSendParameters(c, bps, simulcast) {
+    if(!c.up)
+        throw new Error('Setting throughput of down stream');
     let senders = c.pc.getSenders();
     for(let i = 0; i < senders.length; i++) {
         let s = senders[i];
@@ -821,17 +863,51 @@ async function setMaxVideoThroughput(c, bps) {
         let p = s.getParameters();
         if(!p.encodings)
             p.encodings = [{}];
-        p.encodings.forEach(e => {
-            if(bps > 0)
-                e.maxBitrate = bps;
-            else
-                delete e.maxBitrate;
-        });
-        try {
-            await s.setParameters(p);
-        } catch(e) {
-            console.error(e);
+        if((!simulcast && p.encodings.length != 1) ||
+           (simulcast && p.encodings.length != 2)) {
+            // change the simulcast envelope
+            await replaceUpStream(c);
+            return;
         }
+        p.encodings.forEach(e => {
+            if(!e.rid || e.rid === 'h')
+                e.maxBitrate = bps || unlimitedRate;
+        });
+        await s.setParameters(p);
+    }
+}
+
+let reconsiderParametersTimer = null;
+
+/**
+ * Sets the send parameters for all up streams.
+ */
+async function reconsiderSendParameters() {
+    cancelReconsiderParameters();
+    let t = getMaxVideoThroughput();
+    let s = doSimulcast();
+    let promises = [];
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
+        promises.push(setSendParameters(c, t, s));
+    }
+    await Promise.all(promises);
+}
+
+/**
+ * Schedules a call to reconsiderSendParameters after a delay.
+ * The delay avoids excessive flapping.
+ */
+function scheduleReconsiderParameters() {
+    cancelReconsiderParameters();
+    reconsiderParametersTimer =
+        setTimeout(reconsiderSendParameters, 10000 + Math.random() * 10000);
+}
+
+function cancelReconsiderParameters() {
+    if(reconsiderParametersTimer) {
+        clearTimeout(reconsiderParametersTimer);
+        reconsiderParametersTimer = null;
     }
 }
 
@@ -953,31 +1029,37 @@ Filter.prototype.stop = function() {
 };
 
 /**
+ * Removes any filter set on c.
+ *
  * @param {Stream} c
- * @param {Filter} f
  */
-function setFilter(c, f) {
-    if(!f) {
-        let filter = c.userdata.filter;
-        if(!filter)
-            return null;
-        if(!(filter instanceof Filter))
-            throw new Error('userdata.filter is not a filter');
-        if(c.userdata.filter) {
-            c.stream = c.userdata.filter.inputStream;
-            c.userdata.filter.stop();
-            c.userdata.filter = null;
-        }
-        return
-    }
+function removeFilter(c) {
+    let old = c.userdata.filter;
+    if(!old)
+        return;
 
-    if(c.userdata.filter)
-        setFilter(c, null);
+    if(!(old instanceof Filter))
+        throw new Error('userdata.filter is not a filter');
 
-    if(f.inputStream != c.stream)
-        throw new Error('Setting filter for wrong stream');
-    c.stream = f.outputStream;
-    c.userdata.filter = f;
+    c.stream = old.inputStream;
+    old.stop();
+    c.userdata.filter = null;
+}
+
+/**
+ * Sets the filter described by c.userdata.filterDefinition on c.
+ *
+ * @param {Stream} c
+ */
+function setFilter(c) {
+    removeFilter(c);
+
+    if(!c.userdata.filterDefinition)
+        return;
+
+    let filter = new Filter(c.stream, c.userdata.filterDefinition);
+    c.stream = filter.outputStream;
+    c.userdata.filter = filter;
 }
 
 /**
@@ -1029,23 +1111,198 @@ function isSafari() {
     return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
 }
 
+const unlimitedRate = 1000000000;
+const simulcastRate = 100000;
+
 /**
+ * Decide whether we want to send simulcast.
+ *
+ * @returns {boolean}
+ */
+function doSimulcast() {
+    switch(getSettings().simulcast) {
+    case 'on':
+        return true;
+    case 'off':
+        return false;
+    default:
+        if(Object.keys(serverConnection.users).length <= 2)
+            return false;
+        let bps = getMaxVideoThroughput();
+        return bps <= 0 || bps >= 2 * simulcastRate;
+    }
+}
+
+/**
+ * Sets up c to send the given stream.  Some extra parameters are stored
+ * in c.userdata.
+ *
  * @param {Stream} c
- * @param {MediaStreamTrack} t
  * @param {MediaStream} stream
  */
-function addUpTrack(c, t, stream) {
-    let encodings = [{}];
-    if(t.kind === 'video') {
-        let bps = getMaxVideoThroughput();
-        if(bps > 0)
-            encodings[0].maxBitrate = bps;
+
+function setUpStream(c, stream) {
+    if(c.stream != null)
+        throw new Error("Setting nonempty stream");
+
+    c.stream = stream;
+
+    try {
+        setFilter(c);
+    } catch(e) {
+        displayWarning("Couldn't set filter: " + e);
     }
-    c.pc.addTransceiver(t, {
-        direction: 'sendonly',
-        streams: [stream],
-        sendEncodings: encodings,
-    });
+
+    c.onclose = replace => {
+        removeFilter(c);
+        if(!replace) {
+            stopStream(c.stream);
+            if(c.userdata.onclose)
+                c.userdata.onclose.call(c);
+            delMedia(c.localId);
+        }
+    }
+
+    /**
+     * @param {MediaStreamTrack} t
+     */
+    function addUpTrack(t) {
+        if(c.label === 'camera') {
+            let settings = getSettings();
+            if(t.kind == 'audio') {
+                if(settings.localMute)
+                    t.enabled = false;
+            } else if(t.kind == 'video') {
+                if(settings.blackboardMode) {
+                    /** @ts-ignore */
+                    t.contentHint = 'detail';
+                }
+            }
+        }
+        t.onended = e => {
+            stream.onaddtrack = null;
+            stream.onremovetrack = null;
+            c.close();
+        };
+
+        let encodings = [];
+        let simulcast = doSimulcast();
+        if(t.kind === 'video') {
+            let bps = getMaxVideoThroughput();
+            encodings.push({
+                rid: 'h',
+                maxBitrate: bps || unlimitedRate,
+            });
+            if(simulcast)
+                encodings.push({
+                    rid: 'l',
+                    scaleResolutionDownBy: 2,
+                    maxBitrate: simulcastRate,
+                });
+        }
+        let tr = c.pc.addTransceiver(t, {
+            direction: 'sendonly',
+            streams: [stream],
+            sendEncodings: encodings,
+        });
+        if(t.kind === 'video') {
+            let p = tr.sender.getParameters();
+            if(!p.encodings) {
+                // Firefox workaround
+                updateSettings({simulcast: 'off'});
+                reflectSettings();
+                p.encodings = [encodings[0]];
+                tr.sender.setParameters(p);
+            }
+        }
+    }
+
+    // c.stream might be different from stream if there's a filter
+    c.stream.getTracks().forEach(addUpTrack);
+
+    stream.onaddtrack = function(e) {
+        addUpTrack(e.track);
+    };
+
+    stream.onremovetrack = function(e) {
+        let t = e.track;
+
+        /** @type {RTCRtpSender} */
+        let sender;
+        c.pc.getSenders().forEach(s => {
+            if(s.track === t)
+                sender = s;
+        });
+        if(sender) {
+            c.pc.removeTrack(sender);
+        } else {
+            console.warn('Removing unknown track');
+        }
+
+        let found = false;
+        c.pc.getSenders().forEach(s => {
+            if(s.track)
+                found = true;
+        });
+        if(!found) {
+            stream.onaddtrack = null;
+            stream.onremovetrack = null;
+            c.close();
+        }
+    };
+
+    c.onstats = gotUpStats;
+    c.setStatsInterval(2000);
+}
+
+/**
+ * Replaces c with a freshly created stream, duplicating any relevant
+ * parameters in c.userdata.
+ *
+ * @param {Stream} c
+ * @returns {Promise<Stream>}
+ */
+async function replaceUpStream(c) {
+    removeFilter(c);
+    let cn = newUpStream(c.localId);
+    cn.label = c.label;
+    if(c.userdata.filterDefinition)
+        cn.userdata.filterDefinition = c.userdata.filterDefinition;
+    if(c.userdata.onclose)
+        cn.userdata.onclose = c.userdata.onclose;
+    let media = /** @type{HTMLVideoElement} */
+        (document.getElementById('media-' + c.localId));
+    setUpStream(cn, c.stream);
+    await setMedia(cn, true,
+                   cn.label == 'camera' && getSettings().mirrorView,
+                   cn.label == 'video' && media);
+    return cn;
+}
+
+/**
+ * Replaces all up streams with the given label.  If label is null,
+ * replaces all up stream.
+ *
+ * @param {string} label
+ */
+async function replaceUpStreams(label) {
+    let promises = [];
+    for(let id in serverConnection.up) {
+        let c = serverConnection.up[id];
+        if(label && c.label !== label)
+            continue
+        promises.push(replaceUpStream(c));
+    }
+    await Promise.all(promises);
+}
+
+/**
+ * Closes and reopens the camera then replaces the camera stream.
+ */
+function replaceCameraStream() {
+    let c = findUpMedia('camera');
+    if(c)
+        addLocalMedia(c.localId);
 }
 
 /**
@@ -1056,14 +1313,6 @@ async function addLocalMedia(localId) {
 
     let audio = settings.audio ? {deviceId: settings.audio} : false;
     let video = settings.video ? {deviceId: settings.video} : false;
-
-    let filter = null;
-    if(settings.filter) {
-        filter = filters[settings.filter];
-        if(!filter) {
-            displayWarning(`Unknown filter ${settings.filter}`);
-        }
-    }
 
     if(video) {
         let resolution = settings.resolution;
@@ -1104,51 +1353,17 @@ async function addLocalMedia(localId) {
         return;
     }
 
-    c.stream = stream;
     c.label = 'camera';
 
-    if(filter) {
-        try {
-            let f = new Filter(stream, filter);
-            setFilter(c, f);
-            c.onclose = replace => {
-                stopStream(stream);
-                setFilter(c, null);
-                if(!replace)
-                    delMedia(c.localId);
-            }
-        } catch(e) {
-            displayWarning(e);
-            c.onclose = replace => {
-                stopStream(c.stream);
-                if(!replace)
-                    delMedia(c.localId);
-            }
-        }
-    } else {
-        c.onclose = replace => {
-            stopStream(c.stream);
-            if(!replace)
-                delMedia(c.localId);
-        }
+    if(settings.filter) {
+        let filter = filters[settings.filter];
+        if(filter)
+            c.userdata.filterDefinition = filter;
+        else
+            displayWarning(`Unknown filter ${settings.filter}`);
     }
 
-    let mute = getSettings().localMute;
-    c.stream.getTracks().forEach(t => {
-        if(t.kind == 'audio') {
-            if(mute)
-                t.enabled = false;
-        } else if(t.kind == 'video') {
-            if(settings.blackboardMode) {
-                /** @ts-ignore */
-                t.contentHint = 'detail';
-            }
-        }
-        addUpTrack(c, t, stream);
-    });
-
-    c.onstats = gotUpStats;
-    c.setStatsInterval(2000);
+    setUpStream(c, stream);
     await setMedia(c, true, settings.mirrorView);
     setButtonsVisibility();
 }
@@ -1177,19 +1392,8 @@ async function addShareMedia() {
     }
 
     let c = newUpStream();
-    c.stream = stream;
     c.label = 'screenshare';
-    c.onclose = replace => {
-        stopStream(stream);
-        if(!replace)
-            delMedia(c.localId);
-    }
-    stream.getTracks().forEach(t => {
-        addUpTrack(c, t, stream)
-        t.onended = e => c.close();
-    });
-    c.onstats = gotUpStats;
-    c.setStatsInterval(2000);
+    setUpStream(c, stream);
     await setMedia(c, true);
     setButtonsVisibility();
 }
@@ -1217,60 +1421,24 @@ async function addFileMedia(file) {
     }
 
     let c = newUpStream();
-    c.stream = stream;
     c.label = 'video';
-    c.onclose = function(replace) {
-        stopStream(c.stream);
+    c.userdata.onclose = function() {
         let media = /** @type{HTMLVideoElement} */
             (document.getElementById('media-' + this.localId));
         if(media && media.src) {
             URL.revokeObjectURL(media.src);
             media.src = null;
         }
-        if(!replace)
-            delMedia(c.localId);
     };
+    await setUpStream(c, stream);
 
-    stream.onaddtrack = function(e) {
-        let t = e.track;
-        if(t.kind === 'audio') {
-            let presenting = !!findUpMedia('camera');
-            let muted = getSettings().localMute;
-            if(presenting && !muted) {
-                setLocalMute(true, true);
-                displayWarning('You have been muted');
-            }
-        }
-        addUpTrack(c, t, stream);
-        c.onstats = gotUpStats;
-        c.setStatsInterval(2000);
-    };
-    stream.onremovetrack = function(e) {
-        let t = e.track;
+    let presenting = !!findUpMedia('camera');
+    let muted = getSettings().localMute;
+    if(presenting && !muted) {
+        setLocalMute(true, true);
+        displayWarning('You have been muted');
+    }
 
-        /** @type {RTCRtpSender} */
-        let sender;
-        c.pc.getSenders().forEach(s => {
-            if(s.track === t)
-                sender = s;
-        });
-        if(sender) {
-            c.pc.removeTrack(sender);
-        } else {
-            console.warn('Removing unknown track');
-        }
-
-        let found = false;
-        c.pc.getSenders().forEach(s => {
-            if(s.track)
-                found = true;
-        });
-        if(!found) {
-            stream.onaddtrack = null;
-            stream.onremovetrack = null;
-            c.close();
-        }
-    };
     await setMedia(c, true, false, video);
     c.userdata.play = true;
     setButtonsVisibility();
@@ -1337,6 +1505,113 @@ function muteLocalTracks(mute) {
 }
 
 /**
+ * @param {string} id
+ * @param {boolean} force
+ * @param {boolean} [value]
+ */
+function forceDownRate(id, force, value) {
+    let c = serverConnection.down[id];
+    if(!c)
+        throw new Error("Unknown down stream");
+    if('requested' in c.userdata) {
+        if(force)
+            c.userdata.requested.force = !!value;
+        else
+            delete(c.userdata.requested.force);
+    } else {
+        if(force)
+            c.userdata.requested = {force: value};
+    }
+    reconsiderDownRate(id);
+}
+
+/**
+ * Maps 'video' to 'video-low'.  Returns null if nothing changed.
+ *
+ * @param {string[]} requested
+ * @returns {string[]}
+ */
+function mapVideoToLow(requested) {
+    let result = [];
+    let found = false;
+    for(let i = 0; i < requested.length; i++) {
+        let r = requested[i];
+        if(r === 'video') {
+            r = 'video-low';
+            found = true;
+        }
+        result.push(r);
+    }
+    if(!found)
+        return null;
+    return result;
+}
+
+/**
+ * Reconsider the video track requested for a given down stream.
+ *
+ * @param {string} [id] - the id of the track to reconsider, all if null.
+ */
+function reconsiderDownRate(id) {
+    if(!serverConnection)
+        return;
+    if(!id) {
+        for(let id in serverConnection.down) {
+            reconsiderDownRate(id);
+        }
+        return;
+    }
+    let c = serverConnection.down[id];
+    if(!c)
+        throw new Error("Unknown down stream");
+    let normalrequest = mapRequestLabel(getSettings().request, c.label);
+
+    let requestlow = mapVideoToLow(normalrequest);
+    if(requestlow === null)
+        return;
+
+    let old = c.userdata.requested;
+    let low = false;
+    if(old && ('force' in old)) {
+        low = old.force;
+    } else {
+        let media = /** @type {HTMLVideoElement} */
+            (document.getElementById('media-' + c.localId));
+        if(!media)
+            throw new Error("No media for stream");
+        let w = media.scrollWidth;
+        let h = media.scrollHeight;
+        if(w && h && w * h <= 320 * 240) {
+            low = true;
+        }
+    }
+
+    if(low !== !!(old && old.low)) {
+        if('requested' in c.userdata)
+            c.userdata.requested.low = low;
+        else
+            c.userdata.requested = {low: low};
+        c.request(low ? requestlow : null);
+    }
+}
+
+let reconsiderDownRateTimer = null;
+
+/**
+ * Schedules reconsiderDownRate() to be run later.  The delay avoids too
+ * much recomputations when resizing the window.
+ */
+function scheduleReconsiderDownRate() {
+    if(reconsiderDownRateTimer)
+        return;
+    reconsiderDownRateTimer =
+        setTimeout(() => {
+            reconsiderDownRateTimer = null;
+            reconsiderDownRate();
+        }, 200);
+}
+
+/**
  * setMedia adds a new media element corresponding to stream c.
  *
  * @param {Stream} c
@@ -1361,11 +1636,7 @@ async function setMedia(c, isUp, mirror, video) {
 
     let media = /** @type {HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
-    if(media) {
-        if(video) {
-            throw new Error("Duplicate video");
-        }
-    } else {
+    if(!media) {
         if(video) {
             media = video;
         } else {
@@ -1380,8 +1651,7 @@ async function setMedia(c, isUp, mirror, video) {
         media.playsinline = true;
         media.id = 'media-' + c.localId;
         div.appendChild(media);
-        if(!video)
-            addCustomControls(media, div, c);
+        addCustomControls(media, div, c, !!video);
     }
 
     if(mirror)
@@ -1391,6 +1661,12 @@ async function setMedia(c, isUp, mirror, video) {
 
     if(!video && media.srcObject !== c.stream)
         media.srcObject = c.stream;
+
+    if(!isUp) {
+        media.onfullscreenchange = function(e) {
+            forceDownRate(c.id, document.fullscreenElement === media, false);
+        }
+    }
 
     let label = document.getElementById('label-' + c.localId);
     if(!label) {
@@ -1446,39 +1722,35 @@ function cloneHTMLElement(elt) {
  * @param {HTMLElement} container
  * @param {Stream} c
  */
-function addCustomControls(media, container, c) {
-    media.controls = false;
-    let controls = document.getElementById('controls-' + c.localId);
-    if(controls) {
-        console.warn('Attempted to add duplicate controls');
-        return;
+function addCustomControls(media, container, c, toponly) {
+    if(!toponly && !document.getElementById('controls-' + c.localId)) {
+        media.controls = false;
+
+        let template =
+            document.getElementById('videocontrols-template').firstElementChild;
+        let controls = cloneHTMLElement(template);
+        controls.id = 'controls-' + c.localId;
+
+        let volume = getVideoButton(controls, 'volume');
+
+        if(c.up && c.label === 'camera') {
+            volume.remove();
+        } else {
+            setVolumeButton(media.muted,
+                            getVideoButton(controls, "volume-mute"),
+                            getVideoButton(controls, "volume-slider"));
+        }
+        container.appendChild(controls);
     }
 
-    let template =
-        document.getElementById('videocontrols-template').firstElementChild;
-    let toptemplate =
-        document.getElementById('topvideocontrols-template').firstElementChild;
-    controls = cloneHTMLElement(template);
-    controls.id = 'controls-' + c.localId;
-    let topcontrols = cloneHTMLElement(toptemplate);
-    topcontrols.id = 'topcontrols-' + c.localId;
-
-    let volume = getVideoButton(controls, 'volume');
-    let stopsharing = getVideoButton(topcontrols, 'video-stop');
-    if (c.label !== "screenshare") {
-        stopsharing.remove();
+    if(c.up && !document.getElementById('topcontrols-' + c.localId)) {
+        let toptemplate =
+            document.getElementById('topvideocontrols-template').firstElementChild;
+        let topcontrols = cloneHTMLElement(toptemplate);
+        topcontrols.id = 'topcontrols-' + c.localId;
+        container.appendChild(topcontrols);
     }
-    if(c.label === 'camera') {
-        volume.remove();
-    } else {
-        setVolumeButton(media.muted,
-                        getVideoButton(controls, "volume-mute"),
-                        getVideoButton(controls, "volume-slider"));
-    }
-
-    container.appendChild(topcontrols);
-    container.appendChild(controls);
-    registerControlHandlers(media, container, c);
+    registerControlHandlers(c.localId, media, container);
 }
 
 /**
@@ -1509,11 +1781,11 @@ function setVolumeButton(muted, button, slider) {
 }
 
 /**
+ * @param {string} localId
  * @param {HTMLVideoElement} media
  * @param {HTMLElement} container
- * @param {Stream} c
  */
-function registerControlHandlers(media, container, c) {
+function registerControlHandlers(localId, media, container) {
     let play = getVideoButton(container, 'video-play');
     if(play) {
         play.onclick = function(event) {
@@ -1527,8 +1799,10 @@ function registerControlHandlers(media, container, c) {
         stop.onclick = function(event) {
             event.preventDefault();
             try {
-                c.close(true);
-                delMedia(c.localId);
+                let c = serverConnection.findByLocalId(localId);
+                if(!c)
+                    throw new Error('Closing unknown stream');
+                c.close();
             } catch(e) {
                 console.error(e);
                 displayError(e);
@@ -1783,9 +2057,13 @@ function gotUser(id, kind) {
     switch(kind) {
     case 'add':
         addUser(id, serverConnection.users[id].username);
+        if(Object.keys(serverConnection.users).length == 3)
+            reconsiderSendParameters();
         break;
     case 'delete':
         delUser(id);
+        if(Object.keys(serverConnection.users).length < 3)
+            scheduleReconsiderParameters();
         break;
     case 'change':
         changeUser(id, serverConnection.users[id].username);
@@ -2257,6 +2535,13 @@ commands.renegotiate = {
             serverConnection.down[id].restartIce();
     }
 };
+
+commands.replace = {
+    f: (c, r) => {
+        replaceUpStreams(null);
+    }
+};
+
 
 /**
  * parseCommand splits a string into two space-separated parts.  The first
@@ -2786,6 +3071,7 @@ function start() {
 
     fillLogin();
     document.getElementById("login-container").classList.remove('invisible');
+    setViewportHeight();
 }
 
 start();

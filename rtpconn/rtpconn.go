@@ -20,6 +20,7 @@ import (
 	"github.com/jech/galene/ice"
 	"github.com/jech/galene/jitter"
 	"github.com/jech/galene/packetcache"
+	"github.com/jech/galene/packetmap"
 	"github.com/jech/galene/rtptime"
 )
 
@@ -74,26 +75,21 @@ type downTrackAtomics struct {
 	srNTP     uint64
 	remoteNTP uint64
 	remoteRTP uint32
+	layerInfo uint32
 }
 
 type rtpDownTrack struct {
-	track      *webrtc.TrackLocalStaticRTP
-	sender     *webrtc.RTPSender
-	remote     conn.UpTrack
-	ssrc       webrtc.SSRC
-	maxBitrate *bitrate
-	rate       *estimator.Estimator
-	stats      *receiverStats
-	atomics    *downTrackAtomics
-	cname      atomic.Value
-}
-
-func (down *rtpDownTrack) WriteRTP(packet *rtp.Packet) error {
-	return down.track.WriteRTP(packet)
-}
-
-func (down *rtpDownTrack) Accumulate(bytes uint32) {
-	down.rate.Accumulate(bytes)
+	track          *webrtc.TrackLocalStaticRTP
+	sender         *webrtc.RTPSender
+	remote         conn.UpTrack
+	ssrc           webrtc.SSRC
+	packetmap      packetmap.Map
+	maxBitrate     *bitrate
+	maxREMBBitrate *bitrate
+	rate           *estimator.Estimator
+	stats          *receiverStats
+	atomics        *downTrackAtomics
+	cname          atomic.Value
 }
 
 func (down *rtpDownTrack) SetTimeOffset(ntp uint64, rtp uint32) {
@@ -130,6 +126,17 @@ func (down *rtpDownTrack) SetCname(cname string) {
 	down.cname.Store(cname)
 }
 
+func (down *rtpDownTrack) getLayerInfo() (uint8, uint8, uint8) {
+	info := atomic.LoadUint32(&down.atomics.layerInfo)
+	return uint8(info >> 16), uint8(info >> 8), uint8(info)
+}
+
+func (down *rtpDownTrack) setLayerInfo(layer, wanted, max uint8) {
+	atomic.StoreUint32(&down.atomics.layerInfo,
+		(uint32(layer)<<16)|(uint32(wanted)<<8)|uint32(max),
+	)
+}
+
 const (
 	negotiationUnneeded = iota
 	negotiationNeeded
@@ -140,9 +147,9 @@ type rtpDownConnection struct {
 	id                string
 	pc                *webrtc.PeerConnection
 	remote            conn.Up
-	maxREMBBitrate    *bitrate
 	iceCandidates     []*webrtc.ICECandidateInit
 	negotiationNeeded int
+	requested         []string
 
 	mu     sync.Mutex
 	tracks []*rtpDownTrack
@@ -171,34 +178,116 @@ func newDownConn(c group.Client, id string, remote conn.Up) (*rtpDownConnection,
 	})
 
 	conn := &rtpDownConnection{
-		id:             id,
-		pc:             pc,
-		remote:         remote,
-		maxREMBBitrate: new(bitrate),
+		id:     id,
+		pc:     pc,
+		remote: remote,
 	}
 
 	return conn, nil
 }
 
-func (down *rtpDownConnection) GetMaxBitrate(now uint64) uint64 {
-	rate := down.maxREMBBitrate.Get(now)
-	var trackRate uint64
-	tracks := down.getTracks()
-	for _, t := range tracks {
-		r := t.maxBitrate.Get(now)
-		if r == ^uint64(0) {
-			if t.track.Kind() == webrtc.RTPCodecTypeAudio {
-				r = 128 * 1024
-			} else {
-				r = 512 * 1024
-			}
+var packetBufPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, packetcache.BufSize)
+	},
+}
+
+func (down *rtpDownTrack) Write(buf []byte) (int, error) {
+	codec := down.remote.Codec().MimeType
+
+	seqno, start, pid, tid, _, u, _, err := packetFlags(codec, buf)
+	if err != nil {
+		return 0, err
+	}
+
+	layer, wantedLayer, maxLayer := down.getLayerInfo()
+
+	if tid > maxLayer {
+		if layer == maxLayer {
+			wantedLayer = tid
+			layer = tid
 		}
-		trackRate += r
+		maxLayer = tid
+		if wantedLayer > maxLayer {
+			wantedLayer = maxLayer
+		}
+		down.setLayerInfo(layer, wantedLayer, maxLayer)
+		down.adjustLayer()
 	}
-	if trackRate < rate {
-		return trackRate
+	if start && layer != wantedLayer {
+		if u || wantedLayer < layer {
+			layer = wantedLayer
+			down.setLayerInfo(layer, wantedLayer, maxLayer)
+		}
 	}
-	return rate
+
+	if tid > layer {
+		ok := down.packetmap.Drop(seqno, pid)
+		if ok {
+			return 0, nil
+		}
+	}
+
+	ok, newseqno, piddelta := down.packetmap.Map(seqno, pid)
+	if !ok {
+		return 0, nil
+	}
+
+	if newseqno == seqno && piddelta == 0 {
+		return down.write(buf)
+	}
+
+	ibuf2 := packetBufPool.Get()
+	defer packetBufPool.Put(ibuf2)
+	buf2 := ibuf2.([]byte)
+
+	n := copy(buf2, buf)
+	err = rewritePacket(codec, buf2[:n], newseqno, piddelta)
+	if err != nil {
+		return 0, err
+	}
+	return down.write(buf2[:n])
+}
+
+func (down *rtpDownTrack) write(buf []byte) (int, error) {
+	n, err := down.track.Write(buf)
+	if err == nil {
+		down.rate.Accumulate(uint32(n))
+	}
+	return n, err
+}
+
+func (t *rtpDownTrack) GetMaxBitrate() (uint64, int) {
+	now := rtptime.Jiffies()
+	layer, _, _ := t.getLayerInfo()
+	r := t.maxBitrate.Get(now)
+	if r == ^uint64(0) {
+		r = 512 * 1024
+	}
+	rr := t.maxREMBBitrate.Get(now)
+	if rr == 0 || r < rr {
+		return r, int(layer)
+	}
+	return rr, int(layer)
+}
+
+func (t *rtpDownTrack) adjustLayer() {
+	max, _ := t.GetMaxBitrate()
+	r, _ := t.rate.Estimate()
+	rate := uint64(r) * 8
+	if rate < max*7/8 {
+		layer, wanted, max := t.getLayerInfo()
+		if layer < max {
+			wanted = layer + 1
+			t.setLayerInfo(layer, wanted, max)
+		}
+	} else if rate > max*3/2 {
+		layer, wanted, max := t.getLayerInfo()
+		if layer > 0 {
+			wanted = layer - 1
+			t.setLayerInfo(layer, wanted, max)
+		}
+	}
 }
 
 func (down *rtpDownConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
@@ -231,39 +320,43 @@ func (down *rtpDownConnection) flushICECandidates() error {
 }
 
 type upTrackAtomics struct {
-	lastPLI  uint64
-	lastFIR  uint64
-	firSeqno uint32
+	lastPLI uint64
 }
 
 type rtpUpTrack struct {
 	track   *webrtc.TrackRemote
-	label   string
 	rate    *estimator.Estimator
 	cache   *packetcache.Cache
 	jitter  *jitter.Estimator
 	atomics *upTrackAtomics
 	cname   atomic.Value
 
-	localCh    chan localTrackAction
+	localCh    chan trackAction
 	readerDone chan struct{}
 
 	mu            sync.Mutex
 	srTime        uint64
 	srNTPTime     uint64
 	srRTPTime     uint32
+	maxLayer      uint8
 	local         []conn.DownTrack
 	bufferedNACKs []uint16
 }
 
-type localTrackAction struct {
-	add   bool
-	track conn.DownTrack
+const (
+	trackActionAdd = iota
+	trackActionDel
+	trackActionKeyframe
+)
+
+type trackAction struct {
+	action int
+	track  conn.DownTrack
 }
 
-func (up *rtpUpTrack) notifyLocal(add bool, track conn.DownTrack) {
+func (up *rtpUpTrack) action(action int, track conn.DownTrack) {
 	select {
-	case up.localCh <- localTrackAction{add, track}:
+	case up.localCh <- trackAction{action, track}:
 	case <-up.readerDone:
 	}
 }
@@ -281,7 +374,12 @@ func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 
 	// do this asynchronously, to avoid deadlocks when multiple
 	// clients call this simultaneously.
-	go up.notifyLocal(true, local)
+	go up.action(trackActionAdd, local)
+	return nil
+}
+
+func (up *rtpUpTrack) RequestKeyframe() error {
+	go up.action(trackActionKeyframe, nil)
 	return nil
 }
 
@@ -293,7 +391,7 @@ func (up *rtpUpTrack) DelLocal(local conn.DownTrack) bool {
 			up.local = append(up.local[:i], up.local[i+1:]...)
 			// do this asynchronously, to avoid deadlocking when
 			// multiple clients call this simultaneously.
-			go up.notifyLocal(false, l)
+			go up.action(trackActionDel, l)
 			return true
 		}
 	}
@@ -313,7 +411,7 @@ func (up *rtpUpTrack) GetRTP(seqno uint16, result []byte) uint16 {
 }
 
 func (up *rtpUpTrack) Label() string {
-	return up.label
+	return up.track.RID()
 }
 
 func (up *rtpUpTrack) Kind() webrtc.RTPCodecType {
@@ -335,6 +433,7 @@ func (up *rtpUpTrack) hasRtcpFb(tpe, parameter string) bool {
 
 type rtpUpConnection struct {
 	id            string
+	client        group.Client
 	label         string
 	userId        string
 	username      string
@@ -488,7 +587,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 		}
 	}
 
-	up := &rtpUpConnection{id: id, label: label, pc: pc}
+	up := &rtpUpConnection{id: id, client: c, label: label, pc: pc}
 
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		up.mu.Lock()
@@ -499,7 +598,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
 			atomics:    &upTrackAtomics{},
-			localCh:    make(chan localTrackAction, 2),
+			localCh:    make(chan trackAction, 2),
 			readerDone: make(chan struct{}),
 		}
 
@@ -539,41 +638,6 @@ func (up *rtpUpConnection) sendPLI(track *rtpUpTrack) error {
 func sendPLI(pc *webrtc.PeerConnection, ssrc webrtc.SSRC) error {
 	return pc.WriteRTCP([]rtcp.Packet{
 		&rtcp.PictureLossIndication{MediaSSRC: uint32(ssrc)},
-	})
-}
-
-func (up *rtpUpConnection) sendFIR(track *rtpUpTrack, increment bool) error {
-	// we need to reliably increment the seqno, even if we are going
-	// to drop the packet due to rate limiting.
-	var seqno uint8
-	if increment {
-		seqno = uint8(atomic.AddUint32(&track.atomics.firSeqno, 1) & 0xFF)
-	} else {
-		seqno = uint8(atomic.LoadUint32(&track.atomics.firSeqno) & 0xFF)
-	}
-
-	if !track.hasRtcpFb("ccm", "fir") {
-		return ErrUnsupportedFeedback
-	}
-	last := atomic.LoadUint64(&track.atomics.lastFIR)
-	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec/2 {
-		return ErrRateLimited
-	}
-	atomic.StoreUint64(&track.atomics.lastFIR, now)
-	return sendFIR(up.pc, track.track.SSRC(), seqno)
-}
-
-func sendFIR(pc *webrtc.PeerConnection, ssrc webrtc.SSRC, seqno uint8) error {
-	return pc.WriteRTCP([]rtcp.Packet{
-		&rtcp.FullIntraRequest{
-			FIR: []rtcp.FIREntry{
-				{
-					SSRC:           uint32(ssrc),
-					SequenceNumber: seqno,
-				},
-			},
-		},
 	})
 }
 
@@ -634,7 +698,11 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 	var packet rtp.Packet
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
-		nack.Range(func(seqno uint16) bool {
+		nack.Range(func(s uint16) bool {
+			ok, seqno, _ := track.packetmap.Reverse(s)
+			if !ok {
+				return true
+			}
 			l := track.remote.GetRTP(seqno, buf)
 			if l == 0 {
 				unhandled = append(unhandled, seqno)
@@ -649,7 +717,6 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 				log.Printf("WriteRTP: %v", err)
 				return false
 			}
-			track.rate.Accumulate(uint32(l))
 			return true
 		})
 	}
@@ -692,7 +759,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 
 	for {
 		firstSR := false
-		n, _, err := r.Read(buf)
+		n, _, err := r.ReadSimulcast(buf, track.track.RID())
 		if err != nil {
 			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Printf("Read RTCP: %v", err)
@@ -757,11 +824,11 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 	}
 }
 
-func sendUpRTCP(conn *rtpUpConnection) error {
-	tracks := conn.getTracks()
+func sendUpRTCP(up *rtpUpConnection) error {
+	tracks := up.getTracks()
 
-	if len(conn.tracks) == 0 {
-		state := conn.pc.ConnectionState()
+	if len(up.tracks) == 0 {
+		state := up.pc.ConnectionState()
 		if state == webrtc.PeerConnectionStateClosed {
 			return io.ErrClosedPipe
 		}
@@ -770,7 +837,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 
 	now := rtptime.Jiffies()
 
-	reports := make([]rtcp.ReceptionReport, 0, len(conn.tracks))
+	reports := make([]rtcp.ReceptionReport, 0, len(up.tracks))
 	for _, t := range tracks {
 		updateUpTrack(t)
 		stats := t.cache.GetStats(true)
@@ -815,29 +882,54 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 		},
 	}
 
-	rate := ^uint64(0)
-
-	local := conn.getLocal()
-	for _, l := range local {
-		r := l.GetMaxBitrate(now)
-		if r < rate {
-			rate = r
-		}
-	}
-
-	if rate < group.MinBitrate {
-		rate = group.MinBitrate
-	}
-
 	var ssrcs []uint32
+	var rate uint64
 	for _, t := range tracks {
-		if t.hasRtcpFb("goog-remb", "") {
+		if !t.hasRtcpFb("goog-remb", "") {
 			continue
 		}
 		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
+		if t.Kind() == webrtc.RTPCodecTypeAudio {
+			rate += 100 * 1024
+		} else if t.Label() == "l" {
+			rate += group.LowBitrate
+		} else {
+			minrate := ^uint64(0)
+			maxrate := uint64(group.MinBitrate)
+			maxlayer := 0
+			local := t.getLocal()
+			for _, down := range local {
+				r, l := down.GetMaxBitrate()
+				if maxlayer < l {
+					maxlayer = l
+				}
+				if r < group.MinBitrate {
+					r = group.MinBitrate
+				}
+				if minrate > r {
+					minrate = r
+				}
+				if maxrate < r {
+					maxrate = r
+				}
+			}
+			// assume that each layer takes two times less
+			// throughput than the higher one.  Then we've
+			// got enough slack for a factor of 2^(layers-1).
+			for i := 0; i < maxlayer; i++ {
+				if minrate < ^uint64(0)/2 {
+					minrate *= 2
+				}
+			}
+			if minrate < maxrate {
+				rate += minrate
+			} else {
+				rate += maxrate
+			}
+		}
 	}
 
-	if len(ssrcs) > 0 {
+	if rate < ^uint64(0) && len(ssrcs) > 0 {
 		packets = append(packets,
 			&rtcp.ReceiverEstimatedMaximumBitrate{
 				Bitrate: rate,
@@ -845,7 +937,7 @@ func sendUpRTCP(conn *rtpUpConnection) error {
 			},
 		)
 	}
-	return conn.pc.WriteRTCP(packets)
+	return up.pc.WriteRTCP(packets)
 }
 
 func rtcpUpSender(conn *rtpUpConnection) {
@@ -930,7 +1022,7 @@ func sendSR(conn *rtpDownConnection) error {
 
 func rtcpDownSender(conn *rtpDownConnection) {
 	for {
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / 2)
 		err := sendSR(conn)
 		if err != nil {
 			if err == io.EOF || err == io.ErrClosedPipe {
@@ -958,7 +1050,7 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 		// bottleneck
 		r, _ := track.rate.Estimate()
 		actual := 8 * uint64(r)
-		if actual >= (rate*7)/8 {
+		if actual >= (rate*3)/4 {
 			// loss < 0.02, multiply by 1.05
 			rate = rate * 269 / 256
 			if rate > maxLossRate {
@@ -978,7 +1070,6 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 }
 
 func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RTPSender) {
-	var gotFir bool
 	lastFirSeqno := uint8(0)
 
 	buf := make([]byte, 1500)
@@ -997,23 +1088,13 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 			continue
 		}
 
+		adjust := false
 		jiffies := rtptime.Jiffies()
 
 		for _, p := range ps {
 			switch p := p.(type) {
 			case *rtcp.PictureLossIndication:
-				remote, ok := conn.remote.(*rtpUpConnection)
-				if !ok {
-					continue
-				}
-				rt, ok := track.remote.(*rtpUpTrack)
-				if !ok {
-					continue
-				}
-				err := remote.sendPLI(rt)
-				if err != nil && err != ErrRateLimited {
-					log.Printf("sendPLI: %v", err)
-				}
+				track.remote.RequestKeyframe()
 			case *rtcp.FullIntraRequest:
 				found := false
 				var seqno uint8
@@ -1029,36 +1110,17 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					continue
 				}
 
-				increment := true
-				if gotFir {
-					increment = seqno != lastFirSeqno
-				}
-				gotFir = true
-				lastFirSeqno = seqno
-
-				remote, ok := conn.remote.(*rtpUpConnection)
-				if !ok {
-					continue
-				}
-				rt, ok := track.remote.(*rtpUpTrack)
-				if !ok {
-					continue
-				}
-				err := remote.sendFIR(rt, increment)
-				if err == ErrUnsupportedFeedback {
-					err := remote.sendPLI(rt)
-					if err != nil && err != ErrRateLimited {
-						log.Printf("sendPLI: %v", err)
-					}
-				} else if err != nil && err != ErrRateLimited {
-					log.Printf("sendFIR: %v", err)
+				if seqno != lastFirSeqno {
+					track.remote.RequestKeyframe()
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				conn.maxREMBBitrate.Set(p.Bitrate, jiffies)
+				track.maxREMBBitrate.Set(p.Bitrate, jiffies)
+				adjust = true
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
 					if r.SSRC == uint32(track.ssrc) {
 						handleReport(track, r, jiffies)
+						adjust = true
 					}
 				}
 			case *rtcp.SenderReport:
@@ -1070,6 +1132,9 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 			case *rtcp.TransportLayerNack:
 				gotNACK(conn, track, p)
 			}
+		}
+		if adjust {
+			track.adjustLayer()
 		}
 	}
 }

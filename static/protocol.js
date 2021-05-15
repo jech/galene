@@ -214,7 +214,7 @@ function ServerConnection() {
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
   * @property {string} [label]
-  * @property {Object<string,Array<string>>} [request]
+  * @property {Object<string,Array<string>>|Array<string>} [request]
   * @property {Object<string,any>} [rtcConfiguration]
   */
 
@@ -440,11 +440,11 @@ ServerConnection.prototype.leave = function(group) {
 };
 
 /**
- * request sets the list of requested media types.
+ * request sets the list of requested tracks
  *
  * @param {Object<string,Array<string>>} what
- *     - A dictionary that maps labels to a sequence of 'audio' and 'video'.
- *       An entry with an empty label '' provides the default.
+ *     - A dictionary that maps labels to a sequence of 'audio', 'video'
+ *       or 'video-low.  An entry with an empty label '' provides the default.
  */
 ServerConnection.prototype.request = function(what) {
     this.send({
@@ -1068,6 +1068,8 @@ function recomputeUserStreams(sc, id, c) {
 
     for(id in sc.down) {
         let c = sc.down[id];
+        if(!c.stream)
+            continue;
         if(!user.down[c.label])
             user.down[c.label] = {};
         c.stream.getTracks().forEach(t => {
@@ -1218,6 +1220,21 @@ Stream.prototype.restartIce = function () {
 };
 
 /**
+ * request sets the list of tracks.  If this is not called, or called with
+ * a null argument, then the default is provided by ServerConnection.request.
+ *
+ * @param {Array<string>} what - a sequence of 'audio', 'video' or 'video-low'.
+ */
+Stream.prototype.request = function(what) {
+    let c = this;
+    c.sc.send({
+        type: 'requestStream',
+        id: c.id,
+        request: what,
+    });
+};
+
+/**
  * updateStats is called periodically, if requested by setStatsInterval,
  * in order to recompute stream statistics and invoke the onstats handler.
  *
@@ -1246,17 +1263,20 @@ Stream.prototype.updateStats = async function() {
         if(report) {
             for(let r of report.values()) {
                 if(stid && r.type === 'outbound-rtp') {
+                    let id = stid;
+                    if(r.rid)
+                        id = id + '-' + r.rid
                     if(!('bytesSent' in r))
                         continue;
-                    if(!stats[stid])
-                        stats[stid] = {};
-                    stats[stid][r.type] = {};
-                    stats[stid][r.type].timestamp = r.timestamp;
-                    stats[stid][r.type].bytesSent = r.bytesSent;
-                    if(old[stid] && old[stid][r.type])
-                        stats[stid][r.type].rate =
-                        ((r.bytesSent - old[stid][r.type].bytesSent) * 1000 /
-                         (r.timestamp - old[stid][r.type].timestamp)) * 8;
+                    if(!stats[id])
+                        stats[id] = {};
+                    stats[id][r.type] = {};
+                    stats[id][r.type].timestamp = r.timestamp;
+                    stats[id][r.type].bytesSent = r.bytesSent;
+                    if(old[id] && old[id][r.type])
+                        stats[id][r.type].rate =
+                        ((r.bytesSent - old[id][r.type].bytesSent) * 1000 /
+                         (r.timestamp - old[id][r.type].timestamp)) * 8;
                 }
             }
         }

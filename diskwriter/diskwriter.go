@@ -82,7 +82,11 @@ func (client *Client) Status() map[string]interface{} {
 	return nil
 }
 
-func (client *Client) PushClient(id, username string, permissions group.ClientPermissions, status map[string]interface{}, kind string) error {
+func (client *Client) PushClient(id, username string, permissions *group.ClientPermissions, status map[string]interface{}, kind string) error {
+	return nil
+}
+
+func (client *Client) RequestConns(target group.Client, g *group.Group, id string) error {
 	return nil
 }
 
@@ -267,29 +271,60 @@ type diskTrack struct {
 }
 
 func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
+	var audio, video conn.UpTrack
+
+	for _, remote := range remoteTracks {
+		codec := remote.Codec().MimeType
+		if strings.EqualFold(codec, "audio/opus") {
+			if audio == nil {
+				audio = remote
+			} else {
+				client.group.WallOps("Multiple audio tracks, recording just one")
+			}
+		} else if strings.EqualFold(codec, "video/vp8") ||
+			strings.EqualFold(codec, "video/vp9") {
+			println(remote.Label())
+			if video == nil || video.Label() == "l" {
+				video = remote
+			} else if remote.Label() != "l" {
+				client.group.WallOps("Multiple video tracks, recording just one")
+			}
+		} else {
+			client.group.WallOps("Unknown codec, " + codec + ", not recording")
+		}
+	}
+
+	if video == nil && audio == nil {
+		return nil, errors.New("no usable tracks found")
+	}
+
+	tracks := make([]conn.UpTrack, 0, 2)
+	if audio != nil {
+		tracks = append(tracks, audio)
+	}
+	if video != nil {
+		tracks = append(tracks, video)
+	}
+
 	_, username := up.User()
 	conn := diskConn{
 		client:    client,
 		directory: directory,
 		username:  username,
-		tracks:    make([]*diskTrack, 0, len(remoteTracks)),
+		tracks:    make([]*diskTrack, 0, len(tracks)),
 		remote:    up,
 	}
-	for _, remote := range remoteTracks {
+	for _, remote := range tracks {
 		var builder *samplebuilder.SampleBuilder
 		codec := remote.Codec()
-		switch strings.ToLower(codec.MimeType) {
-		case "audio/opus":
+		if strings.EqualFold(codec.MimeType, "audio/opus") {
 			builder = samplebuilder.New(
 				16, &codecs.OpusPacket{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.OpusPartitionHeadChecker{},
 				),
 			)
-		case "video/vp8":
-			if conn.hasVideo {
-				return nil, errors.New("multiple video tracks not supported")
-			}
+		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			builder = samplebuilder.New(
 				128, &codecs.VP8Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
@@ -297,10 +332,7 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				),
 			)
 			conn.hasVideo = true
-		case "video/vp9":
-			if conn.hasVideo {
-				return nil, errors.New("multiple video tracks not supported")
-			}
+		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			builder = samplebuilder.New(
 				128, &codecs.VP9Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
@@ -308,9 +340,10 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				),
 			)
 			conn.hasVideo = true
-		default:
-			client.group.WallOps(
-				"Cannot record codec " + codec.MimeType,
+		} else {
+			// this shouldn't happen
+			return nil, errors.New(
+				"cannot record codec " + codec.MimeType,
 			)
 			continue
 		}
@@ -345,27 +378,13 @@ func (t *diskTrack) SetTimeOffset(ntp uint64, rtp uint32) {
 func (t *diskTrack) SetCname(string) {
 }
 
-func clonePacket(packet *rtp.Packet) *rtp.Packet {
-	buf, err := packet.Marshal()
-	if err != nil {
-		return nil
-	}
-	var p rtp.Packet
-	err = p.Unmarshal(buf)
-	if err != nil {
-		return nil
-	}
-	return &p
-}
-
 func isKeyframe(codec string, data []byte) bool {
-	switch strings.ToLower(codec) {
-	case "video/vp8":
+	if strings.EqualFold(codec, "video/vp8") {
 		if len(data) < 1 {
 			return false
 		}
 		return (data[0] & 0x1) == 0
-	case "video/vp9":
+	} else if strings.EqualFold(codec, "video/vp9") {
 		if len(data) < 1 {
 			return false
 		}
@@ -377,14 +396,13 @@ func isKeyframe(codec string, data []byte) bool {
 			return (data[0] & 0xC) == 0
 		}
 		return (data[0] & 0x6) == 0
-	default:
+	} else {
 		panic("Eek!")
 	}
 }
 
 func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, uint32) {
-	switch strings.ToLower(codec) {
-	case "video/vp8":
+	if strings.EqualFold(codec, "video/vp8") {
 		if len(data) < 10 {
 			return 0, 0
 		}
@@ -393,7 +411,7 @@ func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, 
 		width := raw & 0x3FFF
 		height := (raw >> 16) & 0x3FFF
 		return width, height
-	case "video/vp9":
+	} else if strings.EqualFold(codec, "video/vp9") {
 		if packet == nil {
 			return 0, 0
 		}
@@ -419,28 +437,32 @@ func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, 
 			}
 		}
 		return w, h
-	default:
+	} else {
 		return 0, 0
 	}
 }
 
-func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
+func (t *diskTrack) Write(buf []byte) (int, error) {
 	// since we call initWriter, we take the connection lock for simplicity.
 	t.conn.mu.Lock()
 	defer t.conn.mu.Unlock()
 
 	if t.builder == nil {
-		return nil
+		return 0, nil
 	}
 
 	codec := t.remote.Codec()
 
-	p := clonePacket(packet)
-	if p == nil {
-		return nil
+	data := make([]byte, len(buf))
+	copy(data, buf)
+	p := new(rtp.Packet)
+	err := p.Unmarshal(data)
+	if err != nil {
+		log.Printf("Diskwriter: %v", err)
+		return 0, nil
 	}
 
-	if strings.ToLower(codec.MimeType) == "video/vp9" {
+	if strings.EqualFold(codec.MimeType, "video/vp9") {
 		var vp9 codecs.VP9Packet
 		_, err := vp9.Unmarshal(p.Payload)
 		if err == nil && vp9.B && len(vp9.Payload) >= 1 {
@@ -465,15 +487,16 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		sample, ts := t.builder.PopWithTimestamp()
 		if sample == nil {
 			if kfNeeded {
-				return conn.ErrKeyframeNeeded
+				t.remote.RequestKeyframe()
+				return 0, nil
 			}
-			return nil
+			return len(buf), nil
 		}
 
 		keyframe := true
 
-		switch strings.ToLower(codec.MimeType) {
-		case "video/vp8", "video/vp9":
+		if strings.EqualFold(codec.MimeType, "video/vp8") ||
+			strings.EqualFold(codec.MimeType, "video/vp9") {
 			keyframe = isKeyframe(codec.MimeType, sample.Data)
 			if keyframe {
 				err := t.conn.initWriter(
@@ -486,7 +509,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 					t.conn.warn(
 						"Write to disk " + err.Error(),
 					)
-					return err
+					return 0, err
 				}
 				t.lastKf = ts
 			} else if t.writer != nil {
@@ -496,7 +519,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 					kfNeeded = true
 				}
 			}
-		default:
+		} else {
 			if t.writer == nil {
 				if !t.conn.hasVideo {
 					err := t.conn.initWriter(0, 0)
@@ -505,7 +528,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 							"Write to disk " +
 								err.Error(),
 						)
-						return err
+						return 0, err
 					}
 				}
 			}
@@ -513,9 +536,9 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 
 		if t.writer == nil {
 			if !keyframe {
-				return conn.ErrKeyframeNeeded
+				t.remote.RequestKeyframe()
 			}
-			return nil
+			return 0, nil
 		}
 
 		if t.origin == 0 {
@@ -526,7 +549,7 @@ func (t *diskTrack) WriteRTP(packet *rtp.Packet) error {
 		tm := ts / (t.remote.Codec().ClockRate / 1000)
 		_, err := t.writer.Write(keyframe, int64(tm), sample.Data)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 }
@@ -540,8 +563,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	for i, t := range conn.tracks {
 		var entry webm.TrackEntry
 		codec := t.remote.Codec()
-		switch strings.ToLower(codec.MimeType) {
-		case "audio/opus":
+		if strings.EqualFold(codec.MimeType, "audio/opus") {
 			entry = webm.TrackEntry{
 				Name:        "Audio",
 				TrackNumber: uint64(i + 1),
@@ -552,7 +574,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					Channels:          uint64(codec.Channels),
 				},
 			}
-		case "video/vp8":
+		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			entry = webm.TrackEntry{
 				Name:        "Video",
 				TrackNumber: uint64(i + 1),
@@ -563,7 +585,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					PixelHeight: uint64(height),
 				},
 			}
-		case "video/vp9":
+		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			entry = webm.TrackEntry{
 				Name:        "Video",
 				TrackNumber: uint64(i + 1),
@@ -574,7 +596,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					PixelHeight: uint64(height),
 				},
 			}
-		default:
+		} else {
 			return errors.New("unknown track type")
 		}
 		entries = append(entries, entry)
@@ -607,10 +629,6 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	return nil
 }
 
-func (down *diskConn) GetMaxBitrate(now uint64) uint64 {
-	return ^uint64(0)
-}
-
-func (t *diskTrack) Accumulate(bytes uint32) {
-	return
+func (t *diskTrack) GetMaxBitrate() (uint64, int) {
+	return ^uint64(0), -1
 }

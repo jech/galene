@@ -4,10 +4,7 @@ import (
 	"errors"
 	"log"
 	"sort"
-	"strings"
 	"time"
-
-	"github.com/pion/rtp"
 
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/packetcache"
@@ -212,43 +209,25 @@ func (writer *rtpWriter) add(track conn.DownTrack, add bool, max int) error {
 
 func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
 	buf := make([]byte, packetcache.BufSize)
-	var packet rtp.Packet
 	for _, seqno := range kf {
 		bytes := cache.Get(seqno, buf)
 		if bytes == 0 {
 			return
 		}
-		err := packet.Unmarshal(buf[:bytes])
+
+		_, err := track.Write(buf[:bytes])
 		if err != nil {
 			return
 		}
-		err = track.WriteRTP(&packet)
-		if err != nil && err != conn.ErrKeyframeNeeded {
-			return
-		}
-		track.Accumulate(uint32(bytes))
 	}
 }
-
-const (
-	kfUnneeded = iota
-	kfNeededPLI
-	kfNeededFIR
-	kfNeededNewFIR
-)
 
 // rtpWriterLoop is the main loop of an rtpWriter.
 func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 	defer close(writer.done)
 
-	codec := track.track.Codec()
-
 	buf := make([]byte, packetcache.BufSize)
-	var packet rtp.Packet
-
 	local := make([]conn.DownTrack, 0)
-
-	kfNeeded := kfUnneeded
 
 	for {
 		select {
@@ -277,8 +256,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 
 				found, _, lts := track.cache.Last()
 				kts, _, kf := track.cache.Keyframe()
-				if strings.ToLower(codec.MimeType) == "video/vp8" &&
-					found && len(kf) > 0 {
+				if found && len(kf) > 0 {
 					if ((lts-kts)&0x80000000) != 0 ||
 						lts-kts < 2*90000 {
 						// we got a recent keyframe
@@ -288,8 +266,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 							track.cache,
 						)
 					} else {
-						// Request a new keyframe
-						kfNeeded = kfNeededNewFIR
+						track.RequestKeyframe()
 					}
 				} else {
 					// no keyframe yet, one should
@@ -325,50 +302,10 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 				continue
 			}
 
-			err := packet.Unmarshal(buf[:bytes])
-			if err != nil {
-				continue
-			}
-
 			for _, l := range local {
-				err := l.WriteRTP(&packet)
+				_, err := l.Write(buf[:bytes])
 				if err != nil {
-					if err == conn.ErrKeyframeNeeded {
-						kfNeeded = kfNeededPLI
-					} else {
-						continue
-					}
-				}
-				l.Accumulate(uint32(bytes))
-			}
-
-			if kfNeeded > kfUnneeded {
-				kf, kfKnown :=
-					isKeyframe(codec.MimeType, &packet)
-				if kf {
-					kfNeeded = kfUnneeded
-				}
-
-				if kfNeeded >= kfNeededFIR {
-					err := up.sendFIR(
-						track,
-						kfNeeded >= kfNeededNewFIR,
-					)
-					if err == ErrUnsupportedFeedback {
-						kfNeeded = kfNeededPLI
-					} else {
-						kfNeeded = kfNeededFIR
-					}
-				}
-
-				if kfNeeded == kfNeededPLI {
-					up.sendPLI(track)
-				}
-
-				if !kfKnown {
-					// we cannot detect keyframes for
-					// this codec, reset our state
-					kfNeeded = kfUnneeded
+					continue
 				}
 			}
 		}

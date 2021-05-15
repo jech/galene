@@ -14,6 +14,7 @@ import (
 	"fmt"
 
 	"github.com/pion/ice/v2"
+	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
 	"github.com/go-ldap/ldap/v3"
 )
@@ -62,7 +63,8 @@ type ChatHistoryEntry struct {
 }
 
 const (
-	MinBitrate = 200000
+	LowBitrate = 100 * 1024
+	MinBitrate = LowBitrate * 2
 )
 
 type Group struct {
@@ -142,7 +144,7 @@ func codecFromName(name string) (webrtc.RTPCodecCapability, error) {
 	case "vp9":
 		return webrtc.RTPCodecCapability{
 			"video/VP9", 90000, 0,
-			"profile-id=2",
+			"profile-id=0",
 			nil,
 		}, nil
 	case "h264":
@@ -254,6 +256,12 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) (*webrtc.API, error) {
 	if UDPMin > 0 && UDPMax > 0 {
 		s.SetEphemeralUDPPortRange(UDPMin, UDPMax)
 	}
+	m.RegisterHeaderExtension(
+		webrtc.RTPHeaderExtensionCapability{sdp.SDESMidURI},
+		webrtc.RTPCodecTypeVideo)
+	m.RegisterHeaderExtension(
+		webrtc.RTPHeaderExtensionCapability{sdp.SDESRTPStreamIDURI},
+		webrtc.RTPCodecTypeVideo)
 
 	return webrtc.NewAPI(
 		webrtc.WithSettingEngine(s),
@@ -501,13 +509,11 @@ func AddClient(group string, c Client) (*Group, error) {
 	u := c.Username()
 	p := c.Permissions()
 	s := c.Status()
-	c.PushClient(c.Id(), u, p, s, "add")
+	c.PushClient(c.Id(), u, &p, s, "add")
 	for _, cc := range clients {
-		c.PushClient(
-			cc.Id(), cc.Username(), cc.Permissions(), cc.Status(),
-			"add",
-		)
-		cc.PushClient(id, u, p, s, "add")
+		pp := cc.Permissions()
+		c.PushClient(cc.Id(), cc.Username(), &pp, cc.Status(), "add")
+		cc.PushClient(id, u, &p, s, "add")
 	}
 
 	return g, nil
@@ -553,7 +559,7 @@ func DelClient(c Client) {
 
 	go func(clients []Client) {
 		for _, cc := range clients {
-			cc.PushClient(c.Id(), c.Username(), c.Permissions(), c.Status(), "delete")
+			cc.PushClient(c.Id(), "", nil, nil, "delete")
 		}
 	}(clients)
 

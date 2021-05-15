@@ -47,6 +47,7 @@ func (d *Duration) UnmarshalJSON(buf []byte) error {
 }
 
 type Track struct {
+	Layer      *int     `json:"layer,omitempty"`
 	Bitrate    uint64   `json:"bitrate"`
 	MaxBitrate uint64   `json:"maxBitrate,omitempty"`
 	Loss       float64  `json:"loss"`

@@ -61,12 +61,6 @@
                   </div>
                 </li>
                 <li>
-                  <div id="stopvideobutton" class="invisible nav-link nav-button nav-cancel">
-                    <span><i class="fas fa-window-close" aria-hidden="true"></i></span>
-                    <label>Stop Video</label>
-                  </div>
-                </li>
-                <li>
                   <div class="nav-button nav-link nav-more" id="openside">
                     <span><i class="fas fa-ellipsis-v" aria-hidden="true"></i></span>
                   </div>
@@ -214,12 +208,23 @@
             </select>
           </form>
 
+          <form id="simulcastform">
+            <label for="simulcastselect" class="sidenav-label-first">Simulcast:</label>
+            <select id="simulcastselect" class="select select-inline">
+              <option value="off">off</option>
+              <option value="auto" selected>auto</option>
+              <option value="on">on</option>
+            </select>
+          </form>
+
           <form id="requestform">
             <label for="requestselect" class="sidenav-label">Receive:</label>
             <select id="requestselect" class="select select-inline">
               <option value="">nothing</option>
               <option value="audio">audio only</option>
+              <option value="screenshare-low">screen share (low)</option>
               <option value="screenshare">screen share</option>
+              <option value="everything-low">everything (low)</option>
               <option value="everything" selected>everything</option>
             </select>
           </form>
