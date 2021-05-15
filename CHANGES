@@ -1,3 +1,18 @@
+Galène 0.4 (unreleased):
+
+  * Implemented simulcast.
+  * Implemented scalable video coding (SVC) for VP8.
+  * Fixed the profile announced for VP9.
+  * Simplified the protocol by labelling streams rather than individual
+    tracks.
+  * Added an option to limit the range of UDP ports used by the server.
+  * Added a close button in every locally-generated video; this allows
+    closing individual screen shares and avoids the need for creating
+    buttons at the top.
+  * Added user status to the protocol; in addition, users now know other
+    users' permissions.
+  * Stats are now exported as JSON and formatted on the client side.
+
 27 April 2021: Galène 0.3.4
 
   * Fixed a bug in the loss estimator.  We will now reduce the rate more
