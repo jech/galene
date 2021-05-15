@@ -3,6 +3,7 @@ Galène 0.4 (unreleased):
   * Implemented simulcast.
   * Implemented scalable video coding (SVC) for VP8.
   * Fixed the profile announced for VP9.
+  * Preliminary support for the AV1 codec.
   * Simplified the protocol by labelling streams rather than individual
     tracks.
   * Added an option to limit the range of UDP ports used by the server.
