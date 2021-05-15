@@ -276,7 +276,6 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 			}
 		} else if strings.EqualFold(codec, "video/vp8") ||
 			strings.EqualFold(codec, "video/vp9") {
-			println(remote.Label())
 			if video == nil || video.Label() == "l" {
 				video = remote
 			} else if remote.Label() != "l" {
