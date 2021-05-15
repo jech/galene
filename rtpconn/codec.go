@@ -150,7 +150,7 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 					return false, false
 				}
 				n := packet.Payload[i+offset] & 0x1F
-				if n == 5 {
+				if n == 7 {
 					return true, true
 				} else if n >= 24 {
 					// is this legal?
@@ -171,7 +171,7 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 				// not a starting fragment
 				return false, true
 			}
-			return (packet.Payload[1]&0x1F == 5), true
+			return (packet.Payload[1]&0x1F == 7), true
 		}
 		return false, false
 	} else {
