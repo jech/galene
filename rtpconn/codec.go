@@ -47,71 +47,72 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 		if len(packet.Payload) < 2 {
 			return false, true
 		}
+		// Z=0, N=1
 		if (packet.Payload[0] & 0x88) != 0x08 {
 			return false, true
 		}
 		w := (packet.Payload[0] & 0x30) >> 4
 
-		getObu := func(data []byte) ([]byte, int) {
+		getObu := func(data []byte, last bool) ([]byte, int, bool) {
+			if last {
+				return data, len(data), false
+			}
 			offset := 0
 			length := 0
 			for {
 				if len(data) <= offset {
-					return nil, 0
+					return nil, offset, offset > 0
 				}
 				l := data[offset]
-				length = length*128 + int(l&0x7f)
+				length |= int(l & 0x7f) << (offset * 7)
 				offset++
 				if (l & 0x80) == 0 {
 					break
 				}
 			}
 			if len(data) < offset+length {
-				return nil, 0
+				return data[offset:], len(data), true
 			}
-			return data[offset : offset+length], offset + length
+			return data[offset : offset+length],
+				offset + length, false
 		}
-		var obu1, obu2 []byte
-		if w == 1 {
-			obu1 = packet.Payload[1:]
-		} else {
-			var o int
-			obu1, o = getObu(packet.Payload[1:])
-			if len(obu1) == 0 {
+		offset := 1
+		i := 0
+		for {
+			obu, length, truncated :=
+				getObu(packet.Payload[offset:], int(w) == i+1)
+			if len(obu) < 1 {
 				return false, false
 			}
-			if w == 2 {
-				obu2 = packet.Payload[1+o:]
-			} else {
-				obu2, _ = getObu(packet.Payload[1+o:])
+			tpe := (obu[0] & 0x38) >> 3
+			switch i {
+			case 0:
+				// OBU_SEQUENCE_HEADER
+				if tpe != 1 {
+					return false, true
+				}
+			default:
+				// OBU_FRAME_HEADER or OBU_FRAME
+				if tpe == 3 || tpe == 6 {
+					if len(obu) < 2 {
+						return false, false
+					}
+					// show_existing_frame == 0
+					if (obu[1] & 0x80) != 0 {
+						return false, true
+					}
+					// frame_type == KEY_FRAME
+					return (obu[1] & 0x60) == 0, true
+				}
 			}
+			if truncated || i >= int(w) {
+				// the first frame header is in a second
+				// packet, give up.
+				return false, false
+			}
+			offset += length
+			i++
 		}
-		if len(obu1) < 1 {
-			return false, false
-		}
-		header := obu1[0]
-		tpe := (header & 0x38) >> 3
-		if tpe != 1 {
-			return false, true
-		}
-		if w == 1 {
-			return false, false
-		}
-		if len(obu2) < 1 {
-			return false, false
-		}
-		header2 := obu2[0]
-		tpe2 := (header2 & 0x38) >> 3
-		if tpe2 != 6 {
-			return false, false
-		}
-		if len(obu2) < 2 {
-			return false, false
-		}
-		if (obu2[1] & 0x80) != 0 {
-			return false, true
-		}
-		return (obu2[1] & 0x60) == 0, false
 	} else if strings.EqualFold(codec, "video/h264") {
 		if len(packet.Payload) < 1 {
 			return false, false
@@ -174,9 +175,8 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 			return (packet.Payload[1]&0x1F == 7), true
 		}
 		return false, false
-	} else {
-		return false, false
 	}
+	return false, false
 }
 
 var errTruncated = errors.New("truncated packet")
