@@ -16,12 +16,13 @@ var vp8 = []byte{
 
 func TestPacketFlags(t *testing.T) {
 	buf := append([]byte{}, vp8...)
-	seqno, start, pid, tid, sid, layersync, discardable, err :=
-		packetFlags("video/vp8", buf)
-	if seqno != 42 || !start || pid != 57 || sid != 0 || tid != 0 ||
-		layersync || discardable || err != nil {
+	flags, err := getPacketFlags("video/vp8", buf)
+	if flags.seqno != 42 || !flags.start || flags.pid != 57 ||
+		flags.sid != 0 || flags.tid != 0 ||
+		flags.tidupsync || flags.discardable || err != nil {
 		t.Errorf("Got %v, %v, %v, %v, %v, %v (%v)",
-			seqno, start, pid, sid, layersync, discardable, err,
+			flags.seqno, flags.start, flags.pid, flags.sid,
+			flags.tidupsync, flags.discardable, err,
 		)
 	}
 }
@@ -34,10 +35,12 @@ func TestRewrite(t *testing.T) {
 			t.Errorf("rewrite: %v", err)
 			continue
 		}
-		seqno, _, pid, _, _, _, _, err := packetFlags("video/vp8", buf)
-		if err != nil || seqno != i || pid != (57 + i) & 0x7FFF {
+		flags, err := getPacketFlags("video/vp8", buf)
+		if err != nil || flags.seqno != i ||
+			flags.pid != (57 + i) & 0x7FFF {
 			t.Errorf("Expected %v %v, got %v %v (%v)",
-				i, (57 + i) & 0x7FFF, seqno, pid, err)
+				i, (57 + i) & 0x7FFF,
+				flags.seqno, flags.pid, err)
 		}
 	}
 }

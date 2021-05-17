@@ -99,8 +99,15 @@ function formatTrack(table, track) {
     tr.appendChild(document.createElement('td'));
     tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
-    if(track.layer && track.maxLayer)
-        td.textContent = `${track.layer}/${track.maxLayer}`;
+    let layer = '';
+    if(track.sid || track.maxSid)
+        layer = layer + `s${track.sid}/${track.maxSid}`;
+    if(track.tid || track.maxTid) {
+        if(layer !== '')
+            layer = layer + '+';
+        layer = layer + `t${track.tid}/${track.maxTid}`;
+    }
+    td.textContent = layer;
     tr.appendChild(td);
     let td2 = document.createElement('td');
     if(track.maxBitrate)

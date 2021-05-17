@@ -64,7 +64,7 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 					return nil, offset, offset > 0
 				}
 				l := data[offset]
-				length |= int(l & 0x7f) << (offset * 7)
+				length |= int(l&0x7f) << (offset * 7)
 				offset++
 				if (l & 0x80) == 0 {
 					break
@@ -182,50 +182,66 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 var errTruncated = errors.New("truncated packet")
 var errUnsupportedCodec = errors.New("unsupported codec")
 
-func packetFlags(codec string, buf []byte) (seqno uint16, start bool, pid uint16, tid uint8, sid uint8, layersync bool, discardable bool, err error) {
+type packetFlags struct {
+	seqno           uint16
+	start           bool
+	pid             uint16 // only if it needs rewriting
+	tid             uint8
+	sid             uint8
+	tidupsync       bool
+	sidsync         bool
+	sidnonreference bool
+	discardable     bool
+}
+
+func getPacketFlags(codec string, buf []byte) (packetFlags, error) {
 	if len(buf) < 12 {
-		err = errTruncated
-		return
+		return packetFlags{}, errTruncated
 	}
 
-	seqno = (uint16(buf[2]) << 8) | uint16(buf[3])
+	var flags packetFlags
+
+	flags.seqno = (uint16(buf[2]) << 8) | uint16(buf[3])
 
 	if strings.EqualFold(codec, "video/vp8") {
 		var packet rtp.Packet
-		err = packet.Unmarshal(buf)
+		err := packet.Unmarshal(buf)
 		if err != nil {
-			return
+			return flags, err
 		}
 		var vp8 codecs.VP8Packet
 		_, err = vp8.Unmarshal(packet.Payload)
 		if err != nil {
-			return
+			return flags, err
 		}
 
-		start = vp8.S == 1 && vp8.PID == 0
-		pid = vp8.PictureID
-		tid = vp8.TID
-		layersync = vp8.Y == 1
-		discardable = vp8.N == 1
-		return
+		flags.start = vp8.S == 1 && vp8.PID == 0
+		flags.pid = vp8.PictureID
+		flags.tid = vp8.TID
+		flags.tidupsync = vp8.Y == 1
+		flags.discardable = vp8.N == 1
+		return flags, nil
 	} else if strings.EqualFold(codec, "video/vp9") {
 		var packet rtp.Packet
-		err = packet.Unmarshal(buf)
+		err := packet.Unmarshal(buf)
 		if err != nil {
-			return
+			return flags, err
 		}
 		var vp9 codecs.VP9Packet
 		_, err = vp9.Unmarshal(packet.Payload)
 		if err != nil {
-			return
+			return flags, err
 		}
-		start = vp9.B
-		tid = vp9.TID
-		sid = vp9.SID
-		layersync = vp9.U
-		return
+		flags.start = vp9.B
+		flags.tid = vp9.TID
+		flags.sid = vp9.SID
+		flags.tidupsync = vp9.U
+		flags.sidsync = vp9.P
+		// not yet in pion/rtp
+		flags.sidnonreference = (packet.Payload[0] & 0x01) != 0
+		return flags, nil
 	}
-	return
+	return flags, nil
 }
 
 func rewritePacket(codec string, data []byte, seqno uint16, delta uint16) error {

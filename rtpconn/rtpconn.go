@@ -126,14 +126,31 @@ func (down *rtpDownTrack) SetCname(cname string) {
 	down.cname.Store(cname)
 }
 
-func (down *rtpDownTrack) getLayerInfo() (uint8, uint8, uint8) {
-	info := atomic.LoadUint32(&down.atomics.layerInfo)
-	return uint8(info >> 16), uint8(info >> 8), uint8(info)
+type layerInfo struct {
+	sid, wantedSid, maxSid uint8
+	tid, wantedTid, maxTid uint8
 }
 
-func (down *rtpDownTrack) setLayerInfo(layer, wanted, max uint8) {
+func (down *rtpDownTrack) getLayerInfo() layerInfo {
+	info := atomic.LoadUint32(&down.atomics.layerInfo)
+	return layerInfo{
+		sid:       uint8((info & 0xF)),
+		wantedSid: uint8((info >> 4) & 0xF),
+		maxSid:    uint8((info >> 8) & 0xF),
+		tid:       uint8((info >> 16) & 0xF),
+		wantedTid: uint8((info >> 20) & 0xF),
+		maxTid:    uint8((info >> 24) & 0xF),
+	}
+}
+
+func (down *rtpDownTrack) setLayerInfo(info layerInfo) {
 	atomic.StoreUint32(&down.atomics.layerInfo,
-		(uint32(layer)<<16)|(uint32(wanted)<<8)|uint32(max),
+		uint32(info.sid&0xF)|
+			uint32(info.wantedSid&0xF)<<4|
+			uint32(info.maxSid&0xF)<<8|
+			uint32(info.tid&0xF)<<16|
+			uint32(info.wantedTid&0xF)<<20|
+			uint32(info.maxTid&0xF)<<24,
 	)
 }
 
@@ -195,45 +212,59 @@ var packetBufPool = sync.Pool{
 func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 	codec := down.remote.Codec().MimeType
 
-	seqno, start, pid, tid, _, u, _, err := packetFlags(codec, buf)
+	flags, err := getPacketFlags(codec, buf)
 	if err != nil {
 		return 0, err
 	}
 
-	layer, wantedLayer, maxLayer := down.getLayerInfo()
+	layer := down.getLayerInfo()
 
-	if tid > maxLayer {
-		if layer == maxLayer {
-			wantedLayer = tid
-			layer = tid
+	if flags.tid > layer.maxTid || flags.sid > layer.maxSid {
+		if flags.tid > layer.maxTid {
+			if layer.tid == layer.maxTid {
+				layer.wantedTid = flags.tid
+				layer.tid = flags.tid
+			}
+			layer.maxTid = flags.tid
 		}
-		maxLayer = tid
-		if wantedLayer > maxLayer {
-			wantedLayer = maxLayer
+		if flags.sid > layer.maxSid {
+			if layer.sid == layer.maxSid {
+				layer.wantedSid = flags.sid
+				layer.sid = flags.sid
+			}
+			layer.maxSid = flags.sid
 		}
-		down.setLayerInfo(layer, wantedLayer, maxLayer)
+		down.setLayerInfo(layer)
 		down.adjustLayer()
 	}
-	if start && layer != wantedLayer {
-		if u || wantedLayer < layer {
-			layer = wantedLayer
-			down.setLayerInfo(layer, wantedLayer, maxLayer)
+	if flags.start && (layer.tid != layer.wantedTid) {
+		if layer.wantedTid < layer.tid || flags.tidupsync {
+			layer.tid = layer.wantedTid
+			down.setLayerInfo(layer)
 		}
 	}
 
-	if tid > layer {
-		ok := down.packetmap.Drop(seqno, pid)
+	if flags.start && (layer.sid != layer.wantedSid) {
+		if flags.sidsync {
+			layer.sid = layer.wantedTid
+			down.setLayerInfo(layer)
+		}
+	}
+
+	if flags.tid > layer.tid || flags.sid > layer.sid ||
+		(flags.sid < layer.sid && flags.sidnonreference) {
+		ok := down.packetmap.Drop(flags.seqno, flags.pid)
 		if ok {
 			return 0, nil
 		}
 	}
 
-	ok, newseqno, piddelta := down.packetmap.Map(seqno, pid)
+	ok, newseqno, piddelta := down.packetmap.Map(flags.seqno, flags.pid)
 	if !ok {
 		return 0, nil
 	}
 
-	if newseqno == seqno && piddelta == 0 {
+	if newseqno == flags.seqno && piddelta == 0 {
 		return down.write(buf)
 	}
 
@@ -257,35 +288,35 @@ func (down *rtpDownTrack) write(buf []byte) (int, error) {
 	return n, err
 }
 
-func (t *rtpDownTrack) GetMaxBitrate() (uint64, int) {
+func (t *rtpDownTrack) GetMaxBitrate() (uint64, int, int) {
 	now := rtptime.Jiffies()
-	layer, _, _ := t.getLayerInfo()
+	layer := t.getLayerInfo()
 	r := t.maxBitrate.Get(now)
 	if r == ^uint64(0) {
 		r = 512 * 1024
 	}
 	rr := t.maxREMBBitrate.Get(now)
-	if rr == 0 || r < rr {
-		return r, int(layer)
+	if rr != 0 && rr < r {
+		r = rr
 	}
-	return rr, int(layer)
+	return r, int(layer.sid), int(layer.tid)
 }
 
 func (t *rtpDownTrack) adjustLayer() {
-	max, _ := t.GetMaxBitrate()
+	max, _, _ := t.GetMaxBitrate()
 	r, _ := t.rate.Estimate()
 	rate := uint64(r) * 8
 	if rate < max*7/8 {
-		layer, wanted, max := t.getLayerInfo()
-		if layer < max {
-			wanted = layer + 1
-			t.setLayerInfo(layer, wanted, max)
+		layer := t.getLayerInfo()
+		if layer.tid < layer.maxTid {
+			layer.wantedTid = layer.tid + 1
+			t.setLayerInfo(layer)
 		}
 	} else if rate > max*3/2 {
-		layer, wanted, max := t.getLayerInfo()
-		if layer > 0 {
-			wanted = layer - 1
-			t.setLayerInfo(layer, wanted, max)
+		layer := t.getLayerInfo()
+		if layer.tid > 0 {
+			layer.wantedTid = layer.tid - 1
+			t.setLayerInfo(layer)
 		}
 	}
 }
@@ -320,11 +351,11 @@ func (down *rtpDownConnection) flushICECandidates() error {
 }
 
 type rtpUpTrack struct {
-	track   *webrtc.TrackRemote
-	rate    *estimator.Estimator
-	cache   *packetcache.Cache
-	jitter  *jitter.Estimator
-	cname   atomic.Value
+	track  *webrtc.TrackRemote
+	rate   *estimator.Estimator
+	cache  *packetcache.Cache
+	jitter *jitter.Estimator
+	cname  atomic.Value
 
 	localCh    chan trackAction
 	readerDone chan struct{}
@@ -881,12 +912,16 @@ func sendUpRTCP(up *rtpUpConnection) error {
 		} else {
 			minrate := ^uint64(0)
 			maxrate := uint64(group.MinBitrate)
-			maxlayer := 0
+			maxsid := 0
+			maxtid := 0
 			local := t.getLocal()
 			for _, down := range local {
-				r, l := down.GetMaxBitrate()
-				if maxlayer < l {
-					maxlayer = l
+				r, sid, tid := down.GetMaxBitrate()
+				if maxsid < sid {
+					maxsid = sid
+				}
+				if maxtid < tid {
+					maxtid = tid
 				}
 				if r < group.MinBitrate {
 					r = group.MinBitrate
@@ -898,10 +933,15 @@ func sendUpRTCP(up *rtpUpConnection) error {
 					maxrate = r
 				}
 			}
+			// assume that lower spatial layers take up 1/5 of
+			// the throughput
+			if maxsid > 0 {
+				maxrate = maxrate * 5 / 4
+			}
 			// assume that each layer takes two times less
 			// throughput than the higher one.  Then we've
 			// got enough slack for a factor of 2^(layers-1).
-			for i := 0; i < maxlayer; i++ {
+			for i := 0; i < maxtid; i++ {
 				if minrate < ^uint64(0)/2 {
 					minrate *= 2
 				}
