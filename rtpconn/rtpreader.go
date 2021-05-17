@@ -3,6 +3,7 @@ package rtpconn
 import (
 	"io"
 	"log"
+	"time"
 
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -21,10 +22,39 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
 	codec := track.track.Codec()
 	sendNACK := track.hasRtcpFb("nack", "")
+	sendPLI := track.hasRtcpFb("nack", "pli")
 	var kfNeeded bool
+	var kfRequested time.Time
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	for {
+
+	inner:
+		for {
+			select {
+			case action := <-track.localCh:
+				switch action.action {
+				case trackActionAdd, trackActionDel:
+					err := writers.add(
+						action.track,
+						action.action == trackActionAdd,
+					)
+					if err != nil {
+						log.Printf(
+							"add/remove track: %v",
+							err,
+						)
+					}
+				case trackActionKeyframe:
+					kfNeeded = true
+				default:
+					log.Printf("Unknown action")
+				}
+			default:
+				break inner
+			}
+		}
+
 		bytes, _, err := track.track.Read(buf)
 		if err != nil {
 			if err != io.EOF {
@@ -103,31 +133,18 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 		writers.write(packet.SequenceNumber, index, delay,
 			isvideo, packet.Marker)
 
-		select {
-		case action := <-track.localCh:
-			switch action.action {
-			case trackActionAdd, trackActionDel:
-				err := writers.add(
-					action.track,
-					action.action == trackActionAdd,
-				)
+		now := time.Now()
+		if kfNeeded && now.Sub(kfRequested) > time.Second/2 {
+			if sendPLI {
+				err := conn.sendPLI(track)
 				if err != nil {
-					log.Printf("add/remove track: %v", err)
+					log.Printf("sendPLI: %v", err)
+					kfNeeded = false
 				}
-			case trackActionKeyframe:
-				kfNeeded = true
-			default:
-				log.Printf("Unknown action %v", action.action)
-			}
-		default:
-		}
-
-		if kfNeeded {
-			err := conn.sendPLI(track)
-			if err != nil && err != ErrRateLimited {
-				log.Printf("sendPLI: %v", err)
+			} else {
 				kfNeeded = false
 			}
+			kfRequested = now
 		}
 	}
 }

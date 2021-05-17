@@ -319,16 +319,11 @@ func (down *rtpDownConnection) flushICECandidates() error {
 	return err
 }
 
-type upTrackAtomics struct {
-	lastPLI uint64
-}
-
 type rtpUpTrack struct {
 	track   *webrtc.TrackRemote
 	rate    *estimator.Estimator
 	cache   *packetcache.Cache
 	jitter  *jitter.Estimator
-	atomics *upTrackAtomics
 	cname   atomic.Value
 
 	localCh    chan trackAction
@@ -597,7 +592,6 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 			cache:      packetcache.New(minPacketCache(remote)),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
-			atomics:    &upTrackAtomics{},
 			localCh:    make(chan trackAction, 2),
 			readerDone: make(chan struct{}),
 		}
@@ -626,12 +620,6 @@ func (up *rtpUpConnection) sendPLI(track *rtpUpTrack) error {
 	if !track.hasRtcpFb("nack", "pli") {
 		return ErrUnsupportedFeedback
 	}
-	last := atomic.LoadUint64(&track.atomics.lastPLI)
-	now := rtptime.Jiffies()
-	if now >= last && now-last < rtptime.JiffiesPerSec/2 {
-		return ErrRateLimited
-	}
-	atomic.StoreUint64(&track.atomics.lastPLI, now)
 	return sendPLI(up.pc, track.track.SSRC())
 }
 
