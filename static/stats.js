@@ -95,7 +95,8 @@ function formatTrack(table, track) {
     tr.appendChild(document.createElement('td'));
     tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
-    td.textContent = track.layer;
+    if(track.layer && track.maxLayer)
+        td.textContent = `${track.layer}/${track.maxLayer}`;
     tr.appendChild(td);
     let td2 = document.createElement('td');
     if(track.maxBitrate)
