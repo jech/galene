@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
 
@@ -711,7 +710,6 @@ func sendNACKs(pc *webrtc.PeerConnection, ssrc webrtc.SSRC, nacks []rtcp.NackPai
 
 func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLayerNack) {
 	var unhandled []uint16
-	var packet rtp.Packet
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
 		nack.Range(func(s uint16) bool {
@@ -724,13 +722,9 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 				unhandled = append(unhandled, seqno)
 				return true
 			}
-			err := packet.Unmarshal(buf[:l])
+			_, err := track.Write(buf[:l])
 			if err != nil {
-				return true
-			}
-			err = track.track.WriteRTP(&packet)
-			if err != nil {
-				log.Printf("WriteRTP: %v", err)
+				log.Printf("Write: %v", err)
 				return false
 			}
 			return true
