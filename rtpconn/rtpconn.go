@@ -366,15 +366,12 @@ func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 		}
 	}
 	up.local = append(up.local, local)
-
-	// do this asynchronously, to avoid deadlocks when multiple
-	// clients call this simultaneously.
-	go up.action(trackActionAdd, local)
+	up.action(trackActionAdd, local)
 	return nil
 }
 
 func (up *rtpUpTrack) RequestKeyframe() error {
-	go up.action(trackActionKeyframe, nil)
+	up.action(trackActionKeyframe, nil)
 	return nil
 }
 
