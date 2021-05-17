@@ -33,10 +33,15 @@ async function listPublicGroups() {
 
     let l;
     try {
-        l = await (await fetch('/public-groups.json')).json();
+        let r = await fetch('/public-groups.json');
+        if(!r.ok)
+            throw new Error(`${r.status} ${r.statusText}`);
+        l = await r.json();
     } catch(e) {
-        console.error(e);
-        l = [];
+        table.textContent = `Couldn't fetch groups: ${e}`;
+        div.classList.remove('nogroups');
+        div.classList.add('groups');
+        return;
     }
 
     if (l.length === 0) {

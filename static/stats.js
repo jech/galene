@@ -25,10 +25,14 @@ async function listStats() {
 
     let l;
     try {
-        l = await (await fetch('/stats.json')).json();
+        let r = await fetch('/stats.json');
+        if(!r.ok)
+            throw new Error(`${r.status} ${r.statusText}`);
+        l = await r.json();
     } catch(e) {
         console.error(e);
-        l = [];
+        table.textContent = `Couldn't fetch stats: ${e}`;
+        return;
     }
 
     if(l.length === 0) {
