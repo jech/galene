@@ -114,8 +114,8 @@ func (m *Map) direct(seqno uint16) (bool, uint16, uint16) {
 	i := m.lastEntry
 	for {
 		f := m.entries[i].first
-		if seqno >= f {
-			if seqno < f+m.entries[i].count {
+		if compare(seqno, f) >= 0 {
+			if compare(seqno, f+m.entries[i].count) < 0 {
 				return true,
 					seqno + m.entries[i].delta,
 					m.entries[i].pidDelta
@@ -154,8 +154,8 @@ func (m *Map) Reverse(seqno uint16) (bool, uint16, uint16) {
 	i := m.lastEntry
 	for {
 		f := m.entries[i].first + m.entries[i].delta
-		if seqno >= f {
-			if seqno < f+m.entries[i].count {
+		if compare(seqno, f) >= 0 {
+			if compare(seqno, f+m.entries[i].count) < 0 {
 				return true,
 					seqno - m.entries[i].delta,
 					m.entries[i].pidDelta
