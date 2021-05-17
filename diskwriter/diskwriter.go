@@ -259,8 +259,9 @@ type diskTrack struct {
 	// bit 32 is a boolean indicating that the origin is valid
 	origin uint64
 
-	lastKf  uint32
-	savedKf *rtp.Packet
+	kfRequested time.Time
+	lastKf      time.Time
+	savedKf     *rtp.Packet
 }
 
 func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
@@ -435,7 +436,6 @@ func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, 
 }
 
 func (t *diskTrack) Write(buf []byte) (int, error) {
-	// since we call initWriter, we take the connection lock for simplicity.
 	t.conn.mu.Lock()
 	defer t.conn.mu.Unlock()
 
@@ -471,17 +471,11 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 		}
 	}
 
-	kfNeeded := false
-
 	t.builder.Push(p)
 
 	for {
 		sample, ts := t.builder.PopWithTimestamp()
 		if sample == nil {
-			if kfNeeded {
-				t.remote.RequestKeyframe()
-				return 0, nil
-			}
 			return len(buf), nil
 		}
 
@@ -503,13 +497,6 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 					)
 					return 0, err
 				}
-				t.lastKf = ts
-			} else if t.writer != nil {
-				// Request a keyframe every 4s
-				delta := ts - t.lastKf
-				if (delta&0x80000000) != 0 || delta > 4*90000 {
-					kfNeeded = true
-				}
 			}
 		} else {
 			if t.writer == nil {
@@ -526,11 +513,19 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 			}
 		}
 
-		if t.writer == nil {
-			if !keyframe {
+		now := time.Now()
+		if keyframe {
+			t.lastKf = now
+		} else if t.writer == nil || now.Sub(t.lastKf) > 4*time.Second {
+			if now.Sub(t.kfRequested) > time.Second {
 				t.remote.RequestKeyframe()
+				t.kfRequested = now
 			}
 			return 0, nil
+		}
+
+		if t.writer == nil {
+			continue
 		}
 
 		if t.origin == 0 {
