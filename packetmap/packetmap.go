@@ -69,14 +69,7 @@ func (m *Map) reset() {
 
 func addMapping(m *Map, seqno, pid uint16, delta, pidDelta uint16) {
 	if len(m.entries) == 0 {
-		m.entries = []entry{
-			entry{
-				first:    seqno,
-				count:    1,
-				delta:    delta,
-				pidDelta: pidDelta,
-			},
-		}
+		// this shouldn't happen
 		return
 	}
 
@@ -86,9 +79,19 @@ func addMapping(m *Map, seqno, pid uint16, delta, pidDelta uint16) {
 		return
 	}
 
+	f := seqno
+	d := m.entries[i].delta - delta
+	// expand the interval to cover missing values, but make sure the
+	// targets don't overlap.
+	if d < 8192 {
+		ff := m.entries[i].first + m.entries[i].count + d
+		if compare(ff, seqno) < 0 {
+			f = ff
+		}
+	}
 	e := entry{
-		first:    seqno,
-		count:    1,
+		first:    f,
+		count:    seqno - f + 1,
 		delta:    delta,
 		pidDelta: pidDelta,
 	}
@@ -106,7 +109,7 @@ func addMapping(m *Map, seqno, pid uint16, delta, pidDelta uint16) {
 
 // direct maps a seqno to a target seqno.  It returns true if the seqno
 // could be mapped, the target seqno, and the pid delta to apply.
-// Called with the m.mu taken.
+// Called with m.mu taken.
 func (m *Map) direct(seqno uint16) (bool, uint16, uint16) {
 	if len(m.entries) == 0 {
 		return false, 0, 0
@@ -182,6 +185,17 @@ func (m *Map) Drop(seqno uint16, pid uint16) bool {
 
 	if seqno != m.next {
 		return false
+	}
+
+	if len(m.entries) == 0 {
+		m.entries = []entry{
+			entry{
+				first:    seqno - 8192,
+				count:    8192,
+				delta:    0,
+				pidDelta: 0,
+			},
+		}
 	}
 
 	m.pidDelta += pid - m.nextPid

@@ -33,6 +33,30 @@ func TestNoDrops(t *testing.T) {
 	}
 }
 
+func TestReorder(t *testing.T) {
+	m := Map{}
+
+	ok, s, p := m.Map(42, 1001)
+	if !ok || s != 42 || p != 0 {
+		t.Errorf("Expected 42, 0, got %v, %v, %v", ok, s, p)
+	}
+
+	ok = m.Drop(43, 1002)
+	if !ok {
+		t.Errorf("Expected ok")
+	}
+
+	ok, s, p = m.Map(45, 1003)
+	if !ok || s != 44 || p != 1 {
+		t.Errorf("Expected 44, 1, got %v, %v, %v", ok, s, p)
+	}
+
+	ok, s, p = m.Map(44, 1003)
+	if !ok || s != 43 || p != 1 {
+		t.Errorf("Expected 43, 0, got %v, %v, %v", ok, s, p)
+	}
+}
+
 func TestDrop(t *testing.T) {
 	m := Map{}
 
@@ -82,8 +106,8 @@ func TestDrop(t *testing.T) {
 	}
 
 	ok, s, p = m.Map(13, 1000)
-	if ok {
-		t.Errorf("Expected not ok")
+	if !ok || s != 13 || p != 0 {
+		t.Errorf("Expected 13, 0, got %v, %v, %v", ok, s, p)
 	}
 
 	ok, s, p = m.Map(44, 1001)
@@ -107,8 +131,8 @@ func TestDrop(t *testing.T) {
 	}
 
 	ok, s, p = m.direct(13)
-	if ok {
-		t.Errorf("Expected not ok")
+	if !ok || s != 13 || p != 0 {
+		t.Errorf("Expected 13, 0, got %v, %v, %v", ok, s, p)
 	}
 
 	ok, s, p = m.Reverse(44)
