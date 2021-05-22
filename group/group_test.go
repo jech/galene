@@ -55,7 +55,7 @@ func TestGroup(t *testing.T) {
 	}
 
 	if public := GetPublic(); len(public) != 1 || public[0].Name != "group/subgroup" {
-		t.Errorf("Expeced group/subgroup, got %v", public)
+		t.Errorf("Expected group/subgroup, got %v", public)
 	}
 
 	Expire()
