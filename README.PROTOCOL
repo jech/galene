@@ -146,6 +146,7 @@ streams to a list containing either 'audio', or one of 'video' or
         '': ['audio', 'video']
     }
 }
+```
 
 ## Pushing streams
 
@@ -159,11 +160,11 @@ A stream is created by the sender with the `offer` message:
     replace: id,
     source: source-id,
     username: username,
-    sdp: sdp,
+    sdp: sdp
 }
 ```
 
-If a stream with the same id exists, then this is a renegotation;
+If a stream with the same id exists, then this is a renegotiation;
 otherwise this message creates a new stream.  If the field `replace` is
 not empty, then this request additionally requests that an existing stream
 with the given id should be closed, and the new stream should replace it;
@@ -217,7 +218,7 @@ At any time after answering, the client may change the set of streams
 being offered by sending a 'requestStream' request:
 ```javascript
 {
-    type: 'answerStream'
+    type: 'requestStream'
     id: id,
     request: [audio, video]
 }
