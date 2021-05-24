@@ -2727,4 +2727,16 @@ function start() {
     document.getElementById("login-container").classList.remove('invisible');
 }
 
+//Dark mode function
+getInputElement('darkmode').onchange = function (e){
+    e.preventDefault();
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
+    document.getElementById('main').classList.toggle('app-dark');
+    document.getElementById('optionsdiv').classList.toggle('sidenav-content-dark');
+    document.getElementById('left-sidebar').classList.toggle('left-sidebar-dark');
+    document.getElementById('chat').classList.toggle('chat-dark');
+    document.getElementById('users').classList.toggle('users-dark');
+}
+
 start();
