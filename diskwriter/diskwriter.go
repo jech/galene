@@ -338,7 +338,6 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 			return nil, errors.New(
 				"cannot record codec " + codec.MimeType,
 			)
-			continue
 		}
 		track := &diskTrack{
 			remote:  remote,
