@@ -22,8 +22,8 @@ github.com/google/uuid v1.2.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
-github.com/jech/samplebuilder v0.0.0-20210711181036-7fcbcf0988c5 h1:ek+KpVz14p6ytAtzMSktZNgtq2Vq6GkIcWiJDv3eP3s=
-github.com/jech/samplebuilder v0.0.0-20210711181036-7fcbcf0988c5/go.mod h1:PXhvo7PKy8CVqirCgoNG2BIjwow2Zd6LwCTScabl584=
+github.com/jech/samplebuilder v0.0.0-20210711185346-d34c6dd315fb h1:ctDbFqRHUmxTThbYcTP2cdOVOkECsvhNyQKqeEK7RQQ=
+github.com/jech/samplebuilder v0.0.0-20210711185346-d34c6dd315fb/go.mod h1:PXhvo7PKy8CVqirCgoNG2BIjwow2Zd6LwCTScabl584=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=

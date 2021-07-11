@@ -308,6 +308,15 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 		tracks:    make([]*diskTrack, 0, len(tracks)),
 		remote:    up,
 	}
+
+	truePartitionTailChecker := func(p *rtp.Packet) bool {
+		return true
+	}
+
+	markerPartitionTailChecker := func(p *rtp.Packet) bool {
+		return p.Marker
+	}
+
 	for _, remote := range tracks {
 		var builder *samplebuilder.SampleBuilder
 		codec := remote.Codec()
@@ -317,12 +326,18 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.OpusPartitionHeadChecker{},
 				),
+				samplebuilder.WithPartitionTailChecker(
+					truePartitionTailChecker,
+				),
 			)
 		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			builder = samplebuilder.New(
 				128, &codecs.VP8Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.VP8PartitionHeadChecker{},
+				),
+				samplebuilder.WithPartitionTailChecker(
+					markerPartitionTailChecker,
 				),
 			)
 			conn.hasVideo = true
@@ -331,6 +346,9 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				128, &codecs.VP9Packet{}, codec.ClockRate,
 				samplebuilder.WithPartitionHeadChecker(
 					&codecs.VP9PartitionHeadChecker{},
+				),
+				samplebuilder.WithPartitionTailChecker(
+					markerPartitionTailChecker,
 				),
 			)
 			conn.hasVideo = true
