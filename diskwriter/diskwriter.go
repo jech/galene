@@ -16,6 +16,7 @@ import (
 	"github.com/at-wat/ebml-go/webm"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
+	"github.com/pion/webrtc/v3/pkg/media"
 
 	"github.com/jech/samplebuilder"
 
@@ -184,6 +185,7 @@ func (conn *diskConn) warn(message string) {
 func (conn *diskConn) reopen() error {
 	for _, t := range conn.tracks {
 		if t.writer != nil {
+			t.writeBuffered(true)
 			t.writer.Close()
 			t.writer = nil
 		}
@@ -206,6 +208,7 @@ func (conn *diskConn) Close() error {
 	tracks := make([]*diskTrack, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
 		if t.writer != nil {
+			t.writeBuffered(true)
 			t.writer.Close()
 			t.writer = nil
 		}
@@ -545,8 +548,23 @@ func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 
 	t.builder.Push(p)
 
+	return t.writeBuffered(false)
+}
+
+// writeBuffered writes any buffered samples to disk.  If force is true,
+// then samples will be flushed even if they are preceded by incomplete
+// samples.
+func (t *diskTrack) writeBuffered(force bool) error {
+	codec := t.remote.Codec()
+
 	for {
-		sample, ts := t.builder.PopWithTimestamp()
+		var sample *media.Sample
+		var ts uint32
+		if !force {
+			sample, ts = t.builder.PopWithTimestamp()
+		} else {
+			sample, ts = t.builder.ForcePopWithTimestamp()
+		}
 		if sample == nil {
 			return nil
 		}
