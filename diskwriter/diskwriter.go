@@ -250,6 +250,22 @@ func openDiskFile(directory, username string) (*os.File, error) {
 	return nil, errors.New("couldn't create file")
 }
 
+type maybeUint32 uint64
+
+const none maybeUint32 = 0
+
+func some(value uint32) maybeUint32 {
+	return maybeUint32(uint64(1 << 32) | uint64(value))
+}
+
+func valid(m maybeUint32) bool {
+	return (m & (1 << 32)) != 0
+}
+
+func value(m maybeUint32) uint32 {
+	return uint32(m)
+}
+
 type diskTrack struct {
 	remote conn.UpTrack
 	conn   *diskConn
@@ -257,8 +273,7 @@ type diskTrack struct {
 	writer  webm.BlockWriteCloser
 	builder *samplebuilder.SampleBuilder
 
-	// bit 32 is a boolean indicating that the origin is valid
-	origin uint64
+	origin maybeUint32
 
 	kfRequested time.Time
 	lastKf      time.Time
@@ -546,10 +561,10 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 			continue
 		}
 
-		if t.origin == 0 {
-			t.origin = uint64(ts) | (1 << 32)
+		if !valid(t.origin) {
+			t.origin = some(ts)
 		}
-		ts -= uint32(t.origin)
+		ts -= value(t.origin)
 
 		tm := ts / (t.remote.Codec().ClockRate / 1000)
 		_, err := t.writer.Write(keyframe, int64(tm), sample.Data)
