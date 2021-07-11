@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/at-wat/ebml-go v0.16.0
 	github.com/gorilla/websocket v1.4.2
+	github.com/jech/samplebuilder v0.0.0-20210711181036-7fcbcf0988c5
 	github.com/pion/ice/v2 v2.1.8
 	github.com/pion/rtcp v1.2.6
 	github.com/pion/rtp v1.6.6-0.20210512022946-4e87540a7fe6
