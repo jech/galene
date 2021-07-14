@@ -494,23 +494,18 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 		if ((p.SequenceNumber - lastSeqno) & 0x8000) == 0 {
 			count := p.SequenceNumber - lastSeqno
 			if count > 0 && count < 128 {
-				var nacks []uint16
 				for i := lastSeqno + 1; i != p.SequenceNumber; i++ {
 					// different buf each time
 					buf := make([]byte, 1504)
-					n := t.remote.GetRTP(i, buf)
-					if n > 0 {
-						p := new(rtp.Packet)
-						err := p.Unmarshal(buf)
-						if err == nil {
-							t.writeRTP(p)
-						}
-					} else {
-						nacks = append(nacks, i)
+					n := t.remote.GetPacket(i, buf, true)
+					if n == 0 {
+						continue
 					}
-				}
-				if len(nacks) > 0 {
-					t.remote.Nack(nacks)
+					p := new(rtp.Packet)
+					err := p.Unmarshal(buf)
+					if err == nil {
+						t.writeRTP(p)
+					}
 				}
 			}
 		}

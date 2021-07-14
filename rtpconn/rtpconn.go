@@ -430,10 +430,6 @@ func (up *rtpUpTrack) getLocal() []conn.DownTrack {
 	return local
 }
 
-func (up *rtpUpTrack) GetRTP(seqno uint16, result []byte) uint16 {
-	return up.cache.Get(seqno, result)
-}
-
 func (up *rtpUpTrack) Label() string {
 	return up.track.RID()
 }
@@ -712,7 +708,6 @@ func sendNACKs(pc *webrtc.PeerConnection, ssrc webrtc.SSRC, nacks []rtcp.NackPai
 }
 
 func gotNACK(track *rtpDownTrack, p *rtcp.TransportLayerNack) {
-	var unhandled []uint16
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
 		nack.Range(func(s uint16) bool {
@@ -720,9 +715,8 @@ func gotNACK(track *rtpDownTrack, p *rtcp.TransportLayerNack) {
 			if !ok {
 				return true
 			}
-			l := track.remote.GetRTP(seqno, buf)
+			l := track.remote.GetPacket(seqno, buf, true)
 			if l == 0 {
-				unhandled = append(unhandled, seqno)
 				return true
 			}
 			_, err := track.Write(buf[:l])
@@ -733,33 +727,30 @@ func gotNACK(track *rtpDownTrack, p *rtcp.TransportLayerNack) {
 			return true
 		})
 	}
-	if len(unhandled) == 0 {
-		return
-	}
-
-	track.remote.Nack(unhandled)
 }
 
-func (track *rtpUpTrack) Nack(nacks []uint16) error {
+func (track *rtpUpTrack) GetPacket(seqno uint16, result []byte, nack bool) uint16 {
+	n := track.cache.Get(seqno, result)
+	if n > 0 || !nack {
+		return n
+	}
+
 	track.mu.Lock()
 	defer track.mu.Unlock()
 
 	doit := len(track.bufferedNACKs) == 0
 
-outer:
-	for _, nack := range nacks {
-		for _, seqno := range track.bufferedNACKs {
-			if seqno == nack {
-				continue outer
-			}
+	for _, s := range track.bufferedNACKs {
+		if s == seqno {
+			return 0
 		}
-		track.bufferedNACKs = append(track.bufferedNACKs, nack)
 	}
+	track.bufferedNACKs = append(track.bufferedNACKs, seqno)
 
 	if doit {
 		go nackWriter(track)
 	}
-	return nil
+	return 0
 }
 
 func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPReceiver) {
