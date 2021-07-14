@@ -399,6 +399,7 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 		track:          local,
 		sender:         sender,
 		ssrc:           parms.Encodings[0].SSRC,
+		conn:           conn,
 		remote:         remoteTrack,
 		maxBitrate:     new(bitrate),
 		maxREMBBitrate: new(bitrate),
@@ -409,7 +410,7 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 
 	conn.tracks = append(conn.tracks, track)
 
-	go rtcpDownListener(conn, track, sender)
+	go rtcpDownListener(track, sender)
 
 	return nil
 }

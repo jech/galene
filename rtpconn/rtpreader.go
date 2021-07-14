@@ -12,8 +12,8 @@ import (
 	"github.com/jech/galene/rtptime"
 )
 
-func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
-	writers := rtpWriterPool{conn: conn, track: track}
+func readLoop(track *rtpUpTrack) {
+	writers := rtpWriterPool{track: track}
 	defer func() {
 		writers.close()
 		close(track.readerDone)
@@ -118,7 +118,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 				packet.SequenceNumber - unnacked,
 			)
 			if found && sendNACK {
-				err := conn.sendNACK(track, first, bitmap)
+				err := track.sendNACK(first, bitmap)
 				if err != nil {
 					log.Printf("%v", err)
 				}
@@ -136,7 +136,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 		now := time.Now()
 		if kfNeeded && now.Sub(kfRequested) > time.Second/2 {
 			if sendPLI {
-				err := conn.sendPLI(track)
+				err := track.sendPLI()
 				if err != nil {
 					log.Printf("sendPLI: %v", err)
 					kfNeeded = false

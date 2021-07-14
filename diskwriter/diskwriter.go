@@ -510,7 +510,7 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 					}
 				}
 				if len(nacks) > 0 {
-					t.remote.Nack(t.conn.remote, nacks)
+					t.remote.Nack(nacks)
 				}
 			}
 		}

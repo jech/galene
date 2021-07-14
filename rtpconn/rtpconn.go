@@ -80,6 +80,7 @@ type downTrackAtomics struct {
 type rtpDownTrack struct {
 	track          *webrtc.TrackLocalStaticRTP
 	sender         *webrtc.RTPSender
+	conn           *rtpDownConnection
 	remote         conn.UpTrack
 	ssrc           webrtc.SSRC
 	packetmap      packetmap.Map
@@ -351,6 +352,7 @@ func (down *rtpDownConnection) flushICECandidates() error {
 
 type rtpUpTrack struct {
 	track  *webrtc.TrackRemote
+	conn   *rtpUpConnection
 	rate   *estimator.Estimator
 	cache  *packetcache.Cache
 	jitter *jitter.Estimator
@@ -616,6 +618,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 
 		track := &rtpUpTrack{
 			track:      remote,
+			conn:       up,
 			cache:      packetcache.New(minPacketCache(remote)),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
@@ -625,7 +628,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 
 		up.tracks = append(up.tracks, track)
 
-		go readLoop(up, track)
+		go readLoop(track)
 
 		go rtcpUpListener(up, track, receiver)
 
@@ -643,11 +646,11 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 var ErrUnsupportedFeedback = errors.New("unsupported feedback type")
 var ErrRateLimited = errors.New("rate limited")
 
-func (up *rtpUpConnection) sendPLI(track *rtpUpTrack) error {
+func (track *rtpUpTrack) sendPLI() error {
 	if !track.hasRtcpFb("nack", "pli") {
 		return ErrUnsupportedFeedback
 	}
-	return sendPLI(up.pc, track.track.SSRC())
+	return sendPLI(track.conn.pc, track.track.SSRC())
 }
 
 func sendPLI(pc *webrtc.PeerConnection, ssrc webrtc.SSRC) error {
@@ -656,12 +659,12 @@ func sendPLI(pc *webrtc.PeerConnection, ssrc webrtc.SSRC) error {
 	})
 }
 
-func (up *rtpUpConnection) sendNACK(track *rtpUpTrack, first uint16, bitmap uint16) error {
+func (track *rtpUpTrack) sendNACK(first uint16, bitmap uint16) error {
 	if !track.hasRtcpFb("nack", "") {
 		return ErrUnsupportedFeedback
 	}
 
-	err := sendNACKs(up.pc, track.track.SSRC(),
+	err := sendNACKs(track.conn.pc, track.track.SSRC(),
 		[]rtcp.NackPair{{first, rtcp.PacketBitmap(bitmap)}},
 	)
 	if err == nil {
@@ -670,7 +673,7 @@ func (up *rtpUpConnection) sendNACK(track *rtpUpTrack, first uint16, bitmap uint
 	return err
 }
 
-func (up *rtpUpConnection) sendNACKs(track *rtpUpTrack, seqnos []uint16) error {
+func (track *rtpUpTrack) sendNACKs(seqnos []uint16) error {
 	count := len(seqnos)
 	if count == 0 {
 		return nil
@@ -691,7 +694,7 @@ func (up *rtpUpConnection) sendNACKs(track *rtpUpTrack, seqnos []uint16) error {
 		f, b, seqnos = packetcache.ToBitmap(seqnos)
 		nacks = append(nacks, rtcp.NackPair{f, rtcp.PacketBitmap(b)})
 	}
-	err := sendNACKs(up.pc, track.track.SSRC(), nacks)
+	err := sendNACKs(track.conn.pc, track.track.SSRC(), nacks)
 	if err == nil {
 		track.cache.Expect(count)
 	}
@@ -708,7 +711,7 @@ func sendNACKs(pc *webrtc.PeerConnection, ssrc webrtc.SSRC, nacks []rtcp.NackPai
 	return pc.WriteRTCP([]rtcp.Packet{packet})
 }
 
-func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLayerNack) {
+func gotNACK(track *rtpDownTrack, p *rtcp.TransportLayerNack) {
 	var unhandled []uint16
 	buf := make([]byte, packetcache.BufSize)
 	for _, nack := range p.Nacks {
@@ -734,10 +737,10 @@ func gotNACK(conn *rtpDownConnection, track *rtpDownTrack, p *rtcp.TransportLaye
 		return
 	}
 
-	track.remote.Nack(conn.remote, unhandled)
+	track.remote.Nack(unhandled)
 }
 
-func (track *rtpUpTrack) Nack(conn conn.Up, nacks []uint16) error {
+func (track *rtpUpTrack) Nack(nacks []uint16) error {
 	track.mu.Lock()
 	defer track.mu.Unlock()
 
@@ -754,12 +757,7 @@ outer:
 	}
 
 	if doit {
-		up, ok := conn.(*rtpUpConnection)
-		if !ok {
-			log.Printf("Nack: unexpected type %T", conn)
-			return errors.New("unexpected connection type")
-		}
-		go nackWriter(up, track)
+		go nackWriter(track)
 	}
 	return nil
 }
@@ -1088,7 +1086,7 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 	track.maxBitrate.Set(rate, now)
 }
 
-func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RTPSender) {
+func rtcpDownListener(track *rtpDownTrack, s *webrtc.RTPSender) {
 	lastFirSeqno := uint8(0)
 
 	buf := make([]byte, 1500)
@@ -1149,7 +1147,7 @@ func rtcpDownListener(conn *rtpDownConnection, track *rtpDownTrack, s *webrtc.RT
 					}
 				}
 			case *rtcp.TransportLayerNack:
-				gotNACK(conn, track, p)
+				gotNACK(track, p)
 			}
 		}
 		if adjust {

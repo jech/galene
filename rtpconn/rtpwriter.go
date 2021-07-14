@@ -21,7 +21,6 @@ type packetIndex struct {
 
 // An rtpWriterPool is a set of rtpWriters
 type rtpWriterPool struct {
-	conn    *rtpUpConnection
 	track   *rtpUpTrack
 	writers []*rtpWriter
 	count   int
@@ -72,7 +71,7 @@ func (wp *rtpWriterPool) add(track conn.DownTrack, add bool) error {
 	}
 
 	if add {
-		writer := newRtpWriter(wp.conn, wp.track)
+		writer := newRtpWriter(wp.track)
 		wp.writers = append(wp.writers, writer)
 		err := writer.add(track, true, n)
 		if err == nil {
@@ -181,13 +180,13 @@ type rtpWriter struct {
 	drop int
 }
 
-func newRtpWriter(conn *rtpUpConnection, track *rtpUpTrack) *rtpWriter {
+func newRtpWriter(track *rtpUpTrack) *rtpWriter {
 	writer := &rtpWriter{
 		ch:     make(chan packetIndex, 32),
 		done:   make(chan struct{}),
 		action: make(chan writerAction, 1),
 	}
-	go rtpWriterLoop(writer, conn, track)
+	go rtpWriterLoop(writer, track)
 	return writer
 }
 
@@ -223,7 +222,7 @@ func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
 }
 
 // rtpWriterLoop is the main loop of an rtpWriter.
-func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
+func rtpWriterLoop(writer *rtpWriter, track *rtpUpTrack) {
 	defer close(writer.done)
 
 	buf := make([]byte, packetcache.BufSize)
@@ -314,7 +313,7 @@ func rtpWriterLoop(writer *rtpWriter, up *rtpUpConnection, track *rtpUpTrack) {
 
 // nackWriter is called when bufferedNACKs becomes non-empty.  It decides
 // which nacks to ship out.
-func nackWriter(conn *rtpUpConnection, track *rtpUpTrack) {
+func nackWriter(track *rtpUpTrack) {
 	// a client might send us a NACK for a packet that has already
 	// been nacked by the reader loop.  Give recovery a chance.
 	time.Sleep(50 * time.Millisecond)
@@ -366,6 +365,6 @@ func nackWriter(conn *rtpUpConnection, track *rtpUpTrack) {
 	})
 
 	if len(nacks) > 0 {
-		conn.sendNACKs(track, nacks)
+		track.sendNACKs(nacks)
 	}
 }
