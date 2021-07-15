@@ -225,7 +225,7 @@ func delUpConn(c *webClient, id string, userId string, push bool) error {
 		return ErrUserMismatch
 	}
 
-	replace := conn.getReplace(true)
+	replace := conn.getReplace(false)
 
 	delete(c.up, id)
 	g := c.group
@@ -976,45 +976,45 @@ func handleAction(c *webClient, a interface{}) error {
 			tracks = requestedTracks(c, override, a.conn, a.tracks)
 		}
 
-		if len(tracks) == 0 {
-			closeDownConn(c, a.id, "")
-			if a.replace != "" {
-				closeDownConn(
-					c, a.replace, "",
-				)
-			}
-			return nil
-		}
-
-		down, _, err := addDownConn(c, a.conn)
-		if err != nil {
-			if err == os.ErrClosed {
-				return nil
-			}
-			return err
-		}
-		done, err := replaceTracks(down, tracks, a.conn)
-		if err != nil {
-			return err
-		}
-		if !done {
-			return nil
-		}
 		if a.replace != "" {
 			err := delDownConn(c, a.replace)
 			if err != nil {
 				log.Printf("Replace: %v", err)
 			}
 		}
-		err = negotiate(
-			c, down, false, a.replace,
-		)
+
+		if len(tracks) == 0 {
+			closeDownConn(c, a.id, "")
+			if a.replace != "" {
+				closeDownConn(c, a.replace, "")
+			}
+			return nil
+		}
+
+		down, _, err := addDownConn(c, a.conn)
 		if err != nil {
-			log.Printf(
-				"Negotiation failed: %v",
-				err)
-			closeDownConn(c, down.id,
-				"negotiation failed")
+			if a.replace != "" {
+				closeDownConn(c, a.replace, "")
+			}
+			if err == os.ErrClosed {
+				return nil
+			}
+			return err
+		}
+		done, err := replaceTracks(down, tracks, a.conn)
+		if err != nil || !done {
+			if a.replace != "" {
+				closeDownConn(c, a.replace, "")
+			}
+			return err
+		}
+		err = negotiate(c, down, false, a.replace)
+		if err != nil {
+			log.Printf("Negotiation failed: %v", err)
+			if a.replace != "" {
+				closeDownConn(c, a.replace, "")
+			}
+			closeDownConn(c, down.id, "negotiation failed")
 		}
 	case requestConnsAction:
 		g := c.group
