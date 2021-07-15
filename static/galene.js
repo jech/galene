@@ -333,6 +333,7 @@ function gotConnected() {
  * @param {string} reason
  */
 function gotClose(code, reason) {
+    closeUpMedia();
     setConnected(false);
     if(code != 1000) {
         console.warn('Socket close', code, reason);
@@ -1461,7 +1462,7 @@ function stopStream(s) {
  * closeUpMedia closes all up connections with the given label.  If label
  * is null, it closes all up connections.
  *
- * @param {string} label
+ * @param {string} [label]
 */
 function closeUpMedia(label) {
     for(let id in serverConnection.up) {
