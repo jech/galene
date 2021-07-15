@@ -954,68 +954,70 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 	}
 }
 
+func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
+	var requested []conn.UpTrack
+	if up != nil {
+		var old *rtpDownConnection
+		if replace != "" {
+			old = getDownConn(c, replace)
+		} else {
+			old = getDownConn(c, up.Id())
+		}
+		var override []string
+		if old != nil {
+			override = old.requested
+		}
+		requested = requestedTracks(c, override, up, tracks)
+	}
+
+	if replace != "" {
+		err := delDownConn(c, replace)
+		if err != nil {
+			log.Printf("Replace: %v", err)
+		}
+	}
+
+	// closes over replace, which will be modified below
+	defer func() {
+		if replace != "" {
+			closeDownConn(c, replace, "")
+		}
+	}()
+
+	if len(requested) == 0 {
+		closeDownConn(c, id, "")
+		return nil
+	}
+
+	down, _, err := addDownConn(c, up)
+	if err != nil {
+		if err == os.ErrClosed {
+			return nil
+		}
+		return err
+	}
+	done, err := replaceTracks(down, requested, up)
+	if err != nil || !done {
+		return err
+	}
+	err = negotiate(c, down, false, replace)
+	if err != nil {
+		log.Printf("Negotiation failed: %v", err)
+		closeDownConn(c, down.id, "negotiation failed")
+		return err
+	}
+	replace = ""
+	return nil
+}
+
 func handleAction(c *webClient, a interface{}) error {
 	switch a := a.(type) {
 	case pushConnAction:
-		g := c.group
-		if g == nil || a.group != g {
+		if c.group == nil || c.group != a.group {
+			log.Printf("Got connectsions for wrong group")
 			return nil
 		}
-		var tracks []conn.UpTrack
-		var override []string
-		if a.conn != nil {
-			var old *rtpDownConnection
-			if a.replace != "" {
-				old = getDownConn(c, a.replace)
-			} else {
-				old = getDownConn(c, a.conn.Id())
-			}
-			if old != nil {
-				override = old.requested
-			}
-			tracks = requestedTracks(c, override, a.conn, a.tracks)
-		}
-
-		if a.replace != "" {
-			err := delDownConn(c, a.replace)
-			if err != nil {
-				log.Printf("Replace: %v", err)
-			}
-		}
-
-		if len(tracks) == 0 {
-			closeDownConn(c, a.id, "")
-			if a.replace != "" {
-				closeDownConn(c, a.replace, "")
-			}
-			return nil
-		}
-
-		down, _, err := addDownConn(c, a.conn)
-		if err != nil {
-			if a.replace != "" {
-				closeDownConn(c, a.replace, "")
-			}
-			if err == os.ErrClosed {
-				return nil
-			}
-			return err
-		}
-		done, err := replaceTracks(down, tracks, a.conn)
-		if err != nil || !done {
-			if a.replace != "" {
-				closeDownConn(c, a.replace, "")
-			}
-			return err
-		}
-		err = negotiate(c, down, false, a.replace)
-		if err != nil {
-			log.Printf("Negotiation failed: %v", err)
-			if a.replace != "" {
-				closeDownConn(c, a.replace, "")
-			}
-			closeDownConn(c, down.id, "negotiation failed")
-		}
+		return pushDownConn(c, a.id, a.conn, a.tracks, a.replace)
 	case requestConnsAction:
 		g := c.group
 		if g == nil || a.group != g {
