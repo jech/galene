@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"math/bits"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -461,6 +462,7 @@ type rtpUpConnection struct {
 	iceCandidates []*webrtc.ICECandidateInit
 
 	mu      sync.Mutex
+	closed  bool
 	pushed  bool
 	replace string
 	tracks  []*rtpUpTrack
@@ -500,6 +502,11 @@ func (up *rtpUpConnection) User() (string, string) {
 func (up *rtpUpConnection) AddLocal(local conn.Down) error {
 	up.mu.Lock()
 	defer up.mu.Unlock()
+	// the connection may have been closed in the meantime, in which
+	// case we'd never get rid of the down connection
+	if up.closed {
+		return os.ErrClosed
+	}
 	for _, t := range up.local {
 		if t == local {
 			return nil

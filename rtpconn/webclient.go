@@ -231,6 +231,10 @@ func delUpConn(c *webClient, id string, userId string, push bool) error {
 	g := c.group
 	c.mu.Unlock()
 
+	conn.mu.Lock()
+	conn.closed = true
+	conn.mu.Unlock()
+
 	conn.pc.Close()
 
 	if push && g != nil {
@@ -616,7 +620,10 @@ func gotAnswer(c *webClient, id string, sdp string) error {
 	add := func() {
 		down.pc.OnConnectionStateChange(nil)
 		for _, t := range down.tracks {
-			t.remote.AddLocal(t)
+			err := t.remote.AddLocal(t)
+			if err != nil && err != os.ErrClosed {
+				log.Printf("Add track: %v", err)
+			}
 		}
 	}
 	down.pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
@@ -981,6 +988,9 @@ func handleAction(c *webClient, a interface{}) error {
 
 		down, _, err := addDownConn(c, a.conn)
 		if err != nil {
+			if err == os.ErrClosed {
+				return nil
+			}
 			return err
 		}
 		done, err := replaceTracks(down, tracks, a.conn)
