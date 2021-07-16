@@ -33,6 +33,7 @@ func readLoop(track *rtpUpTrack) {
 		case <-track.actionCh:
 			track.mu.Lock()
 			actions := track.actions
+			track.actions = nil
 			track.mu.Unlock()
 			for _, action := range actions {
 				switch action.action {
@@ -53,6 +54,7 @@ func readLoop(track *rtpUpTrack) {
 					log.Printf("Unknown action")
 				}
 			}
+		default:
 		}
 
 		bytes, _, err := track.track.Read(buf)
