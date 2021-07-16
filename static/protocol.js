@@ -779,7 +779,7 @@ ServerConnection.prototype.gotRenegotiate = function(id) {
 ServerConnection.prototype.gotClose = function(id) {
     let c = this.down[id];
     if(!c)
-        throw new Error('unknown down stream');
+        console.warn('unknown down stream', id);
     c.close();
 };
 
