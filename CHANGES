@@ -18,7 +18,8 @@ Galène 0.4 (unreleased):
   * Added a close button in every locally-generated video; this allows
     closing individual screen shares and avoids the need for creating
     buttons at the top.
-  * Added user permissions and status ("hand up", etc.) to the protocol;
+  * Added user permissions and user status ("hand up", etc.) and group
+    status (locked) to the protocol.
   * this is not yet used by the user interface.
   * Stats are now exported as JSON and formatted on the client side.
 
