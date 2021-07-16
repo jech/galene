@@ -1327,9 +1327,10 @@ async function addLocalMedia(localId) {
     }
 
     let old = serverConnection.findByLocalId(localId);
-    if(old && old.onclose) {
+    if(old) {
         // make sure that the camera is released before we try to reopen it
-        old.onclose.call(old, true);
+        removeFilter(old);
+        stopStream(old.stream);
     }
 
     let constraints = {audio: audio, video: video};
