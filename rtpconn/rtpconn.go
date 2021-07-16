@@ -359,7 +359,7 @@ type rtpUpTrack struct {
 	jitter *jitter.Estimator
 	cname  atomic.Value
 
-	localCh    chan trackAction
+	actionCh   chan struct{}
 	readerDone chan struct{}
 
 	mu            sync.Mutex
@@ -369,6 +369,7 @@ type rtpUpTrack struct {
 	maxLayer      uint8
 	local         []conn.DownTrack
 	bufferedNACKs []uint16
+	actions       []trackAction
 }
 
 const (
@@ -383,22 +384,30 @@ type trackAction struct {
 }
 
 func (up *rtpUpTrack) action(action int, track conn.DownTrack) {
-	select {
-	case up.localCh <- trackAction{action, track}:
-	case <-up.readerDone:
+	up.mu.Lock()
+	empty := len(up.actions) == 0
+	up.actions = append(up.actions, trackAction{action, track})
+	up.mu.Unlock()
+
+	if empty {
+		select {
+		case up.actionCh <- struct{}{}:
+		default:
+		}
 	}
 }
 
 func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 	up.mu.Lock()
-	defer up.mu.Unlock()
-
 	for _, t := range up.local {
 		if t == local {
+			up.mu.Unlock()
 			return nil
 		}
 	}
 	up.local = append(up.local, local)
+	up.mu.Unlock()
+
 	up.action(trackActionAdd, local)
 	return nil
 }
@@ -410,16 +419,15 @@ func (up *rtpUpTrack) RequestKeyframe() error {
 
 func (up *rtpUpTrack) DelLocal(local conn.DownTrack) bool {
 	up.mu.Lock()
-	defer up.mu.Unlock()
 	for i, l := range up.local {
 		if l == local {
 			up.local = append(up.local[:i], up.local[i+1:]...)
-			// do this asynchronously, to avoid deadlocking when
-			// multiple clients call this simultaneously.
-			go up.action(trackActionDel, l)
+			up.mu.Unlock()
+			up.action(trackActionDel, l)
 			return true
 		}
 	}
+	up.mu.Unlock()
 	return false
 }
 
@@ -625,7 +633,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 			cache:      packetcache.New(minPacketCache(remote)),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
-			localCh:    make(chan trackAction, 2),
+			actionCh:   make(chan struct{}, 1),
 			readerDone: make(chan struct{}),
 		}
 

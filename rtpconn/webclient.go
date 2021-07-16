@@ -1710,9 +1710,10 @@ var ErrClientDead = errors.New("client is dead")
 
 func (c *webClient) action(a interface{}) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	empty := len(c.actions) == 0
 	c.actions = append(c.actions, a)
+	c.mu.Unlock()
+
 	if empty {
 		select {
 		case c.actionCh <- struct{}{}:

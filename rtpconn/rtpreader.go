@@ -29,10 +29,12 @@ func readLoop(track *rtpUpTrack) {
 	var packet rtp.Packet
 	for {
 
-	inner:
-		for {
-			select {
-			case action := <-track.localCh:
+		select {
+		case <-track.actionCh:
+			track.mu.Lock()
+			actions := track.actions
+			track.mu.Unlock()
+			for _, action := range actions {
 				switch action.action {
 				case trackActionAdd, trackActionDel:
 					err := writers.add(
@@ -50,8 +52,6 @@ func readLoop(track *rtpUpTrack) {
 				default:
 					log.Printf("Unknown action")
 				}
-			default:
-				break inner
 			}
 		}
 
