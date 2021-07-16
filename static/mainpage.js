@@ -60,7 +60,7 @@ async function listPublicGroups() {
         let td = document.createElement('td');
         let a = document.createElement('a');
         a.textContent = group.name;
-        a.href = '/group/' + encodeURIComponent(group.name);
+        a.href = '/group/' + encodeURIComponent(group.displayName || group.name);
         td.appendChild(a);
         tr.appendChild(td);
         let td2 = document.createElement('td');
@@ -68,7 +68,8 @@ async function listPublicGroups() {
             td2.textContent = group.description;
         tr.appendChild(td2);
         let td3 = document.createElement('td');
-        td3.textContent = `(${group.clientCount} clients)`;
+        let locked = group.locked ? ', locked' : '';
+        td3.textContent = `(${group.clientCount} clients${locked})`;
         tr.appendChild(td3);
         table.appendChild(tr);
     }

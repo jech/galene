@@ -949,7 +949,9 @@ func (desc *Description) GetPermission(group string, c Challengeable) (ClientPer
 
 type Public struct {
 	Name        string `json:"name"`
+	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
+	Locked      bool   `json:"locked,omitempty"`
 	ClientCount int    `json:"clientCount"`
 }
 
@@ -957,9 +959,12 @@ func GetPublic() []Public {
 	gs := make([]Public, 0)
 	Range(func(g *Group) bool {
 		if g.Public() {
+			locked, _ := g.Locked()
 			gs = append(gs, Public{
 				Name:        g.name,
+				DisplayName: g.DisplayName(),
 				Description: g.description.Description,
+				Locked:      locked,
 				ClientCount: len(g.clients),
 			})
 		}
