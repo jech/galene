@@ -2092,11 +2092,34 @@ function displayUsername() {
 let presentRequested = null;
 
 /**
+ * @param {string} [title]
+ */
+function setTitle(title) {
+    function set(title) {
+        document.title = title;
+        document.getElementById('title').textContent = title;
+    }
+    if(title) {
+        set(title);
+        return;
+    }
+    let t = group.charAt(0).toUpperCase() + group.slice(1);
+    if(t) {
+        set(t);
+        return;
+    }
+    set('Galène');
+}
+
+
+/**
  * @this {ServerConnection}
  * @param {string} group
  * @param {Object<string,boolean>} perms
+ * @param {Object<string,any>} status
+ * @param {string} message
  */
-async function gotJoined(kind, group, perms, message) {
+async function gotJoined(kind, group, perms, status, message) {
     let present = presentRequested;
     presentRequested = null;
 
@@ -2108,7 +2131,7 @@ async function gotJoined(kind, group, perms, message) {
         return;
     case 'redirect':
         this.close();
-        document.location = message;
+        document.location.href = message;
         return;
     case 'leave':
         this.close();
@@ -2116,6 +2139,7 @@ async function gotJoined(kind, group, perms, message) {
         return;
     case 'join':
     case 'change':
+        setTitle(status.displayName || group);
         displayUsername();
         setButtonsVisibility();
         if(kind === 'change')
@@ -3061,12 +3085,7 @@ async function serverConnect() {
 
 function start() {
     group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));
-    let title = group.charAt(0).toUpperCase() + group.slice(1);
-    if(group !== '') {
-        document.title = title;
-        document.getElementById('title').textContent = title;
-    }
-
+    setTitle();
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 

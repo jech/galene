@@ -77,7 +77,7 @@ func (client *Client) Status() map[string]interface{} {
 	return nil
 }
 
-func (client *Client) PushClient(id, username string, permissions *group.ClientPermissions, status map[string]interface{}, kind string) error {
+func (client *Client) PushClient(group, kind, id, username string, permissions group.ClientPermissions, status map[string]interface{}) error {
 	return nil
 }
 
@@ -101,6 +101,10 @@ func (client *Client) Kick(id, user, message string) error {
 	err := client.Close()
 	group.DelClient(client)
 	return err
+}
+
+func (client *Client) Joined(group, kind string) error {
+	return nil
 }
 
 func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {

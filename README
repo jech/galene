@@ -207,6 +207,7 @@ following fields are allowed:
    respectively with operator privileges, with presenter privileges, and
    as passive listeners;
  - `public`: if true, then the group is visible on the landing page;
+ - `displayName`: a human-friendly version of the group name;
  - `description`: a human-readable description of the group; this is
    displayed on the landing page for public groups;
  - `contact`: a human-readable contact for this group, such as an e-mail

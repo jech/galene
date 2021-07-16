@@ -111,14 +111,9 @@ func (c *webClient) OverridePermissions(g *group.Group) bool {
 	return false
 }
 
-func (c *webClient) PushClient(id, username string, permissions *group.ClientPermissions, status map[string]interface{}, kind string) error {
-	return c.write(clientMessage{
-		Type:        "user",
-		Kind:        kind,
-		Id:          id,
-		Username:    username,
-		Permissions: permissions,
-		Status:      status,
+func (c *webClient) PushClient(group, kind, id, username string, permissions group.ClientPermissions, status map[string]interface{}) error {
+	return c.action(pushClientAction{
+		group, kind, id, username, permissions, status,
 	})
 }
 
@@ -804,6 +799,17 @@ func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []con
 	return nil
 }
 
+func getGroupStatus(g *group.Group) map[string]interface{} {
+	status := make(map[string]interface{})
+	if locked, _ := g.Locked(); locked {
+		status["locked"] = true
+	}
+	if dn := g.DisplayName(); dn != "" {
+		status["displayName"] = dn
+	}
+	return status
+}
+
 func readMessage(conn *websocket.Conn, m *clientMessage) error {
 	err := conn.SetReadDeadline(time.Now().Add(15 * time.Second))
 	if err != nil {
@@ -880,7 +886,21 @@ type connectionFailedAction struct {
 	id string
 }
 
+type pushClientAction struct {
+	group       string
+	kind        string
+	id          string
+	username    string
+	permissions group.ClientPermissions
+	status      map[string]interface{}
+}
+
 type permissionsChangedAction struct{}
+
+type joinedAction struct {
+	group string
+	kind  string
+}
 
 type kickAction struct {
 	id       string
@@ -1067,6 +1087,37 @@ func handleAction(c *webClient, a interface{}) error {
 				"unknown connection")
 		}
 
+	case pushClientAction:
+		if a.group != c.group.Name() {
+			log.Printf("got client for wrong group")
+			return nil
+		}
+		return c.write(clientMessage{
+			Type:        "user",
+			Kind:        a.kind,
+			Id:          a.id,
+			Username:    a.username,
+			Permissions: &a.permissions,
+			Status:      a.status,
+		})
+	case joinedAction:
+		var status map[string]interface{}
+		if a.group != "" {
+			g := group.Get(a.group)
+			if g != nil {
+				status = getGroupStatus(g)
+			}
+		}
+		perms := c.permissions
+		return c.write(clientMessage{
+			Type:             "joined",
+			Kind:             a.kind,
+			Group:            a.group,
+			Username:         c.username,
+			Permissions:      &perms,
+			Status:           status,
+			RTCConfiguration: ice.ICEConfiguration(),
+		})
 	case permissionsChangedAction:
 		g := c.Group()
 		if g == nil {
@@ -1079,6 +1130,7 @@ func handleAction(c *webClient, a interface{}) error {
 			Group:            g.Name(),
 			Username:         c.username,
 			Permissions:      &perms,
+			Status:           getGroupStatus(g),
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
 		if !c.permissions.Present {
@@ -1101,7 +1153,9 @@ func handleAction(c *webClient, a interface{}) error {
 		clients := g.GetClients(nil)
 		go func(clients []group.Client) {
 			for _, cc := range clients {
-				cc.PushClient(id, user, &perms, s, "change")
+				cc.PushClient(
+					g.Name(), "change", id, user, perms, s,
+				)
 			}
 		}(clients)
 	case kickAction:
@@ -1212,6 +1266,10 @@ func (c *webClient) Kick(id, user, message string) error {
 	return c.action(kickAction{id, user, message})
 }
 
+func (c *webClient) Joined(group, kind string) error {
+	return c.action(joinedAction{group, kind})
+}
+
 func kickClient(g *group.Group, id, user, dest string, message string) error {
 	client := g.GetClient(dest)
 	if client == nil {
@@ -1243,14 +1301,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return group.ProtocolError("you are not joined")
 			}
 			leaveGroup(c)
-			perms := c.permissions
-			return c.write(clientMessage{
-				Type:        "joined",
-				Kind:        "leave",
-				Group:       m.Group,
-				Username:    c.username,
-				Permissions: &perms,
-			})
 		}
 
 		if m.Kind != "join" {
@@ -1298,18 +1348,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			})
 		}
 		c.group = g
-		perms := c.permissions
-		err = c.write(clientMessage{
-			Type:             "joined",
-			Kind:             "join",
-			Group:            m.Group,
-			Username:         c.username,
-			Permissions:      &perms,
-			RTCConfiguration: ice.ICEConfiguration(),
-		})
-		if err != nil {
-			return err
-		}
 		h := c.group.GetChatHistory()
 		for _, m := range h {
 			err := c.write(clientMessage{
@@ -1608,8 +1646,10 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			status := c.Status()
 			go func(clients []group.Client) {
 				for _, cc := range clients {
-					cc.PushClient(id, user, &perms, status,
-						"change")
+					cc.PushClient(
+						g.Name(), "change",
+						id, user, perms, status,
+					)
 				}
 			}(g.GetClients(nil))
 		default:

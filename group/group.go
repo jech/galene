@@ -92,11 +92,16 @@ func (g *Group) Locked() (bool, string) {
 
 func (g *Group) SetLocked(locked bool, message string) {
 	g.mu.Lock()
-	defer g.mu.Unlock()
 	if locked {
 		g.locked = &message
 	} else {
 		g.locked = nil
+	}
+	clients := g.getClientsUnlocked(nil)
+	g.mu.Unlock()
+
+	for _, c := range clients {
+		c.Joined(g.Name(), "change")
 	}
 }
 
@@ -116,6 +121,12 @@ func (g *Group) AllowRecording() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.description.AllowRecording
+}
+
+func (g *Group) DisplayName() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.description.DisplayName
 }
 
 var groups struct {
@@ -293,8 +304,16 @@ func APIFromNames(names []string) (*webrtc.API, error) {
 }
 
 func Add(name string, desc *Description) (*Group, error) {
+	g, notify, err := add(name, desc)
+	for _, c := range notify {
+		c.Joined(g.Name(), "change")
+	}
+	return g, err
+}
+
+func add(name string, desc *Description) (*Group, []Client, error) {
 	if name == "" || strings.HasSuffix(name, "/") {
-		return nil, UserError("illegal group name")
+		return nil, nil, UserError("illegal group name")
 	}
 
 	groups.mu.Lock()
@@ -311,7 +330,7 @@ func Add(name string, desc *Description) (*Group, error) {
 		if desc == nil {
 			desc, err = GetDescription(name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 
@@ -321,9 +340,10 @@ func Add(name string, desc *Description) (*Group, error) {
 			clients:     make(map[string]Client),
 			timestamp:   time.Now(),
 		}
-		autoLockKick(g, g.getClientsUnlocked(nil))
+		clients := g.getClientsUnlocked(nil)
+		autoLockKick(g, clients)
 		groups.groups[name] = g
-		return g, nil
+		return g, clients, nil
 	}
 
 	g.mu.Lock()
@@ -332,7 +352,7 @@ func Add(name string, desc *Description) (*Group, error) {
 	if desc != nil {
 		g.description = desc
 	} else if !descriptionChanged(name, g.description) {
-		return g, nil
+		return g, nil, nil
 	}
 
 	desc, err = GetDescription(name)
@@ -341,12 +361,13 @@ func Add(name string, desc *Description) (*Group, error) {
 			log.Printf("Reading group %v: %v", name, err)
 		}
 		deleteUnlocked(g)
-		return nil, err
+		return nil, nil, err
 	}
 	g.description = desc
-	autoLockKick(g, g.getClientsUnlocked(nil))
+	clients := g.getClientsUnlocked(nil)
+	autoLockKick(g, clients)
 
-	return g, nil
+	return g, clients, nil
 }
 
 func Range(f func(g *Group) bool) {
@@ -511,15 +532,19 @@ func AddClient(group string, c Client) (*Group, error) {
 	g.clients[c.Id()] = c
 	g.timestamp = time.Now()
 
+	c.Joined(g.Name(), "join")
+
 	id := c.Id()
 	u := c.Username()
 	p := c.Permissions()
 	s := c.Status()
-	c.PushClient(c.Id(), u, &p, s, "add")
+	c.PushClient(g.Name(), "add", c.Id(), u, p, s)
 	for _, cc := range clients {
 		pp := cc.Permissions()
-		c.PushClient(cc.Id(), cc.Username(), &pp, cc.Status(), "add")
-		cc.PushClient(id, u, &p, s, "add")
+		c.PushClient(
+			g.Name(), "add", cc.Id(), cc.Username(), pp, cc.Status(),
+		)
+		cc.PushClient(g.Name(), "add", id, u, p, s)
 	}
 
 	return g, nil
@@ -539,6 +564,11 @@ func autoLockKick(g *Group, clients []Client) {
 	if g.description.Autolock && g.locked == nil {
 		m := "this group is locked"
 		g.locked = &m
+		go func(clients []Client) {
+			for _, c := range clients {
+				c.Joined(g.Name(), "change")
+			}
+		}(g.getClientsUnlocked(nil))
 	}
 
 	if g.description.Autokick {
@@ -552,23 +582,22 @@ func DelClient(c Client) {
 		return
 	}
 	g.mu.Lock()
-	defer g.mu.Unlock()
-
 	if g.clients[c.Id()] != c {
 		log.Printf("Deleting unknown client")
+		g.mu.Unlock()
 		return
 	}
 	delete(g.clients, c.Id())
 	g.timestamp = time.Now()
-
 	clients := g.getClientsUnlocked(nil)
+	g.mu.Unlock()
 
-	go func(clients []Client) {
-		for _, cc := range clients {
-			cc.PushClient(c.Id(), "", nil, nil, "delete")
-		}
-	}(clients)
-
+	c.Joined(g.Name(), "leave")
+	for _, cc := range clients {
+		cc.PushClient(
+			g.Name(), "delete", c.Id(), "", ClientPermissions{}, nil,
+		)
+	}
 	autoLockKick(g, clients)
 }
 
@@ -739,6 +768,9 @@ type Description struct {
 	// when a file has changed on disk.
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
+
+	// The user-friendly group name
+	DisplayName string `json:"displayName,omitempty"`
 
 	// A user-readable description of the group.
 	Description string `json:"description,omitempty"`

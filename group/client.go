@@ -102,6 +102,7 @@ type Client interface {
 	OverridePermissions(*Group) bool
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
 	RequestConns(target Client, g *Group, id string) error
-	PushClient(id, username string, permissions *ClientPermissions, status map[string]interface{}, kind string) error
+	Joined(group, kind string) error
+	PushClient(group, kind, id, username string, permissions ClientPermissions, status map[string]interface{}) error
 	Kick(id, user, message string) error
 }

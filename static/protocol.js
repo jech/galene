@@ -164,7 +164,7 @@ function ServerConnection() {
      *
      * kind is one of 'join', 'fail', 'change' or 'leave'.
      *
-     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, message: string) => void}
+     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, status: Object<string,any>, message: string) => void}
      */
     this.onjoined = null;
     /**
@@ -284,7 +284,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onuser.call(sc, id, 'delete');
             }
             if(sc.group && sc.onjoined)
-                sc.onjoined.call(sc, 'leave', sc.group, {}, '');
+                sc.onjoined.call(sc, 'leave', sc.group, {}, {}, '');
             sc.group = null;
             sc.username = null;
             if(sc.onclose)
@@ -336,6 +336,7 @@ ServerConnection.prototype.connect = async function(url) {
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
                                      m.permissions || {},
+                                     m.status,
                                      m.value || null);
                 break;
             case 'user':

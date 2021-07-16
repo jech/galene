@@ -100,12 +100,15 @@ its permissions or in the recommended RTC configuration.
     group: group,
     username: username,
     permissions: permissions,
+    status: status,
     rtcConfiguration: RTCConfiguration
 }
 ```
 
 The `permissions` field is an array of strings that may contain the values
-`present`, `op` and `record`.
+`present`, `op` and `record`.  The `status` field is a dictionary that
+contains random information that can be usefully displayed in the user
+interface.
 
 ## Maintaining group membership
 
