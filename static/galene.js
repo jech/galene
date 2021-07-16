@@ -2092,22 +2092,24 @@ function displayUsername() {
 let presentRequested = null;
 
 /**
- * @param {string} [title]
+ * @param {string} s
+ */
+function capitalise(s) {
+    if(s.length <= 0)
+        return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * @param {string} title
  */
 function setTitle(title) {
     function set(title) {
         document.title = title;
         document.getElementById('title').textContent = title;
     }
-    if(title) {
+    if(title)
         set(title);
-        return;
-    }
-    let t = group.charAt(0).toUpperCase() + group.slice(1);
-    if(t) {
-        set(t);
-        return;
-    }
     set('Galène');
 }
 
@@ -2139,7 +2141,7 @@ async function gotJoined(kind, group, perms, status, message) {
         return;
     case 'join':
     case 'change':
-        setTitle(status.displayName || group);
+        setTitle((status && status.displayName) || capitalise(group));
         displayUsername();
         setButtonsVisibility();
         if(kind === 'change')
@@ -3085,7 +3087,7 @@ async function serverConnect() {
 
 function start() {
     group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));
-    setTitle();
+    setTitle(capitalise(group));
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 
