@@ -1,0 +1,24 @@
+#adminform > input[type=submit] {
+	margin-top : 5px;
+}
+#adminform > input {
+	width : 20%;
+	min-width: 200px;
+}
+
+#modifyGroupForm {
+	margin: auto;
+	min-width: 260px;
+	width : 40%;
+}
+#modifyGroupForm > * {
+	margin-top : 5px;
+	width : 100%;
+}
+.double-input {
+	display: flex;
+	justify-content: space-between;
+}
+.double-input > * {
+	width : 49%;
+}
