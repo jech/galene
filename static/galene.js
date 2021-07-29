@@ -2181,7 +2181,7 @@ async function gotJoined(kind, group, perms, status, message) {
             }
         } else {
             displayMessage(
-                "Press Ready to enable your camera or microphone"
+                "Press Enable to enable your camera or microphone"
             );
         }
     }

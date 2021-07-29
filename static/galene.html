@@ -40,12 +40,12 @@
               <ul class="nav-menu">
                 <li>
                   <button id="presentbutton" class="invisible btn btn-success">
-                    <i class="fas fa-play" aria-hidden="true"></i><span class="nav-text"> Ready</span>
+                    <i class="fas fa-play" aria-hidden="true"></i><span class="nav-text"> Enable</span>
                   </button>
                 </li>
                 <li>
                   <button id="unpresentbutton" class="invisible btn btn-cancel">
-                    <i class="fas fa-stop" aria-hidden="true"></i><span class="nav-text"> Panic</span>
+                    <i class="fas fa-stop" aria-hidden="true"></i><span class="nav-text"> Disable</span>
                   </button>
                 </li>
                 <li>
@@ -110,19 +110,19 @@
                     <label for="password">Password</label>
                     <input id="password" type="password" name="password"
                            autocomplete="current-password" class="form-control"/>
-                    <label>Auto ready</label>
+                    <label>Enable at start:</label>
                     <div class="present-switch">
                       <p class="switch-radio">
                         <input id="presentoff" type="radio" name="presentradio" value="" checked/>
-                        <label for="presentoff">Disabled</label>
+                        <label for="presentoff">Nothing</label>
                       </p>
                       <p class="switch-radio">
                         <input id="presentmike" type="radio" name="presentradio" value="mike"/>
-                        <label for="presentmike">Enable microphone</label>
+                        <label for="presentmike">Microphone</label>
                       </p>
                       <p class="switch-radio">
                         <input id="presentboth" type="radio" name="presentradio" value="both"/>
-                        <label for="presentboth">Enable camera and microphone</label>
+                        <label for="presentboth">Camera and microphone</label>
                       </p>
                     </div>
                     <div class="clear"></div>
