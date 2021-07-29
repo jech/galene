@@ -182,6 +182,52 @@ func Keyframe(codec string, packet *rtp.Packet) (bool, bool) {
 	return false, false
 }
 
+func KeyframeDimensions(codec string, packet *rtp.Packet) (uint32, uint32) {
+	if strings.EqualFold(codec, "video/vp8") {
+		var vp8 codecs.VP8Packet
+		_, err := vp8.Unmarshal(packet.Payload)
+		if err != nil {
+			return 0, 0
+		}
+		if len(vp8.Payload) < 10 {
+			return 0, 0
+		}
+		raw := uint32(vp8.Payload[6]) | uint32(vp8.Payload[7])<<8 |
+			uint32(vp8.Payload[8])<<16 | uint32(vp8.Payload[9])<<24
+		width := raw & 0x3FFF
+		height := (raw >> 16) & 0x3FFF
+		return width, height
+	} else if strings.EqualFold(codec, "video/vp9") {
+		if packet == nil {
+			return 0, 0
+		}
+		var vp9 codecs.VP9Packet
+		_, err := vp9.Unmarshal(packet.Payload)
+		if err != nil {
+			return 0, 0
+		}
+		if !vp9.V {
+			return 0, 0
+		}
+		w := uint32(0)
+		h := uint32(0)
+		for i := range vp9.Width {
+			if i >= len(vp9.Height) {
+				break
+			}
+			if w < uint32(vp9.Width[i]) {
+				w = uint32(vp9.Width[i])
+			}
+			if h < uint32(vp9.Height[i]) {
+				h = uint32(vp9.Height[i])
+			}
+		}
+		return w, h
+	} else {
+		return 0, 0
+	}
+}
+
 type Flags struct {
 	Seqno           uint16
 	Start           bool

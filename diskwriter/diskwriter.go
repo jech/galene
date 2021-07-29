@@ -20,6 +20,7 @@ import (
 
 	"github.com/jech/samplebuilder"
 
+	gcodecs "github.com/jech/galene/codecs"
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/group"
 )
@@ -411,70 +412,6 @@ func (t *diskTrack) SetTimeOffset(ntp uint64, rtp uint32) {
 func (t *diskTrack) SetCname(string) {
 }
 
-func isKeyframe(codec string, data []byte) bool {
-	if strings.EqualFold(codec, "video/vp8") {
-		if len(data) < 1 {
-			return false
-		}
-		return (data[0] & 0x1) == 0
-	} else if strings.EqualFold(codec, "video/vp9") {
-		if len(data) < 1 {
-			return false
-		}
-		if data[0]&0xC0 != 0x80 {
-			return false
-		}
-		profile := (data[0] >> 4) & 0x3
-		if profile != 3 {
-			return (data[0] & 0xC) == 0
-		}
-		return (data[0] & 0x6) == 0
-	} else {
-		panic("Eek!")
-	}
-}
-
-func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, uint32) {
-	if strings.EqualFold(codec, "video/vp8") {
-		if len(data) < 10 {
-			return 0, 0
-		}
-		raw := uint32(data[6]) | uint32(data[7])<<8 |
-			uint32(data[8])<<16 | uint32(data[9])<<24
-		width := raw & 0x3FFF
-		height := (raw >> 16) & 0x3FFF
-		return width, height
-	} else if strings.EqualFold(codec, "video/vp9") {
-		if packet == nil {
-			return 0, 0
-		}
-		var vp9 codecs.VP9Packet
-		_, err := vp9.Unmarshal(packet.Payload)
-		if err != nil {
-			return 0, 0
-		}
-		if !vp9.V {
-			return 0, 0
-		}
-		w := uint32(0)
-		h := uint32(0)
-		for i := range vp9.Width {
-			if i >= len(vp9.Height) {
-				break
-			}
-			if w < uint32(vp9.Width[i]) {
-				w = uint32(vp9.Width[i])
-			}
-			if h < uint32(vp9.Height[i]) {
-				h = uint32(vp9.Height[i])
-			}
-		}
-		return w, h
-	} else {
-		return 0, 0
-	}
-}
-
 func (t *diskTrack) Write(buf []byte) (int, error) {
 	t.conn.mu.Lock()
 	defer t.conn.mu.Unlock()
@@ -527,21 +464,11 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 // writeRTP writes the packet without doing any loss recovery.
 // Called locked.
 func (t *diskTrack) writeRTP(p *rtp.Packet) error {
-	codec := t.remote.Codec()
-	if strings.EqualFold(codec.MimeType, "video/vp9") {
-		var vp9 codecs.VP9Packet
-		_, err := vp9.Unmarshal(p.Payload)
-		if err == nil && vp9.B && len(vp9.Payload) >= 1 {
-			profile := (vp9.Payload[0] >> 4) & 0x3
-			kf := false
-			if profile != 3 {
-				kf = (vp9.Payload[0] & 0xC) == 0
-			} else {
-				kf = (vp9.Payload[0] & 0x6) == 0
-			}
-			if kf {
-				t.savedKf = p
-			}
+	codec := t.remote.Codec().MimeType
+	if len(codec) > 6 && strings.EqualFold(codec[:6], "video/") {
+		kf, _ := gcodecs.Keyframe(codec, p)
+		if kf {
+			t.savedKf = p
 		}
 	}
 
@@ -554,7 +481,7 @@ func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 // then samples will be flushed even if they are preceded by incomplete
 // samples.
 func (t *diskTrack) writeBuffered(force bool) error {
-	codec := t.remote.Codec()
+	codec := t.remote.Codec().MimeType
 
 	for {
 		var sample *media.Sample
@@ -568,16 +495,18 @@ func (t *diskTrack) writeBuffered(force bool) error {
 			return nil
 		}
 
-		keyframe := true
+		var keyframe bool
+		if len(codec) > 6 && strings.EqualFold(codec[:6], "video/") {
+			if t.savedKf == nil {
+				keyframe = false
+			} else {
+				keyframe = (ts == t.savedKf.Timestamp)
+			}
 
-		if strings.EqualFold(codec.MimeType, "video/vp8") ||
-			strings.EqualFold(codec.MimeType, "video/vp9") {
-			keyframe = isKeyframe(codec.MimeType, sample.Data)
 			if keyframe {
 				err := t.conn.initWriter(
-					keyframeDimensions(
-						codec.MimeType, sample.Data,
-						t.savedKf,
+					gcodecs.KeyframeDimensions(
+						codec, t.savedKf,
 					),
 				)
 				if err != nil {
@@ -588,6 +517,7 @@ func (t *diskTrack) writeBuffered(force bool) error {
 				}
 			}
 		} else {
+			keyframe = true
 			if t.writer == nil {
 				if !t.conn.hasVideo {
 					err := t.conn.initWriter(0, 0)
