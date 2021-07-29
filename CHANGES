@@ -6,12 +6,15 @@ Galène 0.4 (unreleased):
   * Fixed the profile announced for VP9.
   * Reworked the disk writer, which should no longer cause corruption
     after packet loss.
+  * Added support for recording H.264 tracks.
   * Added a close button to video windows, it is now possible to close
     just a single shared window.
   * Reworked the signalling protocol, it is now possible to request
     different tracks for distinct streams, and there are provisions to
     carry user permissions and statuses; this is not yet used by the user
     interface.
+  * The server will now attempt to increase the file descriptor limit at
+    startup.
   * Reworked internal signalling; this will hopefully fix issues with
     losing tracks under load.
   * Added an option to limit the range of UDP ports used by the server.
