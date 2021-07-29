@@ -1,4 +1,4 @@
-package rtpconn
+package codecs
 
 import (
 	"errors"
@@ -8,11 +8,14 @@ import (
 	"github.com/pion/rtp/codecs"
 )
 
-// isKeyframe determines if packet is the start of a keyframe.
+var errTruncated = errors.New("truncated packet")
+var errUnsupportedCodec = errors.New("unsupported codec")
+
+// Keyframe determines if packet is the start of a keyframe.
 // It returns (true, true) if that is the case, (false, true) if that is
 // definitely not the case, and (false, false) if the information cannot
 // be determined.
-func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
+func Keyframe(codec string, packet *rtp.Packet) (bool, bool) {
 	if strings.EqualFold(codec, "video/vp8") {
 		var vp8 codecs.VP8Packet
 		_, err := vp8.Unmarshal(packet.Payload)
@@ -179,29 +182,26 @@ func isKeyframe(codec string, packet *rtp.Packet) (bool, bool) {
 	return false, false
 }
 
-var errTruncated = errors.New("truncated packet")
-var errUnsupportedCodec = errors.New("unsupported codec")
-
-type packetFlags struct {
-	seqno           uint16
-	start           bool
-	pid             uint16 // only if it needs rewriting
-	tid             uint8
-	sid             uint8
-	tidupsync       bool
-	sidsync         bool
-	sidnonreference bool
-	discardable     bool
+type Flags struct {
+	Seqno           uint16
+	Start           bool
+	Pid             uint16 // only if it needs rewriting
+	Tid             uint8
+	Sid             uint8
+	TidUpSync       bool
+	SidSync         bool
+	SidNonReference bool
+	Discardable     bool
 }
 
-func getPacketFlags(codec string, buf []byte) (packetFlags, error) {
+func PacketFlags(codec string, buf []byte) (Flags, error) {
 	if len(buf) < 12 {
-		return packetFlags{}, errTruncated
+		return Flags{}, errTruncated
 	}
 
-	var flags packetFlags
+	var flags Flags
 
-	flags.seqno = (uint16(buf[2]) << 8) | uint16(buf[3])
+	flags.Seqno = (uint16(buf[2]) << 8) | uint16(buf[3])
 
 	if strings.EqualFold(codec, "video/vp8") {
 		var packet rtp.Packet
@@ -215,11 +215,11 @@ func getPacketFlags(codec string, buf []byte) (packetFlags, error) {
 			return flags, err
 		}
 
-		flags.start = vp8.S == 1 && vp8.PID == 0
-		flags.pid = vp8.PictureID
-		flags.tid = vp8.TID
-		flags.tidupsync = vp8.Y == 1
-		flags.discardable = vp8.N == 1
+		flags.Start = vp8.S == 1 && vp8.PID == 0
+		flags.Pid = vp8.PictureID
+		flags.Tid = vp8.TID
+		flags.TidUpSync = vp8.Y == 1
+		flags.Discardable = vp8.N == 1
 		return flags, nil
 	} else if strings.EqualFold(codec, "video/vp9") {
 		var packet rtp.Packet
@@ -232,19 +232,19 @@ func getPacketFlags(codec string, buf []byte) (packetFlags, error) {
 		if err != nil {
 			return flags, err
 		}
-		flags.start = vp9.B
-		flags.tid = vp9.TID
-		flags.sid = vp9.SID
-		flags.tidupsync = vp9.U
-		flags.sidsync = vp9.P
+		flags.Start = vp9.B
+		flags.Tid = vp9.TID
+		flags.Sid = vp9.SID
+		flags.TidUpSync = vp9.U
+		flags.SidSync = vp9.P
 		// not yet in pion/rtp
-		flags.sidnonreference = (packet.Payload[0] & 0x01) != 0
+		flags.SidNonReference = (packet.Payload[0] & 0x01) != 0
 		return flags, nil
 	}
 	return flags, nil
 }
 
-func rewritePacket(codec string, data []byte, seqno uint16, delta uint16) error {
+func RewritePacket(codec string, data []byte, seqno uint16, delta uint16) error {
 	if len(data) < 12 {
 		return errTruncated
 	}

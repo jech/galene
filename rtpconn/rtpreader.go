@@ -8,6 +8,7 @@ import (
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 
+	"github.com/jech/galene/codecs"
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
 )
@@ -74,7 +75,7 @@ func readLoop(track *rtpUpTrack) {
 
 		track.jitter.Accumulate(packet.Timestamp)
 
-		kf, kfKnown := isKeyframe(codec.MimeType, &packet)
+		kf, kfKnown := codecs.Keyframe(codec.MimeType, &packet)
 		if kf || !kfKnown {
 			kfNeeded = false
 		}

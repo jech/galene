@@ -14,6 +14,7 @@ import (
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
 
+	"github.com/jech/galene/codecs"
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/estimator"
 	"github.com/jech/galene/group"
@@ -213,59 +214,59 @@ var packetBufPool = sync.Pool{
 func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 	codec := down.remote.Codec().MimeType
 
-	flags, err := getPacketFlags(codec, buf)
+	flags, err := codecs.PacketFlags(codec, buf)
 	if err != nil {
 		return 0, err
 	}
 
 	layer := down.getLayerInfo()
 
-	if flags.tid > layer.maxTid || flags.sid > layer.maxSid {
-		if flags.tid > layer.maxTid {
+	if flags.Tid > layer.maxTid || flags.Sid > layer.maxSid {
+		if flags.Tid > layer.maxTid {
 			if layer.tid == layer.maxTid {
-				layer.wantedTid = flags.tid
-				layer.tid = flags.tid
+				layer.wantedTid = flags.Tid
+				layer.tid = flags.Tid
 			}
-			layer.maxTid = flags.tid
+			layer.maxTid = flags.Tid
 		}
-		if flags.sid > layer.maxSid {
+		if flags.Sid > layer.maxSid {
 			if layer.sid == layer.maxSid {
-				layer.wantedSid = flags.sid
-				layer.sid = flags.sid
+				layer.wantedSid = flags.Sid
+				layer.sid = flags.Sid
 			}
-			layer.maxSid = flags.sid
+			layer.maxSid = flags.Sid
 		}
 		down.setLayerInfo(layer)
 		down.adjustLayer()
 	}
-	if flags.start && (layer.tid != layer.wantedTid) {
-		if layer.wantedTid < layer.tid || flags.tidupsync {
+	if flags.Start && (layer.tid != layer.wantedTid) {
+		if layer.wantedTid < layer.tid || flags.TidUpSync {
 			layer.tid = layer.wantedTid
 			down.setLayerInfo(layer)
 		}
 	}
 
-	if flags.start && (layer.sid != layer.wantedSid) {
-		if flags.sidsync {
+	if flags.Start && (layer.sid != layer.wantedSid) {
+		if flags.SidSync {
 			layer.sid = layer.wantedTid
 			down.setLayerInfo(layer)
 		}
 	}
 
-	if flags.tid > layer.tid || flags.sid > layer.sid ||
-		(flags.sid < layer.sid && flags.sidnonreference) {
-		ok := down.packetmap.Drop(flags.seqno, flags.pid)
+	if flags.Tid > layer.tid || flags.Sid > layer.sid ||
+		(flags.Sid < layer.sid && flags.SidNonReference) {
+		ok := down.packetmap.Drop(flags.Seqno, flags.Pid)
 		if ok {
 			return 0, nil
 		}
 	}
 
-	ok, newseqno, piddelta := down.packetmap.Map(flags.seqno, flags.pid)
+	ok, newseqno, piddelta := down.packetmap.Map(flags.Seqno, flags.Pid)
 	if !ok {
 		return 0, nil
 	}
 
-	if newseqno == flags.seqno && piddelta == 0 {
+	if newseqno == flags.Seqno && piddelta == 0 {
 		return down.write(buf)
 	}
 
@@ -274,7 +275,7 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 	buf2 := ibuf2.([]byte)
 
 	n := copy(buf2, buf)
-	err = rewritePacket(codec, buf2[:n], newseqno, piddelta)
+	err = codecs.RewritePacket(codec, buf2[:n], newseqno, piddelta)
 	if err != nil {
 		return 0, err
 	}
