@@ -947,8 +947,8 @@ function Stream(sc, id, localId, pc, up) {
      */
     this.onclose = null;
     /**
-     * onerror is called whenever an error occurs.  If the error is
-     * fatal, then onclose will be called afterwards.
+     * onerror is called whenever a fatal error occurs.  The stream will
+     * then be closed, and onclose called normally.
      *
      * @type{(this: Stream, error: unknown) => void}
      */
