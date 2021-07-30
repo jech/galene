@@ -797,8 +797,12 @@ func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []con
 
 func getGroupStatus(g *group.Group) map[string]interface{} {
 	status := make(map[string]interface{})
-	if locked, _ := g.Locked(); locked {
-		status["locked"] = true
+	if locked, message := g.Locked(); locked {
+		if message == "" {
+			status["locked"] = true
+		} else {
+			status["locked"] = message
+		}
 	}
 	if dn := g.DisplayName(); dn != "" {
 		status["displayName"] = dn
