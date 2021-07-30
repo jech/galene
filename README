@@ -236,12 +236,13 @@ Supported video codecs include:
  - `"vp8"` (compatible with all supported browsers);
  - `"vp9"` (better video quality, but incompatible with Safari);
  - `"av1"` (even better video quality, only supported by some browsers,
-   recording is not supported);
- - `"h264"` (incompatible with Debian, Ubuntu, and some Android devices,
-   recording is not supported).
+   recording is not supported, SVC is not supported);
+ - `"h264"` (incompatible with Debain and with some Android devices, SVC
+   is not supported).
 
 Supported audio codecs include `"opus"`, `"g722"`, `"pcmu"` and `"pcma"`.
-There is no good reason to use anything except Opus.
+Only Opus can be recorded to disk.  There is no good reason to use
+anything except Opus.
    
 A user definition is a dictionary with the following fields:
 
