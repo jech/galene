@@ -292,8 +292,9 @@ chat history, and is not expected to contain user-visible content.
 }
 ```
 
-Currently defined kinds include `error`, `warning`, `info`, `clearchat`
-(not to be confused with the `clearchat` group action), and `mute`.
+Currently defined kinds include `error`, `warning`, `info`, `kicked`,
+`clearchat` (not to be confused with the `clearchat` group action), and
+`mute`.
 
 A user action requests that the server act upon a user.
 

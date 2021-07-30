@@ -1815,7 +1815,7 @@ func errorMessage(id string, err error) *clientMessage {
 		}
 		return &clientMessage{
 			Type:       "usermessage",
-			Kind:       "error",
+			Kind:       "kicked",
 			Id:         e.Id,
 			Username:   e.Username,
 			Dest:       id,

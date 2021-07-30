@@ -2198,6 +2198,7 @@ async function gotJoined(kind, group, perms, status, message) {
  */
 function gotUserMessage(id, dest, username, time, privileged, kind, message) {
     switch(kind) {
+    case 'kicked':
     case 'error':
     case 'warning':
     case 'info':
@@ -2934,7 +2935,6 @@ document.getElementById('resizer').addEventListener('mousedown', chatResizer, fa
 function displayError(message, level) {
     if(!level)
         level = "error";
-
     var background = 'linear-gradient(to right, #e20a0a, #df2d2d)';
     var position = 'center';
     var gravity = 'top';
@@ -2947,6 +2947,9 @@ function displayError(message, level) {
         break;
     case "warning":
         background = "linear-gradient(to right, #bdc511, #c2cf01)";
+        break;
+    case "kicked":
+        level = "error";
         break;
     }
 
