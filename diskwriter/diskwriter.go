@@ -63,16 +63,14 @@ func (client *Client) Challenge(group string, cred group.ClientCredentials) bool
 	return true
 }
 
-func (client *Client) OverridePermissions(g *group.Group) bool {
-	return true
-}
-
 func (client *Client) SetPermissions(perms group.ClientPermissions) {
 	return
 }
 
 func (client *Client) Permissions() group.ClientPermissions {
-	return group.ClientPermissions{}
+	return group.ClientPermissions{
+		System: true,
+	}
 }
 
 func (client *Client) Status() map[string]interface{} {

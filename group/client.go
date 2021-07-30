@@ -85,6 +85,7 @@ type ClientPermissions struct {
 	Op      bool `json:"op,omitempty"`
 	Present bool `json:"present,omitempty"`
 	Record  bool `json:"record,omitempty"`
+	System  bool `json:"system,omitempty"`
 }
 
 type Challengeable interface {
@@ -99,7 +100,6 @@ type Client interface {
 	Permissions() ClientPermissions
 	SetPermissions(ClientPermissions)
 	Status() map[string]interface{}
-	OverridePermissions(*Group) bool
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
 	RequestConns(target Client, g *Group, id string) error
 	Joined(group, kind string) error

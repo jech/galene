@@ -107,10 +107,6 @@ func (c *webClient) SetPermissions(perms group.ClientPermissions) {
 	c.permissions = perms
 }
 
-func (c *webClient) OverridePermissions(g *group.Group) bool {
-	return false
-}
-
 func (c *webClient) PushClient(group, kind, id, username string, permissions group.ClientPermissions, status map[string]interface{}) error {
 	return c.action(pushClientAction{
 		group, kind, id, username, permissions, status,

@@ -485,7 +485,7 @@ func AddClient(group string, c Client) (*Group, error) {
 
 	clients := g.getClientsUnlocked(nil)
 
-	if !c.OverridePermissions(g) {
+	if !c.Permissions().System {
 		perms, err := g.description.GetPermission(group, c)
 		if err != nil {
 			return nil, err
