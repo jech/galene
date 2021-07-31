@@ -2310,7 +2310,6 @@ let lastMessage = {};
  * @param {unknown} message
  */
 function addToChatbox(peerId, dest, nick, time, privileged, history, kind, message) {
-    let userpass = getUserPass();
     let row = document.createElement('div');
     row.classList.add('message-row');
     let container = document.createElement('div');
@@ -2320,7 +2319,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
     footer.classList.add('message-footer');
     if(!peerId)
         container.classList.add('message-system');
-    if(userpass.username === nick)
+    if(peerId === serverConnection.id)
         container.classList.add('message-sender');
     if(dest)
         container.classList.add('message-private');
