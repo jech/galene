@@ -277,6 +277,10 @@ if the message was originated by a client with the `op` permission.  The
 field `noecho` is set by the client if it doesn't wish to receive a copy
 of its own message.
 
+The `chathistory` message is similar to the `chat` message, but carries
+a message taken from the chat history.  Most clients should treat
+`chathistory` similarly to `chat`.
+
 A user message is similar to a chat message, but is not conserved in the
 chat history, and is not expected to contain user-visible content.
 

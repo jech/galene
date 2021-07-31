@@ -2301,12 +2301,15 @@ let lastMessage = {};
 
 /**
  * @param {string} peerId
+ * @param {string} dest
  * @param {string} nick
  * @param {number} time
+ * @param {boolean} privileged
+ * @param {boolean} history
  * @param {string} kind
  * @param {unknown} message
  */
-function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
+function addToChatbox(peerId, dest, nick, time, privileged, history, kind, message) {
     let userpass = getUserPass();
     let row = document.createElement('div');
     row.classList.add('message-row');
@@ -2633,7 +2636,7 @@ commands.msg = {
             throw new Error(`Unknown user ${p[0]}`);
         serverConnection.chat('', id, p[1]);
         addToChatbox(serverConnection.id, id, serverConnection.username,
-                     Date.now(), false, '', p[1]);
+                     Date.now(), false, false, '', p[1]);
     }
 };
 

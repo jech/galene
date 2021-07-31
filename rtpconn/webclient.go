@@ -1351,7 +1351,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		h := c.group.GetChatHistory()
 		for _, m := range h {
 			err := c.write(clientMessage{
-				Type:     "chat",
+				Type:     "chathistory",
 				Id:       m.Id,
 				Username: m.User,
 				Time:     m.Time,

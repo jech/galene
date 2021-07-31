@@ -178,7 +178,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: unknown) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, history: boolean, kind: string, message: unknown) => void}
      */
     this.onchat = null;
     /**
@@ -379,10 +379,11 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onuser.call(sc, m.id, m.kind);
                 break;
             case 'chat':
+            case 'chathistory':
                 if(sc.onchat)
                     sc.onchat.call(
-                        sc, m.source, m.dest, m.username, m.time,
-                        m.privileged, m.kind, m.value,
+                        sc, m.source, m.dest, m.username, m.time, m.privileged,
+                        m.type === 'chathistory', m.kind, m.value,
                     );
                 break;
             case 'usermessage':
