@@ -188,23 +188,23 @@ var badClients = []testClient{
 var goodClients = []testClientPerm{
 	{
 		testClient{"jch", "topsecret"},
-		ClientPermissions{true, true, false},
+		ClientPermissions{Op: true, Present: true},
 	},
 	{
 		testClient{"john", "secret"},
-		ClientPermissions{false, true, false},
+		ClientPermissions{Present: true},
 	},
 	{
 		testClient{"john", "secret2"},
-		ClientPermissions{false, true, false},
+		ClientPermissions{Present: true},
 	},
 	{
 		testClient{"james", "secret3"},
-		ClientPermissions{false, false, false},
+		ClientPermissions{},
 	},
 	{
 		testClient{"paul", "secret3"},
-		ClientPermissions{false, false, false},
+		ClientPermissions{},
 	},
 }
 
