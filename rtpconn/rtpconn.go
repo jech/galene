@@ -248,7 +248,7 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 
 	if flags.Start && (layer.sid != layer.wantedSid) {
 		if flags.SidSync {
-			layer.sid = layer.wantedTid
+			layer.sid = layer.wantedSid
 			down.setLayerInfo(layer)
 		}
 	}
