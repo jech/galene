@@ -380,19 +380,23 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 		return err
 	}
 
-	sender, err := conn.pc.AddTrack(local)
+	transceiver, err := conn.pc.AddTransceiverFromTrack(local,
+		webrtc.RTPTransceiverInit{
+			Direction: webrtc.RTPTransceiverDirectionSendonly,
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	parms := sender.GetParameters()
+	parms := transceiver.Sender().GetParameters()
 	if len(parms.Encodings) != 1 {
 		return errors.New("got multiple encodings")
 	}
 
 	track := &rtpDownTrack{
 		track:          local,
-		sender:         sender,
+		sender:         transceiver.Sender(),
 		ssrc:           parms.Encodings[0].SSRC,
 		conn:           conn,
 		remote:         remoteTrack,
@@ -405,7 +409,7 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 
 	conn.tracks = append(conn.tracks, track)
 
-	go rtcpDownListener(track, sender)
+	go rtcpDownListener(track)
 
 	return nil
 }

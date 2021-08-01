@@ -353,12 +353,13 @@ func (down *rtpDownConnection) flushICECandidates() error {
 }
 
 type rtpUpTrack struct {
-	track  *webrtc.TrackRemote
-	conn   *rtpUpConnection
-	rate   *estimator.Estimator
-	cache  *packetcache.Cache
-	jitter *jitter.Estimator
-	cname  atomic.Value
+	track    *webrtc.TrackRemote
+	receiver *webrtc.RTPReceiver
+	conn     *rtpUpConnection
+	rate     *estimator.Estimator
+	cache    *packetcache.Cache
+	jitter   *jitter.Estimator
+	cname    atomic.Value
 
 	actionCh   chan struct{}
 	readerDone chan struct{}
@@ -630,6 +631,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 
 		track := &rtpUpTrack{
 			track:      remote,
+			receiver:   receiver,
 			conn:       up,
 			cache:      packetcache.New(minPacketCache(remote)),
 			rate:       estimator.New(time.Second),
@@ -642,7 +644,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 
 		go readLoop(track)
 
-		go rtcpUpListener(up, track, receiver)
+		go rtcpUpListener(track)
 
 		up.mu.Unlock()
 
@@ -769,12 +771,12 @@ func (track *rtpUpTrack) GetPacket(seqno uint16, result []byte, nack bool) uint1
 	return 0
 }
 
-func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPReceiver) {
+func rtcpUpListener(track *rtpUpTrack) {
 	buf := make([]byte, 1500)
 
 	for {
 		firstSR := false
-		n, _, err := r.ReadSimulcast(buf, track.track.RID())
+		n, _, err := track.receiver.ReadSimulcast(buf, track.track.RID())
 		if err != nil {
 			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Printf("Read RTCP: %v", err)
@@ -825,7 +827,7 @@ func rtcpUpListener(conn *rtpUpConnection, track *rtpUpTrack, r *webrtc.RTPRecei
 		if firstSR {
 			// this is the first SR we got for at least one track,
 			// quickly propagate the time offsets downstream
-			local := conn.getLocal()
+			local := track.conn.getLocal()
 			for _, l := range local {
 				l, ok := l.(*rtpDownConnection)
 				if ok {
@@ -1093,13 +1095,13 @@ func (track *rtpDownTrack) updateRate(loss uint8, now uint64) {
 	track.maxBitrate.Set(rate, now)
 }
 
-func rtcpDownListener(track *rtpDownTrack, s *webrtc.RTPSender) {
+func rtcpDownListener(track *rtpDownTrack) {
 	lastFirSeqno := uint8(0)
 
 	buf := make([]byte, 1500)
 
 	for {
-		n, _, err := s.Read(buf)
+		n, _, err := track.sender.Read(buf)
 		if err != nil {
 			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Printf("Read RTCP: %v", err)
