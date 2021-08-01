@@ -304,20 +304,31 @@ func (t *rtpDownTrack) GetMaxBitrate() (uint64, int, int) {
 	return r, int(layer.sid), int(layer.tid)
 }
 
+// adjustLayer checks the allowable bitrate reported for a down track and
+// adjusts the layer by one step.  It prefers temporal layers, and only
+// uses spatial layers as a last resort.
 func (t *rtpDownTrack) adjustLayer() {
 	max, _, _ := t.GetMaxBitrate()
 	r, _ := t.rate.Estimate()
 	rate := uint64(r) * 8
 	if rate < max*7/8 {
+		// switch up
 		layer := t.getLayerInfo()
-		if layer.tid < layer.maxTid {
+		if layer.sid < layer.maxSid {
+			layer.wantedSid = layer.sid + 1
+			t.setLayerInfo(layer)
+		} else if layer.tid < layer.maxTid {
 			layer.wantedTid = layer.tid + 1
 			t.setLayerInfo(layer)
 		}
 	} else if rate > max*3/2 {
+		// switch down
 		layer := t.getLayerInfo()
 		if layer.tid > 0 {
 			layer.wantedTid = layer.tid - 1
+			t.setLayerInfo(layer)
+		} else if layer.sid > 0 {
+			layer.wantedSid = layer.sid - 1
 			t.setLayerInfo(layer)
 		}
 	}
