@@ -618,15 +618,6 @@ func gotAnswer(c *webClient, id string, sdp string) error {
 		return err
 	}
 
-	for _, t := range down.tracks {
-		local := t.track.Codec()
-		remote := t.remote.Codec()
-		if local.MimeType != remote.MimeType ||
-			local.ClockRate != remote.ClockRate {
-			return errors.New("negotiation failed")
-		}
-	}
-
 	err = down.flushICECandidates()
 	if err != nil {
 		log.Printf("ICE: %v", err)
@@ -1047,7 +1038,7 @@ func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, re
 	err = negotiate(c, down, false, replace)
 	if err != nil {
 		log.Printf("Negotiation failed: %v", err)
-		closeDownConn(c, down.id, "negotiation failed")
+		closeDownConn(c, down.id, err.Error())
 		return err
 	}
 	replace = ""
@@ -1419,7 +1410,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		err := gotOffer(c, m.Id, m.Label, m.SDP, m.Replace)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
-			return failUpConnection(c, m.Id, "negotiation failed")
+			return failUpConnection(c, m.Id, err.Error())
 		}
 	case "answer":
 		if m.Id == "" {
@@ -1430,7 +1421,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("gotAnswer: %v", err)
 			message := ""
 			if err != ErrUnknownId {
-				message = "negotiation failed"
+				message = err.Error()
 			}
 			return closeDownConn(c, m.Id, message)
 		}
@@ -1445,9 +1436,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				"",
 			)
 			if err != nil {
-				return closeDownConn(
-					c, m.Id, "negotiation failed",
-				)
+				return closeDownConn(c, m.Id, err.Error())
 			}
 		}
 	case "renegotiate":
@@ -1458,9 +1447,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if down != nil {
 			err := negotiate(c, down, true, "")
 			if err != nil {
-				return closeDownConn(
-					c, m.Id, "renegotiation failed",
-				)
+				return closeDownConn(c, m.Id, err.Error())
 			}
 		} else {
 			log.Printf("Trying to renegotiate unknown connection")
