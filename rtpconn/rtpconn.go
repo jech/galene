@@ -248,9 +248,23 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 	}
 
 	if flags.Start && (layer.sid != layer.wantedSid) {
-		if flags.SidSync {
-			layer.sid = layer.wantedSid
-			down.setLayerInfo(layer)
+		if layer.wantedSid < layer.sid {
+			if flags.Keyframe {
+				layer.sid = layer.wantedSid
+				down.setLayerInfo(layer)
+			} else {
+				down.remote.RequestKeyframe()
+			}
+		} else if layer.wantedSid > layer.sid {
+			if flags.Keyframe {
+				layer.sid = layer.wantedSid
+				down.setLayerInfo(layer)
+			} else if flags.SidUpSync {
+				layer.sid = layer.sid + 1
+				down.setLayerInfo(layer)
+			} else {
+				down.remote.RequestKeyframe()
+			}
 		}
 	}
 
@@ -267,7 +281,9 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 		return 0, nil
 	}
 
-	if newseqno == flags.Seqno && piddelta == 0 {
+	setMarker := flags.Sid == layer.sid && flags.End && !flags.Marker
+
+	if !setMarker && newseqno == flags.Seqno && piddelta == 0 {
 		return down.write(buf)
 	}
 
@@ -276,7 +292,7 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 	buf2 := ibuf2.([]byte)
 
 	n := copy(buf2, buf)
-	err = codecs.RewritePacket(codec, buf2[:n], newseqno, piddelta)
+	err = codecs.RewritePacket(codec, buf2[:n], setMarker, newseqno, piddelta)
 	if err != nil {
 		return 0, err
 	}

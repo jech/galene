@@ -230,12 +230,15 @@ func KeyframeDimensions(codec string, packet *rtp.Packet) (uint32, uint32) {
 
 type Flags struct {
 	Seqno           uint16
+	Marker          bool
 	Start           bool
-	Pid             uint16 // only if it needs rewriting
+	End             bool
+	Keyframe        bool
+	Pid             uint16
 	Tid             uint8
 	Sid             uint8
 	TidUpSync       bool
-	SidSync         bool
+	SidUpSync       bool
 	SidNonReference bool
 	Discardable     bool
 }
@@ -248,6 +251,7 @@ func PacketFlags(codec string, buf []byte) (Flags, error) {
 	var flags Flags
 
 	flags.Seqno = (uint16(buf[2]) << 8) | uint16(buf[3])
+	flags.Marker = (buf[1] & 0x80) != 0
 
 	if strings.EqualFold(codec, "video/vp8") {
 		var packet rtp.Packet
@@ -261,10 +265,13 @@ func PacketFlags(codec string, buf []byte) (Flags, error) {
 			return flags, err
 		}
 
-		flags.Start = vp8.S == 1 && vp8.PID == 0
+		flags.Start = vp8.S != 0 && vp8.PID == 0
+		flags.End = packet.Marker
+		flags.Keyframe = vp8.S != 0 && (vp8.Payload[0]&0x1) == 0
 		flags.Pid = vp8.PictureID
 		flags.Tid = vp8.TID
-		flags.TidUpSync = vp8.Y == 1
+		flags.TidUpSync = flags.Keyframe || vp8.Y == 1
+		flags.SidUpSync = flags.Keyframe
 		flags.Discardable = vp8.N == 1
 		return flags, nil
 	} else if strings.EqualFold(codec, "video/vp9") {
@@ -279,20 +286,33 @@ func PacketFlags(codec string, buf []byte) (Flags, error) {
 			return flags, err
 		}
 		flags.Start = vp9.B
+		flags.End = vp9.E
+		if (vp9.Payload[0] & 0xc0) == 0x80 {
+			profile := (vp9.Payload[0] >> 4) & 0x3
+			if profile != 3 {
+				flags.Keyframe = (vp9.Payload[0] & 0xC) == 0
+			} else {
+				flags.Keyframe = (vp9.Payload[0] & 0x6) == 0
+			}
+		}
+		flags.Pid = vp9.PictureID
 		flags.Tid = vp9.TID
 		flags.Sid = vp9.SID
-		flags.TidUpSync = vp9.U
-		flags.SidSync = vp9.P
-		// not yet in pion/rtp
+		flags.TidUpSync = flags.Keyframe || vp9.U
+		flags.SidUpSync = flags.Keyframe || !vp9.P
 		flags.SidNonReference = (packet.Payload[0] & 0x01) != 0
 		return flags, nil
 	}
 	return flags, nil
 }
 
-func RewritePacket(codec string, data []byte, seqno uint16, delta uint16) error {
+func RewritePacket(codec string, data []byte, setMarker bool, seqno uint16, delta uint16) error {
 	if len(data) < 12 {
 		return errTruncated
+	}
+
+	if(setMarker) {
+		data[1] |= 0x80
 	}
 
 	data[2] = uint8(seqno >> 8)
@@ -335,6 +355,23 @@ func RewritePacket(codec string, data []byte, seqno uint16, delta uint16) error 
 			data[offset+2] = (data[offset+2] + uint8(delta)) & 0x7F
 		}
 		return nil
+	} else if strings.EqualFold(codec, "video/vp9") {
+		i := (data[offset] & 0x80) != 0
+		if !i {
+			return nil
+		}
+		m := (data[offset+1] & 0x80) != 0
+		if m {
+			pid := (uint16(data[offset+1]&0x7F) << 8) |
+				uint16(data[offset+2])
+			pid = (pid + delta) & 0x7FFF
+			data[offset+1] = 0x80 | byte((pid>>8)&0x7F)
+			data[offset+2] = byte(pid & 0xFF)
+		} else {
+			data[offset+1] = (data[offset+1] + uint8(delta)) & 0x7F
+		}
+		return nil
 	}
+
 	return errUnsupportedCodec
 }
