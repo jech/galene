@@ -271,11 +271,13 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 			if flags.Keyframe {
 				layer.sid = layer.wantedSid
 				down.setLayerInfo(layer)
-			} else if flags.SidUpSync {
-				layer.sid = layer.sid + 1
-				down.setLayerInfo(layer)
-			} else {
-				down.remote.RequestKeyframe()
+			} else if flags.Sid == layer.sid + 1 {
+				if flags.SidUpSync {
+					layer.sid = layer.sid + 1
+					down.setLayerInfo(layer)
+				} else {
+					down.remote.RequestKeyframe()
+				}
 			}
 		}
 	}
