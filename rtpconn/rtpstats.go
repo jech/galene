@@ -32,9 +32,10 @@ func (c *webClient) GetStats() *stats.Client {
 				(time.Second / time.Duration(t.jitter.HZ()))
 			rate, _ := t.rate.Estimate()
 			conns.Tracks = append(conns.Tracks, stats.Track{
-				Bitrate: uint64(rate) * 8,
-				Loss:    loss,
-				Jitter:  stats.Duration(jitter),
+				Bitrate:    uint64(rate) * 8,
+				MaxBitrate: maxUpBitrate(t),
+				Loss:       loss,
+				Jitter:     stats.Duration(jitter),
 			})
 		}
 		cs.Up = append(cs.Up, conns)

@@ -853,6 +853,49 @@ func rtcpUpListener(track *rtpUpTrack) {
 	}
 }
 
+func maxUpBitrate(t *rtpUpTrack) uint64 {
+	minrate := ^uint64(0)
+	maxrate := uint64(group.MinBitrate)
+	maxsid := 0
+	maxtid := 0
+	local := t.getLocal()
+	for _, down := range local {
+		r, sid, tid := down.GetMaxBitrate()
+		if maxsid < sid {
+			maxsid = sid
+		}
+		if maxtid < tid {
+			maxtid = tid
+		}
+		if r < group.MinBitrate {
+			r = group.MinBitrate
+		}
+		if minrate > r {
+			minrate = r
+		}
+		if maxrate < r {
+			maxrate = r
+		}
+	}
+	// assume that lower spatial layers take up 1/5 of
+	// the throughput
+	if maxsid > 0 {
+		maxrate = maxrate * 5 / 4
+	}
+	// assume that each layer takes two times less
+	// throughput than the higher one.  Then we've
+	// got enough slack for a factor of 2^(layers-1).
+	for i := 0; i < maxtid; i++ {
+		if minrate < ^uint64(0)/2 {
+			minrate *= 2
+		}
+	}
+	if minrate < maxrate {
+		return minrate
+	}
+	return maxrate
+}
+
 func sendUpRTCP(up *rtpUpConnection) error {
 	tracks := up.getTracks()
 
@@ -923,47 +966,7 @@ func sendUpRTCP(up *rtpUpConnection) error {
 		} else if t.Label() == "l" {
 			rate += group.LowBitrate
 		} else {
-			minrate := ^uint64(0)
-			maxrate := uint64(group.MinBitrate)
-			maxsid := 0
-			maxtid := 0
-			local := t.getLocal()
-			for _, down := range local {
-				r, sid, tid := down.GetMaxBitrate()
-				if maxsid < sid {
-					maxsid = sid
-				}
-				if maxtid < tid {
-					maxtid = tid
-				}
-				if r < group.MinBitrate {
-					r = group.MinBitrate
-				}
-				if minrate > r {
-					minrate = r
-				}
-				if maxrate < r {
-					maxrate = r
-				}
-			}
-			// assume that lower spatial layers take up 1/5 of
-			// the throughput
-			if maxsid > 0 {
-				maxrate = maxrate * 5 / 4
-			}
-			// assume that each layer takes two times less
-			// throughput than the higher one.  Then we've
-			// got enough slack for a factor of 2^(layers-1).
-			for i := 0; i < maxtid; i++ {
-				if minrate < ^uint64(0)/2 {
-					minrate *= 2
-				}
-			}
-			if minrate < maxrate {
-				rate += minrate
-			} else {
-				rate += maxrate
-			}
+			rate += maxUpBitrate(t)
 		}
 	}
 
