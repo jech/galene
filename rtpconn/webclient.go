@@ -345,7 +345,7 @@ func delDownConnHelper(c *webClient, id string) *rtpDownConnection {
 
 var errUnexpectedTrackType = errors.New("unexpected track type, this shouldn't happen")
 
-func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remoteConn conn.Up) error {
+func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack) error {
 	for _, t := range conn.tracks {
 		tt, ok := t.remote.(*rtpUpTrack)
 		if !ok {
@@ -367,7 +367,7 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 	msid := remoteTrack.track.StreamID()
 	if msid == "" {
 		log.Println("Got track with empty msid")
-		msid = remoteConn.Label()
+		msid = remoteTrack.conn.Label()
 	}
 	if msid == "" {
 		msid = "dummy"
@@ -446,7 +446,7 @@ func delDownTrackUnlocked(conn *rtpDownConnection, track *rtpDownTrack) error {
 	return os.ErrNotExist
 }
 
-func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack, remoteConn conn.Up) (bool, error) {
+func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack) (bool, error) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
@@ -501,7 +501,7 @@ outer2:
 	}
 
 	for _, rt := range add {
-		err := addDownTrackUnlocked(conn, rt, remoteConn)
+		err := addDownTrackUnlocked(conn, rt)
 		if err != nil {
 			return false, err
 		}
@@ -1031,7 +1031,7 @@ func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, re
 		}
 		return err
 	}
-	done, err := replaceTracks(down, requested, up)
+	done, err := replaceTracks(down, requested)
 	if err != nil || !done {
 		return err
 	}
