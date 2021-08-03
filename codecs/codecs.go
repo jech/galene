@@ -234,7 +234,7 @@ type Flags struct {
 	Start           bool
 	End             bool
 	Keyframe        bool
-	Pid             uint16
+	Pid             uint16	// only returned for VP8
 	Tid             uint8
 	Sid             uint8
 	TidUpSync       bool
@@ -295,7 +295,6 @@ func PacketFlags(codec string, buf []byte) (Flags, error) {
 				flags.Keyframe = (vp9.Payload[0] & 0x6) == 0
 			}
 		}
-		flags.Pid = vp9.PictureID
 		flags.Tid = vp9.TID
 		flags.Sid = vp9.SID
 		flags.TidUpSync = flags.Keyframe || vp9.U
@@ -335,6 +334,7 @@ func RewritePacket(codec string, data []byte, setMarker bool, seqno uint16, delt
 		}
 	}
 
+	// only rewrite PID for VP8.
 	if strings.EqualFold(codec, "video/vp8") {
 		x := (data[offset] & 0x80) != 0
 		if !x {
@@ -353,22 +353,6 @@ func RewritePacket(codec string, data []byte, setMarker bool, seqno uint16, delt
 			data[offset+3] = byte(pid & 0xFF)
 		} else {
 			data[offset+2] = (data[offset+2] + uint8(delta)) & 0x7F
-		}
-		return nil
-	} else if strings.EqualFold(codec, "video/vp9") {
-		i := (data[offset] & 0x80) != 0
-		if !i {
-			return nil
-		}
-		m := (data[offset+1] & 0x80) != 0
-		if m {
-			pid := (uint16(data[offset+1]&0x7F) << 8) |
-				uint16(data[offset+2])
-			pid = (pid + delta) & 0x7FFF
-			data[offset+1] = 0x80 | byte((pid>>8)&0x7F)
-			data[offset+2] = byte(pid & 0xFF)
-		} else {
-			data[offset+1] = (data[offset+1] + uint8(delta)) & 0x7F
 		}
 		return nil
 	}
