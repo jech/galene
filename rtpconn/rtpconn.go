@@ -238,6 +238,7 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 		}
 		down.setLayerInfo(layer)
 		down.adjustLayer()
+		layer = down.getLayerInfo()
 	}
 	if flags.Start && (layer.tid != layer.wantedTid) {
 		if layer.wantedTid < layer.tid || flags.TidUpSync {
