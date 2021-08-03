@@ -446,7 +446,7 @@ func delDownTrackUnlocked(conn *rtpDownConnection, track *rtpDownTrack) error {
 	return os.ErrNotExist
 }
 
-func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack) (bool, error) {
+func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack, limitSid bool) (bool, error) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
@@ -488,6 +488,17 @@ outer2:
 		}
 		del = append(del, track)
 	}
+
+	defer func() {
+		for _, t := range conn.tracks {
+			layer := t.getLayerInfo()
+			layer.limitSid = limitSid
+			if limitSid {
+				layer.wantedSid = 0
+			}
+			t.setLayerInfo(layer)
+		}
+	}()
 
 	if len(del) == 0 && len(add) == 0 {
 		return false, nil
@@ -729,7 +740,7 @@ func requestConns(target group.Client, g *group.Group, id string) {
 	}
 }
 
-func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.UpTrack) []conn.UpTrack {
+func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.UpTrack) ([]conn.UpTrack, bool) {
 	r := override
 	if r == nil {
 		var ok bool
@@ -738,7 +749,7 @@ func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.
 			r, ok = c.requested[""]
 		}
 		if !ok || len(r) == 0 {
-			return nil
+			return nil, false
 		}
 	}
 
@@ -777,6 +788,7 @@ func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.
 	}
 
 	var ts []conn.UpTrack
+	limitSid := false
 	if audio {
 		t := find(webrtc.RTPCodecTypeAudio)
 		if t != nil {
@@ -796,10 +808,13 @@ func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.
 		)
 		if t != nil {
 			ts = append(ts, t)
+			if t.Label() != "l" {
+				limitSid = true
+			}
 		}
 	}
 
-	return ts
+	return ts, limitSid
 }
 
 func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
@@ -991,6 +1006,7 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 
 func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
 	var requested []conn.UpTrack
+	limitSid := false
 	if up != nil {
 		var old *rtpDownConnection
 		if replace != "" {
@@ -1002,7 +1018,7 @@ func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, re
 		if old != nil {
 			override = old.requested
 		}
-		requested = requestedTracks(c, override, up, tracks)
+		requested, limitSid = requestedTracks(c, override, up, tracks)
 	}
 
 	if replace != "" {
@@ -1031,7 +1047,7 @@ func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, re
 		}
 		return err
 	}
-	done, err := replaceTracks(down, requested)
+	done, err := replaceTracks(down, requested, limitSid)
 	if err != nil || !done {
 		return err
 	}

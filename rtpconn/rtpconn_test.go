@@ -18,7 +18,7 @@ func TestDownTrackAtomics(t *testing.T) {
 	down.setSRTime(4, 5)
 	down.maxBitrate.Set(6, rtptime.Jiffies())
 	down.maxREMBBitrate.Set(7, rtptime.Jiffies())
-	info := layerInfo{8, 9, 10, 11, 12, 13}
+	info := layerInfo{8, 9, 10, 11, 12, 13, true}
 	down.setLayerInfo(info)
 	ntp, rtp := down.getTimeOffset()
 	rtt := down.getRTT()

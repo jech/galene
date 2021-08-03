@@ -129,8 +129,12 @@ func (down *rtpDownTrack) SetCname(cname string) {
 }
 
 type layerInfo struct {
+	// current sid, desired sid, and max sid seen
 	sid, wantedSid, maxSid uint8
+	// current tid, desired tid, and max tid seen
 	tid, wantedTid, maxTid uint8
+	// if true, stick to sid 0
+	limitSid bool
 }
 
 func (down *rtpDownTrack) getLayerInfo() layerInfo {
@@ -139,6 +143,7 @@ func (down *rtpDownTrack) getLayerInfo() layerInfo {
 		sid:       uint8((info & 0xF)),
 		wantedSid: uint8((info >> 4) & 0xF),
 		maxSid:    uint8((info >> 8) & 0xF),
+		limitSid:  ((info >> 12) & 1) != 0,
 		tid:       uint8((info >> 16) & 0xF),
 		wantedTid: uint8((info >> 20) & 0xF),
 		maxTid:    uint8((info >> 24) & 0xF),
@@ -146,10 +151,15 @@ func (down *rtpDownTrack) getLayerInfo() layerInfo {
 }
 
 func (down *rtpDownTrack) setLayerInfo(info layerInfo) {
+	var l uint32
+	if info.limitSid {
+		l = 1 << 12
+	}
 	atomic.StoreUint32(&down.atomics.layerInfo,
 		uint32(info.sid&0xF)|
 			uint32(info.wantedSid&0xF)<<4|
 			uint32(info.maxSid&0xF)<<8|
+			l|
 			uint32(info.tid&0xF)<<16|
 			uint32(info.wantedTid&0xF)<<20|
 			uint32(info.maxTid&0xF)<<24,
@@ -221,6 +231,7 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 
 	layer := down.getLayerInfo()
 
+	// increase eagerly if this is the first time we see a given layer
 	if flags.Tid > layer.maxTid || flags.Sid > layer.maxSid {
 		if flags.Tid > layer.maxTid {
 			if layer.tid == layer.maxTid {
@@ -230,7 +241,7 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 			layer.maxTid = flags.Tid
 		}
 		if flags.Sid > layer.maxSid {
-			if layer.sid == layer.maxSid {
+			if layer.sid == layer.maxSid && !layer.limitSid {
 				layer.wantedSid = flags.Sid
 				layer.sid = flags.Sid
 			}
@@ -240,6 +251,7 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 		down.adjustLayer()
 		layer = down.getLayerInfo()
 	}
+
 	if flags.Start && (layer.tid != layer.wantedTid) {
 		if layer.wantedTid < layer.tid || flags.TidUpSync {
 			layer.tid = layer.wantedTid
@@ -331,7 +343,10 @@ func (t *rtpDownTrack) adjustLayer() {
 	if rate < max*7/8 {
 		// switch up
 		layer := t.getLayerInfo()
-		if layer.sid < layer.maxSid {
+		if layer.limitSid && layer.wantedSid != 0 {
+			layer.wantedSid = 0
+			t.setLayerInfo(layer)
+		} else if !layer.limitSid && layer.sid < layer.maxSid {
 			layer.wantedSid = layer.sid + 1
 			t.setLayerInfo(layer)
 		} else if layer.tid < layer.maxTid {
@@ -345,7 +360,11 @@ func (t *rtpDownTrack) adjustLayer() {
 			layer.wantedTid = layer.tid - 1
 			t.setLayerInfo(layer)
 		} else if layer.sid > 0 {
-			layer.wantedSid = layer.sid - 1
+			if layer.limitSid {
+				layer.wantedSid = 0
+			} else {
+				layer.wantedSid = layer.sid - 1
+			}
 			t.setLayerInfo(layer)
 		}
 	}
