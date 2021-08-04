@@ -231,9 +231,10 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 
 	layer := down.getLayerInfo()
 
-	// increase eagerly if this is the first time we see a given layer
 	if flags.Tid > layer.maxTid || flags.Sid > layer.maxSid {
 		if flags.Tid > layer.maxTid {
+			// increase eagerly if this is the first time we
+			// see a given layer
 			if layer.tid == layer.maxTid {
 				layer.wantedTid = flags.Tid
 				layer.tid = flags.Tid
@@ -253,32 +254,24 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 	}
 
 	if flags.Start && (layer.tid != layer.wantedTid) {
-		if layer.wantedTid < layer.tid || flags.TidUpSync {
+		if flags.Keyframe {
 			layer.tid = layer.wantedTid
+			down.setLayerInfo(layer)
+		} else if layer.wantedTid < layer.tid {
+			layer.tid = layer.wantedTid
+			down.setLayerInfo(layer)
+		} else if flags.TidUpSync && flags.Tid <= layer.wantedTid {
+			layer.tid = flags.Tid
 			down.setLayerInfo(layer)
 		}
 	}
 
 	if flags.Start && (layer.sid != layer.wantedSid) {
-		if layer.wantedSid < layer.sid {
-			if flags.Keyframe {
-				layer.sid = layer.wantedSid
-				down.setLayerInfo(layer)
-			} else {
-				down.remote.RequestKeyframe()
-			}
-		} else if layer.wantedSid > layer.sid {
-			if flags.Keyframe {
-				layer.sid = layer.wantedSid
-				down.setLayerInfo(layer)
-			} else if flags.Sid == layer.sid + 1 {
-				if flags.SidUpSync {
-					layer.sid = layer.sid + 1
-					down.setLayerInfo(layer)
-				} else {
-					down.remote.RequestKeyframe()
-				}
-			}
+		if flags.Keyframe {
+			layer.sid = layer.wantedSid
+			down.setLayerInfo(layer)
+		} else {
+			down.remote.RequestKeyframe()
 		}
 	}
 
