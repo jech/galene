@@ -206,9 +206,10 @@ func (writer *rtpWriter) add(track conn.DownTrack, add bool, max int) error {
 	}
 }
 
-func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
+func sendSequence(kf, last uint16, track conn.DownTrack, cache *packetcache.Cache) {
 	buf := make([]byte, packetcache.BufSize)
-	for _, seqno := range kf {
+	seqno := kf
+	for ((last - seqno) & 0x8000) == 0 {
 		bytes := cache.Get(seqno, buf)
 		if bytes == 0 {
 			return
@@ -218,6 +219,7 @@ func sendKeyframe(kf []uint16, track conn.DownTrack, cache *packetcache.Cache) {
 		if err != nil {
 			return
 		}
+		seqno++
 	}
 }
 
@@ -253,14 +255,12 @@ func rtpWriterLoop(writer *rtpWriter, track *rtpUpTrack) {
 					action.track.SetCname(cname)
 				}
 
-				found, _, lts := track.cache.Last()
-				kts, _, kf := track.cache.Keyframe()
-				if found && len(kf) > 0 {
-					if ((lts-kts)&0x80000000) != 0 ||
-						lts-kts < 2*90000 {
-						// we got a recent keyframe
-						go sendKeyframe(
-							kf,
+				last, foundLast := track.cache.Last()
+				kf, foundKf := track.cache.Keyframe()
+				if foundLast && foundKf {
+					if last-kf < 40 { // modulo 2^16
+						go sendSequence(
+							kf, last,
 							action.track,
 							track.cache,
 						)
@@ -331,11 +331,11 @@ func nackWriter(track *rtpUpTrack) {
 
 	// drop any nacks before the last keyframe
 	var cutoff uint16
-	found, seqno, _ := track.cache.KeyframeSeqno()
+	seqno, found := track.cache.Keyframe()
 	if found {
 		cutoff = seqno
 	} else {
-		last, lastSeqno, _ := track.cache.Last()
+		lastSeqno, last := track.cache.Last()
 		if !last {
 			// NACK on a fresh track?  Give up.
 			return
