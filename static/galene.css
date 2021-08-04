@@ -524,6 +524,17 @@ textarea.form-reply {
     transition: opacity .5s ease-out;
 }
 
+.top-video-controls .video-stop{
+    display: flex;
+    width: 1.5em;
+    height: 1.5em;
+    background: rgba(0,0,0,0.5);
+    border-radius: 50%;
+    justify-content: center;
+    align-items: center;
+    color: #eaeaea;
+}
+
 .video-controls .volume {
     display: inline-block;
     text-align: center;
