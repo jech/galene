@@ -357,5 +357,5 @@ func RewritePacket(codec string, data []byte, setMarker bool, seqno uint16, delt
 		return nil
 	}
 
-	return errUnsupportedCodec
+	return nil
 }
