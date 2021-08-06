@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  aa:
+    build:
+      context: ./
+      dockerfile: ./DOCKER/Dockerfile
+    container_name: galene_dock
+    ports:
+      - "8443:8443"
