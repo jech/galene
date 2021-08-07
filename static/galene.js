@@ -2400,7 +2400,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
  * @param {string} message
  */
 function localMessage(message) {
-    return addToChatbox(null, null, null, Date.now(), false, null, message);
+    return addToChatbox(null, null, null, Date.now(), false, false, '', message);
 }
 
 function clearChat() {
@@ -2857,6 +2857,7 @@ function handleInput() {
                 try {
                     c.f(cmd, rest);
                 } catch(e) {
+                    console.error(e);
                     displayError(e);
                 }
                 return;
