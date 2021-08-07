@@ -2455,11 +2455,7 @@ commands.help = {
                 continue;
             cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
         }
-        cs.sort();
-        let s = '';
-        for(let i = 0; i < cs.length; i++)
-            s = s + cs[i] + '\n';
-        localMessage(s);
+        localMessage(cs.sort().join('\n'));
     }
 };
 
