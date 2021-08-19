@@ -22,6 +22,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/jech/cert"
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/rtpconn"
@@ -58,9 +59,13 @@ func Serve(address string, dataDir string) error {
 		IdleTimeout:       120 * time.Second,
 	}
 	if !Insecure {
+		certificate := cert.New(
+			filepath.Join(dataDir, "cert.pem"),
+			filepath.Join(dataDir, "key.pem"),
+		)
 		s.TLSConfig = &tls.Config{
 			GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				return getCertificate(dataDir)
+				return certificate.Get()
 			},
 		}
 	}
