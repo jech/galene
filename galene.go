@@ -114,7 +114,8 @@ func main() {
 
 	ice.ICEFilename = filepath.Join(dataDir, "ice-servers.json")
 
-	go group.ReadPublicGroups()
+	// make sure the list of public groups is updated early
+	go group.Update()
 
 	// causes the built-in server to start if required
 	ice.Update()
@@ -143,7 +144,7 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			go group.Expire()
+			go group.Update()
 		case <-slowTicker.C:
 			go relayTest()
 		case <-terminate:

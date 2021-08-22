@@ -129,6 +129,15 @@ func (g *Group) DisplayName() string {
 	return g.description.DisplayName
 }
 
+func (g *Group) EmptyTime() time.Duration {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.clients) > 0 {
+		return 0
+	}
+	return time.Since(g.timestamp)
+}
+
 var groups struct {
 	mu     sync.Mutex
 	groups map[string]*Group
@@ -162,7 +171,7 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 		return 96, nil
 	case "video/vp9":
 		profile := fmtpValue(codec.SDPFmtpLine, "profile-id")
-		switch(profile) {
+		switch profile {
 		case "0":
 			return 98, nil
 		case "2":
@@ -177,7 +186,7 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 		if len(profile) < 4 {
 			return 0, errors.New("malforned H.264 profile")
 		}
-		switch(strings.ToLower(profile[:4])) {
+		switch strings.ToLower(profile[:4]) {
 		case "4200":
 			return 102, nil
 		case "42e0":
@@ -497,34 +506,6 @@ func deleteUnlocked(g *Group) bool {
 
 	delete(groups.groups, g.name)
 	return true
-}
-
-func Expire() {
-	names := GetNames()
-	now := time.Now()
-
-	for _, name := range names {
-		g := Get(name)
-		if g == nil {
-			continue
-		}
-
-		old := false
-
-		g.mu.Lock()
-		empty := len(g.clients) == 0
-		if empty && !g.description.Public {
-			age := now.Sub(g.timestamp)
-			old = age > maxHistoryAge(g.description)
-		}
-		// We cannot take groups.mu at this point without a deadlock.
-		g.mu.Unlock()
-
-		if empty && old {
-			// Delete will check if the group is still empty
-			Delete(name)
-		}
-	}
 }
 
 func AddClient(group string, c Client) (*Group, error) {
@@ -1029,7 +1010,30 @@ func GetPublic() []Public {
 	return gs
 }
 
-func ReadPublicGroups() {
+// Update checks that all in-memory groups are up-to-date and updates the
+// list of public groups.  It also removes from memory any non-public
+// groups that haven't been accessed in maxHistoryAge.
+func Update() {
+	names := GetNames()
+
+	for _, name := range names {
+		g := Get(name)
+		if g == nil {
+			continue
+		}
+
+		deleted := false
+		historyAge := maxHistoryAge(g.description)
+		if !g.description.Public && g.EmptyTime() > historyAge {
+			// Delete checks if the group is still empty
+			deleted = Delete(name)
+		}
+
+		if !deleted && descriptionChanged(name, nil) {
+			Add(name, nil)
+		}
+	}
+
 	err := filepath.Walk(
 		Directory,
 		func(path string, fi os.FileInfo, err error) error {
