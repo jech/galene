@@ -1029,7 +1029,7 @@ func Update() {
 			deleted = Delete(name)
 		}
 
-		if !deleted && descriptionChanged(name, nil) {
+		if !deleted && descriptionChanged(name, g.description) {
 			Add(name, nil)
 		}
 	}
