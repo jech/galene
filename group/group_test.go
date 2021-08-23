@@ -57,24 +57,6 @@ func TestGroup(t *testing.T) {
 	if public := GetPublic(); len(public) != 1 || public[0].Name != "group/subgroup" {
 		t.Errorf("Expected group/subgroup, got %v", public)
 	}
-
-	Expire()
-
-	if names := GetNames(); len(names) != 2 {
-		t.Errorf("Expected 2, got %v", names)
-	}
-
-	if found := Delete("nosuchgroup"); found || len(GetNames()) != 2 {
-		t.Errorf("Expected 2, got %v", GetNames())
-	}
-
-	if found := Delete("group/subgroup"); !found {
-		t.Errorf("Failed to delete")
-	}
-
-	if names := GetNames(); len(names) != 1 || names[0] != "group" {
-		t.Errorf("Expected group, got %v", names)
-	}
 }
 
 func TestJSTime(t *testing.T) {
