@@ -38,7 +38,7 @@ type KickError struct {
 func (err KickError) Error() string {
 	m := "kicked out"
 	if err.Message != "" {
-		m += "(" + err.Message + ")"
+		m += " (" + err.Message + ")"
 	}
 	if err.Username != "" {
 		m += " by " + err.Username
