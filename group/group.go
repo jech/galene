@@ -373,8 +373,22 @@ func Add(name string, desc *Description) (*Group, error) {
 	return g, err
 }
 
+func validGroupName(name string) bool {
+	if filepath.Separator != '/' &&
+		strings.ContainsRune(name, filepath.Separator) {
+		return false
+	}
+
+	s := path.Clean("/" + name)
+	if s == "/" {
+		return false
+	}
+
+	return s == "/"+name
+}
+
 func add(name string, desc *Description) (*Group, []Client, error) {
-	if name == "" || strings.HasSuffix(name, "/") {
+	if !validGroupName(name) {
 		return nil, nil, UserError("illegal group name")
 	}
 

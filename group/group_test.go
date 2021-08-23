@@ -245,3 +245,32 @@ func TestFmtpValue(t *testing.T) {
 		}
 	}
 }
+
+func TestValidGroupName(t *testing.T) {
+	type nameTest struct {
+		name   string
+		result bool
+	}
+	tests := []nameTest{
+		{"", false},
+		{"/", false},
+		{"/foo", false},
+		{"foo/", false},
+		{"./foo", false},
+		{"foo/.", false},
+		{"../foo", false},
+		{"foo/..", false},
+		{"foo/./bar", false},
+		{"foo/../bar", false},
+		{"foo", true},
+		{"foo/bar", true},
+	}
+
+	for _, test := range tests {
+		r := validGroupName(test.name)
+		if r != test.result {
+			t.Errorf("Valid %v: got %v, expected %v",
+				test.name, r, test.result)
+		}
+	}
+}
