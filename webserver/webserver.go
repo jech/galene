@@ -439,14 +439,33 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	group := path.Dir(p[1:])
+	var group, filename string
 	if fi.IsDir() {
-		u := r.URL.Path
-		if u[len(u)-1] != '/' {
-			http.Redirect(w, r, u+"/", http.StatusPermanentRedirect)
+		for len(p) > 0 && p[len(p)-1] == '/' {
+			p = p[:len(p)-1]
+		}
+		group = parseGroupName("/", p)
+		if group == "" {
+			http.Error(w, "bad group name", http.StatusBadRequest)
 			return
 		}
-		group = p[1:]
+	} else {
+		if p[len(p)-1] == '/' {
+			http.Error(w, "bad group name", http.StatusBadRequest)
+			return
+		}
+		group, filename = path.Split(p)
+		group = parseGroupName("/", group)
+		if group == "" {
+			http.Error(w, "bad group name", http.StatusBadRequest)
+			return
+		}
+	}
+
+	u := "/recordings/" + group + "/" + filename
+	if r.URL.Path != u {
+		http.Redirect(w, r, u, http.StatusPermanentRedirect)
+		return
 	}
 
 	ok := checkGroupPermissions(w, r, group)
@@ -455,7 +474,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if fi.IsDir() {
+	if filename == "" {
 		if r.Method == "POST" {
 			handleGroupAction(w, r, group)
 		} else {
