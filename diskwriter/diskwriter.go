@@ -334,58 +334,26 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 		remote:    up,
 	}
 
-	truePartitionTailChecker := func(p *rtp.Packet) bool {
-		return true
-	}
-
-	markerPartitionTailChecker := func(p *rtp.Packet) bool {
-		return p.Marker
-	}
-
 	for _, remote := range tracks {
 		var builder *samplebuilder.SampleBuilder
 		codec := remote.Codec()
 		if strings.EqualFold(codec.MimeType, "audio/opus") {
 			builder = samplebuilder.New(
 				16, &codecs.OpusPacket{}, codec.ClockRate,
-				samplebuilder.WithPartitionHeadChecker(
-					&codecs.OpusPartitionHeadChecker{},
-				),
-				samplebuilder.WithPartitionTailChecker(
-					truePartitionTailChecker,
-				),
 			)
 		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			builder = samplebuilder.New(
 				128, &codecs.VP8Packet{}, codec.ClockRate,
-				samplebuilder.WithPartitionHeadChecker(
-					&codecs.VP8PartitionHeadChecker{},
-				),
-				samplebuilder.WithPartitionTailChecker(
-					markerPartitionTailChecker,
-				),
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			builder = samplebuilder.New(
 				128, &codecs.VP9Packet{}, codec.ClockRate,
-				samplebuilder.WithPartitionHeadChecker(
-					&codecs.VP9PartitionHeadChecker{},
-				),
-				samplebuilder.WithPartitionTailChecker(
-					markerPartitionTailChecker,
-				),
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/h264") {
 			builder = samplebuilder.New(
 				128, &codecs.H264Packet{}, codec.ClockRate,
-				samplebuilder.WithPartitionHeadChecker(
-					&codecs.H264PartitionHeadChecker{},
-				),
-				samplebuilder.WithPartitionTailChecker(
-					markerPartitionTailChecker,
-				),
 			)
 			conn.hasVideo = true
 		} else {
