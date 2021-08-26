@@ -1,0 +1,15 @@
+{
+  "site": {
+    "title": "Galène",
+    "by": "per",
+    "locale": "Lenga :"
+  },
+  "groups": {
+    "public": "Grops publics",
+    "group": "Grop :"
+  },
+  "input": {
+    "value": "Participar"
+  }
+  
+}

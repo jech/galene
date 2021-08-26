@@ -1,0 +1,15 @@
+{
+  "site": {
+    "title": "Galène",
+    "by": "by",
+    "locale": "Language:"
+  },
+  "groups": {
+    "public": "Public groups",
+    "group": "Group:"
+  },
+  "input": {
+    "value": "Join"
+  }
+  
+}
