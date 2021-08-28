@@ -13,5 +13,11 @@
   },
   "html": {
     "lang": "oc"
-  }    
+  },
+  "404": {
+    "title": "Pagina pas trobada",
+    "notfound": " Pagina pas trobada",
+    "text": " Podèm pas trobar la pagina que cercatz.",
+    "back": "Tornar a l’acuèlh"
+  }
 }
