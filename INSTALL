@@ -1,0 +1,227 @@
+# Installation instructions
+
+## Build the `galene` binary
+
+You will need Go 1.13 or later (type `go version`).  Then do:
+
+    CGO_ENABLED=0 go build -ldflags='-s -w'
+
+On Windows, do
+
+    set CGO_ENABLED=0
+    go build -ldflags="-s -w"
+
+
+## Set the server administrator credentials
+
+This step is optional, it is currently only relevant for access to the
+`/stats.html` and `/stats.json` locations.
+
+    mkdir data
+    echo 'god:topsecret' > data/passwd
+
+
+## Set up a group
+
+Set up a group called *test* by creating a file `groups/test.json`:
+
+    mkdir groups
+    vi groups/name.json
+    
+You may use the following definition:
+
+    {
+        "op": [{"username": "admin", "password": "1234"}],
+        "presenter": [{}]
+    }
+
+See the README file for more details about defining groups.
+
+
+## Test locally
+
+    ./galene &
+    
+You should be able to access Galène at `https://localhost:8443`.  Connect
+to the group that you have just set up in two distinct browser windows,
+then press *Ready* in one of the two; you should see a video in the other.
+
+
+## Configure your server's firewall
+
+If your server has a global IPv4 address and there is no firewall, there
+is nothing to do.
+
+If your server has a global IPv4 address, then the firewall must, at
+a strict minimum, allow incoming traffic to TCP port 8443 (or whatever is
+configured with the `-http` command-line option) and TCP port 1194 (or
+whatever is configured with the `-turn` option).  For best performance, it
+should also allow UDP traffic to the TURN port, and UDP traffic to
+ephemeral (high-numbered) ports (or whatever is configured using the
+`-udp-range` option).
+
+If your server is behind NAT (which is not recommended), then the NAT must
+forward, at the very least, port 8443 to your server.  Ideally, you should
+configure an external TURN server (see *ICE Servers* below) on a host that
+is not behind NAT.  If that is not possible, then you must use a NAT that
+supports hairpinning, you must forward port 1194 in addition to port 8443,
+and you will need to add add the option `-turn 203.0.113.1:1194` to
+Galène's command line, where `203.0.113.1` is your NAT's external (global)
+IPv4 address.
+
+
+## Cross-compile for your server
+
+This step is only required if your server runs a different OS or has
+a different CPU than your build machine.
+
+For a Linux server with an Intel or AMD CPU:
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-s -w'
+
+For a Raspberry Pi 1:
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -ldflags='-s -w'
+
+For a BeagleBone or a Raspberry Pi 2 or later:
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags='-s -w'
+
+For a 64-bit ARM board (Olimex Olinuxino-A64, Pine64, etc.) or server:
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags='-s -w'
+
+For a 32-bit MIPS board with no hardware floating point (WNDR3800, etc.):
+
+    CGO_ENABLED=0 GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags='-s -w'
+
+
+## Deploy to your server
+
+Set up a user *galene* on your server, then do:
+
+    rsync -a galene static data groups galene@server.example.org:
+
+If you don't have a TLS certificate, Galène will generate a self-signed
+certificate automatically (and print a warning to the logs).  If you have
+a certificate, install it in the files `data/cert.pem` and `data/key.pem`:
+
+    ssh galene@server.example.org
+    sudo cp /etc/letsencrypt/live/server.example.org/fullchain.pem data/cert.pem
+    sudo cp /etc/letsencrypt/live/server.example.org/privkey.pem data/key.pem
+    sudo chown galene:galene data/*.pem
+    sudo chmod go-rw data/key.pem
+    
+Now run the binary on the server:
+
+    ssh galene@server.example.org
+    ulimit -n 65536
+    nohup ./galene &
+
+If you are using *runit*, use a script like the following:
+
+    #!/bin/sh
+    exec 2>&1
+    cd ~galene
+    ulimit -n 65536
+    exec setuidgid galene ./galene
+
+If you are using *systemd*:
+
+    [Unit]
+    Description=Galene
+    After=network.target
+
+    [Service]
+    Type=simple
+    WorkingDirectory=/home/galene
+    User=galene
+    Group=galene
+    ExecStart=/home/galene/galene
+    LimitNOFILE=65536
+
+    [Install]
+    WantedBy=multi-user.target
+
+
+# ICE Servers
+
+Most connectivity issues are due to an incorrect ICE configuration.
+
+ICE is the NAT and firewall traversal protocol used by WebRTC.  ICE can
+make use of two kinds of servers to help with NAT traversal: STUN servers,
+that help punching holes in well-behaved NATs, and TURN servers, that
+serve as relays for traffic.  TURN is a superset of STUN: no STUN server
+is necessary if one or more TURN servers are available.
+
+Galène includes an IPv4-only TURN server, which is controlled by the
+`-turn` command-line option.  It has the following behaviour:
+
+  * if its value is set to the empty string `""`, then the built-in server
+    is disabled; in this case, the file `data/ice-servers.json` configures
+    an external TURN server;
+
+  * if its value is a colon followed with a port number, for example
+    `:1194`, then the TURN server will listen on all public IPv4 addresses
+    of the local host, over UDP and TCP; this is the recommended value if
+    the server is not behind NAT, and the firewall allows incoming
+    connections to port 1194;
+
+  * if the value of this option is a socket address, such as
+    `203.0.113.1:1194`, then the TURN server will listen on all addresses
+    of the local host but assume that the address seen by the clients is
+    the one given in the option; this is useful when running behind NAT
+    with port forwarding set up.
+
+  * the default value is `auto`, which behaves like `:1194` if there is no
+    `data/ice-servers.json` file, and like `""` otherwise.
+
+If the server is not accessible from the Internet, e.g. because of NAT or
+because it is behind a restrictive firewall, then you should configure
+a TURN server that runs on a host that is accessible by both Galène and
+the clients.  Disable the built-in TURN server (`-turn ""` or the default
+`-turn auto`), and provide a working ICE configuration in the file
+`data/ice-servers.json`.  In the case of a single STUN server, it should
+look like this:
+
+    [
+        {
+            "urls": [
+                "stun:stun.example.org"
+            ]
+        }
+    ]
+    
+In the case of s single TURN server, the `ice-servers.json` file should
+look like this:
+
+    [
+        {
+            "urls": [
+                "turn:turn.example.org:443",
+                "turn:turn.example.org:443?transport=tcp"
+            ],
+            "username": "galene",
+            "credential": "secret"
+        }
+    ]
+
+If you prefer to use coturn's `use-auth-secret` option, then the
+`ice-servers.json` file should look like this:
+
+    [
+        {
+            "urls": [
+                "turn:turn.example.com:443",
+                "turn:turn.example.com:443?transport=tcp"
+            ],
+            "username": "galene",
+            "credential": "secret",
+            "credentialType": "hmac-sha1"
+        }
+    ]
+    
+For redundancy, you may set up multiple TURN servers, and ICE will use the
+first one that works.  If an `ice-servers.json` file is present and
+Galène's built-in TURN server is enabled, then the external server will be
+used in preference to the built-in server.

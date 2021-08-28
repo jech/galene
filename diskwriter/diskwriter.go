@@ -13,11 +13,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/at-wat/ebml-go/mkvcore"
 	"github.com/at-wat/ebml-go/webm"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
-	"github.com/pion/webrtc/v3/pkg/media/samplebuilder"
+	"github.com/pion/webrtc/v3/pkg/media"
 
+	"github.com/jech/samplebuilder"
+
+	gcodecs "github.com/jech/galene/codecs"
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/group"
 )
@@ -31,13 +35,6 @@ type Client struct {
 	mu     sync.Mutex
 	down   map[string]*diskConn
 	closed bool
-}
-
-func (c *Client) Givenpassword() string {
-	// no need to forward the password given at authentication time
-	// here, we do not need to access any LDAP service, so we return
-	// a fake password
-	return ""
 }
 
 func newId() string {
@@ -66,23 +63,21 @@ func (client *Client) Challenge(group string, cred group.ClientCredentials) bool
 	return true
 }
 
-func (client *Client) OverridePermissions(g *group.Group) bool {
-	return true
-}
-
 func (client *Client) SetPermissions(perms group.ClientPermissions) {
 	return
 }
 
 func (client *Client) Permissions() group.ClientPermissions {
-	return group.ClientPermissions{}
+	return group.ClientPermissions{
+		System: true,
+	}
 }
 
 func (client *Client) Status() map[string]interface{} {
 	return nil
 }
 
-func (client *Client) PushClient(id, username string, permissions *group.ClientPermissions, status map[string]interface{}, kind string) error {
+func (client *Client) PushClient(group, kind, id, username string, permissions group.ClientPermissions, status map[string]interface{}) error {
 	return nil
 }
 
@@ -106,6 +101,10 @@ func (client *Client) Kick(id, user, message string) error {
 	err := client.Close()
 	group.DelClient(client)
 	return err
+}
+
+func (client *Client) Joined(group, kind string) error {
+	return nil
 }
 
 func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
@@ -187,16 +186,17 @@ func (conn *diskConn) warn(message string) {
 }
 
 // called locked
-func (conn *diskConn) reopen() error {
+func (conn *diskConn) reopen(extension string) error {
 	for _, t := range conn.tracks {
 		if t.writer != nil {
+			t.writeBuffered(true)
 			t.writer.Close()
 			t.writer = nil
 		}
 	}
 	conn.file = nil
 
-	file, err := openDiskFile(conn.directory, conn.username)
+	file, err := openDiskFile(conn.directory, conn.username, extension)
 	if err != nil {
 		return err
 	}
@@ -212,6 +212,7 @@ func (conn *diskConn) Close() error {
 	tracks := make([]*diskTrack, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
 		if t.writer != nil {
+			t.writeBuffered(true)
 			t.writer.Close()
 			t.writer = nil
 		}
@@ -225,7 +226,7 @@ func (conn *diskConn) Close() error {
 	return nil
 }
 
-func openDiskFile(directory, username string) (*os.File, error) {
+func openDiskFile(directory, username, extension string) (*os.File, error) {
 	filenameFormat := "2006-01-02T15:04:05.000"
 	if runtime.GOOS == "windows" {
 		filenameFormat = "2006-01-02T15-04-05-000"
@@ -238,9 +239,11 @@ func openDiskFile(directory, username string) (*os.File, error) {
 	for counter := 0; counter < 100; counter++ {
 		var fn string
 		if counter == 0 {
-			fn = fmt.Sprintf("%v.webm", filename)
+			fn = fmt.Sprintf("%v.%v", filename, extension)
 		} else {
-			fn = fmt.Sprintf("%v-%02d.webm", filename, counter)
+			fn = fmt.Sprintf("%v-%02d.%v",
+				filename, counter, extension,
+			)
 		}
 
 		fn = filepath.Join(directory, fn)
@@ -256,18 +259,34 @@ func openDiskFile(directory, username string) (*os.File, error) {
 	return nil, errors.New("couldn't create file")
 }
 
+type maybeUint32 uint64
+
+const none maybeUint32 = 0
+
+func some(value uint32) maybeUint32 {
+	return maybeUint32(uint64(1<<32) | uint64(value))
+}
+
+func valid(m maybeUint32) bool {
+	return (m & (1 << 32)) != 0
+}
+
+func value(m maybeUint32) uint32 {
+	return uint32(m)
+}
+
 type diskTrack struct {
 	remote conn.UpTrack
 	conn   *diskConn
 
-	writer  webm.BlockWriteCloser
-	builder *samplebuilder.SampleBuilder
+	writer    mkvcore.BlockWriteCloser
+	builder   *samplebuilder.SampleBuilder
+	lastSeqno maybeUint32
+	origin    maybeUint32
 
-	// bit 32 is a boolean indicating that the origin is valid
-	origin uint64
-
-	lastKf  uint32
-	savedKf *rtp.Packet
+	kfRequested time.Time
+	lastKf      time.Time
+	savedKf     *rtp.Packet
 }
 
 func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
@@ -282,8 +301,8 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 				client.group.WallOps("Multiple audio tracks, recording just one")
 			}
 		} else if strings.EqualFold(codec, "video/vp8") ||
-			strings.EqualFold(codec, "video/vp9") {
-			println(remote.Label())
+			strings.EqualFold(codec, "video/vp9") ||
+			strings.EqualFold(codec, "video/h264") {
 			if video == nil || video.Label() == "l" {
 				video = remote
 			} else if remote.Label() != "l" {
@@ -314,30 +333,27 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 		tracks:    make([]*diskTrack, 0, len(tracks)),
 		remote:    up,
 	}
+
 	for _, remote := range tracks {
 		var builder *samplebuilder.SampleBuilder
 		codec := remote.Codec()
 		if strings.EqualFold(codec.MimeType, "audio/opus") {
 			builder = samplebuilder.New(
 				16, &codecs.OpusPacket{}, codec.ClockRate,
-				samplebuilder.WithPartitionHeadChecker(
-					&codecs.OpusPartitionHeadChecker{},
-				),
 			)
 		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			builder = samplebuilder.New(
 				128, &codecs.VP8Packet{}, codec.ClockRate,
-				samplebuilder.WithPartitionHeadChecker(
-					&codecs.VP8PartitionHeadChecker{},
-				),
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			builder = samplebuilder.New(
 				128, &codecs.VP9Packet{}, codec.ClockRate,
-				samplebuilder.WithPartitionHeadChecker(
-					&codecs.VP9PartitionHeadChecker{},
-				),
+			)
+			conn.hasVideo = true
+		} else if strings.EqualFold(codec.MimeType, "video/h264") {
+			builder = samplebuilder.New(
+				128, &codecs.H264Packet{}, codec.ClockRate,
 			)
 			conn.hasVideo = true
 		} else {
@@ -345,7 +361,6 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 			return nil, errors.New(
 				"cannot record codec " + codec.MimeType,
 			)
-			continue
 		}
 		track := &diskTrack{
 			remote:  remote,
@@ -378,72 +393,7 @@ func (t *diskTrack) SetTimeOffset(ntp uint64, rtp uint32) {
 func (t *diskTrack) SetCname(string) {
 }
 
-func isKeyframe(codec string, data []byte) bool {
-	if strings.EqualFold(codec, "video/vp8") {
-		if len(data) < 1 {
-			return false
-		}
-		return (data[0] & 0x1) == 0
-	} else if strings.EqualFold(codec, "video/vp9") {
-		if len(data) < 1 {
-			return false
-		}
-		if data[0]&0xC0 != 0x80 {
-			return false
-		}
-		profile := (data[0] >> 4) & 0x3
-		if profile != 3 {
-			return (data[0] & 0xC) == 0
-		}
-		return (data[0] & 0x6) == 0
-	} else {
-		panic("Eek!")
-	}
-}
-
-func keyframeDimensions(codec string, data []byte, packet *rtp.Packet) (uint32, uint32) {
-	if strings.EqualFold(codec, "video/vp8") {
-		if len(data) < 10 {
-			return 0, 0
-		}
-		raw := uint32(data[6]) | uint32(data[7])<<8 |
-			uint32(data[8])<<16 | uint32(data[9])<<24
-		width := raw & 0x3FFF
-		height := (raw >> 16) & 0x3FFF
-		return width, height
-	} else if strings.EqualFold(codec, "video/vp9") {
-		if packet == nil {
-			return 0, 0
-		}
-		var vp9 codecs.VP9Packet
-		_, err := vp9.Unmarshal(packet.Payload)
-		if err != nil {
-			return 0, 0
-		}
-		if !vp9.V {
-			return 0, 0
-		}
-		w := uint32(0)
-		h := uint32(0)
-		for i := range vp9.Width {
-			if i >= len(vp9.Height) {
-				break
-			}
-			if w < uint32(vp9.Width[i]) {
-				w = uint32(vp9.Width[i])
-			}
-			if h < uint32(vp9.Height[i]) {
-				h = uint32(vp9.Height[i])
-			}
-		}
-		return w, h
-	} else {
-		return 0, 0
-	}
-}
-
 func (t *diskTrack) Write(buf []byte) (int, error) {
-	// since we call initWriter, we take the connection lock for simplicity.
 	t.conn.mu.Lock()
 	defer t.conn.mu.Unlock()
 
@@ -451,8 +401,7 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 		return 0, nil
 	}
 
-	codec := t.remote.Codec()
-
+	// samplebuilder retains packets
 	data := make([]byte, len(buf))
 	copy(data, buf)
 	p := new(rtp.Packet)
@@ -462,64 +411,94 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 		return 0, nil
 	}
 
-	if strings.EqualFold(codec.MimeType, "video/vp9") {
-		var vp9 codecs.VP9Packet
-		_, err := vp9.Unmarshal(p.Payload)
-		if err == nil && vp9.B && len(vp9.Payload) >= 1 {
-			profile := (vp9.Payload[0] >> 4) & 0x3
-			kf := false
-			if profile != 3 {
-				kf = (vp9.Payload[0] & 0xC) == 0
-			} else {
-				kf = (vp9.Payload[0] & 0x6) == 0
-			}
-			if kf {
-				t.savedKf = p
+	if valid(t.lastSeqno) {
+		lastSeqno := uint16(value(t.lastSeqno))
+		if ((p.SequenceNumber - lastSeqno) & 0x8000) == 0 {
+			count := p.SequenceNumber - lastSeqno
+			if count > 0 && count < 128 {
+				for i := lastSeqno + 1; i != p.SequenceNumber; i++ {
+					// different buf each time
+					buf := make([]byte, 1504)
+					n := t.remote.GetPacket(i, buf, true)
+					if n == 0 {
+						continue
+					}
+					p := new(rtp.Packet)
+					err := p.Unmarshal(buf)
+					if err == nil {
+						t.writeRTP(p)
+					}
+				}
 			}
 		}
 	}
 
-	kfNeeded := false
+	t.lastSeqno = some(uint32(p.SequenceNumber))
+
+	err = t.writeRTP(p)
+	if err != nil {
+		return 0, err
+	}
+	return len(buf), nil
+}
+
+// writeRTP writes the packet without doing any loss recovery.
+// Called locked.
+func (t *diskTrack) writeRTP(p *rtp.Packet) error {
+	codec := t.remote.Codec().MimeType
+	if len(codec) > 6 && strings.EqualFold(codec[:6], "video/") {
+		kf, _ := gcodecs.Keyframe(codec, p)
+		if kf {
+			t.savedKf = p
+		}
+	}
 
 	t.builder.Push(p)
 
+	return t.writeBuffered(false)
+}
+
+// writeBuffered writes any buffered samples to disk.  If force is true,
+// then samples will be flushed even if they are preceded by incomplete
+// samples.
+func (t *diskTrack) writeBuffered(force bool) error {
+	codec := t.remote.Codec().MimeType
+
 	for {
-		sample, ts := t.builder.PopWithTimestamp()
+		var sample *media.Sample
+		var ts uint32
+		if !force {
+			sample, ts = t.builder.PopWithTimestamp()
+		} else {
+			sample, ts = t.builder.ForcePopWithTimestamp()
+		}
 		if sample == nil {
-			if kfNeeded {
-				t.remote.RequestKeyframe()
-				return 0, nil
-			}
-			return len(buf), nil
+			return nil
 		}
 
-		keyframe := true
+		var keyframe bool
+		if len(codec) > 6 && strings.EqualFold(codec[:6], "video/") {
+			if t.savedKf == nil {
+				keyframe = false
+			} else {
+				keyframe = (ts == t.savedKf.Timestamp)
+			}
 
-		if strings.EqualFold(codec.MimeType, "video/vp8") ||
-			strings.EqualFold(codec.MimeType, "video/vp9") {
-			keyframe = isKeyframe(codec.MimeType, sample.Data)
 			if keyframe {
 				err := t.conn.initWriter(
-					keyframeDimensions(
-						codec.MimeType, sample.Data,
-						t.savedKf,
+					gcodecs.KeyframeDimensions(
+						codec, t.savedKf,
 					),
 				)
 				if err != nil {
 					t.conn.warn(
 						"Write to disk " + err.Error(),
 					)
-					return 0, err
-				}
-				t.lastKf = ts
-			} else if t.writer != nil {
-				// Request a keyframe every 4s
-				delta := ts - t.lastKf
-				if (delta&0x80000000) != 0 || delta > 4*90000 {
-					kfNeeded = true
+					return err
 				}
 			}
 		} else {
+			keyframe = true
 			if t.writer == nil {
 				if !t.conn.hasVideo {
 					err := t.conn.initWriter(0, 0)
@@ -528,28 +507,36 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 							"Write to disk " +
 								err.Error(),
 						)
-						return 0, err
+						return err
 					}
 				}
 			}
 		}
 
-		if t.writer == nil {
-			if !keyframe {
+		now := time.Now()
+		if keyframe {
+			t.lastKf = now
+		} else if t.writer == nil || now.Sub(t.lastKf) > 4*time.Second {
+			if now.Sub(t.kfRequested) > time.Second {
 				t.remote.RequestKeyframe()
+				t.kfRequested = now
 			}
-			return 0, nil
+			return nil
 		}
 
-		if t.origin == 0 {
-			t.origin = uint64(ts) | (1 << 32)
+		if t.writer == nil {
+			continue
 		}
-		ts -= uint32(t.origin)
+
+		if !valid(t.origin) {
+			t.origin = some(ts)
+		}
+		ts -= value(t.origin)
 
 		tm := ts / (t.remote.Codec().ClockRate / 1000)
 		_, err := t.writer.Write(keyframe, int64(tm), sample.Data)
 		if err != nil {
-			return 0, err
+			return err
 		}
 	}
 }
@@ -559,7 +546,8 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	if conn.file != nil && width == conn.width && height == conn.height {
 		return nil
 	}
-	var entries []webm.TrackEntry
+	isWebm := true
+	var desc []mkvcore.TrackDescription
 	for i, t := range conn.tracks {
 		var entry webm.TrackEntry
 		codec := t.remote.Codec()
@@ -596,25 +584,56 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 					PixelHeight: uint64(height),
 				},
 			}
+		} else if strings.EqualFold(codec.MimeType, "video/h264") {
+			entry = webm.TrackEntry{
+				Name:        "Video",
+				TrackNumber: uint64(i + 1),
+				CodecID:     "V_MPEG4/ISO/AVC",
+				TrackType:   1,
+				Video: &webm.Video{
+					PixelWidth:  uint64(width),
+					PixelHeight: uint64(height),
+				},
+			}
+			isWebm = false
 		} else {
 			return errors.New("unknown track type")
 		}
-		entries = append(entries, entry)
+		desc = append(desc,
+			mkvcore.TrackDescription{
+				TrackNumber: uint64(i + 1),
+				TrackEntry:  entry,
+			},
+		)
 	}
 
-	err := conn.reopen()
+	extension := "webm"
+	header := webm.DefaultEBMLHeader
+	if !isWebm {
+		extension = "mkv"
+		h := *header
+		h.DocType = "matroska"
+		header = &h
+	}
+
+	err := conn.reopen(extension)
 	if err != nil {
 		return err
 	}
 
-	writers, err := webm.NewSimpleBlockWriter(conn.file, entries)
+	ws, err := mkvcore.NewSimpleBlockWriter(
+		conn.file, desc,
+		mkvcore.WithEBMLHeader(header),
+		mkvcore.WithSegmentInfo(webm.DefaultSegmentInfo),
+		mkvcore.WithBlockInterceptor(webm.DefaultBlockInterceptor),
+	)
 	if err != nil {
 		conn.file.Close()
 		conn.file = nil
 		return err
 	}
 
-	if len(writers) != len(conn.tracks) {
+	if len(ws) != len(conn.tracks) {
 		conn.file.Close()
 		conn.file = nil
 		return errors.New("unexpected number of writers")
@@ -624,11 +643,11 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 	conn.height = height
 
 	for i, t := range conn.tracks {
-		t.writer = writers[i]
+		t.writer = ws[i]
 	}
 	return nil
 }
 
-func (t *diskTrack) GetMaxBitrate() (uint64, int) {
-	return ^uint64(0), -1
+func (t *diskTrack) GetMaxBitrate() (uint64, int, int) {
+	return ^uint64(0), -1, -1
 }

@@ -25,9 +25,9 @@ type UpTrack interface {
 	Kind() webrtc.RTPCodecType
 	Label() string
 	Codec() webrtc.RTPCodecCapability
-	// get a recent packet.  Returns 0 if the packet is not in cache.
-	GetRTP(seqno uint16, result []byte) uint16
-	Nack(conn Up, seqnos []uint16) error
+	// GetPacket fetches a recent packet.  Returns 0 if the packet is
+	// not in cache, and, in that case, optionally schedules a NACK.
+	GetPacket(seqno uint16, result []byte, nack bool) uint16
 	RequestKeyframe() error
 }
 
@@ -40,5 +40,5 @@ type DownTrack interface {
 	Write(buf []byte) (int, error)
 	SetTimeOffset(ntp uint64, rtp uint32)
 	SetCname(string)
-	GetMaxBitrate() (uint64, int)
+	GetMaxBitrate() (uint64, int, int)
 }

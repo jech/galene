@@ -15,6 +15,7 @@ import (
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
+	"github.com/jech/galene/limit"
 	"github.com/jech/galene/turnserver"
 	"github.com/jech/galene/webserver"
 )
@@ -104,9 +105,17 @@ func main() {
 		}()
 	}
 
+	n, err := limit.Nofile(0xFFFF)
+	if err != nil {
+		log.Printf("Couldn't set file descriptor limit: %v", err)
+	} else if n < 0xFFFF {
+		log.Printf("File descriptor limit is %v, please increase it!", n)
+	}
+
 	ice.ICEFilename = filepath.Join(dataDir, "ice-servers.json")
 
-	go group.ReadPublicGroups()
+	// make sure the list of public groups is updated early
+	go group.Update()
 
 	// causes the built-in server to start if required
 	ice.Update()
@@ -135,7 +144,7 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			go group.Expire()
+			go group.Update()
 		case <-slowTicker.C:
 			go relayTest()
 		case <-terminate:
