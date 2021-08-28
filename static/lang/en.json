@@ -13,5 +13,11 @@
   },
   "html": {
     "lang": "en"
-  }  
+  },
+  "404": {
+    "title": "Page not Found",
+    "notfound": " Page not Found",
+    "text": " We can't find the page you're looking for.",
+    "back": "Back to home"
+  }
 }
