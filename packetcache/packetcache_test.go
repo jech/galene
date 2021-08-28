@@ -22,7 +22,7 @@ func TestCache(t *testing.T) {
 	buf2 := randomBuf()
 	cache := New(16)
 
-	found, _, _ := cache.Last()
+	_, found := cache.Last()
 	if found {
 		t.Errorf("Found in empty cache")
 	}
@@ -30,13 +30,12 @@ func TestCache(t *testing.T) {
 	_, i1 := cache.Store(13, 42, false, false, buf1)
 	_, i2 := cache.Store(17, 42, false, false, buf2)
 
-	found, seqno, ts := cache.Last()
+	seqno, found := cache.Last()
 	if !found {
 		t.Errorf("Not found")
 	}
-	if seqno != 17 || ts != 42 {
-		t.Errorf("Expected %v, %v, got %v, %v",
-			17, 42, seqno, ts)
+	if seqno != 17 {
+		t.Errorf("Expected %v, got %v", 17, seqno)
 	}
 
 	buf := make([]byte, BufSize)
@@ -167,84 +166,6 @@ func TestCacheGrowCond(t *testing.T) {
 	done = cache.ResizeCond(16)
 	if !done || len(cache.entries) != 16 {
 		t.Errorf("Didn't shrink cache")
-	}
-}
-
-func TestKeyframe(t *testing.T) {
-	cache := New(16)
-	packet := make([]byte, 1)
-	buf := make([]byte, BufSize)
-
-	found, _, _ := cache.KeyframeSeqno()
-	if found {
-		t.Errorf("Found keyframe in empty cache")
-	}
-
-	cache.Store(7, 57, true, false, packet)
-	if cache.keyframe.complete {
-		t.Errorf("Expected false, got true")
-	}
-	cache.Store(8, 57, false, true, packet)
-	if !cache.keyframe.complete {
-		t.Errorf("Expected true, got false")
-	}
-
-	ts, c, kf := cache.Keyframe()
-	if ts != 57 || !c || len(kf) != 2 {
-		t.Errorf("Got %v %v %v, expected %v %v", ts, c, len(kf), 57, 2)
-	}
-
-	found, seqno, ts := cache.KeyframeSeqno()
-	if !found || seqno != 7 || ts != 57 {
-		t.Errorf("Got %v %v %v, expected %v %v", found, seqno, ts, 7, 57)
-	}
-
-	for _, i := range kf {
-		l := cache.Get(i, buf)
-		if int(l) != len(packet) {
-			t.Errorf("Couldn't get %v", i)
-		}
-	}
-
-	for i := 0; i < 32; i++ {
-		cache.Store(uint16(9+i), uint32(58+i), false, false, packet)
-	}
-
-	ts, c, kf = cache.Keyframe()
-	if ts != 57 || !c || len(kf) != 2 {
-		t.Errorf("Got %v %v %v, expected %v %v", ts, c, len(kf), 57, 2)
-	}
-	for _, i := range kf {
-		l := cache.Get(i, buf)
-		if int(l) != len(packet) {
-			t.Errorf("Couldn't get %v", i)
-		}
-	}
-}
-
-func TestKeyframeUnsorted(t *testing.T) {
-	cache := New(16)
-	packet := make([]byte, 1)
-
-	cache.Store(7, 57, false, false, packet)
-	cache.Store(9, 57, false, false, packet)
-	cache.Store(10, 57, false, true, packet)
-	cache.Store(6, 57, true, false, packet)
-	_, c, kf := cache.Keyframe()
-	if len(kf) != 2 || c {
-		t.Errorf("Got %v %v, expected 2", c, kf)
-	}
-	cache.Store(8, 57, false, false, packet)
-
-	_, c, kf = cache.Keyframe()
-	if len(kf) != 5 || !c {
-		t.Errorf("Got %v %v, expected 5", c, kf)
-	}
-	for i, v := range kf {
-		if v != uint16(i+6) {
-			t.Errorf("Position %v, expected %v, got %v\n",
-				i, i+6, v)
-		}
 	}
 }
 

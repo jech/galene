@@ -40,10 +40,10 @@ func TestTime(t *testing.T) {
 	}
 
 	c = Jiffies()
-	time.Sleep(time.Second * 100000 / JiffiesPerSec)
+	time.Sleep(time.Second * 10000000 / JiffiesPerSec)
 	d = Jiffies() - c
-	if differs(d, 100000, 10000) {
-		t.Errorf("Expected %v, got %v", 4000, d)
+	if differs(d, 10000000, 1000000) {
+		t.Errorf("Expected %v, got %v", 10000000, d)
 	}
 }
 

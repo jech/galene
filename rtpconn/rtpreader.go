@@ -3,16 +3,18 @@ package rtpconn
 import (
 	"io"
 	"log"
+	"time"
 
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 
+	"github.com/jech/galene/codecs"
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/rtptime"
 )
 
-func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
-	writers := rtpWriterPool{conn: conn, track: track}
+func readLoop(track *rtpUpTrack) {
+	writers := rtpWriterPool{track: track}
 	defer func() {
 		writers.close()
 		close(track.readerDone)
@@ -21,10 +23,41 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 	isvideo := track.track.Kind() == webrtc.RTPCodecTypeVideo
 	codec := track.track.Codec()
 	sendNACK := track.hasRtcpFb("nack", "")
+	sendPLI := track.hasRtcpFb("nack", "pli")
 	var kfNeeded bool
+	var kfRequested time.Time
 	buf := make([]byte, packetcache.BufSize)
 	var packet rtp.Packet
 	for {
+
+		select {
+		case <-track.actionCh:
+			track.mu.Lock()
+			actions := track.actions
+			track.actions = nil
+			track.mu.Unlock()
+			for _, action := range actions {
+				switch action.action {
+				case trackActionAdd, trackActionDel:
+					err := writers.add(
+						action.track,
+						action.action == trackActionAdd,
+					)
+					if err != nil {
+						log.Printf(
+							"add/remove track: %v",
+							err,
+						)
+					}
+				case trackActionKeyframe:
+					kfNeeded = true
+				default:
+					log.Printf("Unknown action")
+				}
+			}
+		default:
+		}
+
 		bytes, _, err := track.track.Read(buf)
 		if err != nil {
 			if err != io.EOF {
@@ -42,7 +75,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 
 		track.jitter.Accumulate(packet.Timestamp)
 
-		kf, kfKnown := isKeyframe(codec.MimeType, &packet)
+		kf, kfKnown := codecs.Keyframe(codec.MimeType, &packet)
 		if kf || !kfKnown {
 			kfNeeded = false
 		}
@@ -88,7 +121,7 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 				packet.SequenceNumber - unnacked,
 			)
 			if found && sendNACK {
-				err := conn.sendNACK(track, first, bitmap)
+				err := track.sendNACK(first, bitmap)
 				if err != nil {
 					log.Printf("%v", err)
 				}
@@ -103,31 +136,18 @@ func readLoop(conn *rtpUpConnection, track *rtpUpTrack) {
 		writers.write(packet.SequenceNumber, index, delay,
 			isvideo, packet.Marker)
 
-		select {
-		case action := <-track.localCh:
-			switch action.action {
-			case trackActionAdd, trackActionDel:
-				err := writers.add(
-					action.track,
-					action.action == trackActionAdd,
-				)
+		now := time.Now()
+		if kfNeeded && now.Sub(kfRequested) > time.Second/2 {
+			if sendPLI {
+				err := track.sendPLI()
 				if err != nil {
-					log.Printf("add/remove track: %v", err)
+					log.Printf("sendPLI: %v", err)
+					kfNeeded = false
 				}
-			case trackActionKeyframe:
-				kfNeeded = true
-			default:
-				log.Printf("Unknown action %v", action.action)
-			}
-		default:
-		}
-
-		if kfNeeded {
-			err := conn.sendPLI(track)
-			if err != nil && err != ErrRateLimited {
-				log.Printf("sendPLI: %v", err)
+			} else {
 				kfNeeded = false
 			}
+			kfRequested = now
 		}
 	}
 }

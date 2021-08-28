@@ -164,7 +164,7 @@ function ServerConnection() {
      *
      * kind is one of 'join', 'fail', 'change' or 'leave'.
      *
-     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, message: string) => void}
+     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, status: Object<string,any>, message: string) => void}
      */
     this.onjoined = null;
     /**
@@ -178,7 +178,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: unknown) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, history: boolean, kind: string, message: unknown) => void}
      */
     this.onchat = null;
     /**
@@ -284,7 +284,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onuser.call(sc, id, 'delete');
             }
             if(sc.group && sc.onjoined)
-                sc.onjoined.call(sc, 'leave', sc.group, {}, '');
+                sc.onjoined.call(sc, 'leave', sc.group, {}, {}, '');
             sc.group = null;
             sc.username = null;
             if(sc.onclose)
@@ -336,6 +336,7 @@ ServerConnection.prototype.connect = async function(url) {
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
                                      m.permissions || {},
+                                     m.status,
                                      m.value || null);
                 break;
             case 'user':
@@ -378,10 +379,11 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onuser.call(sc, m.id, m.kind);
                 break;
             case 'chat':
+            case 'chathistory':
                 if(sc.onchat)
                     sc.onchat.call(
-                        sc, m.source, m.dest, m.username, m.time,
-                        m.privileged, m.kind, m.value,
+                        sc, m.source, m.dest, m.username, m.time, m.privileged,
+                        m.type === 'chathistory', m.kind, m.value,
                     );
                 break;
             case 'usermessage':
@@ -778,7 +780,7 @@ ServerConnection.prototype.gotRenegotiate = function(id) {
 ServerConnection.prototype.gotClose = function(id) {
     let c = this.down[id];
     if(!c)
-        throw new Error('unknown down stream');
+        console.warn('unknown down stream', id);
     c.close();
 };
 
@@ -946,8 +948,8 @@ function Stream(sc, id, localId, pc, up) {
      */
     this.onclose = null;
     /**
-     * onerror is called whenever an error occurs.  If the error is
-     * fatal, then onclose will be called afterwards.
+     * onerror is called whenever a fatal error occurs.  The stream will
+     * then be closed, and onclose called normally.
      *
      * @type{(this: Stream, error: unknown) => void}
      */

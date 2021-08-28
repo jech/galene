@@ -33,10 +33,15 @@ async function listPublicGroups() {
 
     let l;
     try {
-        l = await (await fetch('/public-groups.json')).json();
+        let r = await fetch('/public-groups.json');
+        if(!r.ok)
+            throw new Error(`${r.status} ${r.statusText}`);
+        l = await r.json();
     } catch(e) {
-        console.error(e);
-        l = [];
+        table.textContent = `Couldn't fetch groups: ${e}`;
+        div.classList.remove('nogroups');
+        div.classList.add('groups');
+        return;
     }
 
     if (l.length === 0) {
@@ -55,7 +60,7 @@ async function listPublicGroups() {
         let td = document.createElement('td');
         let a = document.createElement('a');
         a.textContent = group.name;
-        a.href = '/group/' + encodeURIComponent(group.name);
+        a.href = '/group/' + encodeURIComponent(group.displayName || group.name);
         td.appendChild(a);
         tr.appendChild(td);
         let td2 = document.createElement('td');
@@ -63,7 +68,8 @@ async function listPublicGroups() {
             td2.textContent = group.description;
         tr.appendChild(td2);
         let td3 = document.createElement('td');
-        td3.textContent = `(${group.clientCount} clients)`;
+        let locked = group.locked ? ', locked' : '';
+        td3.textContent = `(${group.clientCount} clients${locked})`;
         tr.appendChild(td3);
         table.appendChild(tr);
     }

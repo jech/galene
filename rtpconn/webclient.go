@@ -112,18 +112,9 @@ func (c *webClient) SetPermissions(perms group.ClientPermissions) {
 	c.permissions = perms
 }
 
-func (c *webClient) OverridePermissions(g *group.Group) bool {
-	return false
-}
-
-func (c *webClient) PushClient(id, username string, permissions *group.ClientPermissions, status map[string]interface{}, kind string) error {
-	return c.write(clientMessage{
-		Type:        "user",
-		Kind:        kind,
-		Id:          id,
-		Username:    username,
-		Permissions: permissions,
-		Status:      status,
+func (c *webClient) PushClient(group, kind, id, username string, permissions group.ClientPermissions, status map[string]interface{}) error {
+	return c.action(pushClientAction{
+		group, kind, id, username, permissions, status,
 	})
 }
 
@@ -230,11 +221,15 @@ func delUpConn(c *webClient, id string, userId string, push bool) error {
 		return ErrUserMismatch
 	}
 
-	replace := conn.getReplace(true)
+	replace := conn.getReplace(false)
 
 	delete(c.up, id)
 	g := c.group
 	c.mu.Unlock()
+
+	conn.mu.Lock()
+	conn.closed = true
+	conn.mu.Unlock()
 
 	conn.pc.Close()
 
@@ -355,7 +350,7 @@ func delDownConnHelper(c *webClient, id string) *rtpDownConnection {
 
 var errUnexpectedTrackType = errors.New("unexpected track type, this shouldn't happen")
 
-func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remoteConn conn.Up) error {
+func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack) error {
 	for _, t := range conn.tracks {
 		tt, ok := t.remote.(*rtpUpTrack)
 		if !ok {
@@ -377,7 +372,7 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 	msid := remoteTrack.track.StreamID()
 	if msid == "" {
 		log.Println("Got track with empty msid")
-		msid = remoteConn.Label()
+		msid = remoteTrack.conn.Label()
 	}
 	if msid == "" {
 		msid = "dummy"
@@ -390,20 +385,45 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 		return err
 	}
 
-	sender, err := conn.pc.AddTrack(local)
+	transceiver, err := conn.pc.AddTransceiverFromTrack(local,
+		webrtc.RTPTransceiverInit{
+			Direction: webrtc.RTPTransceiverDirectionSendonly,
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	parms := sender.GetParameters()
+	codec := local.Codec()
+	ptype, err := group.CodecPayloadType(local.Codec())
+	if err != nil {
+		log.Printf("Couldn't determine ptype for codec %v: %v",
+			codec.MimeType, err)
+	} else {
+		err := transceiver.SetCodecPreferences(
+			[]webrtc.RTPCodecParameters{
+				{
+					RTPCodecCapability: codec,
+					PayloadType:        ptype,
+				},
+			},
+		)
+		if err != nil {
+			log.Printf("Couldn't set ptype for codec %v: %v",
+				codec.MimeType, err)
+		}
+	}
+
+	parms := transceiver.Sender().GetParameters()
 	if len(parms.Encodings) != 1 {
 		return errors.New("got multiple encodings")
 	}
 
 	track := &rtpDownTrack{
 		track:          local,
-		sender:         sender,
+		sender:         transceiver.Sender(),
 		ssrc:           parms.Encodings[0].SSRC,
+		conn:           conn,
 		remote:         remoteTrack,
 		maxBitrate:     new(bitrate),
 		maxREMBBitrate: new(bitrate),
@@ -414,7 +434,7 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack, remo
 
 	conn.tracks = append(conn.tracks, track)
 
-	go rtcpDownListener(conn, track, sender)
+	go rtcpDownListener(track)
 
 	return nil
 }
@@ -431,7 +451,7 @@ func delDownTrackUnlocked(conn *rtpDownConnection, track *rtpDownTrack) error {
 	return os.ErrNotExist
 }
 
-func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack, remoteConn conn.Up) (bool, error) {
+func replaceTracks(conn *rtpDownConnection, remote []conn.UpTrack, limitSid bool) (bool, error) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
@@ -474,6 +494,17 @@ outer2:
 		del = append(del, track)
 	}
 
+	defer func() {
+		for _, t := range conn.tracks {
+			layer := t.getLayerInfo()
+			layer.limitSid = limitSid
+			if limitSid {
+				layer.wantedSid = 0
+			}
+			t.setLayerInfo(layer)
+		}
+	}()
+
 	if len(del) == 0 && len(add) == 0 {
 		return false, nil
 	}
@@ -486,7 +517,7 @@ outer2:
 	}
 
 	for _, rt := range add {
-		err := addDownTrackUnlocked(conn, rt, remoteConn)
+		err := addDownTrackUnlocked(conn, rt)
 		if err != nil {
 			return false, err
 		}
@@ -603,15 +634,6 @@ func gotAnswer(c *webClient, id string, sdp string) error {
 		return err
 	}
 
-	for _, t := range down.tracks {
-		local := t.track.Codec()
-		remote := t.remote.Codec()
-		if local.MimeType != remote.MimeType ||
-			local.ClockRate != remote.ClockRate {
-			return errors.New("negotiation failed")
-		}
-	}
-
 	err = down.flushICECandidates()
 	if err != nil {
 		log.Printf("ICE: %v", err)
@@ -620,7 +642,10 @@ func gotAnswer(c *webClient, id string, sdp string) error {
 	add := func() {
 		down.pc.OnConnectionStateChange(nil)
 		for _, t := range down.tracks {
-			t.remote.AddLocal(t)
+			err := t.remote.AddLocal(t)
+			if err != nil && err != os.ErrClosed {
+				log.Printf("Add track: %v", err)
+			}
 		}
 	}
 	down.pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
@@ -720,7 +745,7 @@ func requestConns(target group.Client, g *group.Group, id string) {
 	}
 }
 
-func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.UpTrack) []conn.UpTrack {
+func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.UpTrack) ([]conn.UpTrack, bool) {
 	r := override
 	if r == nil {
 		var ok bool
@@ -729,7 +754,7 @@ func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.
 			r, ok = c.requested[""]
 		}
 		if !ok || len(r) == 0 {
-			return nil
+			return nil, false
 		}
 	}
 
@@ -768,6 +793,7 @@ func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.
 	}
 
 	var ts []conn.UpTrack
+	limitSid := false
 	if audio {
 		t := find(webrtc.RTPCodecTypeAudio)
 		if t != nil {
@@ -787,10 +813,13 @@ func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.
 		)
 		if t != nil {
 			ts = append(ts, t)
+			if t.Label() != "l" {
+				limitSid = true
+			}
 		}
 	}
 
-	return ts
+	return ts, limitSid
 }
 
 func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
@@ -799,6 +828,21 @@ func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []con
 		return err
 	}
 	return nil
+}
+
+func getGroupStatus(g *group.Group) map[string]interface{} {
+	status := make(map[string]interface{})
+	if locked, message := g.Locked(); locked {
+		if message == "" {
+			status["locked"] = true
+		} else {
+			status["locked"] = message
+		}
+	}
+	if dn := g.DisplayName(); dn != "" {
+		status["displayName"] = dn
+	}
+	return status
 }
 
 func readMessage(conn *websocket.Conn, m *clientMessage) error {
@@ -877,7 +921,21 @@ type connectionFailedAction struct {
 	id string
 }
 
+type pushClientAction struct {
+	group       string
+	kind        string
+	id          string
+	username    string
+	permissions group.ClientPermissions
+	status      map[string]interface{}
+}
+
 type permissionsChangedAction struct{}
+
+type joinedAction struct {
+	group string
+	kind  string
+}
 
 type kickAction struct {
 	id       string
@@ -951,65 +1009,71 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 	}
 }
 
+func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
+	var requested []conn.UpTrack
+	limitSid := false
+	if up != nil {
+		var old *rtpDownConnection
+		if replace != "" {
+			old = getDownConn(c, replace)
+		} else {
+			old = getDownConn(c, up.Id())
+		}
+		var override []string
+		if old != nil {
+			override = old.requested
+		}
+		requested, limitSid = requestedTracks(c, override, up, tracks)
+	}
+
+	if replace != "" {
+		err := delDownConn(c, replace)
+		if err != nil {
+			log.Printf("Replace: %v", err)
+		}
+	}
+
+	// closes over replace, which will be modified below
+	defer func() {
+		if replace != "" {
+			closeDownConn(c, replace, "")
+		}
+	}()
+
+	if len(requested) == 0 {
+		closeDownConn(c, id, "")
+		return nil
+	}
+
+	down, _, err := addDownConn(c, up)
+	if err != nil {
+		if err == os.ErrClosed {
+			return nil
+		}
+		return err
+	}
+	done, err := replaceTracks(down, requested, limitSid)
+	if err != nil || !done {
+		return err
+	}
+	err = negotiate(c, down, false, replace)
+	if err != nil {
+		log.Printf("Negotiation failed: %v", err)
+		closeDownConn(c, down.id, err.Error())
+		return err
+	}
+	replace = ""
+	return nil
+}
+
 func handleAction(c *webClient, a interface{}) error {
 	switch a := a.(type) {
 	case pushConnAction:
-		g := c.group
-		if g == nil || a.group != g {
+		if c.group == nil || c.group != a.group {
+			log.Printf("Got connectsions for wrong group")
 			return nil
 		}
-		var tracks []conn.UpTrack
-		var override []string
-		if a.conn != nil {
-			var old *rtpDownConnection
-			if a.replace != "" {
-				old = getDownConn(c, a.replace)
-			} else {
-				old = getDownConn(c, a.conn.Id())
-			}
-			if old != nil {
-				override = old.requested
-			}
-			tracks = requestedTracks(c, override, a.conn, a.tracks)
-		}
-
-		if len(tracks) == 0 {
-			closeDownConn(c, a.id, "")
-			if a.replace != "" {
-				closeDownConn(
-					c, a.replace, "",
-				)
-			}
-			return nil
-		}
-
-		down, _, err := addDownConn(c, a.conn)
-		if err != nil {
-			return err
-		}
-		done, err := replaceTracks(down, tracks, a.conn)
-		if err != nil {
-			return err
-		}
-		if !done {
-			return nil
-		}
-		if a.replace != "" {
-			err := delDownConn(c, a.replace)
-			if err != nil {
-				log.Printf("Replace: %v", err)
-			}
-		}
-		err = negotiate(
-			c, down, false, a.replace,
-		)
-		if err != nil {
-			log.Printf(
-				"Negotiation failed: %v",
-				err)
-			closeDownConn(c, down.id,
-				"negotiation failed")
-		}
+		return pushDownConn(c, a.id, a.conn, a.tracks, a.replace)
 	case requestConnsAction:
 		g := c.group
 		if g == nil || a.group != g {
@@ -1059,6 +1123,37 @@ func handleAction(c *webClient, a interface{}) error {
 				"unknown connection")
 		}
 
+	case pushClientAction:
+		if a.group != c.group.Name() {
+			log.Printf("got client for wrong group")
+			return nil
+		}
+		return c.write(clientMessage{
+			Type:        "user",
+			Kind:        a.kind,
+			Id:          a.id,
+			Username:    a.username,
+			Permissions: &a.permissions,
+			Status:      a.status,
+		})
+	case joinedAction:
+		var status map[string]interface{}
+		if a.group != "" {
+			g := group.Get(a.group)
+			if g != nil {
+				status = getGroupStatus(g)
+			}
+		}
+		perms := c.permissions
+		return c.write(clientMessage{
+			Type:             "joined",
+			Kind:             a.kind,
+			Group:            a.group,
+			Username:         c.username,
+			Permissions:      &perms,
+			Status:           status,
+			RTCConfiguration: ice.ICEConfiguration(),
+		})
 	case permissionsChangedAction:
 		g := c.Group()
 		if g == nil {
@@ -1071,6 +1166,7 @@ func handleAction(c *webClient, a interface{}) error {
 			Group:            g.Name(),
 			Username:         c.username,
 			Permissions:      &perms,
+			Status:           getGroupStatus(g),
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
 		if !c.permissions.Present {
@@ -1093,7 +1189,9 @@ func handleAction(c *webClient, a interface{}) error {
 		clients := g.GetClients(nil)
 		go func(clients []group.Client) {
 			for _, cc := range clients {
-				cc.PushClient(id, user, &perms, s, "change")
+				cc.PushClient(
+					g.Name(), "change", id, user, perms, s,
+				)
 			}
 		}(clients)
 	case kickAction:
@@ -1204,6 +1302,10 @@ func (c *webClient) Kick(id, user, message string) error {
 	return c.action(kickAction{id, user, message})
 }
 
+func (c *webClient) Joined(group, kind string) error {
+	return c.action(joinedAction{group, kind})
+}
+
 func kickClient(g *group.Group, id, user, dest string, message string) error {
 	client := g.GetClient(dest)
 	if client == nil {
@@ -1235,14 +1337,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return group.ProtocolError("you are not joined")
 			}
 			leaveGroup(c)
-			perms := c.permissions
-			return c.write(clientMessage{
-				Type:        "joined",
-				Kind:        "leave",
-				Group:       m.Group,
-				Username:    c.username,
-				Permissions: &perms,
-			})
 		}
 
 		if m.Kind != "join" {
@@ -1290,22 +1384,10 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			})
 		}
 		c.group = g
-		perms := c.permissions
-		err = c.write(clientMessage{
-			Type:             "joined",
-			Kind:             "join",
-			Group:            m.Group,
-			Username:         c.username,
-			Permissions:      &perms,
-			RTCConfiguration: ice.ICEConfiguration(),
-		})
-		if err != nil {
-			return err
-		}
 		h := c.group.GetChatHistory()
 		for _, m := range h {
 			err := c.write(clientMessage{
-				Type:     "chat",
+				Type:     "chathistory",
 				Id:       m.Id,
 				Username: m.User,
 				Time:     m.Time,
@@ -1349,7 +1431,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		err := gotOffer(c, m.Id, m.Label, m.SDP, m.Replace)
 		if err != nil {
 			log.Printf("gotOffer: %v", err)
-			return failUpConnection(c, m.Id, "negotiation failed")
+			return failUpConnection(c, m.Id, err.Error())
 		}
 	case "answer":
 		if m.Id == "" {
@@ -1360,7 +1442,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			log.Printf("gotAnswer: %v", err)
 			message := ""
 			if err != ErrUnknownId {
-				message = "negotiation failed"
+				message = err.Error()
 			}
 			return closeDownConn(c, m.Id, message)
 		}
@@ -1375,9 +1457,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				"",
 			)
 			if err != nil {
-				return closeDownConn(
-					c, m.Id, "negotiation failed",
-				)
+				return closeDownConn(c, m.Id, err.Error())
 			}
 		}
 	case "renegotiate":
@@ -1388,9 +1468,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if down != nil {
 			err := negotiate(c, down, true, "")
 			if err != nil {
-				return closeDownConn(
-					c, m.Id, "renegotiation failed",
-				)
+				return closeDownConn(c, m.Id, err.Error())
 			}
 		} else {
 			log.Printf("Trying to renegotiate unknown connection")
@@ -1600,8 +1678,10 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			status := c.Status()
 			go func(clients []group.Client) {
 				for _, cc := range clients {
-					cc.PushClient(id, user, &perms, status,
-						"change")
+					cc.PushClient(
+						g.Name(), "change",
+						id, user, perms, status,
+					)
 				}
 			}(g.GetClients(nil))
 		default:
@@ -1702,9 +1782,10 @@ var ErrClientDead = errors.New("client is dead")
 
 func (c *webClient) action(a interface{}) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	empty := len(c.actions) == 0
 	c.actions = append(c.actions, a)
+	c.mu.Unlock()
+
 	if empty {
 		select {
 		case c.actionCh <- struct{}{}:
@@ -1770,7 +1851,7 @@ func errorMessage(id string, err error) *clientMessage {
 		}
 		return &clientMessage{
 			Type:       "usermessage",
-			Kind:       "error",
+			Kind:       "kicked",
 			Id:         e.Id,
 			Username:   e.Username,
 			Dest:       id,

@@ -32,9 +32,10 @@ func (c *webClient) GetStats() *stats.Client {
 				(time.Second / time.Duration(t.jitter.HZ()))
 			rate, _ := t.rate.Estimate()
 			conns.Tracks = append(conns.Tracks, stats.Track{
-				Bitrate: uint64(rate) * 8,
-				Loss:    loss,
-				Jitter:  stats.Duration(jitter),
+				Bitrate:    uint64(rate) * 8,
+				MaxBitrate: maxUpBitrate(t),
+				Loss:       loss,
+				Jitter:     stats.Duration(jitter),
 			})
 		}
 		cs.Up = append(cs.Up, conns)
@@ -49,8 +50,11 @@ func (c *webClient) GetStats() *stats.Client {
 			Id: down.id,
 		}
 		for _, t := range down.tracks {
-			l, _, _ := t.getLayerInfo()
-			layer := int(l)
+			layer := t.getLayerInfo()
+			sid := layer.sid
+			maxSid := layer.maxSid
+			tid := layer.tid
+			maxTid := layer.maxTid
 			rate, _ := t.rate.Estimate()
 			rtt := rtptime.ToDuration(t.getRTT(),
 				rtptime.JiffiesPerSec)
@@ -58,7 +62,10 @@ func (c *webClient) GetStats() *stats.Client {
 			j := time.Duration(jitter) * time.Second /
 				time.Duration(t.track.Codec().ClockRate)
 			conns.Tracks = append(conns.Tracks, stats.Track{
-				Layer:      &layer,
+				Tid:        &tid,
+				MaxTid:     &maxTid,
+				Sid:        &sid,
+				MaxSid:     &maxSid,
 				Bitrate:    uint64(rate) * 8,
 				MaxBitrate: t.maxBitrate.Get(jiffies),
 				Loss:       float64(loss) / 256.0,

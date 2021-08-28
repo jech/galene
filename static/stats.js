@@ -25,10 +25,14 @@ async function listStats() {
 
     let l;
     try {
-        l = await (await fetch('/stats.json')).json();
+        let r = await fetch('/stats.json');
+        if(!r.ok)
+            throw new Error(`${r.status} ${r.statusText}`);
+        l = await r.json();
     } catch(e) {
         console.error(e);
-        l = [];
+        table.textContent = `Couldn't fetch stats: ${e}`;
+        return;
     }
 
     if(l.length === 0) {
@@ -95,7 +99,15 @@ function formatTrack(table, track) {
     tr.appendChild(document.createElement('td'));
     tr.appendChild(document.createElement('td'));
     let td = document.createElement('td');
-    td.textContent = track.layer;
+    let layer = '';
+    if(track.sid || track.maxSid)
+        layer = layer + `s${track.sid}/${track.maxSid}`;
+    if(track.tid || track.maxTid) {
+        if(layer !== '')
+            layer = layer + '+';
+        layer = layer + `t${track.tid}/${track.maxTid}`;
+    }
+    td.textContent = layer;
     tr.appendChild(td);
     let td2 = document.createElement('td');
     if(track.maxBitrate)

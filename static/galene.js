@@ -333,6 +333,7 @@ function gotConnected() {
  * @param {string} reason
  */
 function gotClose(code, reason) {
+    closeUpMedia();
     setConnected(false);
     if(code != 1000) {
         console.warn('Socket close', code, reason);
@@ -1326,9 +1327,10 @@ async function addLocalMedia(localId) {
     }
 
     let old = serverConnection.findByLocalId(localId);
-    if(old && old.onclose) {
+    if(old) {
         // make sure that the camera is released before we try to reopen it
-        old.onclose.call(old, true);
+        removeFilter(old);
+        stopStream(old.stream);
     }
 
     let constraints = {audio: audio, video: video};
@@ -1461,7 +1463,7 @@ function stopStream(s) {
  * closeUpMedia closes all up connections with the given label.  If label
  * is null, it closes all up connections.
  *
- * @param {string} label
+ * @param {string} [label]
 */
 function closeUpMedia(label) {
     for(let id in serverConnection.up) {
@@ -2091,11 +2093,36 @@ function displayUsername() {
 let presentRequested = null;
 
 /**
+ * @param {string} s
+ */
+function capitalise(s) {
+    if(s.length <= 0)
+        return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * @param {string} title
+ */
+function setTitle(title) {
+    function set(title) {
+        document.title = title;
+        document.getElementById('title').textContent = title;
+    }
+    if(title)
+        set(title);
+    set('Galène');
+}
+
+
+/**
  * @this {ServerConnection}
  * @param {string} group
  * @param {Object<string,boolean>} perms
+ * @param {Object<string,any>} status
+ * @param {string} message
  */
-async function gotJoined(kind, group, perms, message) {
+async function gotJoined(kind, group, perms, status, message) {
     let present = presentRequested;
     presentRequested = null;
 
@@ -2107,7 +2134,7 @@ async function gotJoined(kind, group, perms, message) {
         return;
     case 'redirect':
         this.close();
-        document.location = message;
+        document.location.href = message;
         return;
     case 'leave':
         this.close();
@@ -2115,6 +2142,7 @@ async function gotJoined(kind, group, perms, message) {
         return;
     case 'join':
     case 'change':
+        setTitle((status && status.displayName) || capitalise(group));
         displayUsername();
         setButtonsVisibility();
         if(kind === 'change')
@@ -2153,7 +2181,7 @@ async function gotJoined(kind, group, perms, message) {
             }
         } else {
             displayMessage(
-                "Press Ready to enable your camera or microphone"
+                "Press Enable to enable your camera or microphone"
             );
         }
     }
@@ -2170,6 +2198,7 @@ async function gotJoined(kind, group, perms, message) {
  */
 function gotUserMessage(id, dest, username, time, privileged, kind, message) {
     switch(kind) {
+    case 'kicked':
     case 'error':
     case 'warning':
     case 'info':
@@ -2272,13 +2301,15 @@ let lastMessage = {};
 
 /**
  * @param {string} peerId
+ * @param {string} dest
  * @param {string} nick
  * @param {number} time
+ * @param {boolean} privileged
+ * @param {boolean} history
  * @param {string} kind
  * @param {unknown} message
  */
-function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
-    let userpass = getUserPass();
+function addToChatbox(peerId, dest, nick, time, privileged, history, kind, message) {
     let row = document.createElement('div');
     row.classList.add('message-row');
     let container = document.createElement('div');
@@ -2288,7 +2319,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
     footer.classList.add('message-footer');
     if(!peerId)
         container.classList.add('message-system');
-    if(userpass.username === nick)
+    if(peerId === serverConnection.id)
         container.classList.add('message-sender');
     if(dest)
         container.classList.add('message-private');
@@ -2369,7 +2400,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, kind, message) {
  * @param {string} message
  */
 function localMessage(message) {
-    return addToChatbox(null, null, null, Date.now(), false, null, message);
+    return addToChatbox(null, null, null, Date.now(), false, false, '', message);
 }
 
 function clearChat() {
@@ -2424,11 +2455,7 @@ commands.help = {
                 continue;
             cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
         }
-        cs.sort();
-        let s = '';
-        for(let i = 0; i < cs.length; i++)
-            s = s + cs[i] + '\n';
-        localMessage(s);
+        localMessage(cs.sort().join('\n'));
     }
 };
 
@@ -2604,7 +2631,7 @@ commands.msg = {
             throw new Error(`Unknown user ${p[0]}`);
         serverConnection.chat('', id, p[1]);
         addToChatbox(serverConnection.id, id, serverConnection.username,
-                     Date.now(), false, '', p[1]);
+                     Date.now(), false, false, '', p[1]);
     }
 };
 
@@ -2826,6 +2853,7 @@ function handleInput() {
                 try {
                     c.f(cmd, rest);
                 } catch(e) {
+                    console.error(e);
                     displayError(e);
                 }
                 return;
@@ -2906,7 +2934,6 @@ document.getElementById('resizer').addEventListener('mousedown', chatResizer, fa
 function displayError(message, level) {
     if(!level)
         level = "error";
-
     var background = 'linear-gradient(to right, #e20a0a, #df2d2d)';
     var position = 'center';
     var gravity = 'top';
@@ -2919,6 +2946,9 @@ function displayError(message, level) {
         break;
     case "warning":
         background = "linear-gradient(to right, #bdc511, #c2cf01)";
+        break;
+    case "kicked":
+        level = "error";
         break;
     }
 
@@ -3060,12 +3090,7 @@ async function serverConnect() {
 
 function start() {
     group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));
-    let title = group.charAt(0).toUpperCase() + group.slice(1);
-    if(group !== '') {
-        document.title = title;
-        document.getElementById('title').textContent = title;
-    }
-
+    setTitle(capitalise(group));
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 
