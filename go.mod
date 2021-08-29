@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/at-wat/ebml-go v0.16.0
+	github.com/go-ldap/ldap/v3 v3.3.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/jech/cert v0.0.0-20210819231831-aca735647728
 	github.com/jech/samplebuilder v0.0.0-20210823160328-f55b60289b51

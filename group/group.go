@@ -11,10 +11,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/pion/ice/v2"
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
+	"github.com/go-ldap/ldap/v3"
 )
 
 var Directory string
@@ -869,6 +871,48 @@ type Description struct {
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
 	Codecs []string `json:"codecs,omitempty"`
+
+	// LDAP URL. can be empty
+	// example of value: "ldap://ds.example.com:389"
+	Ldapurl string `json:"ldapurl,omitempty"`
+
+	// LDAP base. can be empty
+	// example of value: "dc=example,dc=com"
+	Ldapbase string `json:"ldapbase,omitempty"`
+
+	// LDAP user branch. can be empty
+	// example of value: "cn=Users,dc=example,dc=com"
+	Ldapuserbranch string `json:"ldapuserbranch,omitempty"`
+
+	// LDAP bind user; no need to have write privilege; can be empty
+	// example of value: "unprivilegeduser"
+	Ldapbinduser string `json:"ldapbinduser,omitempty"`
+
+	// LDAP bind password; can be empty
+	// example of value: cn=unprivilegeduser,dc=example,dc=com
+	Ldapbindpassword string `json:"ldapbindpassword,omitempty"`
+
+	// Regular expressions to guess operators, from the
+	// LDAP record: the list of matches will be ANDed
+	// example: [
+	//            {"field": "memberOf", "begins": "CN=profs"},
+	//            {"field": "memberOf", "begins": "CN=c2d01_smbadmin"}]
+	Opldap []LdapProperty `json:"op_ldap,omitempty"`
+	
+	// Regular expressions to guess presenters, from the
+	// LDAP record: the list of matches will be ANDed
+	// example: [
+	//            {"field": "memberOf", "begins": "CN=profs"},
+	//            {"field": "memberOf", "begins": "CN=c2d01_smbadmin"}]
+	Presenterldap []LdapProperty `json:"presenter_ldap,omitempty"`
+	
+	// Regular expressions to guess others, from the
+	// LDAP record: the list of matches will be ANDed
+	// example: [
+	//            {"field": "memberOf", "begins": "CN=profs"},
+	//            {"field": "memberOf", "begins": "CN=c2d01_smbadmin"}]
+	Recordldap []LdapProperty `json:"present_ldap,omitempty"`
+	
 }
 
 const DefaultMaxHistoryAge = 4 * time.Hour
@@ -963,8 +1007,88 @@ func GetDescription(name string) (*Description, error) {
 	return &desc, nil
 }
 
+type LdapProperty struct {
+	Field string   `json:"field,omitempty"` // name of a field
+	Begins string  `json:"begins,omitempty"` // how its value should begin
+}
+
+func (desc *Description) MatchLdapPassword(user string, password string) bool {
+	l, err := ldap.DialURL(desc.Ldapurl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer l.Close()
+	err = l.Bind(
+		fmt.Sprintf("cn=%s,%s",
+			ldap.EscapeFilter(user),
+			desc.Ldapuserbranch),
+		password)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (desc *Description) CheckLdapProperties(user string, props []LdapProperty) (ok bool) {
+	ok = true
+	for _, prop := range props {
+		// ok will be ANDed with each property to check
+		l, err := ldap.DialURL(desc.Ldapurl)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer l.Close()
+		err = l.Bind(
+			fmt.Sprintf("cn=%s,%s",
+				ldap.EscapeFilter(desc.Ldapbinduser),
+				desc.Ldapuserbranch),
+			desc.Ldapbindpassword)
+		if err != nil {
+			ok = false
+			break
+		}
+		filter := fmt.Sprintf("(cn=%s)", ldap.EscapeFilter(user))
+		searchReq := ldap.NewSearchRequest(
+			desc.Ldapbase,
+			ldap.ScopeWholeSubtree, 0, 0, 0, false,
+			filter,
+			[]string{prop.Field},
+			[]ldap.Control{})
+		result, err := l.Search(searchReq)
+		if err != nil {
+			fmt.Errorf("failed to query LDAP: %w", err)
+		}
+		if len(result.Entries) == 0 {
+			ok = false
+			break
+		}
+		values := result.Entries[0].Attributes[0].Values[0]
+		if prop.Begins != strings.Split(values,",")[0]{
+			ok= false
+			break
+		}
+	}
+	return ok
+}
+
 func (desc *Description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
 	var p ClientPermissions
+	/////////// Let us attempt to get permissions from LDAP //////////////
+	if len(desc.Ldapurl) > 0 {
+		if desc.MatchLdapPassword(c.Username(), c.Givenpassword()){
+			p.Op = desc.CheckLdapProperties(
+				c.Username(),
+				desc.Opldap)
+			p.Present = desc.CheckLdapProperties(
+				c.Username(),
+				desc.Presenterldap)
+			p.Record = desc.CheckLdapProperties(
+				c.Username(),
+				desc.Recordldap)
+			return p, nil
+		}
+	}
+	/// No permissions got from LDAP, consider the group's description ///
 	if !desc.AllowAnonymous && c.Username() == "" {
 		return p, UserError("anonymous users not allowed in this group, please choose a username")
 	}
