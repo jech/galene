@@ -18,6 +18,7 @@ import (
 	"github.com/jech/galene/limit"
 	"github.com/jech/galene/turnserver"
 	"github.com/jech/galene/webserver"
+	"github.com/jech/galene/whip"
 )
 
 func main() {
@@ -48,6 +49,8 @@ func main() {
 		"require use of TURN relays for all media traffic")
 	flag.StringVar(&turnserver.Address, "turn", "auto",
 		"built-in TURN server `address` (\"\" to disable)")
+	flag.BoolVar(&whip.PublicServer, "public-server", false,
+		"allow browser access from arbitrary origins")
 	flag.Parse()
 
 	if udpRange != "" {

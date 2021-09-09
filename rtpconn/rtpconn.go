@@ -397,7 +397,7 @@ func (down *rtpDownConnection) flushICECandidates() error {
 type rtpUpTrack struct {
 	track    *webrtc.TrackRemote
 	receiver *webrtc.RTPReceiver
-	conn     *rtpUpConnection
+	conn     *UpConn
 	rate     *estimator.Estimator
 	cache    *packetcache.Cache
 	jitter   *jitter.Estimator
@@ -504,11 +504,11 @@ func (up *rtpUpTrack) hasRtcpFb(tpe, parameter string) bool {
 	return false
 }
 
-type rtpUpConnection struct {
+type UpConn struct {
 	id            string
 	client        group.Client
 	label         string
-	pc            *webrtc.PeerConnection
+	PC            *webrtc.PeerConnection
 	iceCandidates []*webrtc.ICECandidateInit
 
 	mu      sync.Mutex
@@ -519,7 +519,7 @@ type rtpUpConnection struct {
 	local   []conn.Down
 }
 
-func (up *rtpUpConnection) getTracks() []*rtpUpTrack {
+func (up *UpConn) getTracks() []*rtpUpTrack {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	tracks := make([]*rtpUpTrack, len(up.tracks))
@@ -527,7 +527,7 @@ func (up *rtpUpConnection) getTracks() []*rtpUpTrack {
 	return tracks
 }
 
-func (up *rtpUpConnection) getReplace(reset bool) string {
+func (up *UpConn) getReplace(reset bool) string {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	replace := up.replace
@@ -537,19 +537,19 @@ func (up *rtpUpConnection) getReplace(reset bool) string {
 	return replace
 }
 
-func (up *rtpUpConnection) Id() string {
+func (up *UpConn) Id() string {
 	return up.id
 }
 
-func (up *rtpUpConnection) Label() string {
+func (up *UpConn) Label() string {
 	return up.label
 }
 
-func (up *rtpUpConnection) User() (string, string) {
+func (up *UpConn) User() (string, string) {
 	return up.client.Id(), up.client.Username()
 }
 
-func (up *rtpUpConnection) AddLocal(local conn.Down) error {
+func (up *UpConn) AddLocal(local conn.Down) error {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	// the connection may have been closed in the meantime, in which
@@ -566,7 +566,7 @@ func (up *rtpUpConnection) AddLocal(local conn.Down) error {
 	return nil
 }
 
-func (up *rtpUpConnection) DelLocal(local conn.Down) bool {
+func (up *UpConn) DelLocal(local conn.Down) bool {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	for i, l := range up.local {
@@ -578,7 +578,7 @@ func (up *rtpUpConnection) DelLocal(local conn.Down) bool {
 	return false
 }
 
-func (up *rtpUpConnection) getLocal() []conn.Down {
+func (up *UpConn) getLocal() []conn.Down {
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	local := make([]conn.Down, len(up.local))
@@ -586,22 +586,22 @@ func (up *rtpUpConnection) getLocal() []conn.Down {
 	return local
 }
 
-func (up *rtpUpConnection) addICECandidate(candidate *webrtc.ICECandidateInit) error {
-	if up.pc.RemoteDescription() != nil {
-		return up.pc.AddICECandidate(*candidate)
+func (up *UpConn) addICECandidate(candidate *webrtc.ICECandidateInit) error {
+	if up.PC.RemoteDescription() != nil {
+		return up.PC.AddICECandidate(*candidate)
 	}
 	up.iceCandidates = append(up.iceCandidates, candidate)
 	return nil
 }
 
-func (up *rtpUpConnection) flushICECandidates() error {
-	err := flushICECandidates(up.pc, up.iceCandidates)
+func (up *UpConn) flushICECandidates() error {
+	err := flushICECandidates(up.PC, up.iceCandidates)
 	up.iceCandidates = nil
 	return err
 }
 
 // pushConnNow pushes a connection to all of the clients in a group
-func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
+func pushConnNow(up *UpConn, g *group.Group, cs []group.Client) {
 	up.mu.Lock()
 	up.pushed = true
 	replace := up.replace
@@ -617,8 +617,18 @@ func pushConnNow(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	}
 }
 
+func (up *UpConn) GetTracks() []conn.UpTrack {
+	up.mu.Lock()
+	defer up.mu.Unlock()
+	ts := make([]conn.UpTrack, len(up.tracks))
+	for i, t := range up.tracks {
+		ts[i] = t
+	}
+	return ts
+}
+
 // pushConn schedules a call to pushConnNow
-func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
+func pushConn(up *UpConn, g *group.Group, cs []group.Client) {
 	up.mu.Lock()
 	up.pushed = false
 	up.mu.Unlock()
@@ -635,7 +645,7 @@ func pushConn(up *rtpUpConnection, g *group.Group, cs []group.Client) {
 	}(g, cs)
 }
 
-func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpConnection, error) {
+func NewUpConn(c group.Client, id string, label string, offer string) (*UpConn, error) {
 	var o sdp.SessionDescription
 	err := o.Unmarshal([]byte(offer))
 	if err != nil {
@@ -664,7 +674,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 		}
 	}
 
-	up := &rtpUpConnection{id: id, client: c, label: label, pc: pc}
+	up := &UpConn{id: id, client: c, label: label, PC: pc}
 
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		up.mu.Lock()
@@ -704,7 +714,7 @@ func (track *rtpUpTrack) sendPLI() error {
 	if !track.hasRtcpFb("nack", "pli") {
 		return ErrUnsupportedFeedback
 	}
-	return sendPLI(track.conn.pc, track.track.SSRC())
+	return sendPLI(track.conn.PC, track.track.SSRC())
 }
 
 func sendPLI(pc *webrtc.PeerConnection, ssrc webrtc.SSRC) error {
@@ -718,7 +728,7 @@ func (track *rtpUpTrack) sendNACK(first uint16, bitmap uint16) error {
 		return ErrUnsupportedFeedback
 	}
 
-	err := sendNACKs(track.conn.pc, track.track.SSRC(),
+	err := sendNACKs(track.conn.PC, track.track.SSRC(),
 		[]rtcp.NackPair{{first, rtcp.PacketBitmap(bitmap)}},
 	)
 	if err == nil {
@@ -748,7 +758,7 @@ func (track *rtpUpTrack) sendNACKs(seqnos []uint16) error {
 		f, b, seqnos = packetcache.ToBitmap(seqnos)
 		nacks = append(nacks, rtcp.NackPair{f, rtcp.PacketBitmap(b)})
 	}
-	err := sendNACKs(track.conn.pc, track.track.SSRC(), nacks)
+	err := sendNACKs(track.conn.PC, track.track.SSRC(), nacks)
 	if err == nil {
 		track.cache.Expect(count)
 	}
@@ -931,11 +941,11 @@ func maxUpBitrate(t *rtpUpTrack) uint64 {
 	return maxrate
 }
 
-func sendUpRTCP(up *rtpUpConnection) error {
+func sendUpRTCP(up *UpConn) error {
 	tracks := up.getTracks()
 
 	if len(up.tracks) == 0 {
-		state := up.pc.ConnectionState()
+		state := up.PC.ConnectionState()
 		if state == webrtc.PeerConnectionStateClosed {
 			return io.ErrClosedPipe
 		}
@@ -1016,10 +1026,10 @@ func sendUpRTCP(up *rtpUpConnection) error {
 			},
 		)
 	}
-	return up.pc.WriteRTCP(packets)
+	return up.PC.WriteRTCP(packets)
 }
 
-func rtcpUpSender(conn *rtpUpConnection) {
+func rtcpUpSender(conn *UpConn) {
 	for {
 		time.Sleep(time.Second)
 		err := sendUpRTCP(conn)

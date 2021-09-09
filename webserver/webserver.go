@@ -26,6 +26,7 @@ import (
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/rtpconn"
 	"github.com/jech/galene/stats"
+	"github.com/jech/galene/whip"
 )
 
 var server atomic.Value
@@ -37,6 +38,7 @@ var Insecure bool
 func Serve(address string, dataDir string) error {
 	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
 	http.HandleFunc("/group/", groupHandler)
+	http.HandleFunc("/whip/", whip.Handler)
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r,
@@ -313,6 +315,11 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 
 	if redirect := g.Description().Redirect; redirect != "" {
 		http.Redirect(w, r, redirect, http.StatusPermanentRedirect)
+		return
+	}
+
+	if r.Method == "POST" || r.Method == "OPTIONS" {
+		whip.Endpoint(g, w, r)
 		return
 	}
 
