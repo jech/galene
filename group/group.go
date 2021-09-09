@@ -22,6 +22,7 @@ var UseMDNS bool
 var UDPMin, UDPMax uint16
 
 var ErrNotAuthorised = errors.New("not authorised")
+var ErrAnonymousNotAuthorised = errors.New("anonymous users not authorised in this group")
 
 type UserError string
 
@@ -966,7 +967,7 @@ func GetDescription(name string) (*Description, error) {
 func (desc *Description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
 	var p ClientPermissions
 	if !desc.AllowAnonymous && c.Username() == "" {
-		return p, UserError("anonymous users not allowed in this group, please choose a username")
+		return p, ErrAnonymousNotAuthorised
 	}
 	if found, good := matchClient(group, c, desc.Op); found {
 		if good {

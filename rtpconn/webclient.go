@@ -1351,6 +1351,8 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			} else if err == group.ErrNotAuthorised {
 				s = "not authorised"
 				time.Sleep(200 * time.Millisecond)
+			} else if err == group.ErrAnonymousNotAuthorised {
+				s = "please choose a username"
 			} else if e, ok := err.(group.UserError); ok {
 				s = string(e)
 			} else {
