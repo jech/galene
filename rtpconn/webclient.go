@@ -69,7 +69,7 @@ type webClient struct {
 
 	mu   sync.Mutex
 	down map[string]*rtpDownConnection
-	up   map[string]*rtpUpConnection
+	up   map[string]*UpConn
 
 	// action may be called with the group mutex taken, and therefore
 	// actions needs to use its own mutex.
@@ -142,7 +142,7 @@ type closeMessage struct {
 	data []byte
 }
 
-func getUpConn(c *webClient, id string) *rtpUpConnection {
+func getUpConn(c *webClient, id string) *UpConn {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -152,22 +152,22 @@ func getUpConn(c *webClient, id string) *rtpUpConnection {
 	return c.up[id]
 }
 
-func getUpConns(c *webClient) []*rtpUpConnection {
+func getUpConns(c *webClient) []*UpConn {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	up := make([]*rtpUpConnection, 0, len(c.up))
+	up := make([]*UpConn, 0, len(c.up))
 	for _, u := range c.up {
 		up = append(up, u)
 	}
 	return up
 }
 
-func addUpConn(c *webClient, id, label string, offer string) (*rtpUpConnection, bool, error) {
+func addUpConn(c *webClient, id, label string, offer string) (*UpConn, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.up == nil {
-		c.up = make(map[string]*rtpUpConnection)
+		c.up = make(map[string]*UpConn)
 	}
 	if c.down != nil && c.down[id] != nil {
 		return nil, false, errors.New("adding duplicate connection")
@@ -178,18 +178,18 @@ func addUpConn(c *webClient, id, label string, offer string) (*rtpUpConnection, 
 		return old, false, nil
 	}
 
-	conn, err := newUpConn(c, id, label, offer)
+	conn, err := NewUpConn(c, id, label, offer)
 	if err != nil {
 		return nil, false, err
 	}
 
 	c.up[id] = conn
 
-	conn.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+	conn.PC.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		sendICE(c, id, candidate)
 	})
 
-	conn.pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
+	conn.PC.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
 		if state == webrtc.ICEConnectionStateFailed {
 			c.action(connectionFailedAction{id: id})
 		}
@@ -231,7 +231,7 @@ func delUpConn(c *webClient, id string, userId string, push bool) error {
 	conn.closed = true
 	conn.mu.Unlock()
 
-	conn.pc.Close()
+	conn.PC.Close()
 
 	if push && g != nil {
 		for _, c := range g.GetClients(c) {
@@ -586,7 +586,7 @@ func gotOffer(c *webClient, id, label string, sdp string, replace string) error 
 		delUpConn(c, replace, c.Id(), false)
 	}
 
-	err = up.pc.SetRemoteDescription(webrtc.SessionDescription{
+	err = up.PC.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
 		SDP:  sdp,
 	})
@@ -594,12 +594,12 @@ func gotOffer(c *webClient, id, label string, sdp string, replace string) error 
 		return err
 	}
 
-	answer, err := up.pc.CreateAnswer(nil)
+	answer, err := up.PC.CreateAnswer(nil)
 	if err != nil {
 		return err
 	}
 
-	err = up.pc.SetLocalDescription(answer)
+	err = up.PC.SetLocalDescription(answer)
 	if err != nil {
 		return err
 	}
@@ -612,7 +612,7 @@ func gotOffer(c *webClient, id, label string, sdp string, replace string) error 
 	return c.write(clientMessage{
 		Type: "answer",
 		Id:   id,
-		SDP:  up.pc.LocalDescription().SDP,
+		SDP:  up.PC.LocalDescription().SDP,
 	})
 }
 
@@ -724,7 +724,7 @@ func (c *webClient) setRequested(requested map[string][]string) error {
 
 func (c *webClient) setRequestedStream(down *rtpDownConnection, requested []string) error {
 	var remoteClient group.Client
-	remote, ok := down.remote.(*rtpUpConnection)
+	remote, ok := down.remote.(*UpConn)
 	if ok {
 		remoteClient = remote.client
 	}
