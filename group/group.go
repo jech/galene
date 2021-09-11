@@ -496,7 +496,9 @@ func GetSubGroups(parent string) []SubGroup {
 func Get(name string) *Group {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
-
+	if groups.groups == nil {
+		return nil
+	}
 	return groups.groups[name]
 }
 
