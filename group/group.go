@@ -701,8 +701,12 @@ func kickall(g *Group, message string) {
 	})
 }
 
-func (g *Group) Shutdown(message string) {
-	kickall(g, message)
+func Shutdown(message string) {
+	Range(func(g *Group) bool {
+		g.SetLocked(true, message)
+		kickall(g, message)
+		return true
+	})
 }
 
 type warner interface {

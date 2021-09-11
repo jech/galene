@@ -70,10 +70,7 @@ func Serve(address string, dataDir string) error {
 		}
 	}
 	s.RegisterOnShutdown(func() {
-		group.Range(func(g *group.Group) bool {
-			go g.Shutdown("server is shutting down")
-			return true
-		})
+		group.Shutdown("server is shutting down")
 	})
 
 	server.Store(s)
