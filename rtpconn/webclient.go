@@ -368,7 +368,7 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack) erro
 		id = remoteTrack.track.Kind().String()
 	}
 	msid := remoteTrack.track.StreamID()
-	if msid == "" {
+	if msid == "" || msid == "-" {
 		log.Println("Got track with empty msid")
 		msid = remoteTrack.conn.Label()
 	}

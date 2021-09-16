@@ -677,6 +677,10 @@ ServerConnection.prototype.gotOffer = async function(id, label, source, username
         };
 
         c.pc.ontrack = function(e) {
+            if(e.streams.length < 1) {
+                console.error("Got track with no stream");
+                return;
+            }
             c.stream = e.streams[0];
             let changed = recomputeUserStreams(sc, source, c);
             if(c.ondowntrack) {
