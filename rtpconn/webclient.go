@@ -211,9 +211,12 @@ func delUpConn(c *webClient, id string, userId string, push bool) error {
 		c.mu.Unlock()
 		return os.ErrNotExist
 	}
-	if userId != "" && conn.userId != userId {
-		c.mu.Unlock()
-		return ErrUserMismatch
+	if userId != "" {
+		id, _ := conn.User()
+		if id != userId {
+			c.mu.Unlock()
+			return ErrUserMismatch
+		}
 	}
 
 	replace := conn.getReplace(false)
@@ -576,8 +579,6 @@ func gotOffer(c *webClient, id, label string, sdp string, replace string) error 
 		return err
 	}
 
-	up.userId = c.Id()
-	up.username = c.Username()
 	if replace != "" {
 		up.replace = replace
 		delUpConn(c, replace, c.Id(), false)

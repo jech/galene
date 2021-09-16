@@ -508,8 +508,6 @@ type rtpUpConnection struct {
 	id            string
 	client        group.Client
 	label         string
-	userId        string
-	username      string
 	pc            *webrtc.PeerConnection
 	iceCandidates []*webrtc.ICECandidateInit
 
@@ -548,7 +546,7 @@ func (up *rtpUpConnection) Label() string {
 }
 
 func (up *rtpUpConnection) User() (string, string) {
-	return up.userId, up.username
+	return up.client.Id(), up.client.Username()
 }
 
 func (up *rtpUpConnection) AddLocal(local conn.Down) error {
