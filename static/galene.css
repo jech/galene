@@ -48,10 +48,6 @@
     background-color: #eee;
 }
 
-.profile {
-    width: 230px;
-}
-
 .profile-logo {
     float: left;
     width: 50px;
@@ -992,7 +988,7 @@ h1 {
     padding: 10px;
     background: #fff;
     height: calc(100% - 56px);
-    overflow-y: scroll;
+    overflow-y: auto;
     overflow-x: hidden;
 }
 
