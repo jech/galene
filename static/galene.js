@@ -2111,7 +2111,8 @@ function setTitle(title) {
     }
     if(title)
         set(title);
-    set('Galène');
+    else
+        set('Galène');
 }
 
 
