@@ -26,6 +26,9 @@ let group;
 /** @type {ServerConnection} */
 let serverConnection;
 
+/** @type {Object} */
+let groupStatus = {};
+
 /**
  * @typedef {Object} userpass
  * @property {string} username
@@ -2149,6 +2152,7 @@ async function gotJoined(kind, group, perms, status, message) {
         return;
     case 'join':
     case 'change':
+        groupStatus = status;
         setTitle((status && status.displayName) || capitalise(group));
         displayUsername();
         setButtonsVisibility();
@@ -3095,11 +3099,22 @@ async function serverConnect() {
     }
 }
 
-function start() {
+async function start() {
     group = decodeURIComponent(
         location.pathname.replace(/^\/[a-z]*\//, '').replace(/\/$/, '')
     );
-    setTitle(capitalise(group));
+    /** @type {Object} */
+    try {
+        let r = await fetch(".status.json")
+        if(!r.ok)
+            throw new Error(`${r.status} ${r.statusText}`);
+        groupStatus = await r.json()
+    } catch(e) {
+        console.error(e);
+        return;
+    }
+
+    setTitle(groupStatus.displayName || capitalise(group));
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 

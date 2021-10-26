@@ -278,7 +278,11 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mungeHeader(w)
+	if strings.HasSuffix(r.URL.Path, "/.status.json") {
+		groupStatusHandler(w, r)
+		return
+	}
+
 	name := parseGroupName("/group/", r.URL.Path)
 	if name == "" {
 		notFound(w)
@@ -290,7 +294,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		if os.IsNotExist(err) {
 			notFound(w)
 		} else {
-			log.Printf("addGroup: %v", err)
+			log.Printf("group.Add: %v", err)
 			http.Error(w, "Internal server error",
 				http.StatusInternalServerError)
 		}
@@ -308,7 +312,40 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mungeHeader(w)
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
+}
+
+func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
+	path := path.Dir(r.URL.Path)
+	name := parseGroupName("/group/", path)
+	if name == "" {
+		notFound(w)
+		return
+	}
+
+	g, err := group.Add(name, nil)
+	if err != nil {
+		if os.IsNotExist(err) {
+			notFound(w)
+		} else {
+			http.Error(w, "Internal server error",
+				http.StatusInternalServerError)
+		}
+		return
+	}
+
+	d := group.GetStatus(g, false)
+	w.Header().Set("content-type", "application/json")
+	w.Header().Set("cache-control", "no-cache")
+
+	if r.Method == "HEAD" {
+		return
+	}
+
+	e := json.NewEncoder(w)
+	e.Encode(d)
+	return
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {

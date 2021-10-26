@@ -1,24 +1,5 @@
 # Galène's protocol
 
-Galène uses a symmetric, asynchronous protocol.  In client-server
-usage, some messages are only sent in the client to server or in the
-server to client direction.
-
-## Message syntax
-
-All messages are sent as JSON objects.  All fields except `type` are
-optional; however, there are some fields that are common across multiple
-message types.
-
- - `type`, the type of the message;
- - `kind`, the subtype of the message;
- - `id`, the id of the object being manipulated;
- - `source`, the client-id of the originating client;
- - `username`, the username of the originating client;
- - `dest`, the client-id of the destination client;
- - `privileged`, set by the server to indicate that the originating client
-   had the `op` privilege at the time it sent the message.
-
 ## Data structures
 
 ### Group
@@ -40,6 +21,48 @@ string.  Streams in Galène are unidirectional.  A stream is carried by
 exactly one peer connection (PC) (multiple streams in a single PC are not
 allowed).  The offerer is also the RTP sender (i.e. all tracks sent by the
 offerer are of type `sendonly`).
+
+Galène uses a symmetric, asynchronous protocol.  In client-server
+usage, some messages are only sent in the client to server or in the
+server to client direction.
+
+## Before connecting
+
+Before it connects and joins a group, a client may perform an HTTP GET
+request on the URL `/public-groups.json`.  This yields a JSON array of
+objects, one for each group that has been marked public in its
+configuration file.  Each object has the following fields:
+
+ - `name`: the group's name
+ - `displayName` (optional): a longer version of the name used for display;
+ - `description` (optional): a user-readable description.
+ - `locked`: true if the group is locked;
+ - `clientCount`: the number of clients currently in the group.
+
+A client may also fetch the URL `/group/name/.status.json` to retrieve the
+status of a single group.  If the group has not been marked as public,
+then the fields `locked` and `clientCount` are omitted.
+
+## Connecting
+
+The client connects to the websocket at `/ws`.  Galene uses a symmetric,
+asynchronous protocol: there are no requests and responses, and most
+messages may be sent by either peer.
+
+## Message syntax
+
+All messages are sent as JSON objects.  All fields except `type` are
+optional; however, there are some fields that are common across multiple
+message types:
+
+ - `type`, the type of the message;
+ - `kind`, the subtype of the message;
+ - `id`, the id of the object being manipulated;
+ - `source`, the client-id of the originating client;
+ - `username`, the username of the originating client;
+ - `dest`, the client-id of the destination client;
+ - `privileged`, set by the server to indicate that the originating client
+   had the `op` privilege at the time when it sent the message.
 
 ## Establishing and maintaining a connection
 

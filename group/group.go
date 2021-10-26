@@ -112,6 +112,12 @@ func (g *Group) Description() *Description {
 	return g.description
 }
 
+func (g *Group) ClientCount() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return len(g.clients)
+}
+
 func (g *Group) EmptyTime() time.Duration {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -1052,27 +1058,37 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (C
 	return p, ErrNotAuthorised
 }
 
-type Public struct {
+type Status struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 	Locked      bool   `json:"locked,omitempty"`
-	ClientCount int    `json:"clientCount"`
+	ClientCount *int   `json:"clientCount,omitempty"`
 }
 
-func GetPublic() []Public {
-	gs := make([]Public, 0)
+func GetStatus(g *Group, authentified bool) Status {
+	desc := g.Description()
+	d := Status{
+		Name:        g.name,
+		DisplayName: desc.DisplayName,
+		Description: desc.Description,
+	}
+
+	if authentified || desc.Public {
+		// these are considered private information
+		locked, _ := g.Locked()
+		count := g.ClientCount()
+		d.Locked = locked
+		d.ClientCount = &count
+	}
+	return d
+}
+
+func GetPublic() []Status {
+	gs := make([]Status, 0)
 	Range(func(g *Group) bool {
-		desc := g.Description()
-		if desc.Public {
-			locked, _ := g.Locked()
-			gs = append(gs, Public{
-				Name:        g.name,
-				DisplayName: desc.DisplayName,
-				Description: desc.Description,
-				Locked:      locked,
-				ClientCount: len(g.clients),
-			})
+		if g.Description().Public {
+			gs = append(gs, GetStatus(g, false))
 		}
 		return true
 	})

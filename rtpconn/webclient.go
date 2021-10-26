@@ -111,7 +111,7 @@ type clientMessage struct {
 	Password         string                   `json:"password,omitempty"`
 	Privileged       bool                     `json:"privileged,omitempty"`
 	Permissions      *group.ClientPermissions `json:"permissions,omitempty"`
-	Status           map[string]interface{}   `json:"status,omitempty"`
+	Status           interface{}              `json:"status,omitempty"`
 	Group            string                   `json:"group,omitempty"`
 	Value            interface{}              `json:"value,omitempty"`
 	NoEcho           bool                     `json:"noecho,omitempty"`
@@ -813,21 +813,6 @@ func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []con
 	return nil
 }
 
-func getGroupStatus(g *group.Group) map[string]interface{} {
-	status := make(map[string]interface{})
-	if locked, message := g.Locked(); locked {
-		if message == "" {
-			status["locked"] = true
-		} else {
-			status["locked"] = message
-		}
-	}
-	if dn := g.Description().DisplayName; dn != "" {
-		status["displayName"] = dn
-	}
-	return status
-}
-
 func readMessage(conn *websocket.Conn, m *clientMessage) error {
 	err := conn.SetReadDeadline(time.Now().Add(15 * time.Second))
 	if err != nil {
@@ -1120,11 +1105,11 @@ func handleAction(c *webClient, a interface{}) error {
 			Status:      a.status,
 		})
 	case joinedAction:
-		var status map[string]interface{}
+		var status interface{}
 		if a.group != "" {
 			g := group.Get(a.group)
 			if g != nil {
-				status = getGroupStatus(g)
+				status = group.GetStatus(g, true)
 			}
 		}
 		perms := c.permissions
@@ -1149,7 +1134,7 @@ func handleAction(c *webClient, a interface{}) error {
 			Group:            g.Name(),
 			Username:         c.username,
 			Permissions:      &perms,
-			Status:           getGroupStatus(g),
+			Status:           group.GetStatus(g, true),
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
 		if !c.permissions.Present {
