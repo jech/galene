@@ -37,6 +37,21 @@ available commands; the output depends on whether you are an operator or
 not.
 
 
+# The global configuration file
+
+The server may be configured in the JSON file `data/config.json`.  This
+file may look as follows:
+
+    {
+        "admin":[{"username":"root","password":"secret"}]
+    }
+
+The fields are as follows:
+
+- `admin` defines the users allowed to look at the `/stats.html` file; it
+  has the same syntax as user definitions in groups (see below).
+
+
 # Group definitions
 
 Groups are defined by files in the `./groups` directory (this may be

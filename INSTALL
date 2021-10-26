@@ -12,15 +12,6 @@ On Windows, do
     go build -ldflags="-s -w"
 
 
-## Set the server administrator credentials
-
-This step is optional, it is currently only relevant for access to the
-`/stats.html` and `/stats.json` locations.
-
-    mkdir data
-    echo 'god:topsecret' > data/passwd
-
-
 ## Set up a group
 
 Set up a group called *test* by creating a file `groups/test.json`:

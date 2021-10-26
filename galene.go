@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	var cpuprofile, memprofile, mutexprofile, httpAddr, dataDir string
+	var cpuprofile, memprofile, mutexprofile, httpAddr string
 	var udpRange string
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
@@ -31,7 +31,7 @@ func main() {
 		"redirect to canonical `host`")
 	flag.BoolVar(&webserver.Insecure, "insecure", false,
 		"act as an HTTP server rather than HTTPS")
-	flag.StringVar(&dataDir, "data", "./data/",
+	flag.StringVar(&group.DataDirectory, "data", "./data/",
 		"data `directory`")
 	flag.StringVar(&group.Directory, "groups", "./groups/",
 		"group description `directory`")
@@ -112,7 +112,7 @@ func main() {
 		log.Printf("File descriptor limit is %v, please increase it!", n)
 	}
 
-	ice.ICEFilename = filepath.Join(dataDir, "ice-servers.json")
+	ice.ICEFilename = filepath.Join(group.DataDirectory, "ice-servers.json")
 
 	// make sure the list of public groups is updated early
 	go group.Update()
@@ -123,7 +123,7 @@ func main() {
 
 	serverDone := make(chan struct{})
 	go func() {
-		err := webserver.Serve(httpAddr, dataDir)
+		err := webserver.Serve(httpAddr, group.DataDirectory)
 		if err != nil {
 			log.Printf("Server: %v", err)
 		}

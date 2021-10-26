@@ -17,7 +17,7 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-var Directory string
+var Directory, DataDirectory string
 var UseMDNS bool
 var UDPMin, UDPMax uint16
 
@@ -802,8 +802,67 @@ func matchClient(group string, creds ClientCredentials, users []ClientPattern) (
 	return false, false
 }
 
-// Type Description represents a group description together with some
-// metadata about the JSON file it was deserialised from.
+// Configuration represents the contents of the data/config.json file.
+type Configuration struct {
+	// The modtime and size of the file.  These are used to detect
+	// when a file has changed on disk.
+	modTime  time.Time `json:"-"`
+	fileSize int64     `json:"-"`
+
+	Admin []ClientPattern `json:"admin"`
+}
+
+var configuration struct {
+	mu            sync.Mutex
+	configuration *Configuration
+}
+
+func GetConfiguration() (*Configuration, error) {
+	configuration.mu.Lock()
+	defer configuration.mu.Unlock()
+
+	if configuration.configuration == nil {
+		configuration.configuration = &Configuration{}
+	}
+
+	filename := filepath.Join(DataDirectory, "config.json")
+	fi, err := os.Stat(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if !configuration.configuration.modTime.Equal(
+				time.Time{},
+			) {
+				configuration.configuration = &Configuration{}
+				return configuration.configuration, nil
+			}
+		}
+		return nil, err
+	}
+
+	if configuration.configuration.modTime.Equal(fi.ModTime()) &&
+		configuration.configuration.fileSize == fi.Size() {
+		return configuration.configuration, nil
+	}
+
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	d := json.NewDecoder(f)
+	d.DisallowUnknownFields()
+	var conf Configuration
+	err = d.Decode(&conf)
+	if err != nil {
+		return nil, err
+	}
+	configuration.configuration = &conf
+	return configuration.configuration, nil
+}
+
+// Description represents a group description together with some metadata
+// about the JSON file it was deserialised from.
 type Description struct {
 	// The file this was deserialised from.  This is not necessarily
 	// the name of the group, for example in case of a subgroup.

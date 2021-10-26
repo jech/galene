@@ -1,7 +1,6 @@
 package webserver
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -327,26 +326,20 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func getPassword(dataDir string) (string, string, error) {
-	f, err := os.Open(filepath.Join(dataDir, "passwd"))
+func adminMatch(username, password string) (bool, error) {
+	conf, err := group.GetConfiguration()
 	if err != nil {
-		return "", "", err
-	}
-	defer f.Close()
-
-	r := bufio.NewReader(f)
-
-	s, err := r.ReadString('\n')
-	if err != nil {
-		return "", "", err
+		return false, err
 	}
 
-	l := strings.SplitN(strings.TrimSpace(s), ":", 2)
-	if len(l) != 2 {
-		return "", "", errors.New("couldn't parse passwords")
+	for _, cred := range conf.Admin {
+		if cred.Username == "" || cred.Username == username {
+			if ok, _ := cred.Password.Match(password); ok {
+				return true, nil
+			}
+		}
 	}
-
-	return l[0], l[1], nil
+	return false, nil
 }
 
 func failAuthentication(w http.ResponseWriter, realm string) {
@@ -356,15 +349,16 @@ func failAuthentication(w http.ResponseWriter, realm string) {
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
-	u, p, err := getPassword(dataDir)
-	if err != nil {
-		log.Printf("Passwd: %v", err)
+	username, password, ok := r.BasicAuth()
+	if !ok {
 		failAuthentication(w, "stats")
 		return
 	}
 
-	username, password, ok := r.BasicAuth()
-	if !ok || username != u || password != p {
+	if ok, err := adminMatch(username, password); !ok {
+		if err != nil {
+			log.Printf("Administrator password: %v", err)
+		}
 		failAuthentication(w, "stats")
 		return
 	}
@@ -377,7 +371,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 
 	ss := stats.GetGroups()
 	e := json.NewEncoder(w)
-	err = e.Encode(ss)
+	err := e.Encode(ss)
 	if err != nil {
 		log.Printf("stats.json: %v", err)
 	}
