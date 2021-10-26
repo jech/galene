@@ -3089,7 +3089,9 @@ async function serverConnect() {
 }
 
 function start() {
-    group = decodeURIComponent(location.pathname.replace(/^\/[a-z]*\//, ''));
+    group = decodeURIComponent(
+        location.pathname.replace(/^\/[a-z]*\//, '').replace(/\/$/, '')
+    );
     setTitle(capitalise(group));
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());

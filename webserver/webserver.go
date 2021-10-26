@@ -283,8 +283,9 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Path != "/group/"+name {
-		http.Redirect(w, r, "/group/"+name, http.StatusPermanentRedirect)
+	if r.URL.Path != "/group/"+name+"/" {
+		http.Redirect(w, r, "/group/"+name+"/",
+			http.StatusPermanentRedirect)
 		return
 	}
 

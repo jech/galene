@@ -24,7 +24,7 @@ document.getElementById('groupform').onsubmit = function(e) {
     e.preventDefault();
     let group = document.getElementById('group').value.trim();
     if(group !== '')
-        location.href = '/group/' + group;
+        location.href = '/group/' + group + '/';
 };
 
 async function listPublicGroups() {
@@ -59,8 +59,8 @@ async function listPublicGroups() {
         let tr = document.createElement('tr');
         let td = document.createElement('td');
         let a = document.createElement('a');
-        a.textContent = group.name;
-        a.href = '/group/' + encodeURIComponent(group.displayName || group.name);
+        a.textContent = group.displayName || group.name;
+        a.href = '/group/' + group.name + '/';
         td.appendChild(a);
         tr.appendChild(td);
         let td2 = document.createElement('td');
