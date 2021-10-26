@@ -32,8 +32,6 @@ var server atomic.Value
 
 var StaticRoot string
 
-var Redirect string
-
 var Insecure bool
 
 func Serve(address string, dataDir string) error {
@@ -130,13 +128,14 @@ const (
 )
 
 func redirect(w http.ResponseWriter, r *http.Request) bool {
-	if Redirect == "" || strings.EqualFold(r.Host, Redirect) {
+	conf, err := group.GetConfiguration()
+	if err != nil || conf.CanonicalHost == "" {
 		return false
 	}
 
 	u := url.URL{
 		Scheme: "https",
-		Host:   Redirect,
+		Host:   conf.CanonicalHost,
 		Path:   r.URL.Path,
 	}
 	http.Redirect(w, r, u.String(), http.StatusMovedPermanently)

@@ -43,11 +43,13 @@ The server may be configured in the JSON file `data/config.json`.  This
 file may look as follows:
 
     {
+        "canonicalHost: "galene.example.org",
         "admin":[{"username":"root","password":"secret"}]
     }
 
 The fields are as follows:
 
+- `canonicalHost`: the canonical name of the host running the server;
 - `admin` defines the users allowed to look at the `/stats.html` file; it
   has the same syntax as user definitions in groups (see below).
 

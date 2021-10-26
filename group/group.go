@@ -809,7 +809,8 @@ type Configuration struct {
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
 
-	Admin []ClientPattern `json:"admin"`
+	CanonicalHost string          `json:"canonicalHost"`
+	Admin         []ClientPattern `json:"admin"`
 }
 
 var configuration struct {

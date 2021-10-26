@@ -27,8 +27,6 @@ func main() {
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
 		"web server root `directory`")
-	flag.StringVar(&webserver.Redirect, "redirect", "",
-		"redirect to canonical `host`")
 	flag.BoolVar(&webserver.Insecure, "insecure", false,
 		"act as an HTTP server rather than HTTPS")
 	flag.StringVar(&group.DataDirectory, "data", "./data/",
