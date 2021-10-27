@@ -525,7 +525,7 @@ func deleteUnlocked(g *Group) bool {
 	return true
 }
 
-func AddClient(group string, c Client) (*Group, error) {
+func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) {
 	g, err := Add(group, nil)
 	if err != nil {
 		return nil, err
@@ -537,7 +537,7 @@ func AddClient(group string, c Client) (*Group, error) {
 	clients := g.getClientsUnlocked(nil)
 
 	if !c.Permissions().System {
-		perms, err := g.description.GetPermission(group, c)
+		perms, err := g.description.GetPermission(group, creds)
 		if err != nil {
 			return nil, err
 		}
@@ -788,12 +788,16 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 	return h
 }
 
-func matchClient(group string, c Challengeable, users []ClientCredentials) (bool, bool) {
+func matchClient(group string, creds ClientCredentials, users []ClientPattern) (bool, bool) {
 	matched := false
 	for _, u := range users {
-		if u.Username == c.Username() {
+		if u.Username == creds.Username {
 			matched = true
-			if c.Challenge(group, u) {
+			if u.Password == nil {
+				return true, true
+			}
+			m, _ := u.Password.Match(creds.Password)
+			if m {
 				return true, true
 			}
 		}
@@ -804,7 +808,11 @@ func matchClient(group string, c Challengeable, users []ClientCredentials) (bool
 
 	for _, u := range users {
 		if u.Username == "" {
-			if c.Challenge(group, u) {
+			if u.Password == nil {
+				return true, true
+			}
+			m, _ := u.Password.Match(creds.Password)
+			if m {
 				return true, true
 			}
 		}
@@ -865,13 +873,13 @@ type Description struct {
 	Autokick bool `json:"autokick,omitempty"`
 
 	// A list of logins for ops.
-	Op []ClientCredentials `json:"op,omitempty"`
+	Op []ClientPattern `json:"op,omitempty"`
 
 	// A list of logins for presenters.
-	Presenter []ClientCredentials `json:"presenter,omitempty"`
+	Presenter []ClientPattern `json:"presenter,omitempty"`
 
 	// A list of logins for non-presenting users.
-	Other []ClientCredentials `json:"other,omitempty"`
+	Other []ClientPattern `json:"other,omitempty"`
 
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
@@ -970,12 +978,12 @@ func GetDescription(name string) (*Description, error) {
 	return &desc, nil
 }
 
-func (desc *Description) GetPermission(group string, c Challengeable) (ClientPermissions, error) {
+func (desc *Description) GetPermission(group string, creds ClientCredentials) (ClientPermissions, error) {
 	var p ClientPermissions
-	if !desc.AllowAnonymous && c.Username() == "" {
+	if !desc.AllowAnonymous && creds.Username == "" {
 		return p, ErrAnonymousNotAuthorised
 	}
-	if found, good := matchClient(group, c, desc.Op); found {
+	if found, good := matchClient(group, creds, desc.Op); found {
 		if good {
 			p.Op = true
 			p.Present = true
@@ -986,14 +994,14 @@ func (desc *Description) GetPermission(group string, c Challengeable) (ClientPer
 		}
 		return p, ErrNotAuthorised
 	}
-	if found, good := matchClient(group, c, desc.Presenter); found {
+	if found, good := matchClient(group, creds, desc.Presenter); found {
 		if good {
 			p.Present = true
 			return p, nil
 		}
 		return p, ErrNotAuthorised
 	}
-	if found, good := matchClient(group, c, desc.Other); found {
+	if found, good := matchClient(group, creds, desc.Other); found {
 		if good {
 			return p, nil
 		}

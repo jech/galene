@@ -37,4 +37,3 @@ func TestDownTrackAtomics(t *testing.T) {
 		t.Errorf("Expected %v, got %v", info, info2)
 	}
 }
-

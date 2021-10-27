@@ -56,7 +56,6 @@ type webClient struct {
 	group       *group.Group
 	id          string
 	username    string
-	password    string
 	permissions group.ClientPermissions
 	status      map[string]interface{}
 	requested   map[string][]string
@@ -81,18 +80,6 @@ func (c *webClient) Id() string {
 
 func (c *webClient) Username() string {
 	return c.username
-}
-
-func (c *webClient) Challenge(group string, creds group.ClientCredentials) bool {
-	if creds.Password == nil {
-		return true
-	}
-	m, err := creds.Password.Match(c.password)
-	if err != nil {
-		log.Printf("Password match: %v", err)
-		return false
-	}
-	return m
 }
 
 func (c *webClient) Permissions() group.ClientPermissions {
@@ -1343,8 +1330,12 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return group.ProtocolError("cannot join multiple groups")
 		}
 		c.username = m.Username
-		c.password = m.Password
-		g, err := group.AddClient(m.Group, c)
+		g, err := group.AddClient(m.Group, c,
+			group.ClientCredentials{
+				Username: m.Username,
+				Password: m.Password,
+			},
+		)
 		if err != nil {
 			var s string
 			if os.IsNotExist(err) {
@@ -1583,7 +1574,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				}
 			}
 			disk := diskwriter.New(g)
-			_, err := group.AddClient(g.Name(), disk)
+			_, err := group.AddClient(g.Name(), disk,
+				group.ClientCredentials{
+					System: true,
+				},
+			)
 			if err != nil {
 				disk.Close()
 				return c.error(err)

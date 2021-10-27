@@ -534,27 +534,6 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 	}
 }
 
-type httpClient struct {
-	username string
-	password string
-}
-
-func (c httpClient) Username() string {
-	return c.username
-}
-
-func (c httpClient) Challenge(group string, creds group.ClientCredentials) bool {
-	if creds.Password == nil {
-		return true
-	}
-	m, err := creds.Password.Match(c.password)
-	if err != nil {
-		log.Printf("Password match: %v", err)
-		return false
-	}
-	return m
-}
-
 func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname string) bool {
 	desc, err := group.GetDescription(groupname)
 	if err != nil {
@@ -566,7 +545,12 @@ func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname str
 		return false
 	}
 
-	p, err := desc.GetPermission(groupname, httpClient{user, pass})
+	p, err := desc.GetPermission(groupname,
+		group.ClientCredentials{
+			Username: user,
+			Password: pass,
+		},
+	)
 	if err != nil || !p.Record {
 		if err == group.ErrNotAuthorised {
 			time.Sleep(200 * time.Millisecond)

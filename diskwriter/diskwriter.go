@@ -59,10 +59,6 @@ func (client *Client) Username() string {
 	return "RECORDING"
 }
 
-func (client *Client) Challenge(group string, cred group.ClientCredentials) bool {
-	return true
-}
-
 func (client *Client) SetPermissions(perms group.ClientPermissions) {
 	return
 }

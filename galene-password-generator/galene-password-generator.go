@@ -56,7 +56,7 @@ func main() {
 		}
 		e := json.NewEncoder(os.Stdout)
 		if username != "" {
-			creds := group.ClientCredentials{
+			creds := group.ClientPattern{
 				Username: username,
 				Password: &p,
 			}
