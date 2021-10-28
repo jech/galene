@@ -1085,6 +1085,11 @@ func Update() {
 				)
 				return nil
 			}
+			base := filepath.Base(filename)
+			if base[0] == '.' {
+				log.Printf("Group file %v ignored", filename)
+				return nil
+			}
 			name := filename[:len(filename)-5]
 			desc, err := GetDescription(name)
 			if err != nil {

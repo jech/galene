@@ -262,6 +262,10 @@ func parseGroupName(prefix string, p string) string {
 		return ""
 	}
 
+	if name[0] == '.' {
+		return ""
+	}
+
 	if filepath.Separator != '/' &&
 		strings.ContainsRune(name, filepath.Separator) {
 		return ""

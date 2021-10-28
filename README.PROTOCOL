@@ -24,8 +24,8 @@ message types.
 ### Group
 
 A group is a set of clients.  It is identified by a human-readable name
-that must not start or end with a slash "`/`" and must not have the
-substrings "`/../`" or "`/./`".
+that must not start or end with a slash "`/`", must not start with
+a period "`.`", and must not contain the substrings "`/../`" or "`/./`".
 
 ### Client
 
