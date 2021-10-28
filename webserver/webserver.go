@@ -283,12 +283,6 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Path != "/group/"+name+"/" {
-		http.Redirect(w, r, "/group/"+name+"/",
-			http.StatusPermanentRedirect)
-		return
-	}
-
 	g, err := group.Add(name, nil)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -298,6 +292,12 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Internal server error",
 				http.StatusInternalServerError)
 		}
+		return
+	}
+
+	if r.URL.Path != "/group/"+name+"/" {
+		http.Redirect(w, r, "/group/"+name+"/",
+			http.StatusPermanentRedirect)
 		return
 	}
 
