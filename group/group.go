@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,6 +16,8 @@ import (
 	"github.com/pion/ice/v2"
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
+
+	"github.com/jech/galene/token"
 )
 
 var Directory, DataDirectory string
@@ -960,6 +963,12 @@ type Description struct {
 	// A list of logins for non-presenting users.
 	Other []ClientPattern `json:"other,omitempty"`
 
+	// The URL of the authentication server.
+	AuthServer string `json:"authServer"`
+
+	// The (public) keys of the authentication server
+	AuthKeys []map[string]interface{} `json:"authKeys"`
+
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
 	Codecs []string `json:"codecs,omitempty"`
@@ -1062,6 +1071,7 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (C
 	if !desc.AllowAnonymous && creds.Username == "" {
 		return p, ErrAnonymousNotAuthorised
 	}
+
 	if found, good := matchClient(group, creds, desc.Op); found {
 		if good {
 			p.Op = true
@@ -1086,6 +1096,52 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (C
 		}
 		return p, ErrNotAuthorised
 	}
+
+	if desc.AuthServer != "" && creds.Token != "" {
+		aud, perms, err := token.Valid(
+			creds.Username, creds.Token,
+			desc.AuthKeys, desc.AuthServer,
+		)
+		if err != nil {
+			log.Printf("Token authentication: %v", err)
+			return p, ErrNotAuthorised
+		}
+		conf, err := GetConfiguration()
+		if err != nil {
+			log.Printf("Read config.json: %v", err)
+			return p, err
+		}
+		ok := false
+		for _, u := range aud {
+			url, err := url.Parse(u)
+			if err != nil {
+				log.Printf("Token URL: %v", err)
+				continue
+			}
+			// if canonicalHost is not set, we allow tokens
+			// for any domain name.  Hopefully different
+			// servers use distinct keys.
+			if conf.CanonicalHost != "" {
+				if !strings.EqualFold(
+					url.Host, conf.CanonicalHost,
+				) {
+					continue
+				}
+			}
+			if url.Path == path.Join("/group", group)+"/" {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return p, ErrNotAuthorised
+		}
+		p.Op, _ = perms["op"].(bool)
+		p.Present, _ = perms["present"].(bool)
+		p.Record, _ = perms["record"].(bool)
+		return p, nil
+	}
+
 	return p, ErrNotAuthorised
 }
 
@@ -1093,6 +1149,7 @@ type Status struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
+	AuthServer  string `json:"authServer,omitempty"`
 	Locked      bool   `json:"locked,omitempty"`
 	ClientCount *int   `json:"clientCount,omitempty"`
 }
@@ -1102,6 +1159,7 @@ func (g *Group) Status (authentified bool) Status {
 	d := Status{
 		Name:        g.name,
 		DisplayName: desc.DisplayName,
+		AuthServer:  desc.AuthServer,
 		Description: desc.Description,
 	}
 

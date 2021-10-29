@@ -86,9 +86,13 @@ func Serve(address string, dataDir string) error {
 	return err
 }
 
-func cspHeader(w http.ResponseWriter) {
+func cspHeader(w http.ResponseWriter, connect string) {
+	c := "connect-src ws: wss: 'self';"
+	if connect != "" {
+		c = "connect-src " + connect + " ws: wss: 'self';"
+	}
 	w.Header().Add("Content-Security-Policy",
-		"connect-src ws: wss: 'self'; img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
+		c + " img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
 }
 
 func notFound(w http.ResponseWriter) {
@@ -172,7 +176,7 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cspHeader(w)
+	cspHeader(w, "")
 	p := r.URL.Path
 	// this ensures any leading .. are removed by path.Clean below
 	if !strings.HasPrefix(p, "/") {
@@ -314,7 +318,8 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cspHeader(w)
+	status := g.Status(false)
+	cspHeader(w, status.AuthServer)
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
 

@@ -1,9 +1,10 @@
 module github.com/jech/galene
 
-go 1.13
+go 1.15
 
 require (
 	github.com/at-wat/ebml-go v0.16.0
+	github.com/golang-jwt/jwt/v4 v4.2.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/jech/cert v0.0.0-20210819231831-aca735647728
 	github.com/jech/samplebuilder v0.0.0-20220125212352-4553ed6f9a6c

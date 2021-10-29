@@ -205,6 +205,7 @@ function ServerConnection() {
   * @property {string} [dest]
   * @property {string} [username]
   * @property {string} [password]
+  * @property {string} [token]
   * @property {boolean} [privileged]
   * @property {Object<string,boolean>} [permissions]
   * @property {Object<string,any>} [status]
@@ -416,19 +417,52 @@ ServerConnection.prototype.connect = async function(url) {
  *
  * @param {string} group - The name of the group to join.
  * @param {string} username - the username to join as.
- * @param {string} password - the password.
+ * @param {string|Object} credentials - password or authServer.
  * @param {Object<string,any>} [data] - the initial associated data.
  */
-ServerConnection.prototype.join = function(group, username, password, data) {
+ServerConnection.prototype.join = async function(group, username, credentials, data) {
     let m = {
         type: 'join',
         kind: 'join',
         group: group,
         username: username,
-        password: password,
     };
+    if((typeof credentials) === 'string') {
+        m.password = credentials;
+    } else {
+        switch(credentials.type) {
+        case 'password':
+            m.password = credentials.password;
+            break;
+        case 'token':
+            m.token = credentials.token;
+            break;
+        case 'authServer':
+            let r = await fetch(credentials.authServer, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    location: credentials.location,
+                    username: username,
+                    password: credentials.password,
+                }),
+            });
+            if(!r.ok)
+                throw new Error(
+                    `The authorisation server said: ${r.status} ${r.statusText}`,
+                );
+            m.token = await r.text();
+            break;
+        default:
+            throw new Error(`Unknown credentials type ${credentials.type}`);
+        }
+    }
+
     if(data)
         m.data = data;
+
     this.send(m);
 };
 

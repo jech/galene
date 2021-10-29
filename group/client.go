@@ -92,6 +92,7 @@ type ClientCredentials struct {
 	System   bool
 	Username string
 	Password string
+	Token    string
 }
 
 type Client interface {

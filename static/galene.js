@@ -271,13 +271,25 @@ function setConnected(connected) {
 }
 
 /** @this {ServerConnection} */
-function gotConnected() {
+async function gotConnected() {
     username = getInputElement('username').value.trim();
     setConnected(true);
+
+    let pw = getInputElement('password').value;
+    getInputElement('password').value = '';
+    let credentials;
+    if(!groupStatus.authServer)
+        credentials = pw;
+    else
+        credentials = {
+            type: 'authServer',
+            authServer: groupStatus.authServer,
+            location: location.href,
+            password: pw,
+        };
+
     try {
-        let pw = getInputElement('password').value;
-        getInputElement('password').value = '';
-        this.join(group, username, pw);
+        await this.join(group, username, credentials);
     } catch(e) {
         console.error(e);
         displayError(e);

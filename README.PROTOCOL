@@ -39,6 +39,11 @@ configuration file.  Each object has the following fields:
  - `locked`: true if the group is locked;
  - `clientCount`: the number of clients currently in the group.
 
+If token-based authorisation is in use for the group, then the dictionary
+contains the following additional field:
+
+ - `authServer`: the URL of the authorisation server.
+
 A client may also fetch the URL `/group/name/.status.json` to retrieve the
 status of a single group.  If the group has not been marked as public,
 then the fields `locked` and `clientCount` are omitted.
@@ -111,6 +116,9 @@ The `join` message requests that the sender join or leave a group:
     data: data
 }
 ```
+
+If token-based authorisation is beling used, then the `password` field is
+omitted, and a `token` field is included instead.
 
 When the sender has effectively joined the group, the peer will send
 a 'joined' message of kind 'join'; it may then send a 'joined' message of
@@ -355,3 +363,37 @@ Finally, a group action requests that the server act on the current group.
 Currently defined kinds include `clearchat` (not to be confused with the
 `clearchat` user message), `lock`, `unlock`, `record`, `unrecord`,
 `subgroups` and `setdata`.
+
+# Authorisation protocol
+
+If a group's status dictionary has a non-empty `authServer` field, then
+the group uses token authentication.  Before joining, the client sends
+a POST request to the authorisation server URL containing in its body
+a JSON dictionary of the following form:
+```javascript
+{
+    "location": "https://galene.example.org/group/groupname",
+    "username": username,
+    "password": password
+}
+```
+If the user is not allowed to join the group, then the authorisation
+server replies with a code of 403 ("not authorised").  If the user is
+allowed to join, then the authorisation server replies with a signed JWT
+(a "JWS") the body of which has the following form:
+```javascript
+{
+    "sub": username,
+    "aud": "https://galene.example.org/group/groupname",
+    "permissions": ["present": true],
+    "iat": now,
+    "exp": now + 30s,
+    "iss": authorisation server URL
+}
+```
+The `permissions` field contains the permissions granted to the client, in
+the same format as in the `joined` message.  Since the client will only
+use the token once, at the very beginning of the session, the tokens
+issued may have a short lifetime (on the order of 30s).
+
+
