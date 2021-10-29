@@ -914,6 +914,7 @@ h1 {
 
 .media-failed {
     opacity: 0.7;
+    background: no-repeat center/50% 50% url("/media-failed.svg");
 }
 
 .mirror {
