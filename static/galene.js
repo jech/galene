@@ -324,7 +324,13 @@ function setConnected(connected) {
 function gotConnected() {
     setConnected(true);
     let up = getUserPass();
-    this.join(group, up.username, up.password);
+    try {
+        this.join(group, up.username, up.password);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        serverConnection.close();
+    }
 }
 
 /**
