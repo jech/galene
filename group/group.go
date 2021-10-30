@@ -1102,6 +1102,14 @@ func GetPublic() []Status {
 // list of public groups.  It also removes from memory any non-public
 // groups that haven't been accessed in maxHistoryAge.
 func Update() {
+	_, err := GetConfiguration()
+	if err != nil {
+		log.Printf("%v: %v",
+			filepath.Join(DataDirectory, "config.json"),
+			err,
+		)
+	}
+
 	names := GetNames()
 
 	for _, name := range names {
@@ -1122,7 +1130,7 @@ func Update() {
 		}
 	}
 
-	err := filepath.Walk(
+	err = filepath.Walk(
 		Directory,
 		func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
