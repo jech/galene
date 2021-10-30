@@ -133,6 +133,10 @@ func redirect(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
+	if strings.EqualFold(r.Host, conf.CanonicalHost) {
+		return false
+	}
+
 	u := url.URL{
 		Scheme: "https",
 		Host:   conf.CanonicalHost,
