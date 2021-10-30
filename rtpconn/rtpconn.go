@@ -1001,7 +1001,7 @@ func sendUpRTCP(up *rtpUpConnection) error {
 	if rate < ^uint64(0) && len(ssrcs) > 0 {
 		packets = append(packets,
 			&rtcp.ReceiverEstimatedMaximumBitrate{
-				Bitrate: rate,
+				Bitrate: float32(rate),
 				SSRCs:   ssrcs,
 			},
 		)
@@ -1183,7 +1183,8 @@ func rtcpDownListener(track *rtpDownTrack) {
 					track.remote.RequestKeyframe()
 				}
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				track.maxREMBBitrate.Set(p.Bitrate, jiffies)
+				rate := uint64(p.Bitrate + 0.5)
+				track.maxREMBBitrate.Set(rate, jiffies)
 				adjust = true
 			case *rtcp.ReceiverReport:
 				for _, r := range p.Reports {
