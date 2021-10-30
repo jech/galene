@@ -822,7 +822,7 @@ func getGroupStatus(g *group.Group) map[string]interface{} {
 			status["locked"] = message
 		}
 	}
-	if dn := g.DisplayName(); dn != "" {
+	if dn := g.Description().DisplayName; dn != "" {
 		status["displayName"] = dn
 	}
 	return status
@@ -1265,7 +1265,7 @@ func setPermissions(g *group.Group, id string, perm string) error {
 	switch perm {
 	case "op":
 		c.permissions.Op = true
-		if g.AllowRecording() {
+		if g.Description().AllowRecording {
 			c.permissions.Record = true
 		}
 	case "unop":
@@ -1360,7 +1360,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Value:       s,
 			})
 		}
-		if redirect := g.Redirect(); redirect != "" {
+		if redirect := g.Description().Redirect; redirect != "" {
 			// We normally redirect at the HTTP level, but the group
 			// description could have been edited in the meantime.
 			return c.write(clientMessage{

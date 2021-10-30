@@ -106,28 +106,10 @@ func (g *Group) SetLocked(locked bool, message string) {
 	}
 }
 
-func (g *Group) Public() bool {
+func (g *Group) Description() *Description {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.description.Public
-}
-
-func (g *Group) Redirect() string {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return g.description.Redirect
-}
-
-func (g *Group) AllowRecording() bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return g.description.AllowRecording
-}
-
-func (g *Group) DisplayName() string {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return g.description.DisplayName
+	return g.description
 }
 
 func (g *Group) EmptyTime() time.Duration {
@@ -1021,12 +1003,13 @@ type Public struct {
 func GetPublic() []Public {
 	gs := make([]Public, 0)
 	Range(func(g *Group) bool {
-		if g.Public() {
+		desc := g.Description()
+		if desc.Public {
 			locked, _ := g.Locked()
 			gs = append(gs, Public{
 				Name:        g.name,
-				DisplayName: g.DisplayName(),
-				Description: g.description.Description,
+				DisplayName: desc.DisplayName,
+				Description: desc.Description,
 				Locked:      locked,
 				ClientCount: len(g.clients),
 			})

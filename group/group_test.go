@@ -29,18 +29,6 @@ func TestGroup(t *testing.T) {
 	if locked, _ := g.Locked(); locked {
 		t.Errorf("Locked: expected false, got %v", locked)
 	}
-	if public := g.Public(); public {
-		t.Errorf("Public: expected false, got %v", public)
-	}
-	if public := g2.Public(); !public {
-		t.Errorf("Public: expected true, got %v", public)
-	}
-	if redirect := g.Redirect(); redirect != "" {
-		t.Errorf("Redirect: expected empty, got %v", redirect)
-	}
-	if ar := g.AllowRecording(); ar {
-		t.Errorf("Allow Recording: expected false, got %v", ar)
-	}
 	api, err := g.API()
 	if err != nil || api == nil {
 		t.Errorf("Couldn't get API: %v", err)
