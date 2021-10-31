@@ -913,7 +913,7 @@ h1 {
 }
 
 .media-failed {
-    opacity: 0.7;
+    filter: grayscale(0.5) contrast(0.5);
 }
 
 .mirror {

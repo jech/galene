@@ -10,6 +10,7 @@ Galène 0.4.1 (unreleased):
     logged in, and will be required for new authorisation schemes.
   * Allow scrolling of the login dialog, useful on small devices.
   * Fixed a typo that prevented the group name from being displayed.
+  * Made failed videos more visible.
 
 5 September 2021: Galène 0.4
 
