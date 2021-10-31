@@ -11,6 +11,8 @@ Galène 0.4.1 (unreleased):
   * Allow scrolling of the login dialog, useful on small devices.
   * Fixed a typo that prevented the group name from being displayed.
   * Made failed videos more visible.
+  * No longer attempt to save passwords in browser JavaScript, it's
+    insecure and not very useful.
 
 5 September 2021: Galène 0.4
 

@@ -29,52 +29,8 @@ let serverConnection;
 /** @type {Object} */
 let groupStatus = {};
 
-/**
- * @typedef {Object} userpass
- * @property {string} username
- * @property {string} password
- */
-
-/* Some browsers disable session storage when cookies are disabled,
-   we fall back to a global variable. */
-/**
- * @type {userpass}
- */
-let fallbackUserPass = null;
-
-
-/**
- * @param {string} username
- * @param {string} password
- */
-function storeUserPass(username, password) {
-    let userpass = {username: username, password: password};
-    try {
-        window.sessionStorage.setItem('userpass', JSON.stringify(userpass));
-        fallbackUserPass = null;
-    } catch(e) {
-        console.warn("Couldn't store password:", e);
-        fallbackUserPass = userpass;
-    }
-}
-
-/**
- * Returns null if the user hasn't logged in yet.
- *
- * @returns {userpass}
- */
-function getUserPass() {
-    /** @type{userpass} */
-    let userpass;
-    try {
-        let json = window.sessionStorage.getItem('userpass');
-        userpass = JSON.parse(json);
-    } catch(e) {
-        console.warn("Couldn't retrieve password:", e);
-        userpass = fallbackUserPass;
-    }
-    return userpass || null;
-}
+/** @type {string} */
+let username = null;
 
 /**
  * @typedef {Object} settings
@@ -291,14 +247,6 @@ function showVideo() {
     scheduleReconsiderDownRate();
 }
 
-function fillLogin() {
-    let userpass = getUserPass();
-    getInputElement('username').value =
-        userpass ? userpass.username : '';
-    getInputElement('password').value =
-        userpass ? userpass.password : '';
-}
-
 /**
   * @param{boolean} connected
   */
@@ -314,7 +262,6 @@ function setConnected(connected) {
             scheduleReconsiderDownRate();
         }
     } else {
-        fillLogin();
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         displayError('Disconnected', 'error');
@@ -325,10 +272,12 @@ function setConnected(connected) {
 
 /** @this {ServerConnection} */
 function gotConnected() {
+    username = getInputElement('username').value.trim();
     setConnected(true);
-    let up = getUserPass();
     try {
-        this.join(group, up.username, up.password);
+        let pw = getInputElement('password').value;
+        getInputElement('password').value = '';
+        this.join(group, username, pw);
     } catch(e) {
         console.error(e);
         displayError(e);
@@ -2086,10 +2035,8 @@ function gotUser(id, kind) {
 }
 
 function displayUsername() {
-    let userpass = getUserPass();
+    document.getElementById('userspan').textContent = username;
     let text = '';
-    if(userpass && userpass.username)
-        document.getElementById('userspan').textContent = userpass.username;
     if(serverConnection.permissions.op && serverConnection.permissions.present)
         text = '(op, presenter)';
     else if(serverConnection.permissions.op)
@@ -2997,10 +2944,7 @@ document.getElementById('userform').onsubmit = async function(e) {
         return;
     connecting = true;
     try {
-        let username = getInputElement('username').value.trim();
-        let password = getInputElement('password').value;
-        storeUserPass(username, password);
-        serverConnect();
+        await serverConnect();
     } finally {
         connecting = false;
     }
@@ -3118,7 +3062,6 @@ async function start() {
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 
-    fillLogin();
     document.getElementById("login-container").classList.remove('invisible');
     setViewportHeight();
 }
