@@ -819,6 +819,11 @@ type Configuration struct {
 	Admin         []ClientPattern `json:"admin"`
 }
 
+func (conf Configuration) Zero() bool {
+	return conf.modTime.Equal(time.Time{}) &&
+		conf.fileSize == 0
+}
+
 var configuration struct {
 	mu            sync.Mutex
 	configuration *Configuration
@@ -836,12 +841,10 @@ func GetConfiguration() (*Configuration, error) {
 	fi, err := os.Stat(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
-			if !configuration.configuration.modTime.Equal(
-				time.Time{},
-			) {
+			if !configuration.configuration.Zero() {
 				configuration.configuration = &Configuration{}
-				return configuration.configuration, nil
 			}
+			return configuration.configuration, nil
 		}
 		return nil, err
 	}
