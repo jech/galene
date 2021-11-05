@@ -86,7 +86,7 @@ func Serve(address string, dataDir string) error {
 	return err
 }
 
-func mungeHeader(w http.ResponseWriter) {
+func cspHeader(w http.ResponseWriter) {
 	w.Header().Add("Content-Security-Policy",
 		"connect-src ws: wss: 'self'; img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
 }
@@ -174,7 +174,7 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mungeHeader(w)
+	cspHeader(w)
 	p := r.URL.Path
 	// this ensures any leading .. are removed by path.Clean below
 	if !strings.HasPrefix(p, "/") {
@@ -316,7 +316,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mungeHeader(w)
+	cspHeader(w)
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
 
