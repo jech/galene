@@ -43,7 +43,7 @@ The server may be configured in the JSON file `data/config.json`.  This
 file may look as follows:
 
     {
-        "canonicalHost: "galene.example.org",
+        "canonicalHost": "galene.example.org",
         "admin":[{"username":"root","password":"secret"}]
     }
 
