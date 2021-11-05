@@ -130,8 +130,8 @@ its permissions or in the recommended RTC configuration.
 
 The `permissions` field is an array of strings that may contain the values
 `present`, `op` and `record`.  The `status` field is a dictionary that
-contains random information that can be usefully displayed in the user
-interface.
+contains status information about the group, in the same format as at the
+`.status.json` URL above.
 
 ## Maintaining group membership
 
