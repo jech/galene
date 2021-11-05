@@ -851,7 +851,7 @@ h1 {
     width: 100%;
     border: none;
     resize: none;
-    overflow-y: hidden;
+    overflow-y: auto;
 }
 
 #input:focus {
