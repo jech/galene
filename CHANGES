@@ -1,4 +1,4 @@
-Galène 0.4.1 (unreleased):
+4 November 2021: Galène 0.4.1
 
   * Create a new file data/config.json with global configuration.
   * Remove data/passwd and the -redirect option with entries in config.json;
