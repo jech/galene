@@ -25,8 +25,8 @@ github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/ad
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/jech/cert v0.0.0-20210819231831-aca735647728 h1:tN+W1ll2oKuJGMCaO1CRK4rr+xSRjVSfWmnKlACdx38=
 github.com/jech/cert v0.0.0-20210819231831-aca735647728/go.mod h1:FXUA/zpiQfV4uBVN2kAwkf3X7pU7l1l2ovS45CsSYZs=
-github.com/jech/samplebuilder v0.0.0-20210823163459-dd92d75bae48 h1:KTbuIm1zPo0aWHLPs5uLU4u68gxvP6bs7Iyw4Rzd8c0=
-github.com/jech/samplebuilder v0.0.0-20210823163459-dd92d75bae48/go.mod h1:CHSZxAXMLpiht1TO02fn+EO2IEd1jgg80O9XswtRDW0=
+github.com/jech/samplebuilder v0.0.0-20211123183614-17c7adaa0ec2 h1:Eo5ygUssm6Ip3HJIqDkIg8ckqTj01K1rOxjfkQiQtwE=
+github.com/jech/samplebuilder v0.0.0-20211123183614-17c7adaa0ec2/go.mod h1:v8Ft/hAXNMLvYSyhWFcKgKgfqPV4EwOhVwk4oLstjpE=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=

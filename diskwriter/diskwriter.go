@@ -339,17 +339,17 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 			)
 		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			builder = samplebuilder.New(
-				128, &codecs.VP8Packet{}, codec.ClockRate,
+				256, &codecs.VP8Packet{}, codec.ClockRate,
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			builder = samplebuilder.New(
-				128, &codecs.VP9Packet{}, codec.ClockRate,
+				256, &codecs.VP9Packet{}, codec.ClockRate,
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/h264") {
 			builder = samplebuilder.New(
-				128, &codecs.H264Packet{}, codec.ClockRate,
+				256, &codecs.H264Packet{}, codec.ClockRate,
 			)
 			conn.hasVideo = true
 		} else {
