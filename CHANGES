@@ -1,3 +1,8 @@
+Galène 0.4.2 (unreleased)
+
+  * Update the samplebuilder to avoid a crash when a single frame is so
+    large that it overflows the buffer.
+
 4 November 2021: Galène 0.4.1
 
   * Create a new file data/config.json with global configuration.
