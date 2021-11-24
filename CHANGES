@@ -113,11 +113,11 @@ Galène 0.4.2 (unreleased)
     media traffic should go through a TURN server.
   * It is now possible to generate TURN passwords automatically, which
     avoids leaking long-term TURN credentials.  See the "credentialType"
-    value "hmac-sha1" described in README.
+    value "hmac-sha1" described in README.md.
   * The ICE configuration will now be checked periodically, and new
     clients will use an updated configuration.
   * The client-server protocol has been reworked to be more symmetric
-    and more secure.  It is now documented in the file README.PROTOCOL.
+    and more secure.  It is now documented in the file README-PROTOCOL.md.
   * The stream abort protocol message is now supported in the client->server
     direction, making it possible for the client to reject a stream.
   * The delay before sending NACKs has been reduced, which gives a major

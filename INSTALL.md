@@ -26,7 +26,7 @@ You may use the following definition:
         "presenter": [{}]
     }
 
-See the README file for more details about defining groups.
+See the README.md file for more details about defining groups.
 
 
 ## Test locally
