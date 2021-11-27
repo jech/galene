@@ -327,8 +327,6 @@ func nackWriter(track *rtpUpTrack) {
 		return
 	}
 
-	time.Sleep(50 * time.Millisecond)
-
 	// drop any nacks before the last keyframe
 	var cutoff uint16
 	seqno, found := track.cache.Keyframe()
