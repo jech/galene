@@ -1590,7 +1590,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				if sg.Clients > 1 {
 					plural = "s"
 				}
-				s = s + fmt.Sprintf("%v (%v client%v)",
+				s = s + fmt.Sprintf("%v (%v client%v)\n",
 					sg.Name, sg.Clients, plural)
 			}
 			c.write(clientMessage{
