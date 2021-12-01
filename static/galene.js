@@ -1085,7 +1085,15 @@ function doSimulcast() {
     case 'off':
         return false;
     default:
-        if(Object.keys(serverConnection.users).length <= 2)
+        let count = 0;
+        for(let n in serverConnection.users) {
+            if(!serverConnection.users[n].permissions["system"]) {
+                count++;
+                if(count > 2)
+                    break;
+            }
+        }
+        if(count <= 2)
             return false;
         let bps = getMaxVideoThroughput();
         return bps <= 0 || bps >= 2 * simulcastRate;
