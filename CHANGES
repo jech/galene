@@ -1,9 +1,8 @@
-Galène 0.4.2 (unreleased)
+1 December 2021: Galène 0.4.2
 
   * Update the samplebuilder to avoid a crash when a single frame is so
     large that it overflows the buffer.
-  * Rework the samplebuilder to make recording more reliable in the
-    presence of packet loss and reordering.
+  * Various other changes that improve the quality of disk recordings.
 
 4 November 2021: Galène 0.4.1
 
