@@ -64,10 +64,14 @@ type webClient struct {
 	writerDone  chan struct{}
 	actionCh    chan struct{}
 
-	mu      sync.Mutex
-	down    map[string]*rtpDownConnection
-	up      map[string]*rtpUpConnection
-	actions []interface{}
+	mu   sync.Mutex
+	down map[string]*rtpDownConnection
+	up   map[string]*rtpUpConnection
+
+	// action may be called with the group mutex taken, and therefore
+	// actions needs to use its own mutex.
+	actionMu sync.Mutex
+	actions  []interface{}
 }
 
 func (c *webClient) Group() *group.Group {
@@ -948,10 +952,10 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 				return m
 			}
 		case <-c.actionCh:
-			c.mu.Lock()
+			c.actionMu.Lock()
 			actions := c.actions
 			c.actions = nil
-			c.mu.Unlock()
+			c.actionMu.Unlock()
 			for _, a := range actions {
 				err := handleAction(c, a)
 				if err != nil {
@@ -1759,10 +1763,10 @@ func (c *webClient) Warn(oponly bool, message string) error {
 var ErrClientDead = errors.New("client is dead")
 
 func (c *webClient) action(a interface{}) error {
-	c.mu.Lock()
+	c.actionMu.Lock()
 	empty := len(c.actions) == 0
 	c.actions = append(c.actions, a)
-	c.mu.Unlock()
+	c.actionMu.Unlock()
 
 	if empty {
 		select {
