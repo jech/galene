@@ -1997,15 +1997,19 @@ function addUser(id, name) {
 
 /**
  * @param {string} id
- * @param {string} name
+ * @param {user} userinfo
  */
-function changeUser(id, name) {
+function changeUser(id, userinfo) {
     let user = document.getElementById('user-' + id);
     if(!user) {
         console.warn('Unknown user ' + id);
         return;
     }
-    user.textContent = name ? name : '(anon)';
+    user.textContent = userinfo.username ? userinfo.username : '(anon)';
+    if (userinfo.status.raisehand)
+        user.classList.add('user-status-raisehand');
+    else
+        user.classList.remove('user-status-raisehand');
 }
 
 /**
@@ -2034,7 +2038,7 @@ function gotUser(id, kind) {
             scheduleReconsiderParameters();
         break;
     case 'change':
-        changeUser(id, serverConnection.users[id].username);
+        changeUser(id, serverConnection.users[id]);
         break;
     default:
         console.warn('Unknown user kind', kind);
