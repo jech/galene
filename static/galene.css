@@ -1204,6 +1204,10 @@ header .collapse {
     font-weight: 900;
 }
 
+#users > div.user-status-raisehand::before {
+    content: "\f256";
+}
+
 .close-icon {
     font: normal 1em/1 Arial, sans-serif;
     display: inline-block;
