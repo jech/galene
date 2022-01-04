@@ -168,7 +168,7 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 		default:
 			return 0, errors.New("unknown VP9 profile")
 		}
-	case "video/av1x":
+	case "video/av1":
 		return 35, nil
 	case "video/h264":
 		profile := fmtpValue(codec.SDPFmtpLine, "profile-level-id")
@@ -231,7 +231,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 	case "av1":
 		codecs = []webrtc.RTPCodecCapability{
 			{
-				"video/AV1X", 90000, 0,
+				"video/AV1", 90000, 0,
 				"",
 				fb,
 			},

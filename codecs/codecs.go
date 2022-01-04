@@ -46,7 +46,7 @@ func Keyframe(codec string, packet *rtp.Packet) (bool, bool) {
 			return (vp9.Payload[0] & 0xC) == 0, true
 		}
 		return (vp9.Payload[0] & 0x6) == 0, true
-	} else if strings.EqualFold(codec, "video/av1x") {
+	} else if strings.EqualFold(codec, "video/av1") {
 		if len(packet.Payload) < 2 {
 			return false, true
 		}
