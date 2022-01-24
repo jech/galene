@@ -54,23 +54,44 @@ callback indicates that a chat message has been posted to the group, and
 `ondownstream` is called when the server pushes a stream to the client;
 see the section below about streams.
 
-You may now connect to the server.
+You may now connect to the server:
 
 ```javascript
 serverConnection.connect(`wss://${location.host}/ws`);
 ```
 
-You typically join a group and request media in the `onconnected` callback:
+You typically join a group in the `onconnected` callback:
 
 ```javascript
 serverConnection.onconnected = function() {
     this.join(group, 'join', username, password); 
-    this.request({'':['audio','video']});
 }
 ```
 
-You should not attempt to push a stream to the server until it has granted
-you the `present` permission through the `onjoined` callback.
+After the server has replied to the join request, the `onjoined` callback
+will trigger.  There, you update your user interface and request incoming
+streams:
+
+```javascript
+serverConnection.onjoined = function(kind, group, perms, status, message) {
+    switch(kind) {
+    case 'join':
+        this.request({'':['audio','video']});
+        // then update the UI, possibly taking perms.present into account
+        break;
+    case 'change':
+        // update the UI
+        break;
+    case 'redirect':
+        this.close();
+        document.location.href = message;
+        break;
+    case 'fail':
+        // display the friendly error message
+        break;
+}
+```
+
 
 ## Sending and receiving chat messages
 
@@ -84,6 +105,7 @@ serverConnection.chat(username, '', id, 'Hi!');
 You receive chat messages in the `onchat` callback.  The server may
 request that you clear your chat window, in that case the `onclearchat`
 callback will trigger.
+
 
 ## Other messages
 
