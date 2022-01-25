@@ -184,8 +184,8 @@ func (conn *diskConn) warn(message string) {
 // called locked
 func (conn *diskConn) reopen(extension string) error {
 	for _, t := range conn.tracks {
+		t.writeBuffered(true)
 		if t.writer != nil {
-			t.writeBuffered(true)
 			t.writer.Close()
 			t.writer = nil
 		}
@@ -207,8 +207,8 @@ func (conn *diskConn) Close() error {
 	conn.mu.Lock()
 	tracks := make([]*diskTrack, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
+		t.writeBuffered(true)
 		if t.writer != nil {
-			t.writeBuffered(true)
 			t.writer.Close()
 			t.writer = nil
 		}
