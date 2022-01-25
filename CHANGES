@@ -1,3 +1,10 @@
+Galène 0.4.3 (unreleased)
+
+  * Fix a locking issue that could cause a deadlock when massive numbers
+    of clients join at the same time.
+  * Add support for displaying raised hands (thanks to Sascha Silbe).
+  * Update the MIME type for AV1 to track recent browsers.
+
 1 December 2021: Galène 0.4.2
 
   * Update the samplebuilder to avoid a crash when a single frame is so
