@@ -1613,8 +1613,7 @@ async function setMedia(c, isUp, mirror, video) {
 
         media.classList.add('media');
         media.autoplay = true;
-        /** @ts-ignore */
-        media.playsinline = true;
+        media.playsInline = true;
         media.id = 'media-' + c.localId;
         div.appendChild(media);
         addCustomControls(media, div, c, !!video);
