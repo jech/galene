@@ -1215,7 +1215,6 @@ Stream.prototype.restartIce = function () {
 
     if('restartIce' in c.pc) {
         try {
-            /** @ts-ignore */
             c.pc.restartIce();
             return;
         } catch(e) {

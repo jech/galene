@@ -917,9 +917,9 @@ function Filter(stream, definition) {
     this.fixedFramerate = false;
     /** @type {Object} */
     this.userdata = {}
-
-    /** @ts-ignore */
+    /** @type {MediaStream} */
     this.captureStream = this.canvas.captureStream(0);
+
     /** @ts-ignore */
     if(!this.captureStream.getTracks()[0].requestFrame) {
         console.warn('captureFrame not supported, using fixed framerate');
@@ -1141,7 +1141,6 @@ function setUpStream(c, stream) {
                     t.enabled = false;
             } else if(t.kind == 'video') {
                 if(settings.blackboardMode) {
-                    /** @ts-ignore */
                     t.contentHint = 'detail';
                 }
             }
@@ -1344,7 +1343,6 @@ async function addShareMedia() {
     try {
         if(!('getDisplayMedia' in navigator.mediaDevices))
             throw new Error('Your browser does not support screen sharing');
-        /** @ts-ignore */
         stream = await navigator.mediaDevices.getDisplayMedia({video: true});
     } catch(e) {
         console.error(e);
@@ -1799,13 +1797,10 @@ function registerControlHandlers(localId, media, container) {
 
     let pip = getVideoButton(container, 'pip');
     if(pip) {
-        /** @ts-ignore */
         if(HTMLVideoElement.prototype.requestPictureInPicture) {
             pip.onclick = function(e) {
                 e.preventDefault();
-                /** @ts-ignore */
                 if(media.requestPictureInPicture) {
-                    /** @ts-ignore */
                     media.requestPictureInPicture();
                 } else {
                     displayWarning('Picture in Picture not supported.');
