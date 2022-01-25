@@ -881,6 +881,15 @@ func rtcpUpListener(track *rtpUpTrack) {
 	}
 }
 
+// saturating addition
+func sadd(x, y uint64) uint64 {
+	s, c := bits.Add64(x, y, 0)
+	if c != 0 {
+		return ^uint64(0)
+	}
+	return s
+}
+
 func maxUpBitrate(t *rtpUpTrack) uint64 {
 	minrate := ^uint64(0)
 	maxrate := uint64(group.MinBitrate)
@@ -908,15 +917,13 @@ func maxUpBitrate(t *rtpUpTrack) uint64 {
 	// assume that lower spatial layers take up 1/5 of
 	// the throughput
 	if maxsid > 0 {
-		maxrate = maxrate * 5 / 4
+		maxrate = sadd(maxrate, maxrate / 4)
 	}
 	// assume that each layer takes two times less
 	// throughput than the higher one.  Then we've
 	// got enough slack for a factor of 2^(layers-1).
 	for i := 0; i < maxtid; i++ {
-		if minrate < ^uint64(0)/2 {
-			minrate *= 2
-		}
+		minrate = sadd(minrate, minrate)
 	}
 	if minrate < maxrate {
 		return minrate
@@ -990,15 +997,18 @@ func sendUpRTCP(up *rtpUpConnection) error {
 		}
 		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
 		if t.Kind() == webrtc.RTPCodecTypeAudio {
-			rate += 100 * 1024
+			rate = sadd(rate, 100 * 1024)
 		} else if t.Label() == "l" {
-			rate += group.LowBitrate
+			rate = sadd(rate, group.LowBitrate)
 		} else {
-			rate += maxUpBitrate(t)
+			rate = sadd(rate, maxUpBitrate(t))
 		}
 	}
 
-	if rate < ^uint64(0) && len(ssrcs) > 0 {
+	if rate > group.MaxBitrate {
+		rate = group.MaxBitrate
+	}
+	if len(ssrcs) > 0 {
 		packets = append(packets,
 			&rtcp.ReceiverEstimatedMaximumBitrate{
 				Bitrate: float32(rate),

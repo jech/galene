@@ -37,3 +37,20 @@ func TestDownTrackAtomics(t *testing.T) {
 		t.Errorf("Expected %v, got %v", info, info2)
 	}
 }
+
+func TestSadd(t *testing.T) {
+	ts := []struct{ x, y, z uint64 }{
+		{0, 0, 0},
+		{1, 2, 3},
+		{^uint64(0) - 10, 5, ^uint64(0) - 5},
+		{^uint64(0) - 10, 15, ^uint64(0)},
+	}
+	for _, tt := range ts {
+		z := sadd(tt.x, tt.y)
+		if z != tt.z {
+			t.Errorf("%v + %v: expected %v, got %v",
+				tt.x, tt.y, tt.z, z,
+			)
+		}
+	}
+}
