@@ -107,7 +107,8 @@ The `join` message requests that the sender join or leave a group:
     kind: 'join' or 'leave',
     group: group,
     username: username,
-    password: password
+    password: password,
+    status: status
 }
 ```
 

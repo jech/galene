@@ -1316,9 +1316,20 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 
 		if c.group != nil {
-			return group.ProtocolError("cannot join multiple groups")
+			return group.ProtocolError(
+				"cannot join multiple groups",
+			)
 		}
 		c.username = m.Username
+		if m.Status != nil {
+			s, ok := m.Status.(map[string]interface{})
+			if !ok {
+				return group.ProtocolError(
+					"bad type for status",
+				)
+			}
+			c.status = s
+		}
 		g, err := group.AddClient(m.Group, c,
 			group.ClientCredentials{
 				Username: m.Username,
