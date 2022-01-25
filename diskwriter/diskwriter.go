@@ -414,7 +414,7 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 			count := p.SequenceNumber - lastSeqno
 			if count < 256 {
 				for i := uint16(1); i < count; i++ {
-					recover(t, lastSeqno + i)
+					recover(t, lastSeqno+i)
 				}
 			} else {
 				requestKeyframe(t)
@@ -470,6 +470,9 @@ func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 		kf, _ := gcodecs.Keyframe(codec, p)
 		if kf {
 			t.savedKf = p
+			t.lastKf = time.Now()
+		} else if time.Since(t.lastKf) > 4*time.Second {
+			requestKeyframe(t)
 		}
 	}
 
@@ -518,7 +521,6 @@ func (t *diskTrack) writeBuffered(force bool) error {
 				}
 			}
 		} else {
-			keyframe = true
 			if t.writer == nil {
 				if !t.conn.hasVideo {
 					err := t.conn.initWriter(0, 0)
@@ -531,14 +533,6 @@ func (t *diskTrack) writeBuffered(force bool) error {
 					}
 				}
 			}
-		}
-
-		now := time.Now()
-		if keyframe {
-			t.lastKf = now
-		} else if t.writer == nil || now.Sub(t.lastKf) > 4*time.Second {
-			requestKeyframe(t)
-			return nil
 		}
 
 		if t.writer == nil {
