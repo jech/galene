@@ -414,7 +414,7 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 			count := p.SequenceNumber - lastSeqno
 			if count < 256 {
 				for i := uint16(1); i < count; i++ {
-					recover(t, lastSeqno+i)
+					fetch(t, lastSeqno+i)
 				}
 			} else {
 				requestKeyframe(t)
@@ -439,10 +439,10 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-func recover(t *diskTrack, seqno uint16) {
+func fetch(t *diskTrack, seqno uint16) {
 	// since the samplebuilder retains packets, use a fresh buffer
 	buf := make([]byte, 1504)
-	n := t.remote.GetPacket(seqno, buf, true)
+	n := t.remote.GetPacket(seqno, buf, false)
 	if n == 0 {
 		return
 	}
@@ -462,7 +462,7 @@ func requestKeyframe(t *diskTrack) {
 	}
 }
 
-// writeRTP writes the packet without doing any loss recovery.
+// writeRTP writes the packet without fetching lost packets
 // Called locked.
 func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 	codec := t.remote.Codec().MimeType
