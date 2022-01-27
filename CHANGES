@@ -1,9 +1,11 @@
-Galène 0.4.3 (unreleased)
+27 January 2021: Galène 0.4.3
 
   * Fix a locking issue that could cause a deadlock when massive numbers
     of clients join at the same time.
   * Add support for displaying raised hands (thanks to Sascha Silbe).
   * Update the MIME type for AV1 to track recent browsers.
+  * Avoid overflow during rate estimation.
+  * More fixes to the disk writer.
 
 1 December 2021: Galène 0.4.2
 
