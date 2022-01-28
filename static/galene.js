@@ -1961,26 +1961,27 @@ function stringCompare(a, b) {
 
 /**
  * @param {string} id
- * @param {string} name
+ * @param {user} userinfo
  */
-function addUser(id, name) {
-    if(!name)
-        name = null;
-
+function addUser(id, userinfo) {
     let div = document.getElementById('users');
     let user = document.createElement('div');
     user.id = 'user-' + id;
     user.classList.add("user-p");
-    user.textContent = name ? name : '(anon)';
+    user.textContent = userinfo.username ? userinfo.username : '(anon)';
+    if (userinfo.status.raisehand)
+        user.classList.add('user-status-raisehand');
+    else
+        user.classList.remove('user-status-raisehand');
 
-    if(name) {
+    if(userinfo.username) {
         let us = div.children;
         for(let i = 0; i < us.length; i++) {
             let child = us[i];
             let childuser =
                 serverConnection.users[child.id.slice('user-'.length)] || null;
             let childname = (childuser && childuser.username) || null;
-            if(!childname || stringCompare(childname, name) > 0) {
+            if(!childname || stringCompare(childname, userinfo.username) > 0) {
                 div.insertBefore(user, child);
                 return;
             }
@@ -2022,7 +2023,7 @@ function delUser(id) {
 function gotUser(id, kind) {
     switch(kind) {
     case 'add':
-        addUser(id, serverConnection.users[id].username);
+        addUser(id, serverConnection.users[id]);
         if(Object.keys(serverConnection.users).length == 3)
             reconsiderSendParameters();
         break;
