@@ -76,6 +76,7 @@ type Group struct {
 	clients     map[string]Client
 	history     []ChatHistoryEntry
 	timestamp   time.Time
+	data        map[string]interface{}
 }
 
 func (g *Group) Name() string {
@@ -98,6 +99,32 @@ func (g *Group) SetLocked(locked bool, message string) {
 		g.locked = &message
 	} else {
 		g.locked = nil
+	}
+	clients := g.getClientsUnlocked(nil)
+	g.mu.Unlock()
+
+	for _, c := range clients {
+		c.Joined(g.Name(), "change")
+	}
+}
+
+func (g *Group) Data() map[string]interface{} {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.data
+}
+
+func (g *Group) UpdateData(d map[string]interface{}) {
+	g.mu.Lock()
+	if g.data == nil {
+		g.data = make(map[string]interface{})
+	}
+	for k, v := range d {
+		if v == nil {
+			delete(g.data, k)
+		} else {
+			g.data[k] = v
+		}
 	}
 	clients := g.getClientsUnlocked(nil)
 	g.mu.Unlock()
@@ -577,12 +604,12 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 	id := c.Id()
 	u := c.Username()
 	p := c.Permissions()
-	s := c.Status()
+	s := c.Data()
 	c.PushClient(g.Name(), "add", c.Id(), u, p, s)
 	for _, cc := range clients {
 		pp := cc.Permissions()
 		c.PushClient(
-			g.Name(), "add", cc.Id(), cc.Username(), pp, cc.Status(),
+			g.Name(), "add", cc.Id(), cc.Username(), pp, cc.Data(),
 		)
 		cc.PushClient(g.Name(), "add", id, u, p, s)
 	}
@@ -1070,7 +1097,7 @@ type Status struct {
 	ClientCount *int   `json:"clientCount,omitempty"`
 }
 
-func GetStatus(g *Group, authentified bool) Status {
+func (g *Group) Status (authentified bool) Status {
 	desc := g.Description()
 	d := Status{
 		Name:        g.name,
@@ -1092,7 +1119,7 @@ func GetPublic() []Status {
 	gs := make([]Status, 0)
 	Range(func(g *Group) bool {
 		if g.Description().Public {
-			gs = append(gs, GetStatus(g, false))
+			gs = append(gs, g.Status(false))
 		}
 		return true
 	})

@@ -339,7 +339,7 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := group.GetStatus(g, false)
+	d := g.Status(false)
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("cache-control", "no-cache")
 

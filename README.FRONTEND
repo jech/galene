@@ -73,7 +73,7 @@ will trigger.  There, you update your user interface and request incoming
 streams:
 
 ```javascript
-serverConnection.onjoined = function(kind, group, perms, status, message) {
+serverConnection.onjoined = function(kind, group, perms, status, data, message) {
     switch(kind) {
     case 'join':
         this.request({'':['audio','video']});

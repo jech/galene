@@ -100,10 +100,10 @@ type Client interface {
 	Username() string
 	Permissions() ClientPermissions
 	SetPermissions(ClientPermissions)
-	Status() map[string]interface{}
+	Data() map[string]interface{}
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
 	RequestConns(target Client, g *Group, id string) error
 	Joined(group, kind string) error
-	PushClient(group, kind, id, username string, permissions ClientPermissions, status map[string]interface{}) error
+	PushClient(group, kind, id, username string, permissions ClientPermissions, data map[string]interface{}) error
 	Kick(id, user, message string) error
 }

@@ -1969,7 +1969,7 @@ function addUser(id, userinfo) {
     user.id = 'user-' + id;
     user.classList.add("user-p");
     user.textContent = userinfo.username ? userinfo.username : '(anon)';
-    if (userinfo.status.raisehand)
+    if (userinfo.data.raisehand)
         user.classList.add('user-status-raisehand');
     else
         user.classList.remove('user-status-raisehand');
@@ -2001,7 +2001,7 @@ function changeUser(id, userinfo) {
         return;
     }
     user.textContent = userinfo.username ? userinfo.username : '(anon)';
-    if (userinfo.status.raisehand)
+    if (userinfo.data.raisehand)
         user.classList.add('user-status-raisehand');
     else
         user.classList.remove('user-status-raisehand');
@@ -2084,9 +2084,10 @@ function setTitle(title) {
  * @param {string} group
  * @param {Object<string,boolean>} perms
  * @param {Object<string,any>} status
+ * @param {Object<string,any>} data
  * @param {string} message
  */
-async function gotJoined(kind, group, perms, status, message) {
+async function gotJoined(kind, group, perms, status, data, message) {
     let present = presentRequested;
     presentRequested = null;
 
@@ -2698,7 +2699,7 @@ commands.raise = {
     description: 'raise hand',
     f: (c, r) => {
         serverConnection.userAction(
-            "setstatus", serverConnection.id, {"raisehand": true},
+            "setdata", serverConnection.id, {"raisehand": true},
         );
     }
 }
@@ -2707,7 +2708,7 @@ commands.unraise = {
     description: 'unraise hand',
     f: (c, r) => {
         serverConnection.userAction(
-            "setstatus", serverConnection.id, {"raisehand": null},
+            "setdata", serverConnection.id, {"raisehand": null},
         );
     }
 }

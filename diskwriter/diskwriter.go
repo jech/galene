@@ -69,11 +69,11 @@ func (client *Client) Permissions() group.ClientPermissions {
 	}
 }
 
-func (client *Client) Status() map[string]interface{} {
+func (client *Client) Data() map[string]interface{} {
 	return nil
 }
 
-func (client *Client) PushClient(group, kind, id, username string, permissions group.ClientPermissions, status map[string]interface{}) error {
+func (client *Client) PushClient(group, kind, id, username string, permissions group.ClientPermissions, data map[string]interface{}) error {
 	return nil
 }
 

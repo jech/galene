@@ -64,7 +64,7 @@ function newLocalId() {
  * @typedef {Object} user
  * @property {string} username
  * @property {Object<string,boolean>} permissions
- * @property {Object<string,any>} status
+ * @property {Object<string,any>} data
  * @property {Object<string,Object<string,boolean>>} down
  */
 
@@ -164,7 +164,7 @@ function ServerConnection() {
      *
      * kind is one of 'join', 'fail', 'change' or 'leave'.
      *
-     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, status: Object<string,any>, message: string) => void}
+     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, status: Object<string,any>, data: Object<string,any>, message: string) => void}
      */
     this.onjoined = null;
     /**
@@ -208,6 +208,7 @@ function ServerConnection() {
   * @property {boolean} [privileged]
   * @property {Object<string,boolean>} [permissions]
   * @property {Object<string,any>} [status]
+  * @property {Object<string,any>} [data]
   * @property {string} [group]
   * @property {unknown} [value]
   * @property {boolean} [noecho]
@@ -284,7 +285,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onuser.call(sc, id, 'delete');
             }
             if(sc.group && sc.onjoined)
-                sc.onjoined.call(sc, 'leave', sc.group, {}, {}, '');
+                sc.onjoined.call(sc, 'leave', sc.group, {}, {}, {}, '');
             sc.group = null;
             sc.username = null;
             if(sc.onclose)
@@ -336,7 +337,7 @@ ServerConnection.prototype.connect = async function(url) {
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
                                      m.permissions || {},
-                                     m.status,
+                                     m.status, m.data,
                                      m.value || null);
                 break;
             case 'user':
@@ -347,7 +348,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.users[m.id] = {
                         username: m.username,
                         permissions: m.permissions || {},
-                        status: m.status || {},
+                        data: m.data || {},
                         down: {},
                     };
                     break;
@@ -357,13 +358,13 @@ ServerConnection.prototype.connect = async function(url) {
                         sc.users[m.id] = {
                             username: m.username,
                             permissions: m.permissions || {},
-                            status: m.status || {},
+                            data: m.data || {},
                             down: {},
                         };
                     } else {
                         sc.users[m.id].username = m.username;
                         sc.users[m.id].permissions = m.permissions || {};
-                        sc.users[m.id].status = m.status || {};
+                        sc.users[m.id].data = m.data || {};
                     }
                     break;
                 case 'delete':

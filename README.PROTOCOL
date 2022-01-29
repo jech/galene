@@ -108,7 +108,7 @@ The `join` message requests that the sender join or leave a group:
     group: group,
     username: username,
     password: password,
-    status: status
+    data: data
 }
 ```
 
@@ -125,6 +125,7 @@ its permissions or in the recommended RTC configuration.
     username: username,
     permissions: permissions,
     status: status,
+    data: data,
     rtcConfiguration: RTCConfiguration
 }
 ```
@@ -337,7 +338,7 @@ A user action requests that the server act upon a user.
 }
 ```
 Currently defined kinds include `op`, `unop`, `present`, `unpresent`,
-`kick` and `setstatus`.
+`kick` and `setdata`.
 
 Finally, a group action requests that the server act on the current group.
 
@@ -352,5 +353,5 @@ Finally, a group action requests that the server act on the current group.
 ```
 
 Currently defined kinds include `clearchat` (not to be confused with the
-`clearchat` user message), `lock`, `unlock`, `record`, `unrecord` and
-`subgroups`.
+`clearchat` user message), `lock`, `unlock`, `record`, `unrecord`,
+`subgroups` and `setdata`.

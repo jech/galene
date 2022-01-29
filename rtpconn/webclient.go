@@ -57,7 +57,7 @@ type webClient struct {
 	id          string
 	username    string
 	permissions group.ClientPermissions
-	status      map[string]interface{}
+	data        map[string]interface{}
 	requested   map[string][]string
 	done        chan struct{}
 	writeCh     chan interface{}
@@ -90,17 +90,17 @@ func (c *webClient) Permissions() group.ClientPermissions {
 	return c.permissions
 }
 
-func (c *webClient) Status() map[string]interface{} {
-	return c.status
+func (c *webClient) Data() map[string]interface{} {
+	return c.data
 }
 
 func (c *webClient) SetPermissions(perms group.ClientPermissions) {
 	c.permissions = perms
 }
 
-func (c *webClient) PushClient(group, kind, id, username string, permissions group.ClientPermissions, status map[string]interface{}) error {
+func (c *webClient) PushClient(group, kind, id, username string, permissions group.ClientPermissions, data map[string]interface{}) error {
 	return c.action(pushClientAction{
-		group, kind, id, username, permissions, status,
+		group, kind, id, username, permissions, data,
 	})
 }
 
@@ -115,7 +115,8 @@ type clientMessage struct {
 	Password         string                   `json:"password,omitempty"`
 	Privileged       bool                     `json:"privileged,omitempty"`
 	Permissions      *group.ClientPermissions `json:"permissions,omitempty"`
-	Status           interface{}              `json:"status,omitempty"`
+	Status           *group.Status            `json:"status,omitempty"`
+	Data             map[string]interface{}   `json:"data,omitempty"`
 	Group            string                   `json:"group,omitempty"`
 	Value            interface{}              `json:"value,omitempty"`
 	NoEcho           bool                     `json:"noecho,omitempty"`
@@ -899,7 +900,7 @@ type pushClientAction struct {
 	id          string
 	username    string
 	permissions group.ClientPermissions
-	status      map[string]interface{}
+	data        map[string]interface{}
 }
 
 type permissionsChangedAction struct{}
@@ -1106,14 +1107,17 @@ func handleAction(c *webClient, a interface{}) error {
 			Id:          a.id,
 			Username:    a.username,
 			Permissions: &a.permissions,
-			Status:      a.status,
+			Data:        a.data,
 		})
 	case joinedAction:
-		var status interface{}
+		var status *group.Status
+		var data map[string]interface{}
 		if a.group != "" {
 			g := group.Get(a.group)
 			if g != nil {
-				status = group.GetStatus(g, true)
+				s := g.Status(true)
+				status = &s
+				data = g.Data()
 			}
 		}
 		perms := c.permissions
@@ -1124,6 +1128,7 @@ func handleAction(c *webClient, a interface{}) error {
 			Username:         c.username,
 			Permissions:      &perms,
 			Status:           status,
+			Data:             data,
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
 	case permissionsChangedAction:
@@ -1132,13 +1137,14 @@ func handleAction(c *webClient, a interface{}) error {
 			return errors.New("Permissions changed in no group")
 		}
 		perms := c.permissions
+		status := g.Status(true)
 		c.write(clientMessage{
 			Type:             "joined",
 			Kind:             "change",
 			Group:            g.Name(),
 			Username:         c.username,
 			Permissions:      &perms,
-			Status:           group.GetStatus(g, true),
+			Status:           &status,
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
 		if !c.permissions.Present {
@@ -1157,12 +1163,12 @@ func handleAction(c *webClient, a interface{}) error {
 		}
 		id := c.Id()
 		user := c.Username()
-		s := c.Status()
+		d := c.Data()
 		clients := g.GetClients(nil)
 		go func(clients []group.Client) {
 			for _, cc := range clients {
 				cc.PushClient(
-					g.Name(), "change", id, user, perms, s,
+					g.Name(), "change", id, user, perms, d,
 				)
 			}
 		}(clients)
@@ -1214,7 +1220,7 @@ func leaveGroup(c *webClient) {
 
 	group.DelClient(c)
 	c.permissions = group.ClientPermissions{}
-	c.status = nil
+	c.data = nil
 	c.requested = make(map[string][]string)
 	c.group = nil
 }
@@ -1321,15 +1327,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			)
 		}
 		c.username = m.Username
-		if m.Status != nil {
-			s, ok := m.Status.(map[string]interface{})
-			if !ok {
-				return group.ProtocolError(
-					"bad type for status",
-				)
-			}
-			c.status = s
-		}
+		c.data = m.Data
 		g, err := group.AddClient(m.Group, c,
 			group.ClientCredentials{
 				Username: m.Username,
@@ -1615,6 +1613,17 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Time:     group.ToJSTime(time.Now()),
 				Value:    s,
 			})
+		case "setdata":
+			if !c.permissions.Op {
+				return c.error(group.UserError("not authorised"))
+			}
+			data, ok := m.Value.(map[string]interface{})
+			if !ok {
+				return c.error(group.UserError(
+					"Bad value in setdata",
+				))
+			}
+			g.UpdateData(data)
 		default:
 			return group.ProtocolError("unknown group action")
 		}
@@ -1645,35 +1654,35 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if err != nil {
 				return c.error(err)
 			}
-		case "setstatus":
+		case "setdata":
 			if m.Dest != c.Id() {
 				return c.error(group.UserError("not authorised"))
 			}
-			s, ok := m.Value.(map[string]interface{})
+			data, ok := m.Value.(map[string]interface{})
 			if !ok {
 				return c.error(group.UserError(
-					"Bad value in setstatus",
+					"Bad value in setdata",
 				))
 			}
-			if c.status == nil {
-				c.status = make(map[string]interface{})
+			if c.data == nil {
+				c.data = make(map[string]interface{})
 			}
-			for k, v := range s {
+			for k, v := range data {
 				if v == nil {
-					delete(c.status, k)
+					delete(c.data, k)
 				} else {
-					c.status[k] = v
+					c.data[k] = v
 				}
 			}
 			id := c.Id()
 			user := c.Username()
 			perms := c.Permissions()
-			status := c.Status()
+			data = c.Data()
 			go func(clients []group.Client) {
 				for _, cc := range clients {
 					cc.PushClient(
 						g.Name(), "change",
-						id, user, perms, status,
+						id, user, perms, data,
 					)
 				}
 			}(g.GetClients(nil))
