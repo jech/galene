@@ -2154,13 +2154,454 @@ async function gotJoined(kind, group, perms, status, data, message) {
 }
 
 /**
+ * @typedef {Object} transferredFile
+ * @property {string} id
+ * @property {string} username
+ * @property {string} name
+ * @property {File} [file]
+ * @property {RTCPeerConnection} [pc]
+ * @property {number} size
+ * @property {string} type
+ * @property {Array<RTCIceCandidateInit>} [candidates]
+ * @property {Array<Uint8Array>} [data]
+ * @property {number} [datalen]
+ * @property {boolean} [done]
+ */
+
+/** @type {Object<string,transferredFile>} */
+let transferredFiles = {};
+
+/**
+ * @param {boolean} up
+ * @param {string} id
+ * @param {string} fileid
+ */
+function transferredFileId(up, id, fileid) {
+    return id + (up ? '+' : '-') + fileid;
+}
+
+/**
+ * @param {boolean} up
+ * @param {string} id
+ * @param {string} fileid
+ * @returns {transferredFile}
+ */
+function getTransferredFile(up, id, fileid) {
+    let f = transferredFiles[transferredFileId(up, id, fileid)];
+    if(!f) {
+        throw new Error("Couldn't find file being transferred");
+    }
+    return f;
+}
+
+/**
+ * @param {boolean} up
+ * @param {string} id
+ * @param {string} fileid
+ */
+function deleteTransferredFile(up, id, fileid) {
+    let fullid = transferredFileId(up, id, fileid);
+    let f = transferredFiles[fullid];
+    if(!f)
+        return;
+    if(f.pc) {
+        f.pc.close();
+        delete(f.pc);
+    }
+    delete(transferredFiles[fullid]);
+}
+
+/**
+ * @param {boolean} up
+ * @param {string} id
+ * @param {string} fileid
+ * @param {transferredFile} f
+ */
+function fileTransferBox(up, id, fileid, f) {
+    let fullid = transferredFileId(up, id, fileid);
+    let p = document.createElement('p');
+    if(up)
+        p.textContent =
+        `We have offered to send a file called "${f.name}" ` +
+        `to user ${f.username}.`;
+    else
+        p.textContent =
+        `User ${f.username} offered to send us a file ` +
+        `called "${f.name}" of size ${f.size}.`
+    let bno = null, byes = null;
+    if(up) {
+        bno = document.createElement('button');
+        bno.textContent = 'Cancel';
+        bno.onclick = function(e) {
+            cancelFile(id, fileid);
+        };
+        bno.id = "bno-" + fullid;
+    } else {
+        byes = document.createElement('button');
+        byes.textContent = 'Accept';
+        byes.onclick = function(e) {
+            getFile(id, fileid);
+        };
+        byes.id = "byes-" + fullid;
+        bno = document.createElement('button');
+        bno.textContent = 'Decline';
+        bno.onclick = function(e) {
+            rejectFile(id, fileid);
+        };
+        bno.id = "bno-" + fullid;
+    }
+    let status = document.createElement('div');
+    status.id = 'status-' + fullid;
+    let div = document.createElement('div');
+    div.id = 'file-' + fullid;
+    div.appendChild(p);
+    if(byes)
+        div.appendChild(byes);
+    if(bno)
+        div.appendChild(bno);
+    div.appendChild(status);
+    div.classList.add('message');
+    div.classList.add('message-private');
+    let box = document.getElementById('box');
+    box.appendChild(div);
+    return div;
+}
+
+/**
+ * @param {boolean} up
+ * @param {string} id
+ * @param {string} fileid
+ * @param {string} status
+ * @param {boolean} [delyes]
+ * @param {boolean} [delno]
+ */
+function setFileStatus(up, id, fileid, status, delyes, delno) {
+    let fullid = transferredFileId(up, id, fileid)
+    let statusdiv = document.getElementById('status-' + fullid);
+    if(!statusdiv)
+        throw new Error("Couldn't find statusdiv");
+    statusdiv.textContent = status;
+    if(delyes || delno) {
+        let div = document.getElementById('file-' + fullid);
+        if(!div)
+            throw new Error("Couldn't find file div");
+        if(delyes) {
+            let byes = document.getElementById('byes-' + fullid)
+            if(byes)
+                div.removeChild(byes);
+        }
+        if(delno) {
+            let bno = document.getElementById('bno-' + fullid)
+            if(bno)
+                div.removeChild(bno);
+        }
+    }
+}
+
+/**
+ * @param {string} username
+ * @param {string} id
+ * @param {File} file
+ */
+function offerFile(username, id, file) {
+    let fileid = newRandomId();
+    let fullid = transferredFileId(true, id, fileid);
+    if(transferredFiles[fullid])
+        throw new Error('Id collision');
+    let f = {
+        id: fileid,
+        username: username,
+        file: file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+    }
+    fileTransferBox(true, id, fileid, f);
+    serverConnection.userMessage('offerfile', id, {
+        id: fileid,
+        name: f.name,
+        size: f.size,
+        type: f.type,
+    });
+    transferredFiles[fullid] = f;
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ */
+function cancelFile(id, fileid) {
+    let f = getTransferredFile(true, id, fileid);
+    serverConnection.userMessage('cancelfile', id, {
+        id: f.id,
+    });
+    deleteTransferredFile(true, id, fileid);
+    setFileStatus(true, id, fileid, 'Cancelled.', true, true);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ */
+async function getFile(id, fileid) {
+    let f = getTransferredFile(false, id, fileid);
+    if(f.pc)
+        throw new Error('Download already in progress');
+
+    setFileStatus(false, id, fileid, 'Connecting...', true);
+    let pc = new RTCPeerConnection(serverConnection.rtcConfiguration);
+    if(!pc)
+        throw new Error("Couldn't create peer connection");
+    f.pc = pc;
+    f.candidates = [];
+    pc.onsignalingstatechange = function(e) {
+        if(pc.signalingState === 'stable') {
+            f.candidates.forEach(c => pc.addIceCandidate(c).catch(console.warn));
+            f.candidates = [];
+        }
+    };
+    pc.onicecandidate = function(e) {
+        serverConnection.userMessage('filedownice', id, {
+            id: f.id,
+            candidate: e.candidate,
+        });
+    };
+    let dc = pc.createDataChannel('file');
+    f.data = [];
+    f.datalen = 0;
+    dc.onclose = function(e) {
+        closeReceiveFileData(id, fileid, f);
+    }
+    dc.onmessage = function(e) {
+        receiveFileData(id, fileid, f, dc, e.data);
+    }
+    let offer = await pc.createOffer();
+    if(!offer)
+        throw new Error("Couldn't create offer");
+    await pc.setLocalDescription(offer);
+    serverConnection.userMessage('getfile', id, {
+        id: f.id,
+        offer: pc.localDescription.sdp,
+    });
+    setFileStatus(false, id, fileid, 'Negotiating...', true);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ */
+async function rejectFile(id, fileid) {
+    let f = getTransferredFile(false, id, fileid);
+    serverConnection.userMessage('rejectfile', id, {
+        id: f.id,
+    });
+    deleteTransferredFile(false, id, fileid);
+    setFileStatus(false, id, fileid, 'Rejected.', true, true);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ * @param {string} sdp
+ */
+async function sendFile(id, fileid, sdp) {
+    let f = getTransferredFile(true, id, fileid);
+    if(f.pc)
+        throw new Error('Transfer already in progress');
+
+    setFileStatus(true, id, fileid, 'Negotiating...', true);
+    let pc = new RTCPeerConnection(serverConnection.rtcConfiguration);
+    if(!pc)
+        throw new Error("Couldn't create peer connection");
+    f.pc = pc;
+    f.candidates = [];
+    pc.onicecandidate = function(e) {
+        serverConnection.userMessage('fileupice', id, {
+            id: f.id,
+            candidate: e.candidate,
+        });
+    };
+    pc.onsignalingstatechange = function(e) {
+        if(pc.signalingState === 'stable') {
+            f.candidates.forEach(c => pc.addIceCandidate(c).catch(console.warn));
+            f.candidates = [];
+        }
+    };
+    let file = f.file;
+    pc.ondatachannel = function(e) {
+        e.channel.onopen = function(e) {
+            let dc = /** @type{RTCDataChannel} */(e.target);
+            dc.onmessage = function(e) {
+                ackSendFileData(id, fileid, f, e.data);
+            }
+            dc.onclose = function(e) {
+                closeSendFileData(id, fileid, f);
+            }
+            sendFileData(id, fileid, f, dc, file);
+        }
+    };
+
+    await pc.setRemoteDescription({
+        type: 'offer',
+        sdp: sdp,
+    });
+
+    let answer = await pc.createAnswer();
+    if(!answer)
+        throw new Error("Couldn't create answer");
+    await pc.setLocalDescription(answer);
+    serverConnection.userMessage('sendfile', id, {
+        id: f.id,
+        answer: pc.localDescription.sdp,
+    });
+    setFileStatus(true, id, fileid, 'Uploading...', true);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ * @param {string} sdp
+ */
+async function receiveFile(id, fileid, sdp) {
+    let f = getTransferredFile(false, id, fileid);
+    if(!f.pc)
+        throw new Error('Transfer is not in progress');
+    await f.pc.setRemoteDescription({
+        type: 'answer',
+        sdp: sdp,
+    });
+    setFileStatus(false, id, fileid, 'Downloading...', true);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ * @param {transferredFile} f
+ * @param {RTCDataChannel} dc
+ * @param {File} file
+ */
+async function sendFileData(id, fileid, f, dc, file) {
+    let r = file.stream().getReader();
+    f.datalen = 0;
+
+    dc.bufferedAmountLowThreshold = 65536;
+
+    async function write(a) {
+        while(dc.bufferedAmount > 65536) {
+            await new Promise((resolve, reject) => {
+                dc.onbufferedamountlow = function(e) {
+                    resolve();
+                }
+            });
+        }
+        dc.send(a);
+        f.datalen += a.length;
+        setFileStatus(
+            true, id, fileid, `Uploading... ${f.datalen}/${f.size}`, true,
+        );
+    }
+
+    while(true) {
+        let v = await r.read();
+        if(v.done)
+            break;
+        if(v.value.length < 16384) {
+            await write(v.value);
+        } else {
+            for(let i = 0; i < v.value.length; i += 16384) {
+                let a = new Uint8Array(
+                    v.value.buffer, i, Math.min(16384, v.value.length - i),
+                );
+                await write(a);
+            }
+        }
+    }
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ * @param {transferredFile} f
+ */
+function ackSendFileData(id, fileid, f, data) {
+    if(data === 'done' && f.datalen == f.size)
+        setFileStatus(true, id, fileid, 'Done.', true, true);
+    else
+        setFileStatus(true, id, fileid, 'Failed.', true, true);
+    f.done = true;
+    deleteTransferredFile(true, id, fileid);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ * @param {transferredFile} f
+ */
+function closeSendFileData(id, fileid, f) {
+    if(!f.done)
+        setFileStatus(true, id, fileid, 'Failed.', true, true);
+    deleteTransferredFile(true, id, fileid);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ * @param {transferredFile} f
+ * @param {RTCDataChannel} dc
+ * @param {Uint8Array} data
+ */
+function receiveFileData(id, fileid, f, dc, data) {
+    f.data.push(data);
+    f.datalen += data.byteLength;
+    setFileStatus(
+        false, id, fileid, `Downloading... ${f.datalen}/${f.size}`, true,
+    );
+
+    if(f.datalen < f.size)
+        return;
+
+    if(f.datalen > f.size) {
+        setFileStatus(false, id, fileid, 'Failed.', true, true);
+        deleteTransferredFile(false, id, fileid);
+        return;
+    }
+
+    dc.send('done');
+
+    setFileStatus(false, id, fileid, 'Done.', true, true);
+
+    let blob = new Blob(f.data, {type: f.type});
+    f.data = null;
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.textContent = f.name;
+    a.download = f.name;
+    a.type = f.type;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * @param {string} id
+ * @param {string} fileid
+ * @param {transferredFile} f
+ */
+function closeReceiveFileData(id, fileid, f) {
+    if(f.datalen != f.size) {
+        setFileStatus(false, id, fileid, 'Failed.', true, true)
+        deleteTransferredFile(false, id, fileid);
+    }
+}
+
+/**
  * @param {string} id
  * @param {string} dest
  * @param {string} username
  * @param {number} time
  * @param {boolean} privileged
  * @param {string} kind
- * @param {unknown} message
+ * @param {any} message
  */
 function gotUserMessage(id, dest, username, time, privileged, kind, message) {
     switch(kind) {
@@ -2190,6 +2631,62 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
             console.error(`Got unprivileged message of kind ${kind}`);
         }
         break;
+    case 'offerfile': {
+        let fullid = transferredFileId(false, id, message.id);
+        let f = {
+            id: message.id,
+            username: username,
+            name: message.name,
+            type: message.type,
+            size: message.size,
+        };
+        transferredFiles[fullid] = f;
+        fileTransferBox(false, id, message.id, f);
+        break;
+    }
+    case 'cancelfile': {
+        setFileStatus(false, id, message.id, 'Cancelled.');
+        deleteTransferredFile(false, id, message.id);
+        break;
+    }
+    case 'getfile': {
+        sendFile(id, message.id, message.offer);
+        break;
+    }
+    case 'rejectfile': {
+        setFileStatus(true, id, message.id, 'Rejected.');
+        deleteTransferredFile(true, id, message.id);
+        break;
+    }
+    case 'sendfile': {
+        receiveFile(id, message.id, message.answer);
+        break;
+    }
+    case 'filedownice': {
+        let f = getTransferredFile(true, id, message.id);
+        if(!f.pc) {
+            console.warn('Unexpected filedownice');
+            return;
+        }
+        if(f.pc.signalingState === 'stable')
+            f.pc.addIceCandidate(message.candidate).catch(console.warn);
+        else
+            f.candidates.push(message.candidate);
+        break;
+    }
+    case 'fileupice': {
+        let f = getTransferredFile(false, id, message.id);
+        if(!f.pc) {
+            console.warn('Unexpected fileupice');
+            return;
+        }
+        if(f.pc.signalingState === 'stable')
+            f.pc.addIceCandidate(message.candidate).catch(console.warn);
+        else
+            f.candidates.push(message.candidate);
+        break;
+
+    }
     default:
         console.warn(`Got unknown user message ${kind}`);
         break;
@@ -2712,6 +3209,35 @@ commands.unraise = {
         );
     }
 }
+
+commands.sendfile = {
+    parameters: 'user',
+    description: 'send file',
+    f: (c, r) => {
+        let p = parseCommand(r);
+        if(!p[0])
+            throw new Error(`/${c} requires parameters`);
+        let id = findUserId(p[0]);
+        if(!id)
+            throw new Error(`Unknown user ${p[0]}`);
+        let input = document.createElement('input');
+        input.type = 'file';
+        input.onchange = function(e) {
+            if(!(this instanceof HTMLInputElement))
+                throw new Error('Unexpected type for this');
+            let files = input.files;
+            for(let i = 0; i < files.length; i++) {
+                try {
+                    offerFile(p[0], id, files[i]);
+                } catch(e) {
+                    console.error(e);
+                    displayError(e);
+                }
+            };
+        };
+        input.click();
+    }
+};
 
 /**
  * Test loopback through a TURN relay.
