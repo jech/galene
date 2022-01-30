@@ -2252,6 +2252,10 @@ function fileTransferBox(up, id, fileid, f) {
     }
     let status = document.createElement('div');
     status.id = 'status-' + fullid;
+    if(!up) {
+        status.textContent =
+            '(Choosing "Accept" will disclose your IP address.)';
+    }
     let div = document.createElement('div');
     div.id = 'file-' + fullid;
     div.appendChild(p);
@@ -3212,7 +3216,7 @@ commands.unraise = {
 
 commands.sendfile = {
     parameters: 'user',
-    description: 'send file',
+    description: 'send a file (this will disclose your IP address)',
     f: (c, r) => {
         let p = parseCommand(r);
         if(!p[0])
