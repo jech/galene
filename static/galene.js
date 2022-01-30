@@ -2645,7 +2645,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
         break;
     }
     case 'cancelfile': {
-        setFileStatus(false, id, message.id, 'Cancelled.');
+        setFileStatus(false, id, message.id, 'Cancelled.', true, true);
         deleteTransferredFile(false, id, message.id);
         break;
     }
@@ -2654,7 +2654,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
         break;
     }
     case 'rejectfile': {
-        setFileStatus(true, id, message.id, 'Rejected.');
+        setFileStatus(true, id, message.id, 'Rejected.', true, true);
         deleteTransferredFile(true, id, message.id);
         break;
     }
