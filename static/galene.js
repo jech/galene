@@ -2163,7 +2163,7 @@ async function gotJoined(kind, group, perms, status, data, message) {
  * @property {number} size
  * @property {string} type
  * @property {Array<RTCIceCandidateInit>} [candidates]
- * @property {Array<Uint8Array>} [data]
+ * @property {Array<Blob|ArrayBuffer>} [data]
  * @property {number} [datalen]
  * @property {boolean} [done]
  */
@@ -2303,6 +2303,18 @@ function setFileStatus(up, id, fileid, status, delyes, delno) {
 }
 
 /**
+ * @param {boolean} up
+ * @param {string} id
+ * @param {string} fileid
+ * @param {any} message
+ */
+function failFile(up, id, fileid, message) {
+    console.error('File transfer failed:', message);
+    setFileStatus(up, id, fileid, message ? `Failed: ${message}` : 'Failed.');
+    deleteTransferredFile(true, id, fileid);
+}
+
+/**
  * @param {string} username
  * @param {string} id
  * @param {File} file
@@ -2374,11 +2386,24 @@ async function getFile(id, fileid) {
     f.data = [];
     f.datalen = 0;
     dc.onclose = function(e) {
-        closeReceiveFileData(id, fileid, f);
-    }
+        try {
+            closeReceiveFileData(id, fileid, f);
+        } catch(e) {
+            failFile(false, id, fileid, e);
+        }
+    };
     dc.onmessage = function(e) {
-        receiveFileData(id, fileid, f, dc, e.data);
-    }
+        try {
+            receiveFileData(id, fileid, f, dc, e.data);
+        } catch(e) {
+            failFile(false, id, fileid, e);
+        }
+    };
+    dc.onerror = function(e) {
+        /** @ts-ignore */
+        let err = e.error;
+        failFile(false, id, fileid, err);
+    };
     let offer = await pc.createOffer();
     if(!offer)
         throw new Error("Couldn't create offer");
@@ -2433,16 +2458,27 @@ async function sendFile(id, fileid, sdp) {
     };
     let file = f.file;
     pc.ondatachannel = function(e) {
-        e.channel.onopen = function(e) {
-            let dc = /** @type{RTCDataChannel} */(e.target);
-            dc.onmessage = function(e) {
-                ackSendFileData(id, fileid, f, e.data);
-            }
-            dc.onclose = function(e) {
+        let dc = /** @type{RTCDataChannel} */(e.channel);
+        dc.onclose = function(e) {
+            try {
                 closeSendFileData(id, fileid, f);
+            } catch(e) {
+                failFile(true, id, fileid, e);
             }
-            sendFileData(id, fileid, f, dc, file);
+        };
+        dc.onerror = function(e) {
+            /** @ts-ignore */
+            let err = e.error;
+            failFile(true, id, fileid, err);
         }
+        dc.onmessage = function(e) {
+            try {
+                ackSendFileData(id, fileid, f, e.data);
+            } catch(e) {
+                failFile(true, id, fileid, e);
+            }
+        };
+        sendFileData(id, fileid, f, dc, file);
     };
 
     await pc.setRemoteDescription({
@@ -2552,11 +2588,19 @@ function closeSendFileData(id, fileid, f) {
  * @param {string} fileid
  * @param {transferredFile} f
  * @param {RTCDataChannel} dc
- * @param {Uint8Array} data
+ * @param {Blob|ArrayBuffer} data
  */
 function receiveFileData(id, fileid, f, dc, data) {
     f.data.push(data);
-    f.datalen += data.byteLength;
+    if(data instanceof Blob) {
+        f.datalen += data.size;
+    } else if(data instanceof ArrayBuffer) {
+        f.datalen += data.byteLength;
+    } else {
+        console.error('Unexpeced type for received data', data);
+        throw new Error('unexpected type for received data');
+    }
+
     setFileStatus(
         false, id, fileid, `Downloading... ${f.datalen}/${f.size}`, true,
     );
@@ -2569,6 +2613,9 @@ function receiveFileData(id, fileid, f, dc, data) {
         deleteTransferredFile(false, id, fileid);
         return;
     }
+
+    dc.onmessage = null;
+    dc.onerror = null;
 
     dc.send('done');
 
