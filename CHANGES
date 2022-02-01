@@ -1,3 +1,7 @@
+Galene 0.5 (unreleased)
+
+  * Implemented peer-to-peer file transfer.
+
 1 February 2022: Galene 0.4.4
 
   * Update dependencies.  Pion WebRTC v3.1.19 fixes a bug that could cause
