@@ -56,6 +56,7 @@ func (c *webClient) GetStats() *stats.Client {
 			tid := layer.tid
 			maxTid := layer.maxTid
 			rate, _ := t.rate.Estimate()
+			maxRate, _, _ := t.GetMaxBitrate()
 			rtt := rtptime.ToDuration(t.getRTT(),
 				rtptime.JiffiesPerSec)
 			loss, jitter := t.stats.Get(jiffies)
@@ -67,7 +68,7 @@ func (c *webClient) GetStats() *stats.Client {
 				Sid:        &sid,
 				MaxSid:     &maxSid,
 				Bitrate:    uint64(rate) * 8,
-				MaxBitrate: t.maxBitrate.Get(jiffies),
+				MaxBitrate: maxRate,
 				Loss:       float64(loss) / 256.0,
 				Rtt:        stats.Duration(rtt),
 				Jitter:     stats.Duration(j),
