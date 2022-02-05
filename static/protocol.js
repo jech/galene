@@ -417,9 +417,9 @@ ServerConnection.prototype.connect = async function(url) {
  * @param {string} group - The name of the group to join.
  * @param {string} username - the username to join as.
  * @param {string} password - the password.
- * @param {Object<string,any>} [status] - the initial status of the user.
+ * @param {Object<string,any>} [data] - the initial associated data.
  */
-ServerConnection.prototype.join = function(group, username, password, status) {
+ServerConnection.prototype.join = function(group, username, password, data) {
     let m = {
         type: 'join',
         kind: 'join',
@@ -427,8 +427,8 @@ ServerConnection.prototype.join = function(group, username, password, status) {
         username: username,
         password: password,
     };
-    if(status)
-        m.status = status;
+    if(data)
+        m.data = data;
     this.send(m);
 };
 
