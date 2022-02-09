@@ -1345,3 +1345,58 @@ header .collapse {
     }
 
 }
+
+/* Changes made by dark mode */
+.app-dark {
+    background-color: #212529;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    box-shadow: 0 1px 1px 0 rgba(90, 89, 89, 0.06), 0 2px 5px 0 rgba(0, 0, 0, .2);
+}
+
+.sidenav-content-dark {
+    padding: 10px;
+    background: #212529;
+    height: 100%;
+}
+
+#left-sidebar.left-sidebar-dark {
+    min-width: 200px;
+    max-width: 200px;
+    transition: all 0.3s;
+    background: #212529;
+    border-right: 1px solid #3b3b3b;
+    z-index: 1039;
+}
+
+#chat.chat-dark {
+    padding: 0;
+    margin: 0;
+    background-color: #212529;
+    background-size: cover;
+    overflow-y: scroll;
+    border: none;
+        border-right-color: currentcolor;
+        border-right-style: none;
+        border-right-width: medium;
+    border-right: 4px solid #3b3b3b;
+    height: 100% !important;
+    width: 100%;
+    min-width: 300px;
+    overflow: hidden;
+}
+
+#users.users-dark {
+    padding: 0;
+    margin: 0;
+    height: calc(100% - 84px);
+    width: 100%;
+    z-index: 1;
+    position: relative;
+    display: block;
+    background-color: #212529;
+    overflow-y: auto;
+    border: 1px solid #3b3b3b;
+}
+/*end of changes*/
