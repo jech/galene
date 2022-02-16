@@ -155,8 +155,7 @@ func makeCachable(w http.ResponseWriter, p string, fi os.FileInfo, cachable bool
 	}
 
 	cc := normalCacheControl
-	if strings.HasPrefix(p, "/fonts/") ||
-		strings.HasPrefix(p, "/scripts/") ||
+	if strings.HasPrefix(p, "/external/") ||
 		strings.HasPrefix(p, "/css/") {
 		cc = veryCachableCacheControl
 	}

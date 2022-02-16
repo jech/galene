@@ -3512,7 +3512,9 @@ function displayError(message, level) {
         close: true,
         position: position,
         gravity: gravity,
-        backgroundColor: background,
+        style: {
+            background: background,
+        },
         className: level,
     }).showToast();
 }
