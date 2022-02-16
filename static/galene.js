@@ -1974,12 +1974,23 @@ function addUser(id, userinfo) {
     else
         user.classList.remove('user-status-raisehand');
 
+    let us = div.children;
+
+    if(id === serverConnection.id) {
+        if(us.length === 0)
+            div.appendChild(user);
+        else
+            div.insertBefore(user, us[0]);
+        return;
+    }
+
     if(userinfo.username) {
-        let us = div.children;
         for(let i = 0; i < us.length; i++) {
             let child = us[i];
-            let childuser =
-                serverConnection.users[child.id.slice('user-'.length)] || null;
+            let childid = child.id.slice('user-'.length);
+            if(childid === serverConnection.id)
+                continue;
+            let childuser = serverConnection.users[childid] || null;
             let childname = (childuser && childuser.username) || null;
             if(!childname || stringCompare(childname, userinfo.username) > 0) {
                 div.insertBefore(user, child);
@@ -1987,6 +1998,7 @@ function addUser(id, userinfo) {
             }
         }
     }
+
     div.appendChild(user);
 }
 
