@@ -1,0 +1,144 @@
+/* Main context menu outer */
+.contextualMenu{
+    font-size: 13px;
+    position: absolute;
+    padding: 8px 0;
+    background: var(--contextualMenuBg);
+    box-shadow: var(--contextualMenuShadow);
+    border-radius: var(--contextualMenuRadius);
+    margin:0;
+    list-style: none;
+    color: var(--contextualMenuText);
+}
+
+/* Menu seperator item */
+.contextualMenuSeperator{
+    display: block;
+    position: relative;
+    padding: 5px 5px;
+}
+    .contextualMenuSeperator span{
+        display: block;
+        width:100%;
+        height:1px;
+        background: var(--contextualSeperator);
+    }
+
+/* Default menu item */
+.contextualMenuItemOuter {
+    position: relative;
+}
+.contextualMenuItem{
+    display: block;
+    padding: 5px 8px;
+    cursor: default;
+}
+    .contextualMenuItem:hover{
+        background: var(--contextualHover);
+    }
+    .contextualMenuItemIcon{
+        float: left;
+        width:16px;
+        height: 16px;
+    }
+    .contextualMenuItemTitle{
+        text-align: left;
+        line-height: 16px;
+        display: inline-block;
+        padding: 0px 0px 0px 7px;
+    }
+    .contextualMenuItemTip{
+        float: right;
+        padding: 0px 0px 0px 50px;
+        text-align: right;
+        line-height: 16px;
+    }
+    .contextualMenuItemOverflow{
+        float: right;
+        width:16px;
+        height: 16px;
+        padding: 1px 0px 0px 7px;
+    }
+
+        .contextualMenuItemOverflow .contextualMenuItemOverflowLine{
+            display: block;
+            height: 1px;
+            margin: 3px 2px;
+            background: var(--contextualOverflowIcon);
+        }
+        .contextualMenuItemOverflow.hidden{
+            display: none;
+        }
+        
+    .contextualMenuItem.disabled{
+        opacity: 0.4;
+    }
+    .contextualMenuItem.disabled:hover{
+        background: none;
+    }
+
+/* Submenu item */ 
+.contextualSubMenu{
+    padding: 0;
+    margin: 0;
+    background: var(--contextualSubMenuBg);
+    border-radius: var(--contextualMenuRadius);
+    width: 100%;
+    height: auto;
+    max-height: 1000px;
+    transition: max-height 0.5s;
+    overflow: hidden;
+}
+    .contextualSubMenu .contextualMenuItem:hover{
+        background: var(--contextualHover);
+    }
+
+.contextualMenuHidden{
+    max-height: 0;
+}
+
+/* Multi item button */
+.contextualMultiItem{
+    display: flex;
+    position: relative;
+}
+    .contextualMultiItem .contextualMenuItemOuter{
+        flex: auto;
+        display: inline-block;
+    }
+
+/* Hover menu */
+.contextualHoverMenuOuter{
+    position: relative;
+}
+.contextualHoverMenuItem{
+    display: block;
+    padding: 5px 8px;
+    cursor: default;
+}
+.contextualHoverMenuItem.disabled{
+    opacity: 0.4;
+}
+.contextualHoverMenuItem.disabled:hover{
+    background: none;
+}
+.contextualHoverMenuItem:hover{
+    background: var(--contextualHover);
+}
+
+.contextualHoverMenuOuter > .contextualHoverMenu{
+    display: none;
+}
+.contextualHoverMenuOuter:hover > .contextualHoverMenu{
+    display: block;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: var(--contextualMenuBg);
+    box-shadow: var(--contextualMenuShadow);
+    border-radius: var(--contextualMenuRadius);
+    padding: 8px 0;
+    width: 100%;
+    z-index: 1000;
+    list-style: none;
+}
