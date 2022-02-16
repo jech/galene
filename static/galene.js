@@ -2000,7 +2000,7 @@ function userMenu(elt) {
                     serverConnection.userAction('present', id);
                 }});
             items.push({label: 'Mute', onClick: () => {
-                serverConnection.userAction('mute', id);
+                serverConnection.userMessage('mute', id);
             }});
             items.push({label: 'Kick out', onClick: () => {
                 serverConnection.userAction('kick', id);
