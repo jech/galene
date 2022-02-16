@@ -1960,6 +1960,60 @@ function stringCompare(a, b) {
 }
 
 /**
+ * @param {HTMLElement} elt
+ */
+function userMenu(elt) {
+    if(!elt.id.startsWith('user-'))
+        throw new Error('Unexpected id for user menu');
+    let id = elt.id.slice('user-'.length);
+    let user = serverConnection.users[id];
+    if(!user)
+        throw new Error("Couldn't find user")
+    let items = [];
+    if(id === serverConnection.id) {
+        let mydata = serverConnection.users[serverConnection.id].data;
+        if(mydata['raisehand'])
+            items.push({label: 'Lower hand', onClick: () => {
+                serverConnection.userAction(
+                    'setdata', serverConnection.id, {'raisehand': null},
+                );
+            }});
+        else
+            items.push({label: 'Raise hand', onClick: () => {
+                serverConnection.userAction(
+                    'setdata', serverConnection.id, {'raisehand': true},
+                );
+            }});
+        items.push({label: 'Restart media', onClick: renegotiateStreams});
+    } else {
+        items.push({label: 'Send file', onClick: () => {
+            sendFile(id);
+        }});
+        if(serverConnection.permissions.op) {
+            items.push({type: 'seperator'}); // sic
+            if(user.permissions.present)
+                items.push({label: 'Forbid presenting', onClick: () => {
+                    serverConnection.userAction('unpresent', id);
+                }});
+            else
+                items.push({label: 'Allow presenting', onClick: () => {
+                    serverConnection.userAction('present', id);
+                }});
+            items.push({label: 'Mute', onClick: () => {
+                serverConnection.userAction('mute', id);
+            }});
+            items.push({label: 'Kick out', onClick: () => {
+                serverConnection.userAction('kick', id);
+            }});
+        }
+    }
+    /** @ts-ignore */
+    new Contextual({
+        items: items,
+    });
+}
+
+/**
  * @param {string} id
  * @param {user} userinfo
  */
@@ -1973,6 +2027,13 @@ function addUser(id, userinfo) {
         user.classList.add('user-status-raisehand');
     else
         user.classList.remove('user-status-raisehand');
+
+    user.addEventListener('click', function(e) {
+        let elt = e.target;
+        if(!elt || !(elt instanceof HTMLElement))
+            throw new Error("Couldn't find user div");
+        userMenu(elt);
+    });
 
     let us = div.children;
 
@@ -2342,12 +2403,12 @@ function failFile(f, message) {
 }
 
 /**
- * @param {string} username
  * @param {string} id
  * @param {File} file
  */
-function offerFile(username, id, file) {
+function offerFile(id, file) {
     let fileid = newRandomId();
+    let username = serverConnection.users[id].username;
     let f = new TransferredFile(
         fileid, id, true, username, file.name, file.type, file.size,
     );
@@ -3089,13 +3150,17 @@ commands.subgroups = {
     }
 };
 
+function renegotiateStreams() {
+    for(let id in serverConnection.up)
+        serverConnection.up[id].restartIce();
+    for(let id in serverConnection.down)
+        serverConnection.down[id].restartIce();
+}
+
 commands.renegotiate = {
     description: 'renegotiate media streams',
     f: (c, r) => {
-        for(let id in serverConnection.up)
-            serverConnection.up[id].restartIce();
-        for(let id in serverConnection.down)
-            serverConnection.down[id].restartIce();
+        renegotiateStreams();
     }
 };
 
@@ -3283,6 +3348,28 @@ commands.unraise = {
     }
 }
 
+/**
+ * @param {string} id
+ */
+function sendFile(id) {
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = function(e) {
+        if(!(this instanceof HTMLInputElement))
+            throw new Error('Unexpected type for this');
+        let files = input.files;
+        for(let i = 0; i < files.length; i++) {
+            try {
+                offerFile(id, files[i]);
+            } catch(e) {
+                console.error(e);
+                displayError(e);
+            }
+        }
+    };
+    input.click();
+}
+
 commands.sendfile = {
     parameters: 'user',
     description: 'send a file (this will disclose your IP address)',
@@ -3293,23 +3380,8 @@ commands.sendfile = {
         let id = findUserId(p[0]);
         if(!id)
             throw new Error(`Unknown user ${p[0]}`);
-        let input = document.createElement('input');
-        input.type = 'file';
-        input.onchange = function(e) {
-            if(!(this instanceof HTMLInputElement))
-                throw new Error('Unexpected type for this');
-            let files = input.files;
-            for(let i = 0; i < files.length; i++) {
-                try {
-                    offerFile(p[i], id, files[i]);
-                } catch(e) {
-                    console.error(e);
-                    displayError(e);
-                }
-            };
-        };
-        input.click();
-    }
+        sendFile(id);
+    },
 };
 
 /**

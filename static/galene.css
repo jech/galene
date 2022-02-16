@@ -1120,7 +1120,6 @@ legend {
     transition: all 0.3s;
     background: #ffffff;
     border-right: 1px solid #dcdcdc;
-    z-index: 1039;
 }
 
 #left-sidebar .galene-header {
@@ -1168,7 +1167,6 @@ header .collapse {
     margin: 0;
     height: calc(100% - 84px);
     width: 100%;
-    z-index: 1;
     position: relative;
     display: block;
     background-color: #fff;
@@ -1344,4 +1342,18 @@ header .collapse {
         margin-top: 10px;
     }
 
+}
+
+:root{
+    --contextualMenuBg: #eee;
+    --contextualMenuShadow: 1px 1px 1px #444; */
+    --contextualMenuRadius: 0px; */
+    --contextualMenuText: black;
+
+    --contextualSubMenuBg: #eee;
+
+    --contextualHover: #ddd;
+
+    --contextualOverflowIcon: #999;
+    --contextualSeperator: #999;
 }
