@@ -1198,7 +1198,7 @@ header .collapse {
 
 #users > div::before {
     content: "\f111";
-    font-family: 'Font Awesome 5 Free';
+    font-family: 'Font Awesome 6 Free';
     color: #20b91e;
     margin-right: 5px;
     font-weight: 900;
