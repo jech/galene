@@ -377,7 +377,7 @@ ServerConnection.prototype.connect = async function(url) {
                     return;
                 }
                 if(sc.onuser)
-                    sc.onuser.call(sc, m.id, m.kind);
+                    sc.onuser.call(sc, m.id, m.kind, m.permission, m.data);
                 break;
             case 'chat':
             case 'chathistory':
