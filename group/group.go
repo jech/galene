@@ -1097,10 +1097,9 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (C
 		return p, ErrNotAuthorised
 	}
 
-	if desc.AuthServer != "" && creds.Token != "" {
+	if creds.Token != "" {
 		aud, perms, err := token.Valid(
-			creds.Username, creds.Token,
-			desc.AuthKeys, desc.AuthServer,
+			creds.Username, creds.Token, desc.AuthKeys,
 		)
 		if err != nil {
 			log.Printf("Token authentication: %v", err)

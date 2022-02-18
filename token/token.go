@@ -11,7 +11,6 @@ import (
 )
 
 var ErrUnexpectedSub = errors.New("unexpected 'sub' field")
-var ErrUnexpectedIss = errors.New("unexpected 'iss' field")
 
 func parseBase64(k string, d map[string]interface{}) ([]byte, error) {
 	v, ok := d[k].(string)
@@ -106,7 +105,7 @@ func getKey(header map[string]interface{}, keys []map[string]interface{}) (inter
 	return nil, errors.New("key not found")
 }
 
-func Valid(username, token string, keys []map[string]interface{}, issuer string) ([]string, map[string]interface{}, error) {
+func Valid(username, token string, keys []map[string]interface{}) ([]string, map[string]interface{}, error) {
 	tok, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		return getKey(t.Header, keys)
 	})
@@ -118,10 +117,6 @@ func Valid(username, token string, keys []map[string]interface{}, issuer string)
 	sub, ok := claims["sub"].(string)
 	if !ok || sub != username {
 		return nil, nil, ErrUnexpectedSub
-	}
-	iss, ok := claims["iss"].(string)
-	if !ok || iss != issuer {
-		return nil, nil, ErrUnexpectedIss
 	}
 	aud, ok := claims["aud"]
 	var res []string
