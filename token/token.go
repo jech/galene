@@ -10,6 +10,9 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+var ErrUnexpectedSub = errors.New("unexpected 'sub' field")
+var ErrUnexpectedIss = errors.New("unexpected 'iss' field")
+
 func parseBase64(k string, d map[string]interface{}) ([]byte, error) {
 	v, ok := d[k].(string)
 	if !ok {
@@ -114,11 +117,11 @@ func Valid(username, token string, keys []map[string]interface{}, issuer string)
 
 	sub, ok := claims["sub"].(string)
 	if !ok || sub != username {
-		return nil, nil, errors.New("invalid 'sub' field")
+		return nil, nil, ErrUnexpectedSub
 	}
 	iss, ok := claims["iss"].(string)
 	if !ok || iss != issuer {
-		return nil, nil, errors.New("invalid 'iss' field")
+		return nil, nil, ErrUnexpectedIss
 	}
 	aud, ok := claims["aud"]
 	var res []string
