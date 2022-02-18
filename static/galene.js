@@ -32,6 +32,9 @@ let groupStatus = {};
 /** @type {string} */
 let username = null;
 
+/** @type {string} */
+let token = null;
+
 /**
  * @typedef {Object} settings
  * @property {boolean} [localMute]
@@ -272,21 +275,29 @@ function setConnected(connected) {
 
 /** @this {ServerConnection} */
 async function gotConnected() {
-    username = getInputElement('username').value.trim();
-    setConnected(true);
-
-    let pw = getInputElement('password').value;
-    getInputElement('password').value = '';
     let credentials;
-    if(!groupStatus.authServer)
-        credentials = pw;
-    else
+    if(token) {
         credentials = {
-            type: 'authServer',
-            authServer: groupStatus.authServer,
-            location: location.href,
-            password: pw,
+            type: 'token',
+            token: token,
         };
+        token = null;
+    } else {
+        username = getInputElement('username').value.trim();
+        setConnected(true);
+
+        let pw = getInputElement('password').value;
+        getInputElement('password').value = '';
+        if(!groupStatus.authServer)
+            credentials = pw;
+        else
+            credentials = {
+                type: 'authServer',
+                authServer: groupStatus.authServer,
+                location: location.href,
+                password: pw,
+            };
+    }
 
     try {
         await this.join(group, username, credentials);
@@ -3740,6 +3751,7 @@ async function start() {
     group = decodeURIComponent(
         location.pathname.replace(/^\/[a-z]*\//, '').replace(/\/$/, '')
     );
+
     /** @type {Object} */
     try {
         let r = await fetch(".status.json")
@@ -3751,11 +3763,22 @@ async function start() {
         return;
     }
 
+    let parms = new URLSearchParams(window.location.search);
+    if(window.location.search)
+        window.history.replaceState(null, '', window.location.pathname);
     setTitle(groupStatus.displayName || capitalise(group));
+
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 
-    document.getElementById("login-container").classList.remove('invisible');
+    if(parms.has('token')) {
+        username = parms.get('username');
+        token = parms.get('token');
+        await serverConnect();
+    } else {
+        let container = document.getElementById("login-container");
+        container.classList.remove('invisible');
+    }
     setViewportHeight();
 }
 
