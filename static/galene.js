@@ -3779,6 +3779,8 @@ async function start() {
         username = parms.get('username');
         token = parms.get('token');
         await serverConnect();
+    } else if(groupStatus.authPortal) {
+        window.location.href = groupStatus.authPortal;
     } else {
         let container = document.getElementById("login-container");
         container.classList.remove('invisible');

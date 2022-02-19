@@ -94,7 +94,7 @@ following fields are allowed:
    definitions (see *Authorisation* below) and specifies the users allowed
    to connect respectively with operator privileges, with presenter
    privileges, and as passive listeners;
- - `authServer` and `authKeys`: see *Authorisation* below;
+ - `authKeys`, `authServer` and `authPortal`: see *Authorisation* below;
  - `public`: if true, then the group is visible on the landing page;
  - `displayName`: a human-friendly version of the group name;
  - `description`: a human-readable description of the group; this is
@@ -201,11 +201,10 @@ existing authentication and authorisation infrastructure, such as LDAP,
 OAuth2 or even Unix passwords.
 
 When an authorisation server is used, the group configuration file
-specifies the URL of the authorisation server and one or more public keys
-in JWK format:
+specifies one or more public keys in JWK format.  In addition, it may
+specify either an authorisation server or an authorisation portal.
 
     {
-        "authServer": "https://auth.example.org",
         "authKeys": [{
             "kty": "oct",
             "alg": "HS256",
@@ -219,11 +218,22 @@ in JWK format:
             "y": "pBhVb37haKvwEoleoW3qxnT4y5bK35_RTP7_RmFKR6Q",
             "kid": "20211101"
         }]
+        "authServer": "https://auth.example.org",
     }
 
 The `kid` field serves to distinguish among multiple keys, and must match
 the value provided by the authorisation server.  If the server doesn't
 provide a `kid`, the first key with a matching `alg` field will be used.
+
+If an authorisation server is specified, then the default client, after it
+prompts for a password, will request a token from the authorisation server
+and will join the group using token authentication.  The password is never
+communicated to the server.
+
+If an authorisation portal is specified, then the default client will
+redirect initial client connections to the authorisation portal.  The
+authorisation portal is expected to authorise the client and then redirect
+it to Galene with the `username` and `token` query parameters set.
 
 
 # Further information

@@ -972,11 +972,14 @@ type Description struct {
 	// A list of logins for non-presenting users.
 	Other []ClientPattern `json:"other,omitempty"`
 
-	// The URL of the authentication server.
+	// The (public) keys used for token authentication.
+	AuthKeys []map[string]interface{} `json:"authKeys"`
+
+	// The URL of the authentication server, if any.
 	AuthServer string `json:"authServer"`
 
-	// The (public) keys of the authentication server
-	AuthKeys []map[string]interface{} `json:"authKeys"`
+	// The URL of the authentication portal, if any.
+	AuthPortal string `json:"authPortal"`
 
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
@@ -1152,6 +1155,7 @@ type Status struct {
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 	AuthServer  string `json:"authServer,omitempty"`
+	AuthPortal  string `json:"authPortal,omitempty"`
 	Locked      bool   `json:"locked,omitempty"`
 	ClientCount *int   `json:"clientCount,omitempty"`
 }
@@ -1162,6 +1166,7 @@ func (g *Group) Status (authentified bool) Status {
 		Name:        g.name,
 		DisplayName: desc.DisplayName,
 		AuthServer:  desc.AuthServer,
+		AuthPortal:  desc.AuthPortal,
 		Description: desc.Description,
 	}
 
