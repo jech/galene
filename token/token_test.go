@@ -58,13 +58,7 @@ func TestES256(t *testing.T) {
 }
 
 func TestValid(t *testing.T) {
-	key := `{
-            "kty":"EC",
-            "alg":"ES256",
-            "crv":"P-256",
-            "x":"CBo2DHISffe8bVr6bNspCiHK3zK9pfMGfWtpHnk9-Lw",
-            "y":"sD5dQ-bJu8AfRGLfA6MigQyUIOQHcYx6HQOdfIbLjHo"
-        }`
+	key := `{"alg":"HS256","k":"H7pCkktUl5KyPCZ7CKw09y1j460tfIv4dRcS1XstUKY","key_ops":["sign","verify"],"kty":"oct"}`
 	var k map[string]interface{}
 	err := json.Unmarshal([]byte(key), &k)
 	if err != nil {
@@ -73,7 +67,7 @@ func TestValid(t *testing.T) {
 
 	keys := []map[string]interface{}{k}
 
-	goodToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6eyJwcmVzZW50Ijp0cnVlfSwiaWF0IjoxNjQ1MTk1MzkxLCJleHAiOjIyNzU5MTUzOTEsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTIzNC8ifQ.PMgfwYwSLSFIfcNJdOEfHEZ41HM2CzbATuS1fTxncbaGyX-xXq7d9V04enXpLOMGnAlsZpOJvd7eJN2mngJMAg"
+	goodToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDI5NCwiZXhwIjoyOTA2NzUwMjk0LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0.6xXpgBkBMn4PSBpnwYHb-gRn_Q97Yq9DoKkAf2_6iwc"
 
 	aud, perms, err := Valid("john", goodToken, keys)
 
@@ -83,9 +77,7 @@ func TestValid(t *testing.T) {
 		if !reflect.DeepEqual(aud, []string{"https://galene.org:8443/group/auth/"}) {
 			t.Errorf("Unexpected aud: %v", aud)
 		}
-		if !reflect.DeepEqual(
-			perms, map[string]interface{}{"present": true},
-		) {
+		if !reflect.DeepEqual(perms, []string{"present"}) {
 			t.Errorf("Unexpected perms: %v", perms)
 		}
 	}
@@ -95,7 +87,7 @@ func TestValid(t *testing.T) {
 		t.Errorf("Token should have bad username")
 	}
 
-	badToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6eyJwcmVzZW50Ijp0cnVlfSwiaWF0IjoxNjQ1MTk2MDE5LCJleHAiOjIyNjAzNjQwMTksImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTIzNC8ifQ.4TN5zxzuKeNIw0rX0yirEkVYF1d0FHI_Lezmsa27ayi0R4ocSgTZ3q2bmlACXvyuoBqEEbuP4e77BUbGCHmpSg"
+	badToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDQ2OSwiZXhwIjoyOTA2NzUwNDY5LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0."
 
 	_, _, err = Valid("john", badToken, keys)
 
@@ -104,7 +96,7 @@ func TestValid(t *testing.T) {
 		t.Errorf("Token should fail")
 	}
 
-	expiredToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6eyJwcmVzZW50Ijp0cnVlfSwiaWF0IjoxNjQ1MTk1NTY3LCJleHAiOjE2NDUxOTU1OTcsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTIzNC8ifQ.GXcLeyNVr5cnZjIECENyjMLH1HyNKWKkHMc9onvqA_RVYMyDLeeR_3NKH9Y7eKSXWC8jhatDWtH7Ed3KdsSxAA"
+	expiredToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDMyMiwiZXhwIjoxNjQ1MzEwMzUyLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0.jyqRhoV6iK54SvlP33Fy630aDo-sLNmKKi1kcfqs378"
 
 	_, _, err = Valid("john", expiredToken, keys)
 
@@ -112,8 +104,7 @@ func TestValid(t *testing.T) {
 		t.Errorf("Token should be expired")
 	}
 
-	noneToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6eyJwcmVzZW50Ijp0cnVlfSwiaWF0IjoxNjQ1MTk1NzgyLCJleHAiOjIyNjAzNjM3ODIsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTIzNC8ifQ."
-
+	noneToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDQwMSwiZXhwIjoxNjQ1MzEwNDMxLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0."
 	_, _, err = Valid("john", noneToken, keys)
 	if err == nil {
 		t.Errorf("Unsigned token should fail")

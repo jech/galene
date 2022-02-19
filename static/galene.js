@@ -402,6 +402,7 @@ function setVisibility(id, visible) {
 function setButtonsVisibility() {
     let connected = serverConnection && serverConnection.socket;
     let permissions = serverConnection.permissions;
+    let present = permissions.indexOf('present') >= 0;
     let local = !!findUpMedia('camera');
     let canWebrtc = !(typeof RTCPeerConnection === 'undefined');
     let canFile =
@@ -413,19 +414,19 @@ function setButtonsVisibility() {
     let mobilelayout = isMobileLayout();
 
     // don't allow multiple presentations
-    setVisibility('presentbutton', canWebrtc && permissions.present && !local);
+    setVisibility('presentbutton', canWebrtc && present && !local);
     setVisibility('unpresentbutton', local);
 
-    setVisibility('mutebutton', !connected || permissions.present);
+    setVisibility('mutebutton', !connected || present);
 
     // allow multiple shared documents
-    setVisibility('sharebutton', canWebrtc && permissions.present &&
+    setVisibility('sharebutton', canWebrtc && present &&
                   ('getDisplayMedia' in navigator.mediaDevices));
 
-    setVisibility('mediaoptions', permissions.present);
-    setVisibility('sendform', permissions.present);
-    setVisibility('simulcastform', permissions.present);
-    setVisibility('fileform', canFile && permissions.present);
+    setVisibility('mediaoptions', present);
+    setVisibility('sendform', present);
+    setVisibility('simulcastform', present);
+    setVisibility('fileform', canFile && present);
 
     setVisibility('collapse-video', mediacount && mobilelayout);
 }
@@ -2012,9 +2013,9 @@ function userMenu(elt) {
         items.push({label: 'Send file', onClick: () => {
             sendFile(id);
         }});
-        if(serverConnection.permissions.op) {
+        if(serverConnection.permissions.indexOf('op') >= 0) {
             items.push({type: 'seperator'}); // sic
-            if(user.permissions.present)
+            if(user.permissions.indexOf('present') >= 0)
                 items.push({label: 'Forbid presenting', onClick: () => {
                     serverConnection.userAction('unpresent', id);
                 }});
@@ -2139,12 +2140,14 @@ function gotUser(id, kind) {
 
 function displayUsername() {
     document.getElementById('userspan').textContent = username;
+    let op = serverConnection.permissions.indexOf('op') >= 0;
+    let present = serverConnection.permissions.indexOf('present') >= 0;
     let text = '';
-    if(serverConnection.permissions.op && serverConnection.permissions.present)
+    if(op && present)
         text = '(op, presenter)';
-    else if(serverConnection.permissions.op)
+    else if(op)
         text = 'operator';
-    else if(serverConnection.permissions.present)
+    else if(present)
         text = 'presenter';
     document.getElementById('permspan').textContent = text;
 }
@@ -2178,7 +2181,7 @@ function setTitle(title) {
 /**
  * @this {ServerConnection}
  * @param {string} group
- * @param {Object<string,boolean>} perms
+ * @param {Array<string>} perms
  * @param {Object<string,any>} status
  * @param {Object<string,any>} data
  * @param {string} message
@@ -2226,7 +2229,8 @@ async function gotJoined(kind, group, perms, status, data, message) {
     else
         this.request(mapRequest(getSettings().request));
 
-    if(serverConnection.permissions.present && !findUpMedia('camera')) {
+    if(serverConnection.permissions.indexOf('present') >= 0 &&
+       !findUpMedia('camera')) {
         if(present) {
             if(present === 'mike')
                 updateSettings({video: ''});
@@ -3050,14 +3054,14 @@ let commands = {};
 
 function operatorPredicate() {
     if(serverConnection && serverConnection.permissions &&
-       serverConnection.permissions.op)
+       serverConnection.permissions.indexOf('op') >= 0)
         return null;
     return 'You are not an operator';
 }
 
 function recordingPredicate() {
     if(serverConnection && serverConnection.permissions &&
-       serverConnection.permissions.record)
+       serverConnection.permissions.indexOf('record') >= 0)
         return null;
     return 'You are not allowed to record';
 }

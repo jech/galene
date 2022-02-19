@@ -63,7 +63,7 @@ function newLocalId() {
 /**
  * @typedef {Object} user
  * @property {string} username
- * @property {Object<string,boolean>} permissions
+ * @property {Array<string>} permissions
  * @property {Object<string,any>} data
  * @property {Object<string,Object<string,boolean>>} down
  */
@@ -126,9 +126,9 @@ function ServerConnection() {
     /**
      * The permissions granted to this connection.
      *
-     * @type {Object<string,boolean>}
+     * @type {Array<string>}
      */
-    this.permissions = {};
+    this.permissions = [];
     /**
      * userdata is a convenient place to attach data to a ServerConnection.
      * It is not used by the library.
@@ -164,7 +164,7 @@ function ServerConnection() {
      *
      * kind is one of 'join', 'fail', 'change' or 'leave'.
      *
-     * @type{(this: ServerConnection, kind: string, group: string, permissions: Object<string,boolean>, status: Object<string,any>, data: Object<string,any>, message: string) => void}
+     * @type{(this: ServerConnection, kind: string, group: string, permissions: Array<string>, status: Object<string,any>, data: Object<string,any>, message: string) => void}
      */
     this.onjoined = null;
     /**
@@ -207,7 +207,7 @@ function ServerConnection() {
   * @property {string} [password]
   * @property {string} [token]
   * @property {boolean} [privileged]
-  * @property {Object<string,boolean>} [permissions]
+  * @property {Array<string>} [permissions]
   * @property {Object<string,any>} [status]
   * @property {Object<string,any>} [data]
   * @property {string} [group]
@@ -271,7 +271,7 @@ ServerConnection.prototype.connect = async function(url) {
             resolve(sc);
         };
         this.socket.onclose = function(e) {
-            sc.permissions = {};
+            sc.permissions = [];
             for(let id in sc.up) {
                 let c = sc.up[id];
                 c.close();
@@ -286,7 +286,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onuser.call(sc, id, 'delete');
             }
             if(sc.group && sc.onjoined)
-                sc.onjoined.call(sc, 'leave', sc.group, {}, {}, {}, '');
+                sc.onjoined.call(sc, 'leave', sc.group, [], {}, {}, '');
             sc.group = null;
             sc.username = null;
             if(sc.onclose)
@@ -337,7 +337,7 @@ ServerConnection.prototype.connect = async function(url) {
                 }
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
-                                     m.permissions || {},
+                                     m.permissions || [],
                                      m.status, m.data,
                                      m.value || null);
                 break;
@@ -348,7 +348,7 @@ ServerConnection.prototype.connect = async function(url) {
                         console.warn(`Duplicate user ${m.id} ${m.username}`);
                     sc.users[m.id] = {
                         username: m.username,
-                        permissions: m.permissions || {},
+                        permissions: m.permissions || [],
                         data: m.data || {},
                         down: {},
                     };
@@ -358,13 +358,13 @@ ServerConnection.prototype.connect = async function(url) {
                         console.warn(`Unknown user ${m.id} ${m.username}`);
                         sc.users[m.id] = {
                             username: m.username,
-                            permissions: m.permissions || {},
+                            permissions: m.permissions || [],
                             data: m.data || {},
                             down: {},
                         };
                     } else {
                         sc.users[m.id].username = m.username;
-                        sc.users[m.id].permissions = m.permissions || {};
+                        sc.users[m.id].permissions = m.permissions || [];
                         sc.users[m.id].data = m.data || {};
                     }
                     break;

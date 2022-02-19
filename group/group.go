@@ -544,6 +544,15 @@ func deleteUnlocked(g *Group) bool {
 	return true
 }
 
+func member(v string, l []string) bool {
+	for _, w := range l {
+		if v == w {
+			return true
+		}
+	}
+	return false
+}
+
 func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) {
 	g, err := Add(group, nil)
 	if err != nil {
@@ -555,7 +564,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 
 	clients := g.getClientsUnlocked(nil)
 
-	if !c.Permissions().System {
+	if !member("system", c.Permissions()) {
 		perms, err := g.description.GetPermission(group, creds)
 		if err != nil {
 			return nil, err
@@ -563,7 +572,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 
 		c.SetPermissions(perms)
 
-		if !perms.Op {
+		if !member("op", perms) {
 			if g.locked != nil {
 				m := *g.locked
 				if m == "" {
@@ -574,7 +583,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 			if g.description.Autokick {
 				ops := false
 				for _, c := range clients {
-					if c.Permissions().Op {
+					if member("op", c.Permissions()) {
 						ops = true
 						break
 					}
@@ -588,7 +597,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 			}
 		}
 
-		if !perms.Op && g.description.MaxClients > 0 {
+		if !member("op", perms) && g.description.MaxClients > 0 {
 			if len(g.clients) >= g.description.MaxClients {
 				return nil, UserError("too many users")
 			}
@@ -627,7 +636,7 @@ func autoLockKick(g *Group, clients []Client) {
 		return
 	}
 	for _, c := range clients {
-		if c.Permissions().Op {
+		if member("op", c.Permissions()) {
 			return
 		}
 	}
@@ -665,7 +674,7 @@ func DelClient(c Client) {
 	c.Joined(g.Name(), "leave")
 	for _, cc := range clients {
 		cc.PushClient(
-			g.Name(), "delete", c.Id(), "", ClientPermissions{}, nil,
+			g.Name(), "delete", c.Id(), "", nil, nil,
 		)
 	}
 	autoLockKick(g, clients)
@@ -1066,82 +1075,76 @@ func GetDescription(name string) (*Description, error) {
 	return &desc, nil
 }
 
-func (desc *Description) GetPermission(group string, creds ClientCredentials) (ClientPermissions, error) {
-	var p ClientPermissions
+func (desc *Description) GetPermission(group string, creds ClientCredentials) ([]string, error) {
 	if !desc.AllowAnonymous && creds.Username == "" {
-		return p, ErrAnonymousNotAuthorised
+		return nil, ErrAnonymousNotAuthorised
 	}
 
-	if found, good := matchClient(group, creds, desc.Op); found {
-		if good {
-			p.Op = true
-			p.Present = true
-			if desc.AllowRecording {
-				p.Record = true
+	if creds.Token == "" {
+		if found, good := matchClient(group, creds, desc.Op); found {
+			if good {
+				var p []string
+				p = []string{"op", "present"}
+				if desc.AllowRecording {
+					p = append(p, "record")
+				}
+				return p, nil
 			}
-			return p, nil
+			return nil, ErrNotAuthorised
 		}
-		return p, ErrNotAuthorised
-	}
-	if found, good := matchClient(group, creds, desc.Presenter); found {
-		if good {
-			p.Present = true
-			return p, nil
+		if found, good := matchClient(group, creds, desc.Presenter); found {
+			if good {
+				return []string{"present"}, nil
+			}
+			return nil, ErrNotAuthorised
 		}
-		return p, ErrNotAuthorised
-	}
-	if found, good := matchClient(group, creds, desc.Other); found {
-		if good {
-			return p, nil
+		if found, good := matchClient(group, creds, desc.Other); found {
+			if good {
+				return nil, nil
+			}
+			return nil, ErrNotAuthorised
 		}
-		return p, ErrNotAuthorised
+		return nil, ErrNotAuthorised
 	}
 
-	if creds.Token != "" {
-		aud, perms, err := token.Valid(
-			creds.Username, creds.Token, desc.AuthKeys,
-		)
+	aud, perms, err := token.Valid(
+		creds.Username, creds.Token, desc.AuthKeys,
+	)
+	if err != nil {
+		log.Printf("Token authentication: %v", err)
+		return nil, ErrNotAuthorised
+	}
+	conf, err := GetConfiguration()
+	if err != nil {
+		log.Printf("Read config.json: %v", err)
+		return nil, err
+	}
+	ok := false
+	for _, u := range aud {
+		url, err := url.Parse(u)
 		if err != nil {
-			log.Printf("Token authentication: %v", err)
-			return p, ErrNotAuthorised
+			log.Printf("Token URL: %v", err)
+			continue
 		}
-		conf, err := GetConfiguration()
-		if err != nil {
-			log.Printf("Read config.json: %v", err)
-			return p, err
-		}
-		ok := false
-		for _, u := range aud {
-			url, err := url.Parse(u)
-			if err != nil {
-				log.Printf("Token URL: %v", err)
+		// if canonicalHost is not set, we allow tokens
+		// for any domain name.  Hopefully different
+		// servers use distinct keys.
+		if conf.CanonicalHost != "" {
+			if !strings.EqualFold(
+				url.Host, conf.CanonicalHost,
+			) {
 				continue
 			}
-			// if canonicalHost is not set, we allow tokens
-			// for any domain name.  Hopefully different
-			// servers use distinct keys.
-			if conf.CanonicalHost != "" {
-				if !strings.EqualFold(
-					url.Host, conf.CanonicalHost,
-				) {
-					continue
-				}
-			}
-			if url.Path == path.Join("/group", group)+"/" {
-				ok = true
-				break
-			}
 		}
-		if !ok {
-			return p, ErrNotAuthorised
+		if url.Path == path.Join("/group", group)+"/" {
+			ok = true
+			break
 		}
-		p.Op, _ = perms["op"].(bool)
-		p.Present, _ = perms["present"].(bool)
-		p.Record, _ = perms["record"].(bool)
-		return p, nil
 	}
-
-	return p, ErrNotAuthorised
+	if !ok {
+		return nil, ErrNotAuthorised
+	}
+	return perms, nil
 }
 
 type Status struct {

@@ -56,7 +56,7 @@ type webClient struct {
 	group       *group.Group
 	id          string
 	username    string
-	permissions group.ClientPermissions
+	permissions []string
 	data        map[string]interface{}
 	requested   map[string][]string
 	done        chan struct{}
@@ -86,7 +86,7 @@ func (c *webClient) Username() string {
 	return c.username
 }
 
-func (c *webClient) Permissions() group.ClientPermissions {
+func (c *webClient) Permissions() []string {
 	return c.permissions
 }
 
@@ -94,13 +94,13 @@ func (c *webClient) Data() map[string]interface{} {
 	return c.data
 }
 
-func (c *webClient) SetPermissions(perms group.ClientPermissions) {
+func (c *webClient) SetPermissions(perms []string) {
 	c.permissions = perms
 }
 
-func (c *webClient) PushClient(group, kind, id, username string, permissions group.ClientPermissions, data map[string]interface{}) error {
+func (c *webClient) PushClient(group, kind, id, username string, perms []string, data map[string]interface{}) error {
 	return c.action(pushClientAction{
-		group, kind, id, username, permissions, data,
+		group, kind, id, username, perms, data,
 	})
 }
 
@@ -115,7 +115,7 @@ type clientMessage struct {
 	Password         string                   `json:"password,omitempty"`
 	Token            string                   `json:"token,omitempty"`
 	Privileged       bool                     `json:"privileged,omitempty"`
-	Permissions      *group.ClientPermissions `json:"permissions,omitempty"`
+	Permissions      []string                 `json:"permissions,omitempty"`
 	Status           *group.Status            `json:"status,omitempty"`
 	Data             map[string]interface{}   `json:"data,omitempty"`
 	Group            string                   `json:"group,omitempty"`
@@ -900,7 +900,7 @@ type pushClientAction struct {
 	kind        string
 	id          string
 	username    string
-	permissions group.ClientPermissions
+	permissions []string
 	data        map[string]interface{}
 }
 
@@ -918,6 +918,33 @@ type kickAction struct {
 }
 
 var errEmptyId = group.ProtocolError("empty id")
+
+func member(v string, l []string) bool {
+	for _, w := range l {
+		if v == w {
+			return true
+		}
+	}
+	return false
+}
+
+func remove(v string, l []string) []string {
+	for i, w := range l {
+		if v == w {
+			l = append(l[:i], l[i+1:]...)
+			return l
+		}
+	}
+	return l
+}
+
+func addnew(v string, l []string) []string {
+	if member(v, l) {
+		return l
+	}
+	l = append(l, v)
+	return l
+}
 
 func clientLoop(c *webClient, ws *websocket.Conn) error {
 	read := make(chan interface{}, 1)
@@ -1102,12 +1129,13 @@ func handleAction(c *webClient, a interface{}) error {
 			log.Printf("got client for wrong group")
 			return nil
 		}
+		perms := append([]string(nil), a.permissions...)
 		return c.write(clientMessage{
 			Type:        "user",
 			Kind:        a.kind,
 			Id:          a.id,
 			Username:    a.username,
-			Permissions: &a.permissions,
+			Permissions: perms,
 			Data:        a.data,
 		})
 	case joinedAction:
@@ -1121,13 +1149,13 @@ func handleAction(c *webClient, a interface{}) error {
 				data = g.Data()
 			}
 		}
-		perms := c.permissions
+		perms := append([]string(nil), c.permissions...)
 		return c.write(clientMessage{
 			Type:             "joined",
 			Kind:             a.kind,
 			Group:            a.group,
 			Username:         c.username,
-			Permissions:      &perms,
+			Permissions:      perms,
 			Status:           status,
 			Data:             data,
 			RTCConfiguration: ice.ICEConfiguration(),
@@ -1137,18 +1165,18 @@ func handleAction(c *webClient, a interface{}) error {
 		if g == nil {
 			return errors.New("Permissions changed in no group")
 		}
-		perms := c.permissions
+		perms := append([]string(nil), c.permissions...)
 		status := g.Status(true)
 		c.write(clientMessage{
 			Type:             "joined",
 			Kind:             "change",
 			Group:            g.Name(),
 			Username:         c.username,
-			Permissions:      &perms,
+			Permissions:      perms,
 			Status:           &status,
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
-		if !c.permissions.Present {
+		if member("present", c.permissions) {
 			up := getUpConns(c)
 			for _, u := range up {
 				err := delUpConn(
@@ -1220,7 +1248,7 @@ func leaveGroup(c *webClient) {
 	}
 
 	group.DelClient(c)
-	c.permissions = group.ClientPermissions{}
+	c.permissions = nil
 	c.data = nil
 	c.requested = make(map[string][]string)
 	c.group = nil
@@ -1260,17 +1288,17 @@ func setPermissions(g *group.Group, id string, perm string) error {
 
 	switch perm {
 	case "op":
-		c.permissions.Op = true
+		c.permissions = addnew("op", c.permissions)
 		if g.Description().AllowRecording {
-			c.permissions.Record = true
+			c.permissions = addnew("record", c.permissions)
 		}
 	case "unop":
-		c.permissions.Op = false
-		c.permissions.Record = false
+		c.permissions = remove("op", c.permissions)
+		c.permissions = remove("record", c.permissions)
 	case "present":
-		c.permissions.Present = true
+		c.permissions = addnew("present", c.permissions)
 	case "unpresent":
-		c.permissions.Present = false
+		c.permissions = remove("present", c.permissions)
 	default:
 		return group.UserError("unknown permission")
 	}
@@ -1356,7 +1384,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Kind:        "fail",
 				Group:       m.Group,
 				Username:    c.username,
-				Permissions: &group.ClientPermissions{},
 				Value:       s,
 			})
 		}
@@ -1368,7 +1395,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Kind:        "redirect",
 				Group:       m.Group,
 				Username:    c.username,
-				Permissions: &group.ClientPermissions{},
 				Value:       redirect,
 			})
 		}
@@ -1407,7 +1433,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if m.Id == "" {
 			return errEmptyId
 		}
-		if !c.permissions.Present {
+		if !member("present", c.permissions) {
 			if m.Replace != "" {
 				delUpConn(c, m.Replace, c.id, true)
 			}
@@ -1508,7 +1534,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Source:     m.Source,
 			Dest:       m.Dest,
 			Username:   m.Username,
-			Privileged: c.permissions.Op,
+			Privileged: member("op", c.permissions),
 			Time:       tm,
 			Kind:       m.Kind,
 			NoEcho:     m.NoEcho,
@@ -1554,7 +1580,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				log.Printf("broadcast(clearchat): %v", err)
 			}
 		case "lock", "unlock":
-			if !c.permissions.Op {
+			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
 			message := ""
@@ -1564,7 +1590,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			g.SetLocked(m.Kind == "lock", message)
 		case "record":
-			if !c.permissions.Record {
+			if !member("record", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
 			for _, cc := range g.GetClients(c) {
@@ -1585,7 +1611,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			requestConns(disk, c.group, "")
 		case "unrecord":
-			if !c.permissions.Record {
+			if !member("record", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
 			for _, cc := range g.GetClients(c) {
@@ -1596,7 +1622,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				}
 			}
 		case "subgroups":
-			if !c.permissions.Op {
+			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
 			s := ""
@@ -1616,7 +1642,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Value:    s,
 			})
 		case "setdata":
-			if !c.permissions.Op {
+			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
 			data, ok := m.Value.(map[string]interface{})
@@ -1636,7 +1662,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 		switch m.Kind {
 		case "op", "unop", "present", "unpresent":
-			if !c.permissions.Op {
+			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
 			err := setPermissions(g, m.Dest, m.Kind)
@@ -1644,7 +1670,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return c.error(err)
 			}
 		case "kick":
-			if !c.permissions.Op {
+			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
 			message := ""
@@ -1769,7 +1795,7 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 }
 
 func (c *webClient) Warn(oponly bool, message string) error {
-	if oponly && !c.permissions.Op {
+	if oponly && !member("op", c.permissions) {
 		return nil
 	}
 

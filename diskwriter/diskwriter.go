@@ -59,21 +59,19 @@ func (client *Client) Username() string {
 	return "RECORDING"
 }
 
-func (client *Client) SetPermissions(perms group.ClientPermissions) {
+func (client *Client) SetPermissions(perms []string) {
 	return
 }
 
-func (client *Client) Permissions() group.ClientPermissions {
-	return group.ClientPermissions{
-		System: true,
-	}
+func (client *Client) Permissions() []string {
+	return []string{"system"}
 }
 
 func (client *Client) Data() map[string]interface{} {
 	return nil
 }
 
-func (client *Client) PushClient(group, kind, id, username string, permissions group.ClientPermissions, data map[string]interface{}) error {
+func (client *Client) PushClient(group, kind, id, username string, perms []string, data map[string]interface{}) error {
 	return nil
 }
 

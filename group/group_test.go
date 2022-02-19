@@ -132,29 +132,29 @@ var badClients = []ClientCredentials{
 
 type credPerm struct {
 	c ClientCredentials
-	p ClientPermissions
+	p []string
 }
 
 var goodClients = []credPerm{
 	{
 		ClientCredentials{Username: "jch", Password: "topsecret"},
-		ClientPermissions{Op: true, Present: true},
+		[]string{"op", "present"},
 	},
 	{
 		ClientCredentials{Username: "john", Password: "secret"},
-		ClientPermissions{Present: true},
+		[]string{"present"},
 	},
 	{
 		ClientCredentials{Username: "john", Password: "secret2"},
-		ClientPermissions{Present: true},
+		[]string{"present"},
 	},
 	{
 		ClientCredentials{Username: "james", Password: "secret3"},
-		ClientPermissions{},
+		nil,
 	},
 	{
 		ClientCredentials{Username: "paul", Password: "secret3"},
-		ClientPermissions{},
+		nil,
 	},
 }
 

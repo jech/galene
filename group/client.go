@@ -81,13 +81,6 @@ type ClientPattern struct {
 	Password *Password `json:"password,omitempty"`
 }
 
-type ClientPermissions struct {
-	Op      bool `json:"op,omitempty"`
-	Present bool `json:"present,omitempty"`
-	Record  bool `json:"record,omitempty"`
-	System  bool `json:"system,omitempty"`
-}
-
 type ClientCredentials struct {
 	System   bool
 	Username string
@@ -99,12 +92,12 @@ type Client interface {
 	Group() *Group
 	Id() string
 	Username() string
-	Permissions() ClientPermissions
-	SetPermissions(ClientPermissions)
+	Permissions() []string
+	SetPermissions([]string)
 	Data() map[string]interface{}
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
 	RequestConns(target Client, g *Group, id string) error
 	Joined(group, kind string) error
-	PushClient(group, kind, id, username string, permissions ClientPermissions, data map[string]interface{}) error
+	PushClient(group, kind, id, username string, perms []string, data map[string]interface{}) error
 	Kick(id, user, message string) error
 }

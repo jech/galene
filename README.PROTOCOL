@@ -385,7 +385,7 @@ allowed to join, then the authorisation server replies with a signed JWT
 {
     "sub": username,
     "aud": "https://galene.example.org/group/groupname",
-    "permissions": ["present": true],
+    "permissions": ["present"],
     "iat": now,
     "exp": now + 30s,
     "iss": authorisation server URL
