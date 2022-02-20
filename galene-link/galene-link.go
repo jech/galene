@@ -100,9 +100,6 @@ func main() {
 		fmt.Println(s)
 	} else {
 		query := url.Values{}
-		if username != "" {
-			query.Add("username", username)
-		}
 		query.Add("token", s)
 		outURL := &url.URL{
 			Scheme:   groupURL.Scheme,

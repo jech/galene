@@ -92,6 +92,7 @@ type Client interface {
 	Group() *Group
 	Id() string
 	Username() string
+	SetUsername(string)
 	Permissions() []string
 	SetPermissions([]string)
 	Data() map[string]interface{}

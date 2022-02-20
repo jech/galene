@@ -117,8 +117,8 @@ The `join` message requests that the sender join or leave a group:
 }
 ```
 
-If token-based authorisation is beling used, then the `password` field is
-omitted, and a `token` field is included instead.
+If token-based authorisation is beling used, then the `username` and
+`password` fields are omitted, and a `token` field is included instead.
 
 When the sender has effectively joined the group, the peer will send
 a 'joined' message of kind 'join'; it may then send a 'joined' message of
@@ -138,10 +138,11 @@ its permissions or in the recommended RTC configuration.
 }
 ```
 
-The `permissions` field is an array of strings that may contain the values
-`present`, `op` and `record`.  The `status` field is a dictionary that
-contains status information about the group, in the same format as at the
-`.status.json` URL above.
+The `username` field is the username that the server assigned to this
+user.  The `permissions` field is an array of strings that may contain the
+values `present`, `op` and `record`.  The `status` field is a dictionary
+that contains status information about the group, in the same format as at
+the `.status.json` URL above.
 
 ## Maintaining group membership
 
@@ -366,13 +367,24 @@ Currently defined kinds include `clearchat` (not to be confused with the
 
 # Authorisation protocol
 
+In addition to username/password authentication, Galene supports
+authentication using cryptographic tokens.  Two flows are supported: using
+an authentication server, where Galene's client requests a token from
+a third-party server, and using an authentication portal, where
+a third-party login portal redirects the user to Galene.  Authentication
+servers are somewhat simpler to implement, but authentication portals are
+more flexible and avoid communicating the user's password to Galene's
+Javascript code.
+
+## Authentication server
+
 If a group's status dictionary has a non-empty `authServer` field, then
-the group uses token authentication.  Before joining, the client sends
+the group uses an authentication server.  Before joining, the client sends
 a POST request to the authorisation server URL containing in its body
 a JSON dictionary of the following form:
 ```javascript
 {
-    "location": "https://galene.example.org/group/groupname",
+    "location": "https://galene.example.org/group/groupname/",
     "username": username,
     "password": password
 }
@@ -384,7 +396,7 @@ allowed to join, then the authorisation server replies with a signed JWT
 ```javascript
 {
     "sub": username,
-    "aud": "https://galene.example.org/group/groupname",
+    "aud": "https://galene.example.org/group/groupname/",
     "permissions": ["present"],
     "iat": now,
     "exp": now + 30s,
@@ -396,4 +408,12 @@ the same format as in the `joined` message.  Since the client will only
 use the token once, at the very beginning of the session, the tokens
 issued may have a short lifetime (on the order of 30s).
 
+## Authentication portal
 
+If a group's status dictionary has a non-empty `authPortal` field, Galene
+redirects the user agent to the URL indicated by `authPortal`.  The
+authentication portal performs authorisation, generates a token as above,
+then redirects back to the group's URL with the token stores in a URL
+query parameter named `token`:
+
+    https://galene.example.org/group/groupname/?token=eyJhbG...

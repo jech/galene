@@ -10,8 +10,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var ErrUnexpectedSub = errors.New("unexpected 'sub' field")
-
 func parseBase64(k string, d map[string]interface{}) ([]byte, error) {
 	v, ok := d[k].(string)
 	if !ok {
@@ -117,18 +115,23 @@ func toStringArray(a []interface{}) ([]string, bool) {
 	return b, true
 }
 
-func Valid(username, token string, keys []map[string]interface{}) ([]string, []string, error) {
+func Valid(token string, keys []map[string]interface{}) (string, []string, []string, error) {
 	tok, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		return getKey(t.Header, keys)
 	})
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 	claims := tok.Claims.(jwt.MapClaims)
 
-	sub, ok := claims["sub"].(string)
-	if !ok || sub != username {
-		return nil, nil, ErrUnexpectedSub
+	var sub string
+	if s, ok := claims["sub"]; ok && s != nil {
+		ss, ok := s.(string)
+		if !ok {
+			return "", nil, nil,
+				errors.New("invalid 'sub' field")
+		}
+		sub = ss
 	}
 
 	var aud []string
@@ -139,11 +142,11 @@ func Valid(username, token string, keys []map[string]interface{}) ([]string, []s
 		case []interface{}:
 			aud, ok = toStringArray(a)
 			if !ok {
-				return nil, nil,
+				return "", nil, nil,
 					errors.New("invalid 'aud' field")
 			}
 		default:
-			return nil, nil,
+			return "", nil, nil,
 				errors.New("invalid 'aud' field")
 		}
 	}
@@ -152,14 +155,14 @@ func Valid(username, token string, keys []map[string]interface{}) ([]string, []s
 	if p, ok := claims["permissions"]; ok && p != nil {
 		pp, ok := p.([]interface{})
 		if !ok {
-			return nil, nil,
+			return "", nil, nil,
 				errors.New("invalid 'permissions' field")
 		}
 		perms, ok = toStringArray(pp)
 		if !ok {
-			return nil, nil,
+			return "", nil, nil,
 				errors.New("invalid 'permissions' field")
 		}
 	}
-	return aud, perms, nil
+	return sub, aud, perms, nil
 }

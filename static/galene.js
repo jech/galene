@@ -30,9 +30,6 @@ let serverConnection;
 let groupStatus = {};
 
 /** @type {string} */
-let username = null;
-
-/** @type {string} */
 let token = null;
 
 /**
@@ -273,8 +270,11 @@ function setConnected(connected) {
     }
 }
 
-/** @this {ServerConnection} */
-async function gotConnected() {
+/**
+  * @this {ServerConnection}
+  * @param {string} [username]
+  */
+async function gotConnected(username) {
     let credentials;
     if(token) {
         credentials = {
@@ -283,9 +283,9 @@ async function gotConnected() {
         };
         token = null;
     } else {
-        username = getInputElement('username').value.trim();
         setConnected(true);
 
+        username = getInputElement('username').value.trim();
         let pw = getInputElement('password').value;
         getInputElement('password').value = '';
         if(!groupStatus.authServer)
@@ -2139,7 +2139,7 @@ function gotUser(id, kind) {
 }
 
 function displayUsername() {
-    document.getElementById('userspan').textContent = username;
+    document.getElementById('userspan').textContent = serverConnection.username;
     let op = serverConnection.permissions.indexOf('op') >= 0;
     let present = serverConnection.permissions.indexOf('present') >= 0;
     let text = '';
@@ -3776,7 +3776,6 @@ async function start() {
     setMediaChoices(false).then(e => reflectSettings());
 
     if(parms.has('token')) {
-        username = parms.get('username');
         token = parms.get('token');
         await serverConnect();
     } else if(groupStatus.authPortal) {

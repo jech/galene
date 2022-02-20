@@ -167,7 +167,7 @@ func TestPermissions(t *testing.T) {
 
 	for _, c := range badClients {
 		t.Run("bad "+c.Username, func(t *testing.T) {
-			p, err := d.GetPermission("test", c)
+			_, p, err := d.GetPermission("test", c)
 			if err != ErrNotAuthorised {
 				t.Errorf("GetPermission %v: %v %v", c, err, p)
 			}
@@ -176,12 +176,13 @@ func TestPermissions(t *testing.T) {
 
 	for _, cp := range goodClients {
 		t.Run("good "+cp.c.Username, func(t *testing.T) {
-			p, err := d.GetPermission("test", cp.c)
+			u, p, err := d.GetPermission("test", cp.c)
 			if err != nil {
 				t.Errorf("GetPermission %v: %v", cp.c, err)
-			} else if !reflect.DeepEqual(p, cp.p) {
-				t.Errorf("%v: got %v, expected %v",
-					cp.c, p, cp.p)
+			} else if u != cp.c.Username ||
+				!reflect.DeepEqual(p, cp.p) {
+				t.Errorf("%v: got %v %v, expected %v",
+					cp.c, u, p, cp.p)
 			}
 		})
 	}

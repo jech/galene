@@ -69,11 +69,14 @@ func TestValid(t *testing.T) {
 
 	goodToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDI5NCwiZXhwIjoyOTA2NzUwMjk0LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0.6xXpgBkBMn4PSBpnwYHb-gRn_Q97Yq9DoKkAf2_6iwc"
 
-	aud, perms, err := Valid("john", goodToken, keys)
+	sub, aud, perms, err := Valid(goodToken, keys)
 
 	if err != nil {
 		t.Errorf("Token invalid: %v", err)
 	} else {
+		if sub != "john" {
+			t.Errorf("Unexpected sub: %v", sub)
+		}
 		if !reflect.DeepEqual(aud, []string{"https://galene.org:8443/group/auth/"}) {
 			t.Errorf("Unexpected aud: %v", aud)
 		}
@@ -82,14 +85,9 @@ func TestValid(t *testing.T) {
 		}
 	}
 
-	aud, perms, err = Valid("jack", goodToken, keys)
-	if err != ErrUnexpectedSub {
-		t.Errorf("Token should have bad username")
-	}
-
 	badToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDQ2OSwiZXhwIjoyOTA2NzUwNDY5LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0."
 
-	_, _, err = Valid("john", badToken, keys)
+	_, _, _, err = Valid(badToken, keys)
 
 	var verr *jwt.ValidationError
 	if !errors.As(err, &verr) {
@@ -98,14 +96,14 @@ func TestValid(t *testing.T) {
 
 	expiredToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDMyMiwiZXhwIjoxNjQ1MzEwMzUyLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0.jyqRhoV6iK54SvlP33Fy630aDo-sLNmKKi1kcfqs378"
 
-	_, _, err = Valid("john", expiredToken, keys)
+	_, _, _, err = Valid(expiredToken, keys)
 
 	if !errors.As(err, &verr) {
 		t.Errorf("Token should be expired")
 	}
 
 	noneToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDQwMSwiZXhwIjoxNjQ1MzEwNDMxLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0."
-	_, _, err = Valid("john", noneToken, keys)
+	_, _, _, err = Valid(noneToken, keys)
 	if err == nil {
 		t.Errorf("Unsigned token should fail")
 	}

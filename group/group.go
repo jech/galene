@@ -565,11 +565,12 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 	clients := g.getClientsUnlocked(nil)
 
 	if !member("system", c.Permissions()) {
-		perms, err := g.description.GetPermission(group, creds)
+		username, perms, err := g.description.GetPermission(group, creds)
 		if err != nil {
 			return nil, err
 		}
 
+		c.SetUsername(username)
 		c.SetPermissions(perms)
 
 		if !member("op", perms) {
@@ -1078,9 +1079,9 @@ func GetDescription(name string) (*Description, error) {
 	return &desc, nil
 }
 
-func (desc *Description) GetPermission(group string, creds ClientCredentials) ([]string, error) {
+func (desc *Description) GetPermission(group string, creds ClientCredentials) (string, []string, error) {
 	if !desc.AllowAnonymous && creds.Username == "" {
-		return nil, ErrAnonymousNotAuthorised
+		return "", nil, ErrAnonymousNotAuthorised
 	}
 
 	if creds.Token == "" {
@@ -1091,36 +1092,34 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) ([
 				if desc.AllowRecording {
 					p = append(p, "record")
 				}
-				return p, nil
+				return creds.Username, p, nil
 			}
-			return nil, ErrNotAuthorised
+			return "", nil, ErrNotAuthorised
 		}
 		if found, good := matchClient(group, creds, desc.Presenter); found {
 			if good {
-				return []string{"present"}, nil
+				return creds.Username, []string{"present"}, nil
 			}
-			return nil, ErrNotAuthorised
+			return "", nil, ErrNotAuthorised
 		}
 		if found, good := matchClient(group, creds, desc.Other); found {
 			if good {
-				return nil, nil
+				return creds.Username, nil, nil
 			}
-			return nil, ErrNotAuthorised
+			return "", nil, ErrNotAuthorised
 		}
-		return nil, ErrNotAuthorised
+		return "", nil, ErrNotAuthorised
 	}
 
-	aud, perms, err := token.Valid(
-		creds.Username, creds.Token, desc.AuthKeys,
-	)
+	sub, aud, perms, err := token.Valid(creds.Token, desc.AuthKeys)
 	if err != nil {
 		log.Printf("Token authentication: %v", err)
-		return nil, ErrNotAuthorised
+		return "", nil, ErrNotAuthorised
 	}
 	conf, err := GetConfiguration()
 	if err != nil {
 		log.Printf("Read config.json: %v", err)
-		return nil, err
+		return "", nil, err
 	}
 	ok := false
 	for _, u := range aud {
@@ -1145,9 +1144,9 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) ([
 		}
 	}
 	if !ok {
-		return nil, ErrNotAuthorised
+		return "", nil, ErrNotAuthorised
 	}
-	return perms, nil
+	return sub, perms, nil
 }
 
 type Status struct {

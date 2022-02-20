@@ -59,6 +59,10 @@ func (client *Client) Username() string {
 	return "RECORDING"
 }
 
+func (client *Client) SetUsername(string) {
+	return
+}
+
 func (client *Client) SetPermissions(perms []string) {
 	return
 }

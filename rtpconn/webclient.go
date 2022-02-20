@@ -86,6 +86,10 @@ func (c *webClient) Username() string {
 	return c.username
 }
 
+func (c *webClient) SetUsername(username string) {
+	c.username = username
+}
+
 func (c *webClient) Permissions() []string {
 	return c.permissions
 }
