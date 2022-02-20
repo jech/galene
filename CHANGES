@@ -1,8 +1,9 @@
 Galene 0.5 (unreleased)
 
-  * Implemented third-party (token-based) authentication.
-  * Implemented peer-to-peer file transfer.
-  * Added a contextual menu to the users list.
+  * Implement third-party (token-based) authentication.
+  * Implement peer-to-peer file transfer.
+  * Add a contextual menu to the users list.
+  * Add the "galene-link" utility, which generates autologin links.
 
 1 February 2022: Galene 0.4.4
 
