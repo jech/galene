@@ -21,13 +21,13 @@ func TestHS256(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	k, err := parseKey(j)
+	k, err := ParseKey(j)
 	if err != nil {
-		t.Fatalf("parseKey: %v", err)
+		t.Fatalf("ParseKey: %v", err)
 	}
 	kk, ok := k.([]byte)
 	if !ok || len(kk) != 32 {
-		t.Errorf("parseKey: got %v", kk)
+		t.Errorf("ParseKey: got %v", kk)
 	}
 }
 
@@ -44,13 +44,13 @@ func TestES256(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	k, err := parseKey(j)
+	k, err := ParseKey(j)
 	if err != nil {
-		t.Fatalf("parseKey: %v", err)
+		t.Fatalf("ParseKey: %v", err)
 	}
 	kk, ok := k.(*ecdsa.PublicKey)
 	if !ok || kk.Params().Name != "P-256" {
-		t.Errorf("parseKey: got %v", kk)
+		t.Errorf("ParseKey: got %v", kk)
 	}
 	if !kk.IsOnCurve(kk.X, kk.Y) {
 		t.Errorf("point is not on curve")

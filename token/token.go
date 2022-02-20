@@ -24,7 +24,7 @@ func parseBase64(k string, d map[string]interface{}) ([]byte, error) {
 	return vv, nil
 }
 
-func parseKey(key map[string]interface{}) (interface{}, error) {
+func ParseKey(key map[string]interface{}) (interface{}, error) {
 	kty, ok := key["kty"].(string)
 	if !ok {
 		return nil, errors.New("kty not found")
@@ -99,7 +99,7 @@ func getKey(header map[string]interface{}, keys []map[string]interface{}) (inter
 		kid2, _ := k["kid"].(string)
 		alg2, _ := k["alg"].(string)
 		if (kid == "" || kid == kid2) && alg == alg2 {
-			return parseKey(k)
+			return ParseKey(k)
 		}
 	}
 	return nil, errors.New("key not found")
