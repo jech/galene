@@ -37,7 +37,7 @@ func parseKey(key map[string]interface{}) (interface{}, error) {
 	switch kty {
 	case "oct":
 		var length int
-		switch(alg) {
+		switch alg {
 		case "HS256":
 			length = 32
 		case "HS384":
@@ -105,6 +105,18 @@ func getKey(header map[string]interface{}, keys []map[string]interface{}) (inter
 	return nil, errors.New("key not found")
 }
 
+func toStringArray(a []interface{}) ([]string, bool) {
+	b := make([]string, len(a))
+	for i, v := range a {
+		w, ok := v.(string)
+		if !ok {
+			return nil, false
+		}
+		b[i] = w
+	}
+	return b, true
+}
+
 func Valid(username, token string, keys []map[string]interface{}) ([]string, []string, error) {
 	tok, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		return getKey(t.Header, keys)
@@ -124,8 +136,15 @@ func Valid(username, token string, keys []map[string]interface{}) ([]string, []s
 		switch a := a.(type) {
 		case string:
 			aud = []string{a}
-		case []string:
-			aud = a
+		case []interface{}:
+			aud, ok = toStringArray(a)
+			if !ok {
+				return nil, nil,
+					errors.New("invalid 'aud' field")
+			}
+		default:
+			return nil, nil,
+				errors.New("invalid 'aud' field")
 		}
 	}
 
@@ -136,14 +155,10 @@ func Valid(username, token string, keys []map[string]interface{}) ([]string, []s
 			return nil, nil,
 				errors.New("invalid 'permissions' field")
 		}
-		perms = make([]string, len(pp))
-		for i, v := range pp {
-			w, ok := v.(string)
-			if !ok {
-				return nil, nil,
-					errors.New("invalid 'permissions' field")
-			}
-			perms[i] = w
+		perms, ok = toStringArray(pp)
+		if !ok {
+			return nil, nil,
+				errors.New("invalid 'permissions' field")
 		}
 	}
 	return aud, perms, nil
