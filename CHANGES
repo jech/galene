@@ -1,8 +1,13 @@
 Galene 0.5 (unreleased)
 
   * Implement third-party (token-based) authentication.
-  * Implement peer-to-peer file transfer.
+  * Implement peer-to-peer file transfer (/sendfile).
   * Add a contextual menu to the users list.
+  * Removed the "Broadcast file" entry in the side menu, it is now
+    available as a context menu entry and a chat command (/presentfile).
+  * Add side-menu options for high-quality audio (Opus at 128kbps) and
+    disabling audio preprocessing.
+  * Send audio in addition to video when sharing browser tabs.
   * Add the "galene-link" utility, which generates autologin links.
 
 1 February 2022: Galene 0.4.4
