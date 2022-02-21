@@ -2538,7 +2538,7 @@ async function rejectFile(f) {
  * @param {TransferredFile} f
  * @param {string} sdp
  */
-async function sendFile(f, sdp) {
+async function sendOfferedFile(f, sdp) {
     if(f.pc)
         throw new Error('Transfer already in progress');
 
@@ -2805,7 +2805,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
         let f = TransferredFile.get(true, id, message.id);
         if(!f)
             throw new Error('unexpected getfile');
-        sendFile(f, message.offer);
+        sendOfferedFile(f, message.offer);
         break;
     }
     case 'rejectfile': {
