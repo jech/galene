@@ -405,11 +405,6 @@ function setButtonsVisibility() {
     let present = permissions.indexOf('present') >= 0;
     let local = !!findUpMedia('camera');
     let canWebrtc = !(typeof RTCPeerConnection === 'undefined');
-    let canFile =
-        /** @ts-ignore */
-        !!HTMLVideoElement.prototype.captureStream ||
-        /** @ts-ignore */
-        !!HTMLVideoElement.prototype.mozCaptureStream;
     let mediacount = document.getElementById('peers').childElementCount;
     let mobilelayout = isMobileLayout();
 
@@ -426,7 +421,6 @@ function setButtonsVisibility() {
     setVisibility('mediaoptions', present);
     setVisibility('sendform', present);
     setVisibility('simulcastform', present);
-    setVisibility('fileform', canFile && present);
 
     setVisibility('collapse-video', mediacount && mobilelayout);
 }
@@ -615,21 +609,6 @@ getInputElement('activitybox').onchange = function(e) {
             setActive(c, false);
         }
     }
-};
-
-getInputElement('fileinput').onchange = function(e) {
-    if(!(this instanceof HTMLInputElement))
-        throw new Error('Unexpected type for this');
-    let input = this;
-    let files = input.files;
-    for(let i = 0; i < files.length; i++) {
-        addFileMedia(files[i]).catch(e => {
-            console.error(e);
-            displayError(e);
-        });
-    }
-    input.value = '';
-    closeNav();
 };
 
 /**
@@ -3375,6 +3354,43 @@ commands.unraise = {
     }
 }
 
+function presentFile() {
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept="audio/*,video/*";
+    input.onchange = function(e) {
+        if(!(this instanceof HTMLInputElement))
+            throw new Error('Unexpected type for this');
+        let files = this.files;
+        for(let i = 0; i < files.length; i++) {
+            addFileMedia(files[i]).catch(e => {
+                console.error(e);
+                displayError(e);
+            });
+        }
+    };
+    input.click();
+}
+
+commands.presentfile = {
+    description: 'broadcast a video or audio file',
+    f: (c, r) => {
+        presentFile();
+    },
+    predicate: () => {
+        if(!serverConnection || !serverConnection.permissions ||
+           serverConnection.permissions.indexOf('present') < 0)
+            return 'You are not authorised to present';
+        /** @ts-ignore */
+        if(!HTMLVideoElement.prototype.captureStream &&
+           /** @ts-ignore */
+           !HTMLVideoElement.prototype.mozCaptureStream)
+            return 'Your browser does not support presenting arbitrary files';
+        return null;
+    },
+};
+
+
 /**
  * @param {string} id
  */
@@ -3384,7 +3400,7 @@ function sendFile(id) {
     input.onchange = function(e) {
         if(!(this instanceof HTMLInputElement))
             throw new Error('Unexpected type for this');
-        let files = input.files;
+        let files = this.files;
         for(let i = 0; i < files.length; i++) {
             try {
                 offerFile(id, files[i]);
