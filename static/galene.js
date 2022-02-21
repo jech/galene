@@ -1168,6 +1168,12 @@ function setUpStream(c, stream) {
                     scaleResolutionDownBy: 2,
                     maxBitrate: simulcastRate,
                 });
+        } else {
+            if(c.label === 'video') {
+                encodings.push({
+                    maxBitrate: 192000,
+                });
+            }
         }
         let tr = c.pc.addTransceiver(t, {
             direction: 'sendonly',
