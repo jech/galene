@@ -2037,6 +2037,8 @@ function userMenu(elt) {
                     'setdata', serverConnection.id, {'raisehand': true},
                 );
             }});
+        if(serverConnection.permissions.indexOf('present')>= 0 && canFile())
+            items.push({label: 'Broadcast file', onClick: presentFile});
         items.push({label: 'Restart media', onClick: renegotiateStreams});
     } else {
         items.push({label: 'Send file', onClick: () => {
@@ -3404,6 +3406,16 @@ commands.unraise = {
     }
 }
 
+/** @returns {boolean} */
+function canFile() {
+    let v =
+        /** @ts-ignore */
+        !!HTMLVideoElement.prototype.captureStream ||
+        /** @ts-ignore */
+        !!HTMLVideoElement.prototype.mozCaptureStream;
+    return v;
+}
+
 function presentFile() {
     let input = document.createElement('input');
     input.type = 'file';
@@ -3428,16 +3440,13 @@ commands.presentfile = {
         presentFile();
     },
     predicate: () => {
+        if(!canFile())
+            return 'Your browser does not support presenting arbitrary files';
         if(!serverConnection || !serverConnection.permissions ||
            serverConnection.permissions.indexOf('present') < 0)
-            return 'You are not authorised to present';
-        /** @ts-ignore */
-        if(!HTMLVideoElement.prototype.captureStream &&
-           /** @ts-ignore */
-           !HTMLVideoElement.prototype.mozCaptureStream)
-            return 'Your browser does not support presenting arbitrary files';
+            return 'You are not authorised to present.';
         return null;
-    },
+    }
 };
 
 
