@@ -1393,7 +1393,10 @@ async function addShareMedia() {
     try {
         if(!('getDisplayMedia' in navigator.mediaDevices))
             throw new Error('Your browser does not support screen sharing');
-        stream = await navigator.mediaDevices.getDisplayMedia({video: true});
+        stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true,
+        });
     } catch(e) {
         console.error(e);
         displayError(e);
