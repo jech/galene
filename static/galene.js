@@ -45,6 +45,8 @@ let token = null;
  * @property {boolean} [mirrorView]
  * @property {boolean} [blackboardMode]
  * @property {string} [filter]
+ * @property {boolean} [preprocessing]
+ * @property {boolean} [hqaudio]
  */
 
 /** @type{settings} */
@@ -213,6 +215,20 @@ function reflectSettings() {
         getInputElement('activitybox').checked = settings.activityDetection;
     } else {
         settings.activityDetection = getInputElement('activitybox').checked;
+        store = true;
+    }
+
+    if(settings.hasOwnProperty('preprocessing')) {
+        getInputElement('preprocessingbox').checked = settings.preprocessing;
+    } else {
+        settings.preprocessing = getInputElement('preprocessingbox').checked;
+        store = true;
+    }
+
+    if(settings.hasOwnProperty('hqaudio')) {
+        getInputElement('hqaudiobox').checked = settings.hqaudio;
+    } else {
+        settings.hqaudio = getInputElement('hqaudiobox').checked;
         store = true;
     }
 
@@ -476,6 +492,22 @@ getInputElement('blackboardbox').onchange = function(e) {
     if(!(this instanceof HTMLInputElement))
         throw new Error('Unexpected type for this');
     updateSettings({blackboardMode: this.checked});
+    replaceCameraStream();
+};
+
+getInputElement('preprocessingbox').onchange = function(e) {
+    e.preventDefault();
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
+    updateSettings({preprocessing: this.checked});
+    replaceCameraStream();
+};
+
+getInputElement('hqaudiobox').onchange = function(e) {
+    e.preventDefault();
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
+    updateSettings({hqaudio: this.checked});
     replaceCameraStream();
 };
 
@@ -1075,6 +1107,7 @@ function isSafari() {
 
 const unlimitedRate = 1000000000;
 const simulcastRate = 100000;
+const hqAudioRate = 128000;
 
 /**
  * Decide whether we want to send simulcast.
@@ -1137,8 +1170,8 @@ function setUpStream(c, stream) {
      * @param {MediaStreamTrack} t
      */
     function addUpTrack(t) {
+        let settings = getSettings();
         if(c.label === 'camera') {
-            let settings = getSettings();
             if(t.kind == 'audio') {
                 if(settings.localMute)
                     t.enabled = false;
@@ -1169,9 +1202,9 @@ function setUpStream(c, stream) {
                     maxBitrate: simulcastRate,
                 });
         } else {
-            if(c.label === 'video') {
+            if(c.label !== 'camera' || settings.hqaudio) {
                 encodings.push({
-                    maxBitrate: 192000,
+                    maxBitrate: hqAudioRate,
                 });
             }
         }
@@ -1297,6 +1330,14 @@ async function addLocalMedia(localId) {
         } else if(settings.blackboardMode) {
             video.width = { min: 640, ideal: 1920 };
             video.height = { min: 400, ideal: 1080 };
+        }
+    }
+
+    if(audio) {
+        if(!settings.preprocessing) {
+            audio.echoCancellation = false;
+            audio.noiseSuppression = false;
+            audio.autoGainControl = false;
         }
     }
 
