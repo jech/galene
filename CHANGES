@@ -8,7 +8,6 @@ Galene 0.5 (unreleased)
   * Add side-menu options for high-quality audio (Opus at 128kbps) and
     disabling audio preprocessing.
   * Send audio in addition to video when sharing browser tabs.
-  * Add the "galene-link" utility, which generates autologin links.
 
 1 February 2022: Galene 0.4.4
 
