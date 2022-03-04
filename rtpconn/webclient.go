@@ -1180,7 +1180,7 @@ func handleAction(c *webClient, a interface{}) error {
 			Status:           &status,
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
-		if member("present", c.permissions) {
+		if !member("present", c.permissions) {
 			up := getUpConns(c)
 			for _, u := range up {
 				err := delUpConn(
