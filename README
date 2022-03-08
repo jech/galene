@@ -72,7 +72,7 @@ A typical group definition file looks like this:
 
     {
         "op":[{"username":"jch","password":"1234"}],
-        "presenter":[{}]
+        "presenter":[{}],
         "allow-recording": true,
         "allow-subgroups": true
     }
