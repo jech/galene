@@ -1,4 +1,4 @@
-Galene 0.5 (unreleased)
+8 March 2022: Galene 0.5
 
   * Implement third-party (token-based) authentication.
   * Implement peer-to-peer file transfer (/sendfile).
