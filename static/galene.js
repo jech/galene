@@ -855,11 +855,9 @@ async function setSendParameters(c, bps, simulcast) {
         if(!s.track || s.track.kind !== 'video')
             continue;
         let p = s.getParameters();
-        if(!p.encodings)
-            p.encodings = [{}];
-        if((!simulcast && p.encodings.length != 1) ||
+        if((!p.encodings ||
+            !simulcast && p.encodings.length != 1) ||
            (simulcast && p.encodings.length != 2)) {
-            // change the simulcast envelope
             await replaceUpStream(c);
             return;
         }
@@ -1213,15 +1211,12 @@ function setUpStream(c, stream) {
             streams: [stream],
             sendEncodings: encodings,
         });
-        if(t.kind === 'video') {
-            let p = tr.sender.getParameters();
-            if(!p.encodings) {
-                // Firefox workaround
-                updateSettings({simulcast: 'off'});
-                reflectSettings();
-                p.encodings = [encodings[0]];
-                tr.sender.setParameters(p);
-            }
+
+        // Firefox workaround
+        let p = tr.sender.getParameters();
+        if(!p.encodings || p.encodings.length != encodings.length) {
+            p.encodings = encodings;
+            tr.sender.setParameters(p);
         }
     }
 
