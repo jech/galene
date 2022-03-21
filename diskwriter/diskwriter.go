@@ -634,11 +634,22 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 		return err
 	}
 
+	interceptor, err := mkvcore.NewMultiTrackBlockSorter(
+		// must be larger than the samplebuilder's MaxLate.
+		mkvcore.WithMaxDelayedPackets(384),
+		mkvcore.WithSortRule(mkvcore.BlockSorterDropOutdated),
+	)
+	if err != nil {
+		conn.file.Close()
+		conn.file = nil
+		return err
+	}
+
 	ws, err := mkvcore.NewSimpleBlockWriter(
 		conn.file, desc,
 		mkvcore.WithEBMLHeader(header),
 		mkvcore.WithSegmentInfo(webm.DefaultSegmentInfo),
-		mkvcore.WithBlockInterceptor(webm.DefaultBlockInterceptor),
+		mkvcore.WithBlockInterceptor(interceptor),
 	)
 	if err != nil {
 		conn.file.Close()
