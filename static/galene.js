@@ -1220,8 +1220,20 @@ function setUpStream(c, stream) {
         });
 
         // Firefox workaround
+        function match(a, b) {
+            if(!a || !b)
+                return false;
+            if(a.length !== b.length)
+                return false;
+            for(let i = 0; i < a.length; i++) {
+                if(a.maxBitrate !== b.maxBitrate)
+                    return false;
+            }
+            return true;
+        }
+
         let p = tr.sender.getParameters();
-        if(!p.encodings || p.encodings.length != encodings.length) {
+        if(!p || !match(p.encodings, encodings)) {
             p.encodings = encodings;
             tr.sender.setParameters(p);
         }
