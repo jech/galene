@@ -1189,16 +1189,23 @@ function setUpStream(c, stream) {
         let simulcast = doSimulcast();
         if(t.kind === 'video') {
             let bps = getMaxVideoThroughput();
-            encodings.push({
-                rid: 'h',
-                maxBitrate: bps || unlimitedRate,
-            });
-            if(simulcast)
+            // Firefox doesn't like us setting the RID if we're not
+            // simulcasting.
+            if(simulcast) {
+                encodings.push({
+                    rid: 'h',
+                    maxBitrate: bps || unlimitedRate,
+                });
                 encodings.push({
                     rid: 'l',
                     scaleResolutionDownBy: 2,
                     maxBitrate: simulcastRate,
                 });
+            } else {
+                encodings.push({
+                    maxBitrate: bps || unlimitedRate,
+                });
+            }
         } else {
             if(c.label !== 'camera' || settings.hqaudio) {
                 encodings.push({
