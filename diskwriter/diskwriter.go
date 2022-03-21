@@ -337,21 +337,21 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 		codec := remote.Codec()
 		if strings.EqualFold(codec.MimeType, "audio/opus") {
 			builder = samplebuilder.New(
-				32, &codecs.OpusPacket{}, codec.ClockRate,
+				16, &codecs.OpusPacket{}, codec.ClockRate,
 			)
 		} else if strings.EqualFold(codec.MimeType, "video/vp8") {
 			builder = samplebuilder.New(
-				1024, &codecs.VP8Packet{}, codec.ClockRate,
+				256, &codecs.VP8Packet{}, codec.ClockRate,
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
 			builder = samplebuilder.New(
-				1024, &codecs.VP9Packet{}, codec.ClockRate,
+				256, &codecs.VP9Packet{}, codec.ClockRate,
 			)
 			conn.hasVideo = true
 		} else if strings.EqualFold(codec.MimeType, "video/h264") {
 			builder = samplebuilder.New(
-				1024, &codecs.H264Packet{}, codec.ClockRate,
+				256, &codecs.H264Packet{}, codec.ClockRate,
 			)
 			conn.hasVideo = true
 		} else {
