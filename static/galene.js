@@ -327,9 +327,8 @@ async function gotConnected(username) {
 
 /**
  * @this {ServerConnection}
- * @param {boolean} up
  */
-function onPeerConnection(up) {
+function onPeerConnection() {
     if(!getSettings().forceRelay)
         return null;
     let old = this.rtcConfiguration;
