@@ -271,11 +271,6 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 		codecs = []webrtc.RTPCodecCapability{
 			{
 				"video/H264", 90000, 0,
-				"level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
-				fb,
-			},
-			{
-				"video/H264", 90000, 0,
 				"level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
 				fb,
 			},
