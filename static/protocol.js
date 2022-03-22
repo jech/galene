@@ -22,6 +22,7 @@
 
 /**
  * toHex formats an array as a hexadecimal string.
+ *
  * @param {number[]|Uint8Array} array - the array to format
  * @returns {string} - the hexadecimal representation of array
  */
@@ -503,6 +504,9 @@ ServerConnection.prototype.request = function(what) {
 };
 
 /**
+ * findByLocalId finds an active connection with the given localId.
+ * It returns null if none was find.
+ *
  * @param {string} localId
  * @returns {Stream}
  */
@@ -521,6 +525,10 @@ ServerConnection.prototype.findByLocalId = function(localId) {
 }
 
 /**
+ * getRTCConfiguration returns the RTCConfiguration that should be used
+ * with this peer connection.  This usually comes from the server, but may
+ * be overridden by the onpeerconnection callback.
+ *
  * @param {boolean} up
  * @returns {RTCConfiguration}
  */
@@ -667,7 +675,7 @@ ServerConnection.prototype.groupAction = function(kind, message) {
 };
 
 /**
- * Called when we receive an offer from the server.  Don't call this.
+ * gotOffer is called when we receive an offer from the server.  Don't call this.
  *
  * @param {string} id
  * @param {string} label
@@ -794,7 +802,8 @@ ServerConnection.prototype.gotOffer = async function(id, label, source, username
 };
 
 /**
- * Called when we receive an answer from the server.  Don't call this.
+ * gotAnswer is called when we receive an answer from the server.  Don't
+ * call this.
  *
  * @param {string} id
  * @param {string} sdp
@@ -824,8 +833,8 @@ ServerConnection.prototype.gotAnswer = async function(id, sdp) {
 };
 
 /**
- * Called when we receive a renegotiation request from the server.  Don't
- * call this.
+ * gotRenegotiate is called when we receive a renegotiation request from
+ * the server.  Don't call this.
  *
  * @param {string} id
  * @function
@@ -838,7 +847,8 @@ ServerConnection.prototype.gotRenegotiate = function(id) {
 };
 
 /**
- * Called when we receive a close request from the server.  Don't call this.
+ * gotClose is called when we receive a close request from the server.
+ * Don't call this.
  *
  * @param {string} id
  */
@@ -852,7 +862,8 @@ ServerConnection.prototype.gotClose = function(id) {
 };
 
 /**
- * Called when we receive an abort message from the server.  Don't call this.
+ * gotAbort is called when we receive an abort message from the server.
+ * Don't call this.
  *
  * @param {string} id
  */
@@ -864,7 +875,8 @@ ServerConnection.prototype.gotAbort = function(id) {
 };
 
 /**
- * Called when we receive an ICE candidate from the server.  Don't call this.
+ * gotRemoteIce is called when we receive an ICE candidate from the server.
+ * Don't call this.
  *
  * @param {string} id
  * @param {RTCIceCandidate} candidate
@@ -1104,6 +1116,9 @@ Stream.prototype.close = function(replace) {
 };
 
 /**
+ * recomputeUserStreams recomputes the user.down array for a given user.
+ * It returns true if anything changed.
+ *
  * @param {ServerConnection} sc
  * @param {string} id
  * @param {Stream} [c]
@@ -1164,7 +1179,7 @@ Stream.prototype.abort = function() {
 };
 
 /**
- * Called when we get a local ICE candidate.  Don't call this.
+ * gotLocalIce is Called when we get a local ICE candidate.  Don't call this.
  *
  * @param {RTCIceCandidate} candidate
  * @function
@@ -1183,6 +1198,7 @@ Stream.prototype.gotLocalIce = function(candidate) {
 /**
  * flushLocalIceCandidates flushes any buffered local ICE candidates.
  * It is called when we send an offer.
+ *
  * @function
  */
 Stream.prototype.flushLocalIceCandidates = function () {
@@ -1205,6 +1221,7 @@ Stream.prototype.flushLocalIceCandidates = function () {
 /**
  * flushRemoteIceCandidates flushes any buffered remote ICE candidates.  It is
  * called automatically when we get a remote description.
+ *
  * @function
  */
 Stream.prototype.flushRemoteIceCandidates = async function () {
