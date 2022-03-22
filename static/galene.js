@@ -2269,6 +2269,9 @@ async function gotJoined(kind, group, perms, status, data, message) {
     input.placeholder = 'Type /help for help';
     setTimeout(() => {input.placeholder = '';}, 8000);
 
+    if(status.locked)
+        displayWarning('This group is locked');
+
     if(typeof RTCPeerConnection === 'undefined')
         displayWarning("This browser doesn't support WebRTC");
     else
