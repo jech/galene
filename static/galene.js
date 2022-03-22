@@ -2537,7 +2537,7 @@ async function getFile(f) {
     if(f.pc)
         throw new Error("Download already in progress");
     setFileStatus(f, 'Connecting...', true);
-    let pc = new RTCPeerConnection(serverConnection.rtcConfiguration);
+    let pc = new RTCPeerConnection(serverConnection.getRTCConfiguration());
     if(!pc)
         throw new Error("Couldn't create peer connection");
     f.pc = pc;
@@ -2607,7 +2607,7 @@ async function sendOfferedFile(f, sdp) {
         throw new Error('Transfer already in progress');
 
     setFileStatus(f, 'Negotiating...', true);
-    let pc = new RTCPeerConnection(serverConnection.rtcConfiguration);
+    let pc = new RTCPeerConnection(serverConnection.getRTCConfiguration());
     if(!pc)
         throw new Error("Couldn't create peer connection");
     f.pc = pc;
@@ -3527,7 +3527,7 @@ commands.sendfile = {
 async function relayTest() {
     if(!serverConnection)
         throw new Error('not connected');
-    let conf = Object.assign({}, serverConnection.rtcConfiguration);
+    let conf = Object.assign({}, serverConnection.getRTCConfiguration());
     conf.iceTransportPolicy = 'relay';
     let pc1 = new RTCPeerConnection(conf);
     let pc2 = new RTCPeerConnection(conf);
