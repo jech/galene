@@ -2369,6 +2369,11 @@ TransferredFile.get = function(up, userid, fileid) {
 };
 
 TransferredFile.prototype.close = function() {
+    if(this.dc) {
+        this.dc.onclose = null;
+        this.dc.onerror = null;
+        this.dc.onmessage = null;
+    }
     if(this.pc)
         this.pc.close();
     this.dc = null;
@@ -2488,6 +2493,8 @@ function setFileStatus(f, status, delyes, delno) {
  * @param {any} message
  */
 function failFile(f, message) {
+    if(!f.dc)
+        return;
     console.error('File transfer failed:', message);
     setFileStatus(f, message ? `Failed: ${message}` : 'Failed.');
     f.close();
@@ -2689,12 +2696,14 @@ async function sendFileData(f) {
     async function write(a) {
         while(f.dc.bufferedAmount > f.dc.bufferedAmountLowThreshold) {
             await new Promise((resolve, reject) => {
-                if(f.dc == null) {
+                if(!f.dc) {
                     reject(new Error('File is closed.'));
+                    return;
                 }
                 f.dc.onbufferedamountlow = function(e) {
-                    if(f.dc == null) {
+                    if(!f.dc) {
                         reject(new Error('File is closed.'));
+                        return;
                     }
                     f.dc.onbufferedamountlow = null;
                     resolve();
@@ -2805,7 +2814,7 @@ async function doneReceiveFileData(f) {
  * @param {TransferredFile} f
  */
 function closeReceiveFileData(f) {
-    if(f.datalen != f.size) {
+    if(f.datalen !== f.size) {
         setFileStatus(f, 'Failed.', true, true)
         f.close();
     }
