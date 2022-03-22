@@ -152,6 +152,14 @@ function ServerConnection() {
      */
     this.onclose = null;
     /**
+     * onpeerconnection is called before we establish a new peer connection.
+     * It may either return null, or a new RTCConfiguration that overrides
+     * the value obtained from the server.
+     *
+     * @type{(this: ServerConnection, up: boolean) => RTCConfiguration}
+     */
+    this.onpeerconnection = null;
+    /**
      * onuser is called whenever a user in the group changes.  The users
      * array has already been updated.
      *
@@ -513,6 +521,19 @@ ServerConnection.prototype.findByLocalId = function(localId) {
 }
 
 /**
+ * @param {boolean} up
+ * @returns {RTCConfiguration}
+ */
+ServerConnection.prototype.getRTCConfiguration = function(up) {
+    if(this.onpeerconnection) {
+        let conf = this.onpeerconnection.call(this, up);
+        if(conf !== null)
+            return conf;
+    }
+    return this.rtcConfiguration;
+}
+
+/**
  * newUpStream requests the creation of a new up stream.
  *
  * @param {string} [localId]
@@ -529,7 +550,8 @@ ServerConnection.prototype.newUpStream = function(localId) {
     if(typeof RTCPeerConnection === 'undefined')
         throw new Error("This browser doesn't support WebRTC");
 
-    let pc = new RTCPeerConnection(sc.rtcConfiguration);
+
+    let pc = new RTCPeerConnection(sc.getRTCConfiguration(true));
     if(!pc)
         throw new Error("Couldn't create peer connection");
 
@@ -685,7 +707,7 @@ ServerConnection.prototype.gotOffer = async function(id, label, source, username
     if(!c) {
         let pc;
         try {
-            pc = new RTCPeerConnection(sc.rtcConfiguration);
+            pc = new RTCPeerConnection(sc.getRTCConfiguration(false));
         } catch(e) {
             console.error(e);
             sc.send({

@@ -47,6 +47,7 @@ let token = null;
  * @property {string} [filter]
  * @property {boolean} [preprocessing]
  * @property {boolean} [hqaudio]
+ * @property {boolean} [forceRelay]
  */
 
 /** @type{settings} */
@@ -322,6 +323,22 @@ async function gotConnected(username) {
         displayError(e);
         serverConnection.close();
     }
+}
+
+/**
+ * @this {ServerConnection}
+ * @param {boolean} up
+ */
+function onPeerConnection(up) {
+    if(!getSettings().forceRelay)
+        return null;
+    let old = this.rtcConfiguration;
+    /** @type {RTCConfiguration} */
+    let conf = {};
+    for(let key in old)
+        conf[key] = old[key];
+    conf.iceTransportPolicy = 'relay';
+    return conf;
 }
 
 /**
@@ -3827,6 +3844,7 @@ async function serverConnect() {
         serverConnection.close();
     serverConnection = new ServerConnection();
     serverConnection.onconnected = gotConnected;
+    serverConnection.onpeerconnection = onPeerConnection;
     serverConnection.onclose = gotClose;
     serverConnection.ondownstream = gotDownStream;
     serverConnection.onuser = gotUser;
