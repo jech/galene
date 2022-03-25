@@ -1049,7 +1049,7 @@ function removeFilter(c) {
     if(!(old instanceof Filter))
         throw new Error('userdata.filter is not a filter');
 
-    c.stream = old.inputStream;
+    c.setStream(old.inputStream);
     old.stop();
     c.userdata.filter = null;
 }
@@ -1066,7 +1066,7 @@ function setFilter(c) {
         return;
 
     let filter = new Filter(c.stream, c.userdata.filterDefinition);
-    c.stream = filter.outputStream;
+    c.setStream(filter.outputStream);
     c.userdata.filter = filter;
 }
 
@@ -1162,7 +1162,7 @@ function setUpStream(c, stream) {
     if(c.stream != null)
         throw new Error("Setting nonempty stream");
 
-    c.stream = stream;
+    c.setStream(stream);
 
     try {
         setFilter(c);

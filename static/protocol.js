@@ -66,7 +66,7 @@ function newLocalId() {
  * @property {string} username
  * @property {Array<string>} permissions
  * @property {Object<string,any>} data
- * @property {Object<string,Object<string,boolean>>} down
+ * @property {Object<string,Object<string,boolean>>} streams
  */
 
 /**
@@ -359,7 +359,7 @@ ServerConnection.prototype.connect = async function(url) {
                         username: m.username,
                         permissions: m.permissions || [],
                         data: m.data || {},
-                        down: {},
+                        streams: {},
                     };
                     break;
                 case 'change':
@@ -369,7 +369,7 @@ ServerConnection.prototype.connect = async function(url) {
                             username: m.username,
                             permissions: m.permissions || [],
                             data: m.data || {},
-                            down: {},
+                            streams: {},
                         };
                     } else {
                         sc.users[m.id].username = m.username;
@@ -593,7 +593,6 @@ ServerConnection.prototype.newUpStream = function(localId) {
     };
 
     pc.ontrack = console.error;
-
     return c;
 };
 
@@ -750,7 +749,7 @@ ServerConnection.prototype.gotOffer = async function(id, label, source, username
                 return;
             }
             c.stream = e.streams[0];
-            let changed = recomputeUserStreams(sc, source, c);
+            let changed = recomputeUserStreams(sc, source);
             if(c.ondowntrack) {
                 c.ondowntrack.call(
                     c, e.track, e.transceiver, e.streams[0],
@@ -1062,6 +1061,19 @@ function Stream(sc, id, localId, pc, up) {
 }
 
 /**
+ * setStream sets the stream of an upwards connection.
+ *
+ * @param {MediaStream} stream
+ */
+Stream.prototype.setStream = function(stream) {
+    let c = this;
+    c.stream = stream;
+    let changed = recomputeUserStreams(c.sc, c.sc.id);
+    if(changed && c.sc.onuser)
+        c.sc.onuser.call(c.sc, c.sc.id, "change");
+}
+
+/**
  * close closes a stream.
  *
  * For streams in the up direction, this may be called at any time.  For
@@ -1096,20 +1108,23 @@ Stream.prototype.close = function(replace) {
         }
     }
 
+    let userid;
     if(c.up) {
+        userid = c.sc.id;
         if(c.sc.up[c.id] === c)
             delete(c.sc.up[c.id]);
         else
             console.warn('Closing unknown stream');
     } else {
+        userid = c.source;
         if(c.sc.down[c.id] === c)
             delete(c.sc.down[c.id]);
         else
             console.warn('Closing unknown stream');
-        let changed = recomputeUserStreams(c.sc, c.source);
-        if(changed && c.sc.onuser)
-            c.sc.onuser.call(c.sc, c.source, "change");
     }
+    let changed = recomputeUserStreams(c.sc, userid);
+    if(changed && c.sc.onuser)
+        c.sc.onuser.call(c.sc, userid, "change");
     c.sc = null;
 
     if(c.onclose)
@@ -1117,53 +1132,35 @@ Stream.prototype.close = function(replace) {
 };
 
 /**
- * recomputeUserStreams recomputes the user.down array for a given user.
+ * recomputeUserStreams recomputes the user.streams array for a given user.
  * It returns true if anything changed.
  *
  * @param {ServerConnection} sc
  * @param {string} id
- * @param {Stream} [c]
  * @returns {boolean}
  */
-function recomputeUserStreams(sc, id, c) {
+function recomputeUserStreams(sc, id) {
     let user = sc.users[id];
     if(!user) {
         console.warn("recomputing streams for unknown user");
         return false;
     }
 
-    if(c) {
-        let changed = false;
-        if(!user.down[c.label])
-            user.down[c.label] = {};
-        c.stream.getTracks().forEach(t => {
-            if(!user.down[c.label][t.kind]) {
-                user.down[c.label][t.kind] = true;
-                changed = true;
-            }
-        });
-        return changed;
-    }
-
-    if(!user.down || Object.keys(user.down).length === 0)
-        return false;
-
-    let old = user.down;
-    user.down = {};
-
-    for(id in sc.down) {
-        let c = sc.down[id];
+    let streams = id === sc.id ? sc.up : sc.down;
+    let old = user.streams;
+    user.streams = {};
+    for(id in streams) {
+        let c = streams[id];
         if(!c.stream)
             continue;
-        if(!user.down[c.label])
-            user.down[c.label] = {};
+        if(!user.streams[c.label])
+            user.streams[c.label] = {};
         c.stream.getTracks().forEach(t => {
-            user.down[c.label][t.kind] = true;
+            user.streams[c.label][t.kind] = true;
         });
     }
 
-    // might lead to false positives.  Oh, well.
-    return JSON.stringify(old) != JSON.stringify(user.down);
+    return JSON.stringify(old) != JSON.stringify(user.streams);
 }
 
 /**
