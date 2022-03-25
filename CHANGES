@@ -1,10 +1,12 @@
-Galene 0.5.1 (unreleased)
+25 March 2022: Galene 0.5.1
 
   * Enable simulcast on Firefox.
   * Fix rate control on Firefox.
   * Fix corruption after packet reordering when saving to disk.
   * Fix the H.264 profile for compatibility with older iPhones.
   * Display a warning when joining a locked group.
+  * Add a hook that allows the client to influence the ICE policy.
+  * Fix error handling in peer-to-peer file transfer.
 
 8 March 2022: Galene 0.5
 
