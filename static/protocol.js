@@ -1106,7 +1106,9 @@ Stream.prototype.close = function(replace) {
             delete(c.sc.down[c.id]);
         else
             console.warn('Closing unknown stream');
-        recomputeUserStreams(c.sc, c.source);
+        let changed = recomputeUserStreams(c.sc, c.source);
+        if(changed && c.sc.onuser)
+            c.sc.onuser.call(c.sc, c.source, "change");
     }
     c.sc = null;
 
