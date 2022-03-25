@@ -2999,7 +2999,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
     footer.classList.add('message-footer');
     if(!peerId)
         container.classList.add('message-system');
-    if(peerId === serverConnection.id)
+    if(serverConnection && peerId === serverConnection.id)
         container.classList.add('message-sender');
     if(dest)
         container.classList.add('message-private');
