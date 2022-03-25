@@ -2107,12 +2107,7 @@ function addUser(id, userinfo) {
     let user = document.createElement('div');
     user.id = 'user-' + id;
     user.classList.add("user-p");
-    user.textContent = userinfo.username ? userinfo.username : '(anon)';
-    if (userinfo.data.raisehand)
-        user.classList.add('user-status-raisehand');
-    else
-        user.classList.remove('user-status-raisehand');
-
+    setUserStatus(id, user, userinfo);
     user.addEventListener('click', function(e) {
         let elt = e.target;
         if(!elt || !(elt instanceof HTMLElement))
@@ -2148,21 +2143,30 @@ function addUser(id, userinfo) {
     div.appendChild(user);
 }
 
-/**
- * @param {string} id
- * @param {user} userinfo
- */
+ /**
+  * @param {string} id
+  * @param {user} userinfo
+  */
 function changeUser(id, userinfo) {
-    let user = document.getElementById('user-' + id);
-    if(!user) {
+    let elt = document.getElementById('user-' + id);
+    if(!elt) {
         console.warn('Unknown user ' + id);
         return;
     }
-    user.textContent = userinfo.username ? userinfo.username : '(anon)';
-    if (userinfo.data.raisehand)
-        user.classList.add('user-status-raisehand');
+    setUserStatus(id, elt, userinfo);
+}
+
+/**
+ * @param {string} id
+ * @param {HTMLElement} elt
+ * @param {user} userinfo
+ */
+function setUserStatus(id, elt, userinfo) {
+    elt.textContent = userinfo.username ? userinfo.username : '(anon)';
+    if(userinfo.data.raisehand)
+        elt.classList.add('user-status-raisehand');
     else
-        user.classList.remove('user-status-raisehand');
+        elt.classList.remove('user-status-raisehand');
 }
 
 /**
