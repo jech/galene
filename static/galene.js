@@ -2056,7 +2056,7 @@ function userMenu(elt) {
     if(id === serverConnection.id) {
         let mydata = serverConnection.users[serverConnection.id].data;
         if(mydata['raisehand'])
-            items.push({label: 'Lower hand', onClick: () => {
+            items.push({label: 'Unraise hand', onClick: () => {
                 serverConnection.userAction(
                     'setdata', serverConnection.id, {'raisehand': null},
                 );
