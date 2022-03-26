@@ -1194,8 +1194,34 @@ header .collapse:hover {
     font-weight: 900;
 }
 
+#users > div::after {
+    font-family: 'Font Awesome 6 Free';
+    color: gray;
+    margin-left: auto;
+    font-weight: 900;
+}
+
 #users > div.user-status-raisehand::before {
     content: "\f256";
+}
+
+#users > div.user-status-camera::after {
+    content: "\f03d";
+}
+
+#users > div.user-status-camera.user-status-screenshare::after {
+    content: "\f03d \f390";
+}
+
+#users > div.user-status-microphone::after {
+    content: "\f130";
+}
+
+#users > div.user-status-microphone.user-status-screenshare::after {
+    content: "\f130 \f390";
+}
+#users > div.user-status-screenshare::after {
+    content: "\f390";
 }
 
 .close-icon {

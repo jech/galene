@@ -2167,6 +2167,26 @@ function setUserStatus(id, elt, userinfo) {
         elt.classList.add('user-status-raisehand');
     else
         elt.classList.remove('user-status-raisehand');
+
+    console.log(userinfo.streams);
+
+    let camera = userinfo.streams['camera'];
+    if(camera && camera['video']) {
+        elt.classList.add('user-status-camera');
+        elt.classList.remove('user-status-microphone');
+    } else if(camera && camera['audio']) {
+        elt.classList.remove('user-status-camera');
+        elt.classList.add('user-status-microphone');
+    } else {
+        elt.classList.remove('user-status-camera');
+        elt.classList.remove('user-status-microphone');
+    }
+
+    let screenshare = userinfo.streams['screenshare'];
+    if(screenshare && screenshare['video'])
+        elt.classList.add('user-status-screenshare');
+    else
+        elt.classList.remove('user-status-screenshare');
 }
 
 /**
