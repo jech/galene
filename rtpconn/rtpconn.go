@@ -449,6 +449,13 @@ func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 			return nil
 		}
 	}
+	if up.srNTPTime != 0 {
+		local.SetTimeOffset(up.srNTPTime, up.srRTPTime)
+	}
+	cname, ok := up.cname.Load().(string)
+	if ok && cname != "" {
+		local.SetCname(cname)
+	}
 	up.local = append(up.local, local)
 	up.mu.Unlock()
 
