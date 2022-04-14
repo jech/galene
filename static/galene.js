@@ -1223,7 +1223,7 @@ function setUpStream(c, stream) {
                 });
             }
         } else {
-            if(c.label !== 'camera' || settings.hqaudio) {
+            if(settings.hqaudio) {
                 encodings.push({
                     maxBitrate: hqAudioRate,
                 });
