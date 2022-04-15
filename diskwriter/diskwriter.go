@@ -523,6 +523,7 @@ func (t *diskTrack) writeBuffered(force bool) error {
 				}
 			}
 		} else {
+			keyframe = true
 			if t.writer == nil {
 				if !t.conn.hasVideo {
 					err := t.conn.initWriter(0, 0)
