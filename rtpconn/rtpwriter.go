@@ -138,7 +138,7 @@ func (wp *rtpWriterPool) write(seqno uint16, index uint16, delay uint32, isvideo
 			// audio, try again with a delay
 			d := delay / uint32(2*len(wp.writers))
 			timer := time.NewTimer(rtptime.ToDuration(
-				uint64(d), rtptime.JiffiesPerSec,
+				int64(d), rtptime.JiffiesPerSec,
 			))
 
 			select {

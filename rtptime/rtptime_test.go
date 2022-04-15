@@ -11,9 +11,19 @@ func TestDuration(t *testing.T) {
 		t.Errorf("Expected 48000, got %v", a)
 	}
 
-	b := ToDuration(48000, 48000)
-	if b != time.Second {
-		t.Errorf("Expected %v, got %v", time.Second, b)
+	b := FromDuration(-time.Second, 48000)
+	if b != -48000 {
+		t.Errorf("Expected -48000, got %v", b)
+	}
+
+	c := ToDuration(48000, 48000)
+	if c != time.Second {
+		t.Errorf("Expected %v, got %v", time.Second, c)
+	}
+
+	d := ToDuration(-48000, 48000)
+	if d != -time.Second {
+		t.Errorf("Expected %v, got %v", -time.Second, d)
 	}
 }
 

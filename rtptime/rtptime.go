@@ -9,18 +9,25 @@ import (
 var epoch = time.Now()
 
 // FromDuration converts a time.Duration into units of 1/hz.
-func FromDuration(d time.Duration, hz uint32) uint64 {
-	return uint64(d) * uint64(hz) / uint64(time.Second)
+func FromDuration(d time.Duration, hz uint32) int64 {
+	return int64(d) * int64(hz) / int64(time.Second)
 }
 
 // ToDuration converts units of 1/hz into a time.Duration.
-func ToDuration(tm uint64, hz uint32) time.Duration {
-	return time.Duration(tm * uint64(time.Second) / uint64(hz))
+func ToDuration(tm int64, hz uint32) time.Duration {
+	return time.Duration(tm * int64(time.Second) / int64(hz))
+}
+
+func sat(a int64) uint64 {
+	if a < 0 {
+		return 0
+	}
+	return uint64(a)
 }
 
 // Now returns the current time in units of 1/hz from an arbitrary origin.
 func Now(hz uint32) uint64 {
-	return FromDuration(time.Since(epoch), hz)
+	return sat(FromDuration(time.Since(epoch), hz))
 }
 
 // Microseconds is like Now, but uses microseconds.
@@ -39,7 +46,7 @@ func Jiffies() uint64 {
 
 // TimeToJiffies converts a time.Time into jiffies.
 func TimeToJiffies(tm time.Time) uint64 {
-	return FromDuration(tm.Sub(epoch), JiffiesPerSec)
+	return sat(FromDuration(tm.Sub(epoch), JiffiesPerSec))
 }
 
 // The origin of NTP time.

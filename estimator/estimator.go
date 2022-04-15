@@ -23,8 +23,10 @@ type Estimator struct {
 // New creates a new estimator that estimates rate over the last interval.
 func New(interval time.Duration) *Estimator {
 	return &Estimator{
-		interval: rtptime.FromDuration(interval, rtptime.JiffiesPerSec),
-		time:     rtptime.Now(rtptime.JiffiesPerSec),
+		interval: uint64(
+			rtptime.FromDuration(interval, rtptime.JiffiesPerSec),
+		),
+		time: rtptime.Now(rtptime.JiffiesPerSec),
 	}
 }
 
