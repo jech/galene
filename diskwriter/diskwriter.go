@@ -184,15 +184,10 @@ func (conn *diskConn) warn(message string) {
 }
 
 // called locked
-func (conn *diskConn) reopen(extension string) error {
-	for _, t := range conn.tracks {
-		t.writeBuffered(true)
-		if t.writer != nil {
-			t.writer.Close()
-			t.writer = nil
-		}
+func (conn *diskConn) open(extension string) error {
+	if conn.file != nil {
+		return errors.New("already open")
 	}
-	conn.file = nil
 
 	file, err := openDiskFile(conn.directory, conn.username, extension)
 	if err != nil {
@@ -203,10 +198,8 @@ func (conn *diskConn) reopen(extension string) error {
 	return nil
 }
 
-func (conn *diskConn) Close() error {
-	conn.remote.DelLocal(conn)
-
-	conn.mu.Lock()
+// called locked
+func (conn *diskConn) close() []*diskTrack {
 	tracks := make([]*diskTrack, 0, len(conn.tracks))
 	for _, t := range conn.tracks {
 		t.writeBuffered(true)
@@ -216,6 +209,15 @@ func (conn *diskConn) Close() error {
 		}
 		tracks = append(tracks, t)
 	}
+	conn.file = nil
+	return tracks
+}
+
+func (conn *diskConn) Close() error {
+	conn.remote.DelLocal(conn)
+
+	conn.mu.Lock()
+	tracks := conn.close()
 	conn.mu.Unlock()
 
 	for _, t := range tracks {
@@ -557,9 +559,14 @@ func (t *diskTrack) writeBuffered(force bool) error {
 
 // called locked
 func (conn *diskConn) initWriter(width, height uint32) error {
-	if conn.file != nil && width == conn.width && height == conn.height {
-		return nil
+	if conn.file != nil {
+		if width == conn.width && height == conn.height {
+			return nil
+		} else {
+			conn.close()
+		}
 	}
+
 	isWebm := true
 	var desc []mkvcore.TrackDescription
 	for i, t := range conn.tracks {
@@ -630,7 +637,7 @@ func (conn *diskConn) initWriter(width, height uint32) error {
 		header = &h
 	}
 
-	err := conn.reopen(extension)
+	err := conn.open(extension)
 	if err != nil {
 		return err
 	}
