@@ -1,3 +1,4 @@
+// package jitter implements a jitter estimator
 package jitter
 
 import (
@@ -14,6 +15,7 @@ type Estimator struct {
 	jitter uint32 // atomic
 }
 
+// New returns a new jitter estimator that uses units of 1/hz seconds.
 func New(hz uint32) *Estimator {
 	return &Estimator{hz: hz}
 }
@@ -36,10 +38,13 @@ func (e *Estimator) accumulate(timestamp, now uint32) {
 	e.time = now
 }
 
+// Accumulate accumulates a new sample for the jitter estimator.
 func (e *Estimator) Accumulate(timestamp uint32) {
 	e.accumulate(timestamp, uint32(rtptime.Now(e.hz)))
 }
 
+// Jitter returns the estimated jitter, in units of 1/hz seconds.
+// This function is safe to call concurrently.
 func (e *Estimator) Jitter() uint32 {
 	return atomic.LoadUint32(&e.jitter)
 }
