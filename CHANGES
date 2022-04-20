@@ -1,11 +1,11 @@
-Galene 0.5.2 (unreleased)
+20 April 2022: Galene 0.5.2
 
-  * Maintain user information for oneself, not just other users.
-  * Call the onuser callback when a user deletes a stream.
-  * Don't use high-quality audio for screenshare by default, obey the
-    hqaudio preference in all cases.
   * Implement audio-video sync in the diskwriter.
   * Fix setting of the keyframe flag in audio samples in diskwriter.
+  * Don't use high-quality audio for screenshare by default, obey the
+    hqaudio preference in all cases.
+  * Maintain user information for oneself, not just other users.
+  * Call the onuser callback when a user deletes a stream.
 
 25 March 2022: Galene 0.5.1
 
