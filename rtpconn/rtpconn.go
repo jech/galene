@@ -1070,8 +1070,8 @@ func sendSR(conn *rtpDownConnection) error {
 					SSRC:        uint32(t.ssrc),
 					NTPTime:     nowNTP,
 					RTPTime:     nowRTP,
-					PacketCount: p,
-					OctetCount:  b,
+					PacketCount: uint32(p),
+					OctetCount:  uint32(b),
 				})
 			t.setSRTime(jiffies, nowNTP)
 		}
