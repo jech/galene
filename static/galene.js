@@ -2960,6 +2960,23 @@ function formatLine(line) {
 }
 
 /**
+ * @param {string[]} lines
+ * @returns {HTMLElement}
+ */
+function formatLines(lines) {
+    let elts = [];
+    if(lines.length > 0)
+        elts = formatLine(lines[0]);
+    for(let i = 1; i < lines.length; i++) {
+        elts.push(document.createElement('br'));
+        elts = elts.concat(formatLine(lines[i]));
+    }
+    let elt = document.createElement('p');
+    elts.forEach(e => elt.appendChild(e));
+    return elt;
+}
+
+/**
  * @param {number} time
  * @returns {string}
  */
@@ -3009,8 +3026,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
         container.classList.add('message-private');
 
     if(kind !== 'me') {
-        let p = document.createElement('p');
-        p.textContent = message.toString();
+        let p = formatLines(message.toString().split('\n'));
         let doHeader = true;
         if(!peerId && !dest && !nick) {
             doHeader = false;
