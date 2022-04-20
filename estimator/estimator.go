@@ -40,9 +40,8 @@ func (e *Estimator) swap(now uint64) {
 
 	var rate, packetRate uint32
 	if jiffies >= rtptime.JiffiesPerSec/1000 {
-		rate = uint32(uint64(bytes) * rtptime.JiffiesPerSec / jiffies)
-		packetRate =
-			uint32(uint64(packets) * rtptime.JiffiesPerSec / jiffies)
+		rate = uint32((uint64(bytes)*rtptime.JiffiesPerSec + jiffies/2) / jiffies)
+		packetRate = uint32((uint64(packets)*rtptime.JiffiesPerSec + jiffies/2) / jiffies)
 	}
 	atomic.StoreUint32(&e.rate, rate)
 	atomic.StoreUint32(&e.packetRate, packetRate)

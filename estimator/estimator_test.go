@@ -2,13 +2,14 @@ package estimator
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jech/galene/rtptime"
 )
 
 func TestEstimator(t *testing.T) {
 	now := rtptime.Jiffies()
-	e := New(rtptime.JiffiesPerSec)
+	e := New(time.Second)
 
 	e.estimate(now)
 	e.Accumulate(42)
