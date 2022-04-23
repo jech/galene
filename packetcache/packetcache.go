@@ -12,9 +12,6 @@ import (
 // a multiple of 8.
 const BufSize = 1504
 
-// The maximum number of packets that constitute a keyframe.
-const maxFrame = 1024
-
 // entry represents a cached packet.
 type entry struct {
 	seqno           uint16
@@ -118,7 +115,6 @@ func (bitmap *bitmap) set(seqno uint16) {
 	}
 
 	bitmap.bitmap |= (1 << uint16(seqno-bitmap.first))
-	return
 }
 
 // BitmapGet shifts up to 17 bits out of the bitmap.  It returns a boolean

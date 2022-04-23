@@ -165,7 +165,7 @@ func addUpConn(c *webClient, id, label string, offer string) (*rtpUpConnection, 
 		c.up = make(map[string]*rtpUpConnection)
 	}
 	if c.down != nil && c.down[id] != nil {
-		return nil, false, errors.New("Adding duplicate connection")
+		return nil, false, errors.New("adding duplicate connection")
 	}
 
 	old := c.up[id]

@@ -46,7 +46,7 @@ func (p Password) Match(pw string) (bool, error) {
 		theirKey := pbkdf2.Key(
 			[]byte(pw), salt, p.Iterations, len(key), h,
 		)
-		return bytes.Compare(key, theirKey) == 0, nil
+		return bytes.Equal(key, theirKey), nil
 	default:
 		return false, errors.New("unknown password type")
 	}

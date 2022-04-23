@@ -9,7 +9,6 @@ import (
 )
 
 var errTruncated = errors.New("truncated packet")
-var errUnsupportedCodec = errors.New("unsupported codec")
 
 // Keyframe determines if packet is the start of a keyframe.
 // It returns (true, true) if that is the case, (false, true) if that is

@@ -410,7 +410,6 @@ type rtpUpTrack struct {
 	srTime        uint64
 	srNTPTime     uint64
 	srRTPTime     uint32
-	maxLayer      uint8
 	local         []conn.DownTrack
 	bufferedNACKs []uint16
 	actions       []trackAction

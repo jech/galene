@@ -1,7 +1,6 @@
 package ice
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
@@ -10,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -63,12 +63,12 @@ func getServer(server Server) (webrtc.ICEServer, error) {
 		}
 		mac := hmac.New(sha1.New, []byte(cred))
 		mac.Write([]byte(username))
-		buf := bytes.Buffer{}
+		buf := strings.Builder{}
 		e := base64.NewEncoder(base64.StdEncoding, &buf)
 		e.Write(mac.Sum(nil))
 		e.Close()
 		s.Username = username
-		s.Credential = string(buf.Bytes())
+		s.Credential = buf.String()
 		s.CredentialType = webrtc.ICECredentialTypePassword
 	default:
 		return webrtc.ICEServer{}, errors.New("unsupported credential type")
@@ -245,7 +245,7 @@ func RelayTest(timeout time.Duration) (time.Duration, error) {
 		if err != nil {
 			return 0, err
 		}
-		return time.Now().Sub(tm), nil
+		return time.Since(tm), nil
 	case <-timer.C:
 		return 0, errTimeout
 	}

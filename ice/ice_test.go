@@ -1,7 +1,6 @@
 package ice
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
@@ -57,11 +56,11 @@ func TestHMAC(t *testing.T) {
 
 	mac := hmac.New(sha1.New, []byte(s.Credential.(string)))
 	mac.Write([]byte(sss.Username))
-	buf := bytes.Buffer{}
+	buf := strings.Builder{}
 	e := base64.NewEncoder(base64.StdEncoding, &buf)
 	e.Write(mac.Sum(nil))
 	e.Close()
-	ss.Credential = string(buf.Bytes())
+	ss.Credential = buf.String()
 
 	if err != nil || !reflect.DeepEqual(sss, ss) {
 		t.Errorf("Got %v, expected %v", sss, ss)

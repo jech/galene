@@ -123,7 +123,6 @@ func httpError(w http.ResponseWriter, err error) {
 	log.Printf("HTTP server error: %v", err)
 	http.Error(w, "500 Internal Server Error",
 		http.StatusInternalServerError)
-	return
 }
 
 const (
@@ -352,7 +351,6 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	e := json.NewEncoder(w)
 	e.Encode(d)
-	return
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {
@@ -366,7 +364,6 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 	g := group.GetPublic()
 	e := json.NewEncoder(w)
 	e.Encode(g)
-	return
 }
 
 func adminMatch(username, password string) (bool, error) {
@@ -418,7 +415,6 @@ func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 	if err != nil {
 		log.Printf("stats.json: %v", err)
 	}
-	return
 }
 
 var wsUpgrader = websocket.Upgrader{
