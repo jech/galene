@@ -1,3 +1,11 @@
+25 April 2022: Galene 0.5.3
+
+  * Remove a forgotten "replace" that prevented 0.5.2 from compiling
+    unless "pion/ice" was downloaded manually.
+  * Fix a race condition in the rate estimator.
+  * Update pion/ice to a version that handles aggressive nomination; this
+    avoids broken connection in some (fairly rare) cases.
+
 20 April 2022: Galene 0.5.2
 
   * Implement audio-video sync in the diskwriter.
