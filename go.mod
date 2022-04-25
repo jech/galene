@@ -19,5 +19,3 @@ require (
 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 )
-
-replace github.com/pion/ice/v2 => ../../pion/ice
