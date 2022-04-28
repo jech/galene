@@ -1075,11 +1075,10 @@ func GetDescription(name string) (*Description, error) {
 }
 
 func (desc *Description) GetPermission(group string, creds ClientCredentials) (string, []string, error) {
-	if !desc.AllowAnonymous && creds.Username == "" {
-		return "", nil, ErrAnonymousNotAuthorised
-	}
-
 	if creds.Token == "" {
+		if !desc.AllowAnonymous && creds.Username == "" {
+			return "", nil, ErrAnonymousNotAuthorised
+		}
 		if found, good := matchClient(group, creds, desc.Op); found {
 			if good {
 				var p []string
@@ -1110,6 +1109,9 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (s
 	if err != nil {
 		log.Printf("Token authentication: %v", err)
 		return "", nil, ErrNotAuthorised
+	}
+	if !desc.AllowAnonymous && sub == "" {
+		return "", nil, ErrAnonymousNotAuthorised
 	}
 	conf, err := GetConfiguration()
 	if err != nil {
@@ -1154,7 +1156,7 @@ type Status struct {
 	ClientCount *int   `json:"clientCount,omitempty"`
 }
 
-func (g *Group) Status (authentified bool) Status {
+func (g *Group) Status(authentified bool) Status {
 	desc := g.Description()
 	d := Status{
 		Name:        g.name,
