@@ -17,9 +17,11 @@ var username string
 var password string
 var Address string
 
-var mu sync.Mutex
-var addresses []net.Addr
-var server *turn.Server
+var server struct {
+	mu        sync.Mutex
+	addresses []net.Addr
+	server    *turn.Server
+}
 
 func publicAddresses() ([]net.IP, error) {
 	addrs, err := net.InterfaceAddrs()
@@ -91,10 +93,10 @@ func listener(a net.IP, port int, relay net.IP) (*turn.PacketConnConfig, *turn.L
 }
 
 func Start() error {
-	mu.Lock()
-	defer mu.Unlock()
+	server.mu.Lock()
+	defer server.mu.Unlock()
 
-	if server != nil {
+	if server.server != nil {
 		return nil
 	}
 
@@ -110,8 +112,6 @@ func Start() error {
 	if err != nil {
 		return err
 	}
-
-	log.Printf("Starting built-in TURN server on %v", addr.String())
 
 	username = "galene"
 	buf := make([]byte, 6)
@@ -135,14 +135,14 @@ func Start() error {
 		pcc, lc := listener(net.IP{0, 0, 0, 0}, addr.Port, a)
 		if pcc != nil {
 			pccs = append(pccs, *pcc)
-			addresses = append(addresses, &net.UDPAddr{
+			server.addresses = append(server.addresses, &net.UDPAddr{
 				IP:   a,
 				Port: addr.Port,
 			})
 		}
 		if lc != nil {
 			lcs = append(lcs, *lc)
-			addresses = append(addresses, &net.TCPAddr{
+			server.addresses = append(server.addresses, &net.TCPAddr{
 				IP:   a,
 				Port: addr.Port,
 			})
@@ -161,17 +161,21 @@ func Start() error {
 			pcc, lc := listener(a, addr.Port, nil)
 			if pcc != nil {
 				pccs = append(pccs, *pcc)
-				addresses = append(addresses, &net.UDPAddr{
-					IP:   a,
-					Port: addr.Port,
-				})
+				server.addresses = append(server.addresses,
+					&net.UDPAddr{
+						IP:   a,
+						Port: addr.Port,
+					},
+				)
 			}
 			if lc != nil {
 				lcs = append(lcs, *lc)
-				addresses = append(addresses, &net.TCPAddr{
-					IP:   a,
-					Port: addr.Port,
-				})
+				server.addresses = append(server.addresses,
+					&net.TCPAddr{
+						IP:   a,
+						Port: addr.Port,
+					},
+				)
 			}
 		}
 	}
@@ -180,7 +184,9 @@ func Start() error {
 		return errors.New("couldn't establish any listeners")
 	}
 
-	server, err = turn.NewServer(turn.ServerConfig{
+	log.Printf("Starting built-in TURN server on %v", addr.String())
+
+	server.server, err = turn.NewServer(turn.ServerConfig{
 		Realm: "galene.org",
 		AuthHandler: func(u, r string, src net.Addr) ([]byte, bool) {
 			if u != username || r != "galene.org" {
@@ -193,7 +199,7 @@ func Start() error {
 	})
 
 	if err != nil {
-		addresses = nil
+		server.addresses = nil
 		return err
 	}
 
@@ -201,15 +207,15 @@ func Start() error {
 }
 
 func ICEServers() []webrtc.ICEServer {
-	mu.Lock()
-	defer mu.Unlock()
+	server.mu.Lock()
+	defer server.mu.Unlock()
 
-	if len(addresses) == 0 {
+	if len(server.addresses) == 0 {
 		return nil
 	}
 
 	var urls []string
-	for _, a := range addresses {
+	for _, a := range server.addresses {
 		switch a := a.(type) {
 		case *net.UDPAddr:
 			urls = append(urls, "turn:"+a.String())
@@ -231,16 +237,16 @@ func ICEServers() []webrtc.ICEServer {
 }
 
 func Stop() error {
-	mu.Lock()
-	defer mu.Unlock()
+	server.mu.Lock()
+	defer server.mu.Unlock()
 
-	addresses = nil
-	if server == nil {
+	server.addresses = nil
+	if server.server == nil {
 		return nil
 	}
 	log.Printf("Stopping built-in TURN server")
-	err := server.Close()
-	server = nil
+	err := server.server.Close()
+	server.server = nil
 	return err
 }
 
