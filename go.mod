@@ -12,6 +12,7 @@ require (
 	github.com/pion/rtcp v1.2.9
 	github.com/pion/rtp v1.7.13
 	github.com/pion/sdp/v3 v3.0.4
+	github.com/pion/srtp/v2 v2.0.6 // indirect
 	github.com/pion/turn/v2 v2.0.8
 	github.com/pion/webrtc/v3 v3.1.34
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
