@@ -12,11 +12,8 @@ require (
 	github.com/pion/rtcp v1.2.9
 	github.com/pion/rtp v1.7.13
 	github.com/pion/sdp/v3 v3.0.4
-	github.com/pion/srtp/v2 v2.0.6 // indirect
 	github.com/pion/turn/v2 v2.0.8
-	github.com/pion/webrtc/v3 v3.1.34
-	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
-	golang.org/x/net v0.0.0-20220421235706-1d1ef9303861 // indirect
-	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
-	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
+	github.com/pion/webrtc/v3 v3.1.37
+	golang.org/x/crypto v0.0.0-20220507011949-2cf3adece122
+	golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6
 )
