@@ -1418,6 +1418,20 @@ async function addLocalMedia(localId) {
 let safariScreenshareDone = false;
 
 async function addShareMedia() {
+    if(!safariScreenshareDone) {
+        if(isSafari()) {
+            let ok = confirm(
+                'Screen sharing in Safari is very broken.  ' +
+                    'It will work at first, ' +
+                    'but then your video will randomly freeze.  ' +
+                    'Are you sure that you wish to enable screensharing?'
+            );
+            if(!ok)
+                return
+        }
+        safariScreenshareDone = true;
+    }
+
     /** @type {MediaStream} */
     let stream = null;
     try {
@@ -1431,13 +1445,6 @@ async function addShareMedia() {
         console.error(e);
         displayError(e);
         return;
-    }
-
-    if(!safariScreenshareDone) {
-        if(isSafari())
-            displayWarning('Screen sharing under Safari is experimental.  ' +
-                           'Please use a different browser if possible.');
-        safariScreenshareDone = true;
     }
 
     let c = newUpStream();
