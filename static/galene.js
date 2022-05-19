@@ -1421,7 +1421,7 @@ async function addShareMedia() {
     if(!safariScreenshareDone) {
         if(isSafari()) {
             let ok = confirm(
-                'Screen sharing in Safari is very broken.  ' +
+                'Screen sharing in Safari is badly broken.  ' +
                     'It will work at first, ' +
                     'but then your video will randomly freeze.  ' +
                     'Are you sure that you wish to enable screensharing?'
