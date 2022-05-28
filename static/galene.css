@@ -1307,3 +1307,7 @@ header .collapse:hover {
     --contextualOverflowIcon: #999;
     --contextualSeperator: #999;
 }
+
+.contextualMenu{
+    z-index: 2999;
+}
