@@ -1057,48 +1057,6 @@ legend {
     100% { box-shadow: 0 0 15px #600aa0; }
 }
 
-/*   Dropdown Menu */
-.dropbtn {
-    cursor: pointer;
-}
-
-.dropdown {
-    position: relative;
-    display: inline-block;
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #fff;
-    max-width: 300px;
-    min-width: 200px;
-    margin-top: 7px;
-    overflow: auto;
-    right: 7px;
-    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
-    z-index: 1;
-    padding: 15px;
-}
-
-.dropdown-content a {
-    color: black;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
-}
-
-.dropdown a:hover {background-color: #ddd;}
-
-.show {display: block;}
-
-.dropdown-content label{
-    display: block;
-    margin-top: 15px;
-}
-
-/*  END Dropdown Menu */
-
 /*  Sidebar left */
 
 #left-sidebar {
