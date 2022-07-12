@@ -3,6 +3,7 @@ package group
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net/url"
 	"os"
@@ -419,7 +420,7 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 	g := groups.groups[name]
 	if g == nil {
 		if desc == nil {
-			desc, err = GetDescription(name)
+			desc, err = readDescription(name)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -431,30 +432,32 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 			clients:     make(map[string]Client),
 			timestamp:   time.Now(),
 		}
-		clients := g.getClientsUnlocked(nil)
-		autoLockKick(g, clients)
 		groups.groups[name] = g
-		return g, clients, nil
+		return g, nil, nil
 	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	if desc != nil {
+		if descriptionMatch(g.description, desc) {
+			return g, nil, nil
+		}
 		g.description = desc
-	} else if !descriptionChanged(name, g.description) {
+	} else if descriptionUnchanged(name, g.description) {
 		return g, nil, nil
+	} else {
+		desc, err = readDescription(name)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				log.Printf("Reading group %v: %v", name, err)
+			}
+			deleteUnlocked(g)
+			return nil, nil, err
+		}
+		g.description = desc
 	}
 
-	desc, err = GetDescription(name)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Printf("Reading group %v: %v", name, err)
-		}
-		deleteUnlocked(g)
-		return nil, nil, err
-	}
-	g.description = desc
 	clients := g.getClientsUnlocked(nil)
 	autoLockKick(g, clients)
 
@@ -1025,21 +1028,47 @@ func statDescriptionFile(name string) (os.FileInfo, string, bool, error) {
 	return nil, "", false, os.ErrNotExist
 }
 
-// descriptionChanged returns true if a group's description may have
-// changed since it was last read.
-func descriptionChanged(name string, desc *Description) bool {
-	fi, fileName, _, err := statDescriptionFile(name)
-	if err != nil || fileName != desc.FileName {
-		return true
+// descriptionMatch returns true if the description hasn't changed between
+// d1 and d2
+func descriptionMatch(d1, d2 *Description) bool {
+	if d1.FileName != d2.FileName {
+		return false
 	}
 
-	if fi.Size() != desc.fileSize || fi.ModTime() != desc.modTime {
-		return true
+	if d1.fileSize != d2.fileSize || !d1.modTime.Equal(d2.modTime) {
+		return false
 	}
-	return false
+	return true
 }
 
+// descriptionUnchanged returns true if a group's description hasn't
+// changed since it was last read.
+func descriptionUnchanged(name string, desc *Description) bool {
+	fi, fileName, _, err := statDescriptionFile(name)
+	if err != nil || fileName != desc.FileName {
+		return false
+	}
+
+	if fi.Size() != desc.fileSize || !fi.ModTime().Equal(desc.modTime) {
+		return false
+	}
+	return true
+}
+
+// GetDescription gets a group description, either from cache or from disk
 func GetDescription(name string) (*Description, error) {
+	g := Get(name)
+	if g != nil {
+		if descriptionUnchanged(name, g.description) {
+			return g.description, nil
+		}
+	}
+
+	return readDescription(name)
+}
+
+// readDescription reads a group's description from disk
+func readDescription(name string) (*Description, error) {
 	r, fileName, isParent, err := openDescriptionFile(name)
 	if err != nil {
 		return nil, err
@@ -1217,19 +1246,19 @@ func Update() {
 			deleted = Delete(name)
 		}
 
-		if !deleted && descriptionChanged(name, g.description) {
+		if !deleted && !descriptionUnchanged(name, g.description) {
 			Add(name, nil)
 		}
 	}
 
-	err = filepath.Walk(
+	err = filepath.WalkDir(
 		Directory,
-		func(path string, fi os.FileInfo, err error) error {
+		func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				log.Printf("Group file %v: %v", path, err)
 				return nil
 			}
-			if fi.IsDir() {
+			if d.IsDir() {
 				return nil
 			}
 			filename, err := filepath.Rel(Directory, path)
@@ -1249,7 +1278,7 @@ func Update() {
 				log.Printf("Group file %v ignored", filename)
 				return nil
 			}
-			name := filename[:len(filename)-5]
+			name := strings.TrimSuffix(filename, ".json")
 			desc, err := GetDescription(name)
 			if err != nil {
 				log.Printf("Group file %v: %v", path, err)
