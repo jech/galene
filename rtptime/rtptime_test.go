@@ -27,6 +27,25 @@ func TestDuration(t *testing.T) {
 	}
 }
 
+func TestDurationOverflow(t *testing.T) {
+	delta := 10 * time.Minute
+	dj := FromDuration(delta, JiffiesPerSec)
+	var prev int64
+	for d := time.Duration(0); d < time.Duration(1000*time.Hour); d += delta {
+		jiffies := FromDuration(d, JiffiesPerSec)
+		if d != 0 {
+			if jiffies != prev+dj {
+				t.Errorf("%v: %v, %v", d, jiffies, prev)
+			}
+		}
+		d2 := ToDuration(jiffies, JiffiesPerSec)
+		if d2 != d {
+			t.Errorf("%v != %v (%v)", d2, d, jiffies)
+		}
+		prev = jiffies
+	}
+}
+
 func differs(a, b, delta uint64) bool {
 	if a < b {
 		a, b = b, a

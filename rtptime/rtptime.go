@@ -2,6 +2,7 @@
 package rtptime
 
 import (
+	"math/bits"
 	"time"
 )
 
@@ -9,25 +10,29 @@ import (
 var epoch = time.Now()
 
 // FromDuration converts a time.Duration into units of 1/hz.
+// Negative values are clamped to zero.
 func FromDuration(d time.Duration, hz uint32) int64 {
-	return int64(d) * int64(hz) / int64(time.Second)
+	if d < 0 {
+		return -FromDuration(-d, hz)
+	}
+	hi, lo := bits.Mul64(uint64(d), uint64(hz))
+	q, _ := bits.Div64(hi, lo, uint64(time.Second))
+	return int64(q)
 }
 
 // ToDuration converts units of 1/hz into a time.Duration.
 func ToDuration(tm int64, hz uint32) time.Duration {
-	return time.Duration(tm * int64(time.Second) / int64(hz))
-}
-
-func sat(a int64) uint64 {
-	if a < 0 {
-		return 0
+	if tm < 0 {
+		return -ToDuration(-tm, hz)
 	}
-	return uint64(a)
+	hi, lo := bits.Mul64(uint64(tm), uint64(time.Second))
+	q, _ := bits.Div64(hi, lo, uint64(hz))
+	return time.Duration(q)
 }
 
 // Now returns the current time in units of 1/hz from an arbitrary origin.
 func Now(hz uint32) uint64 {
-	return sat(FromDuration(time.Since(epoch), hz))
+	return uint64(FromDuration(time.Since(epoch), hz))
 }
 
 // Microseconds is like Now, but uses microseconds.
@@ -46,7 +51,7 @@ func Jiffies() uint64 {
 
 // TimeToJiffies converts a time.Time into jiffies.
 func TimeToJiffies(tm time.Time) uint64 {
-	return sat(FromDuration(tm.Sub(epoch), JiffiesPerSec))
+	return uint64(FromDuration(tm.Sub(epoch), JiffiesPerSec))
 }
 
 // The origin of NTP time.
