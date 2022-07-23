@@ -2328,96 +2328,11 @@ async function gotJoined(kind, group, perms, status, data, message) {
     }
 }
 
-/** @type {Object<string,TransferredFile>} */
-let transferredFiles = {};
-
-/**
- * A file in the process of being transferred.
- *
- * @constructor
- */
-function TransferredFile(id, userid, up, username, name, type, size) {
-    /** @type {string} */
-    this.id = id;
-    /** @type {string} */
-    this.userid = userid;
-    /** @type {boolean} */
-    this.up = up;
-    /** @type {string} */
-    this.username = username;
-    /** @type {string} */
-    this.name = name;
-    /** @type {string} */
-    this.type = type;
-    /** @type {number} */
-    this.size = size;
-    /** @type {File} */
-    this.file = null;
-    /** @type {RTCPeerConnection} */
-    this.pc = null;
-    /** @type {RTCDataChannel} */
-    this.dc = null;
-    /** @type {Array<RTCIceCandidateInit>} */
-    this.candidates = [];
-    /** @type {Array<Blob|ArrayBuffer>} */
-    this.data = [];
-    /** @type {number} */
-    this.datalen = 0;
-}
-
-TransferredFile.prototype.fullid = function() {
-    return this.userid + (this.up ? '+' : '-') + this.id;
-};
-
-/**
- * @param {boolean} up
- * @param {string} userid
- * @param {string} fileid
- * @returns {TransferredFile}
- */
-TransferredFile.get = function(up, userid, fileid) {
-    return transferredFiles[userid + (up ? '+' : '-') + fileid];
-};
-
-TransferredFile.prototype.close = function() {
-    if(this.dc) {
-        this.dc.onclose = null;
-        this.dc.onerror = null;
-        this.dc.onmessage = null;
-    }
-    if(this.pc)
-        this.pc.close();
-    this.dc = null;
-    this.pc = null;
-    this.data = [];
-    this.datalen = 0;
-    delete(transferredFiles[this.fullid()]);
-}
-
-TransferredFile.prototype.pushData = function(data) {
-    if(data instanceof Blob) {
-        this.datalen += data.size;
-    } else if(data instanceof ArrayBuffer) {
-        this.datalen += data.byteLength;
-    } else {
-        throw new Error('unexpected type for received data');
-    }
-    this.data.push(data);
-}
-
-TransferredFile.prototype.getData = function() {
-    let blob = new Blob(this.data, {type: this.type});
-    if(blob.size != this.datalen)
-        throw new Error('Inconsistent data size');
-    this.data = [];
-    this.datalen = 0;
-    return blob;
-}
-
 /**
  * @param {TransferredFile} f
  */
-function fileTransferBox(f) {
+function gotFileTransfer(f) {
+    f.onevent = gotFileTransferEvent;
     let p = document.createElement('p');
     if(f.up)
         p.textContent =
@@ -2428,27 +2343,20 @@ function fileTransferBox(f) {
         `User ${f.username} offered to send us a file ` +
         `called "${f.name}" of size ${f.size}.`
     let bno = null, byes = null;
-    if(f.up) {
-        bno = document.createElement('button');
-        bno.textContent = 'Cancel';
-        bno.onclick = function(e) {
-            cancelFile(f);
-        };
-        bno.id = "bno-" + f.fullid();
-    } else {
+    if(!f.up) {
         byes = document.createElement('button');
         byes.textContent = 'Accept';
         byes.onclick = function(e) {
-            getFile(f);
+            f.receive();
         };
         byes.id = "byes-" + f.fullid();
-        bno = document.createElement('button');
-        bno.textContent = 'Decline';
-        bno.onclick = function(e) {
-            rejectFile(f);
-        };
-        bno.id = "bno-" + f.fullid();
     }
+    bno = document.createElement('button');
+    bno.textContent = f.up ? 'Cancel' : 'Reject';
+    bno.onclick = function(e) {
+        f.cancel();
+    };
+    bno.id = "bno-" + f.fullid();
     let status = document.createElement('div');
     status.id = 'status-' + f.fullid();
     if(!f.up) {
@@ -2500,334 +2408,49 @@ function setFileStatus(f, status, delyes, delno) {
 }
 
 /**
- * @param {TransferredFile} f
- * @param {any} message
+ * @this {TransferredFile}
+ * @param {string} state
+ * @param {any} [data]
  */
-function failFile(f, message) {
-    if(!f.dc)
-        return;
-    console.error('File transfer failed:', message);
-    setFileStatus(f, message ? `Failed: ${message}` : 'Failed.');
-    f.close();
-}
-
-/**
- * @param {string} id
- * @param {File} file
- */
-function offerFile(id, file) {
-    let fileid = newRandomId();
-    let username = serverConnection.users[id].username;
-    let f = new TransferredFile(
-        fileid, id, true, username, file.name, file.type, file.size,
-    );
-    f.file = file;
-    transferredFiles[f.fullid()] = f;
-    try {
-        fileTransferBox(f);
-        serverConnection.userMessage('offerfile', id, {
-            id: fileid,
-            name: f.name,
-            size: f.size,
-            type: f.type,
-        });
-    } catch(e) {
-        displayError(e);
-        f.close();
-    }
-}
-
-/**
- * @param {TransferredFile} f
- */
-function cancelFile(f) {
-    serverConnection.userMessage('cancelfile', f.userid, {
-        id: f.id,
-    });
-    f.close();
-    setFileStatus(f, 'Cancelled.', true, true);
-}
-
-/**
- * @param {TransferredFile} f
- */
-async function getFile(f) {
-    if(f.pc)
-        throw new Error("Download already in progress");
-    setFileStatus(f, 'Connecting...', true);
-    let pc = new RTCPeerConnection(serverConnection.getRTCConfiguration());
-    if(!pc)
-        throw new Error("Couldn't create peer connection");
-    f.pc = pc;
-    f.candidates = [];
-    pc.onsignalingstatechange = function(e) {
-        if(pc.signalingState === 'stable') {
-            f.candidates.forEach(c => pc.addIceCandidate(c).catch(console.warn));
-            f.candidates = [];
-        }
-    };
-    pc.onicecandidate = function(e) {
-        serverConnection.userMessage('filedownice', f.userid, {
-            id: f.id,
-            candidate: e.candidate,
-        });
-    };
-    f.dc = pc.createDataChannel('file');
-    f.data = [];
-    f.datalen = 0;
-    f.dc.onclose = function(e) {
-        try {
-            closeReceiveFileData(f);
-        } catch(e) {
-            failFile(f, e);
-        }
-    };
-    f.dc.onmessage = function(e) {
-        try {
-            receiveFileData(f, e.data);
-        } catch(e) {
-            failFile(f, e);
-        }
-    };
-    f.dc.onerror = function(e) {
-        /** @ts-ignore */
-        let err = e.error;
-        failFile(f, err);
-    };
-    let offer = await pc.createOffer();
-    if(!offer)
-        throw new Error("Couldn't create offer");
-    await pc.setLocalDescription(offer);
-    serverConnection.userMessage('getfile', f.userid, {
-        id: f.id,
-        offer: pc.localDescription.sdp,
-    });
-    setFileStatus(f, 'Negotiating...', true);
-}
-
-/**
- * @param {TransferredFile} f
- */
-async function rejectFile(f) {
-    serverConnection.userMessage('rejectfile', f.userid, {
-        id: f.id,
-    });
-    setFileStatus(f, 'Rejected.', true, true);
-    f.close();
-}
-
-/**
- * @param {TransferredFile} f
- * @param {string} sdp
- */
-async function sendOfferedFile(f, sdp) {
-    if(f.pc)
-        throw new Error('Transfer already in progress');
-
-    setFileStatus(f, 'Negotiating...', true);
-    let pc = new RTCPeerConnection(serverConnection.getRTCConfiguration());
-    if(!pc)
-        throw new Error("Couldn't create peer connection");
-    f.pc = pc;
-    f.candidates = [];
-    pc.onicecandidate = function(e) {
-        serverConnection.userMessage('fileupice', f.userid, {
-            id: f.id,
-            candidate: e.candidate,
-        });
-    };
-    pc.onsignalingstatechange = function(e) {
-        if(pc.signalingState === 'stable') {
-            f.candidates.forEach(c => pc.addIceCandidate(c).catch(console.warn));
-            f.candidates = [];
-        }
-    };
-    pc.ondatachannel = function(e) {
-        if(f.dc)
-            throw new Error('Duplicate datachannel');
-        f.dc = /** @type{RTCDataChannel} */(e.channel);
-        f.dc.onclose = function(e) {
-            try {
-                closeSendFileData(f);
-            } catch(e) {
-                failFile(f, e);
-            }
-        };
-        f.dc.onerror = function(e) {
-            /** @ts-ignore */
-            let err = e.error;
-            failFile(f, err);
-        }
-        f.dc.onmessage = function(e) {
-            try {
-                ackSendFileData(f, e.data);
-            } catch(e) {
-                failFile(f, e);
-            }
-        };
-        sendFileData(f).catch(e => failFile(f, e));
-    };
-
-    await pc.setRemoteDescription({
-        type: 'offer',
-        sdp: sdp,
-    });
-
-    let answer = await pc.createAnswer();
-    if(!answer)
-        throw new Error("Couldn't create answer");
-    await pc.setLocalDescription(answer);
-    serverConnection.userMessage('sendfile', f.userid, {
-        id: f.id,
-        answer: pc.localDescription.sdp,
-    });
-    setFileStatus(f, 'Uploading...', true);
-}
-
-/**
- * @param {TransferredFile} f
- * @param {string} sdp
- */
-async function receiveFile(f, sdp) {
-    await f.pc.setRemoteDescription({
-        type: 'answer',
-        sdp: sdp,
-    });
-    setFileStatus(f, 'Downloading...', true);
-}
-
-/**
- * @param {TransferredFile} f
- */
-async function sendFileData(f) {
-    let r = f.file.stream().getReader();
-
-    f.dc.bufferedAmountLowThreshold = 65536;
-
-    async function write(a) {
-        while(f.dc.bufferedAmount > f.dc.bufferedAmountLowThreshold) {
-            await new Promise((resolve, reject) => {
-                if(!f.dc) {
-                    reject(new Error('File is closed.'));
-                    return;
-                }
-                f.dc.onbufferedamountlow = function(e) {
-                    if(!f.dc) {
-                        reject(new Error('File is closed.'));
-                        return;
-                    }
-                    f.dc.onbufferedamountlow = null;
-                    resolve();
-                }
-            });
-        }
-        f.dc.send(a);
-        f.datalen += a.length;
-        setFileStatus(f, `Uploading... ${f.datalen}/${f.size}`, true);
-    }
-
-    while(true) {
-        let v = await r.read();
-        if(v.done)
-            break;
-        if(!(v.value instanceof Uint8Array))
-            throw new Error('Unexpected type for chunk');
-        if(v.value.length <= 16384) {
-            await write(v.value);
-        } else {
-            for(let i = 0; i < v.value.length; i += 16384) {
-                let a = new Uint8Array(
-                    v.value.buffer, i, Math.min(16384, v.value.length - i),
-                );
-                await write(a);
-            }
-        }
-    }
-}
-
-/**
- * @param {TransferredFile} f
- */
-function ackSendFileData(f, data) {
-    if(data === 'done' && f.datalen == f.size)
+function gotFileTransferEvent(state, data) {
+    let f = this;
+    switch(state) {
+    case 'inviting':
+        break;
+    case 'connecting':
+        setFileStatus(f, 'Connecting...', true);
+        break;
+    case 'connected':
+        if(f.up)
+            setFileStatus(f, `Sending... ${f.datalen}/${f.size}`);
+        else
+            setFileStatus(f, `Receiving... ${f.datalen}/${f.size}`);
+        break;
+    case 'done':
         setFileStatus(f, 'Done.', true, true);
-    else
-        setFileStatus(f, 'Failed.', true, true);
-    f.dc.onclose = null;
-    f.dc.onerror = null;
-    f.close();
-}
-
-/**
- * @param {TransferredFile} f
- */
-function closeSendFileData(f) {
-    setFileStatus(f, 'Failed.', true, true);
-    f.close();
-}
-
-/**
- * @param {TransferredFile} f
- * @param {Blob|ArrayBuffer} data
- */
-function receiveFileData(f, data) {
-    f.pushData(data);
-    setFileStatus(f, `Downloading... ${f.datalen}/${f.size}`, true);
-
-    if(f.datalen < f.size)
-        return;
-
-    if(f.datalen != f.size) {
-        setFileStatus(f, 'Failed.', true, true);
-        f.close();
-        return;
-    }
-
-    f.dc.onmessage = null;
-    doneReceiveFileData(f);
-}
-
-/**
- * @param {TransferredFile} f
- */
-async function doneReceiveFileData(f) {
-    setFileStatus(f, 'Done.', true, true);
-    let blob = f.getData();
-
-    await new Promise((resolve, reject) => {
-        let timer = setTimeout(function(e) { resolve(); }, 2000);
-        f.dc.onclose = function(e) {
-            clearTimeout(timer);
-            resolve();
-        };
-        f.dc.onerror = function(e) {
-            clearTimeout(timer);
-            resolve();
-        };
-        f.dc.send('done');
-    });
-
-    f.dc.onclose = null;
-    f.dc.onerror = null;
-    f.close();
-
-    let url = URL.createObjectURL(blob);
-    let a = document.createElement('a');
-    a.href = url;
-    a.textContent = f.name;
-    a.download = f.name;
-    a.type = f.type;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-/**
- * @param {TransferredFile} f
- */
-function closeReceiveFileData(f) {
-    if(f.datalen !== f.size) {
-        setFileStatus(f, 'Failed.', true, true)
-        f.close();
+        if(!f.up) {
+            let url = URL.createObjectURL(data);
+            let a = document.createElement('a');
+            a.href = url;
+            a.textContent = f.name;
+            a.download = f.name;
+            a.type = f.mimetype;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        break;
+    case 'cancelled':
+        if(data)
+            setFileStatus(f, `Cancelled: ${data.toString()}.`, true, true);
+        else
+            setFileStatus(f, 'Cancelled.', true, true);
+        break;
+    case 'closed':
+        break;
+    default:
+        console.error(`Unexpected state "${state}"`);
+        f.cancel(`unexpected state "${state}" (this shouldn't happen)`);
+        break;
     }
 }
 
@@ -2868,70 +2491,6 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
             console.error(`Got unprivileged message of kind ${kind}`);
         }
         break;
-    case 'offerfile': {
-        let f = new TransferredFile(
-            message.id, id, false, username,
-            message.name, message.type, message.size,
-        );
-        transferredFiles[f.fullid()] = f;
-        fileTransferBox(f);
-        break;
-    }
-    case 'cancelfile': {
-        let f = TransferredFile.get(false, id, message.id);
-        if(!f)
-            throw new Error('unexpected cancelfile');
-        setFileStatus(f, 'Cancelled.', true, true);
-        f.close();
-        break;
-    }
-    case 'getfile': {
-        let f = TransferredFile.get(true, id, message.id);
-        if(!f)
-            throw new Error('unexpected getfile');
-        sendOfferedFile(f, message.offer);
-        break;
-    }
-    case 'rejectfile': {
-        let f = TransferredFile.get(true, id, message.id);
-        if(!f)
-            throw new Error('unexpected rejectfile');
-        setFileStatus(f, 'Rejected.', true, true);
-        f.close();
-        break;
-    }
-    case 'sendfile': {
-        let f = TransferredFile.get(false, id, message.id);
-        if(!f)
-            throw new Error('unexpected sendfile');
-        receiveFile(f, message.answer);
-        break;
-    }
-    case 'filedownice': {
-        let f = TransferredFile.get(true, id, message.id);
-        if(!f.pc) {
-            console.warn('Unexpected filedownice');
-            return;
-        }
-        if(f.pc.signalingState === 'stable')
-            f.pc.addIceCandidate(message.candidate).catch(console.warn);
-        else
-            f.candidates.push(message.candidate);
-        break;
-    }
-    case 'fileupice': {
-        let f = TransferredFile.get(false, id, message.id);
-        if(!f.pc) {
-            console.warn('Unexpected fileupice');
-            return;
-        }
-        if(f.pc.signalingState === 'stable')
-            f.pc.addIceCandidate(message.candidate).catch(console.warn);
-        else
-            f.candidates.push(message.candidate);
-        break;
-
-    }
     default:
         console.warn(`Got unknown user message ${kind}`);
         break;
@@ -3515,7 +3074,7 @@ function sendFile(id) {
         let files = this.files;
         for(let i = 0; i < files.length; i++) {
             try {
-                offerFile(id, files[i]);
+                serverConnection.sendFile(id, files[i]);
             } catch(e) {
                 console.error(e);
                 displayError(e);
@@ -3870,6 +3429,7 @@ async function serverConnect() {
     serverConnection.onjoined = gotJoined;
     serverConnection.onchat = addToChatbox;
     serverConnection.onusermessage = gotUserMessage;
+    serverConnection.onfiletransfer = gotFileTransfer;
 
     let url = `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`;
     try {
