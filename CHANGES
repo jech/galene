@@ -1,3 +1,14 @@
+23 July 2022: Galene 0.5.5
+
+  * Fixed a longstanding bug with time conversion that would occasionally
+    cause us to miscalculate rates and send incorrect sender reports.
+    Thanks to lamhai1401.
+  * Updated srtp to a version that includes Adrian Cable's optimisations.
+    This should yield a 10% to 20% improvement for AES-CTR (but modern
+    browsers use GCM).
+  * Reworded the Safari warning to be more frightening, since
+    screensharing on Safari tends to get stuck.
+
 5 May 2022: Galene 0.5.4
 
   * Fix username check when a token is present.
