@@ -389,10 +389,15 @@ a JSON dictionary of the following form:
     "password": password
 }
 ```
+
 If the user is not allowed to join the group, then the authorisation
-server replies with a code of 403 ("not authorised").  If the user is
-allowed to join, then the authorisation server replies with a signed JWT
-(a "JWS") the body of which has the following form:
+server replies with a code of 403 ("not authorised"), and Galene will
+reject the user.  If the authentication server has no opinion about
+whether the user is allowed to join, it replies with a code of 204 ("no
+content"), and Galene will proceed with ordinary password authorisation.
+
+If the user is allowed to join, then the authorisation server replies with
+a signed JWT (a "JWS") the body of which has the following form:
 ```javascript
 {
     "sub": username,

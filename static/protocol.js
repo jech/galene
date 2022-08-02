@@ -477,7 +477,12 @@ ServerConnection.prototype.join = async function(group, username, credentials, d
                 throw new Error(
                     `The authorisation server said: ${r.status} ${r.statusText}`,
                 );
-            m.token = await r.text();
+            let data = await r.text();
+            if(!data)
+                // empty data, continue with password auth
+                m.password = credentials.password;
+            else
+                m.token = data;
             break;
         default:
             throw new Error(`Unknown credentials type ${credentials.type}`);
