@@ -475,14 +475,35 @@ ServerConnection.prototype.join = async function(group, username, credentials, d
             });
             if(!r.ok)
                 throw new Error(
-                    `The authorisation server said: ${r.status} ${r.statusText}`,
+                    `The authorisation server said ${r.status} ${r.statusText}`,
                 );
-            let data = await r.text();
-            if(!data)
-                // empty data, continue with password auth
+            if(r.status === 204) {
+                // no data, fallback to password auth
                 m.password = credentials.password;
-            else
+                break;
+            }
+            let ctype = r.headers.get("Content-Type");
+            if(!ctype)
+                throw new Error(
+                    "The authorisation server didn't return a content type",
+                );
+            let semi = ctype.indexOf(";");
+            if(semi >= 0)
+                ctype = ctype.slice(0, semi);
+            ctype = ctype.trim();
+            switch(ctype.toLowerCase()) {
+            case 'application/jwt':
+                let data = await r.text();
+                if(!data)
+                    throw new Error(
+                        "The authorisation server returned empty token",
+                    );
                 m.token = data;
+                break;
+            default:
+                throw new Error(`The authorisation server returned ${ctype}`);
+                break;
+            }
             break;
         default:
             throw new Error(`Unknown credentials type ${credentials.type}`);
