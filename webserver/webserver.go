@@ -9,6 +9,7 @@ import (
 	"html"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -72,12 +73,21 @@ func Serve(address string, dataDir string) error {
 
 	server.Store(s)
 
-	var err error
+	proto := "tcp"
+	if strings.HasPrefix(address, "/") {
+		proto = "unix"
+	}
+
+	listener, err := net.Listen(proto, address)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
 
 	if !Insecure {
-		err = s.ListenAndServeTLS("", "")
+		err = s.ServeTLS(listener, "", "")
 	} else {
-		err = s.ListenAndServe()
+		err = s.Serve(listener)
 	}
 
 	if err == http.ErrServerClosed {
