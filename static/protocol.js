@@ -203,10 +203,18 @@ function ServerConnection() {
      */
     this.onusermessage = null;
     /**
+     * The set of files currently being transferred.
+     *
      * @type {Object<string,TransferredFile>}
     */
     this.transferredFiles = {};
     /**
+     * onfiletransfer is called whenever a peer offers a file transfer.
+     *
+     * If the transfer is accepted, it should set up the file transfer
+     * callbacks and return immediately.  It may also throw an exception
+     * in order to reject the file transfer.
+     *
      * @type {(this: ServerConnection, f: TransferredFile) => void}
      */
     this.onfiletransfer = null;
@@ -1466,6 +1474,12 @@ Stream.prototype.setStatsInterval = function(ms) {
  * A file in the process of being transferred.
  * These are stored in the ServerConnection.transferredFiles dictionary.
  *
+ * State transitions:
+ * @example
+ * '' -> inviting -> connecting -> connected -> done -> closed
+ * any -> cancelled -> closed
+ *
+ *
  * @parm {ServerConnection} sc
  * @parm {string} userid
  * @parm {string} rid
@@ -1474,47 +1488,109 @@ Stream.prototype.setStatsInterval = function(ms) {
  * @parm {string} mimetype
  * @parm {number} size
  * @constructor
- *
- * State transitions:
- *
- * '' -> inviting -> connecting -> connected -> done -> closed
- * any -> cancelled -> closed
- *
  */
 function TransferredFile(sc, userid, id, up, username, name, mimetype, size) {
-    /** @type {ServerConnection} */
+    /**
+     * The server connection this file is associated with.
+     *
+     * @type {ServerConnection}
+     */
     this.sc = sc;
-    /** @type {string} */
+    /** The id of the remote peer.
+     *
+     * @type {string}
+     */
     this.userid = userid;
-    /** @type {string} */
+    /**
+     * The id of this file transfer.
+     *
+     * @type {string}
+     */
     this.id = id;
-    /** @type {boolean} */
+    /**
+     * True if this is an upload.
+     *
+     * @type {boolean}
+     */
     this.up = up;
-    /** @type {string} */
+    /**
+     * The state of this file transfer.  See the description of the
+     * constructor for possible state transitions.
+     *
+     * @type {string}
+     */
     this.state = '';
-    /** @type {string} */
+    /**
+     * The username of the remote peer.
+     *
+     * @type {string}
+     */
     this.username = username;
-    /** @type {string} */
+    /**
+     * The name of the file being transferred.
+     *
+     * @type {string}
+     */
     this.name = name;
-    /** @type {string} */
+    /**
+     * The MIME type of the file being transferred.
+     *
+     * @type {string}
+     */
     this.mimetype = mimetype;
-    /** @type {number} */
+    /**
+     * The size in bytes of the file being transferred.
+     *
+     * @type {number}
+     */
     this.size = size;
-    /** @type {File} */
+    /**
+     * The file being uploaded.  Unused for downloads.
+     *
+     * @type {File}
+     */
     this.file = null;
-    /** @type {boolean} */
-    this.closed = false;
-    /** @type {RTCPeerConnection} */
+    /**
+     * The peer connection used for the transfer.
+     *
+     * @type {RTCPeerConnection}
+     */
     this.pc = null;
-    /** @type {RTCDataChannel} */
+    /**
+     * The datachannel used for the transfer.
+     *
+     * @type {RTCDataChannel}
+     */
     this.dc = null;
-    /** @type {Array<RTCIceCandidateInit>} */
+    /**
+     * Buffered remote ICE candidates.
+     *
+     * @type {Array<RTCIceCandidateInit>}
+     */
     this.candidates = [];
-    /** @type {Array<Blob|ArrayBuffer>} */
+    /**
+     * The data received to date, stored as a list of blobs or array buffers,
+     * depending on what the browser supports.
+     *
+     * @type {Array<Blob|ArrayBuffer>}
+     */
     this.data = [];
-    /** @type {number} */
+    /**
+     * The total size of the data received to date.
+     *
+     * @type {number}
+     */
     this.datalen = 0;
-    /** @type {(this: TransferredFile, type: string, [data]: string) => void} */
+    /**
+     * The main filetransfer callback.
+     *
+     * This is called whenever the state of the transfer changes,
+     * but may also be called multiple times in a single state, for example
+     * in order to display a progress bar.  Call this.cancel in order
+     * to cancel the transfer.
+     *
+     * @type {(this: TransferredFile, type: string, [data]: string) => void}
+     */
     this.onevent = null;
 }
 
@@ -1903,6 +1979,8 @@ TransferredFile.prototype.send = async function() {
 }
 
 /**
+ * Called after we receive an answer.  Don't call this.
+ *
  * @param {string} sdp
  */
 TransferredFile.prototype.receiveFile = async function(sdp) {
@@ -1917,6 +1995,8 @@ TransferredFile.prototype.receiveFile = async function(sdp) {
 }
 
 /**
+ * Called whenever we receive a chunk of data.  Don't call this.
+ *
  * @param {Blob|ArrayBuffer} data
  */
 TransferredFile.prototype.receiveData = async function(data) {
@@ -1957,6 +2037,9 @@ TransferredFile.prototype.receiveData = async function(data) {
 }
 
 /**
+ * fileTransfer handles a usermessage of kind 'filetransfer'.  Don't call
+ * this, it is called automatically as needed.
+ *
  * @param {string} id
  * @param {string} username
  * @param {object} message
