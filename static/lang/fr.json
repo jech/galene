@@ -1,0 +1,23 @@
+{
+  "site": {
+    "title": "Galène",
+    "by": "par",
+    "locale": "Langue :"
+  },
+  "groups": {
+    "public": "Groupes publics",
+    "group": "Groupe :"
+  },
+  "input": {
+    "value": "Rejoindre"
+  },
+  "html": {
+    "lang": "fr"
+  },
+  "404": {
+    "title": "Page non trouvée",
+    "notfound": " Page non trouvée",
+    "text": " Nous ne trouvons pas la page que vous cherchez.",
+    "back": "Retour à l’accueil"
+  }
+}
