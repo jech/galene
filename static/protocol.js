@@ -1790,7 +1790,7 @@ TransferredFile.prototype.receive = async function() {
         throw new Error('Receiving in wrong direction');
     if(f.pc)
         throw new Error('Download already in progress');
-    let pc = new RTCPeerConnection(serverConnection.getRTCConfiguration());
+    let pc = new RTCPeerConnection(f.sc.getRTCConfiguration());
     if(!pc) {
         let err = new Error("Couldn't create peer connection");
         f.fail(err);
@@ -1807,7 +1807,7 @@ TransferredFile.prototype.receive = async function() {
         }
     };
     pc.onicecandidate = function(e) {
-        serverConnection.userMessage('filetransfer', f.userid, {
+        f.sc.userMessage('filetransfer', f.userid, {
             type: 'downice',
             id: f.id,
             candidate: e.candidate,
@@ -1851,7 +1851,7 @@ TransferredFile.prototype.answer = async function(sdp) {
         throw new Error('Sending file in wrong direction');
     if(f.pc)
         throw new Error('Transfer already in progress');
-    let pc = new RTCPeerConnection(serverConnection.getRTCConfiguration());
+    let pc = new RTCPeerConnection(f.sc.getRTCConfiguration());
     if(!pc) {
         let err = new Error("Couldn't create peer connection");
         f.fail(err);
@@ -1862,7 +1862,7 @@ TransferredFile.prototype.answer = async function(sdp) {
 
     f.candidates = [];
     pc.onicecandidate = function(e) {
-        serverConnection.userMessage('filetransfer', f.userid, {
+        f.sc.userMessage('filetransfer', f.userid, {
             type: 'upice',
             id: f.id,
             candidate: e.candidate,
@@ -1910,7 +1910,7 @@ TransferredFile.prototype.answer = async function(sdp) {
     if(!answer)
         throw new Error("Couldn't create answer");
     await pc.setLocalDescription(answer);
-    serverConnection.userMessage('filetransfer', f.userid, {
+    f.sc.userMessage('filetransfer', f.userid, {
         type: 'answer',
         id: f.id,
         sdp: pc.localDescription.sdp,
