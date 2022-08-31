@@ -1,13 +1,24 @@
+Galene 0.5.6 (unreleased):
+
+  * Rework the peer-to-peer file transfer protocol.  It now lives in
+    protocol.js, which makes it easy to use by third-party clients.
+  * Extend the authorization protocol to allow the authorization server to
+    request that the client fall back to password authorization.
+  * Make it possible to run the web server on a Unix domain socket.
+    Thanks to Martin Pépin.
+  * Check that a given group exists before redirecting from the landing
+    page.  This avoids an unsightly 404 error when the user makes a typo.
+
 23 July 2022: Galene 0.5.5
 
-  * Fixed a longstanding bug with time conversion that would occasionally
+  * Fix a longstanding bug with time conversion that would occasionally
     cause us to miscalculate rates and send incorrect sender reports.
     Thanks to lamhai1401.
-  * Updated srtp to a version that includes Adrian Cable's optimisations.
+  * Update srtp to a version that includes Adrian Cable's optimisations.
     This should yield a 10% to 20% improvement for AES-CTR (but modern
     browsers use GCM).
-  * Reworded the Safari warning to be more frightening, since
-    screensharing on Safari tends to get stuck.
+  * Reword the Safari warning to be more frightening, since screensharing
+    on Safari tends to get stuck.
 
 5 May 2022: Galene 0.5.4
 
