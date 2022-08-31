@@ -4,6 +4,12 @@ body {
     flex-direction: column;
 }
 
+#errormessage {
+    color: red;
+    font-weight: bold;
+    height: 12px;
+}
+
 .groups {
 }
 

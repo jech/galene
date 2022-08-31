@@ -20,12 +20,62 @@
 
 'use strict';
 
-document.getElementById('groupform').onsubmit = function(e) {
+document.getElementById('groupform').onsubmit = async function(e) {
     e.preventDefault();
-    let group = document.getElementById('group').value.trim();
-    if(group !== '')
-        location.href = '/group/' + group + '/';
+    clearError();
+    let groupinput = document.getElementById('group')
+    let button = document.getElementById('submitbutton');
+
+    let group = groupinput.value.trim();
+    if(group === '')
+        return;
+    let url = '/group/' + group + '/';
+
+    try {
+        groupinput.disabled = true;
+        button.disabled = true;
+        try {
+            let resp = await fetch(url, {
+                method: 'HEAD',
+            });
+            if(!resp.ok) {
+                if(resp.status === 404)
+                    displayError('No such group');
+                else
+                    displayError(`The server said: ${resp.status} ${resp.statusText}`);
+                return;
+            }
+        } catch(e) {
+            displayError(`Coudln't connect: ${e.toString()}`);
+            return;
+        }
+    } finally {
+        groupinput.disabled = false;
+        button.disabled = false;
+    }
+
+    location.href = url;
 };
+
+var clearErrorTimeout = null;
+
+function displayError(message) {
+    clearError();
+    let p = document.getElementById('errormessage');
+    p.textContent = message;
+    clearErrorTimeout = setTimeout(() => {
+        let p = document.getElementById('errormessage');
+        p.textContent = '';
+        clearErrorTimeout = null;
+    }, 2500);
+}
+
+function clearError() {
+    if(clearErrorTimeout != null) {
+        clearTimeout(clearErrorTimeout);
+        clearErrorTimeout = null;
+    }
+}
 
 async function listPublicGroups() {
     let div = document.getElementById('public-groups');
