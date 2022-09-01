@@ -3441,11 +3441,6 @@ async function serverConnect() {
 }
 
 async function start() {
-    group = decodeURIComponent(
-        location.pathname.replace(/^\/[a-z]*\//, '').replace(/\/$/, '')
-    );
-
-    /** @type {Object} */
     try {
         let r = await fetch(".status.json")
         if(!r.ok)
@@ -3453,7 +3448,17 @@ async function start() {
         groupStatus = await r.json()
     } catch(e) {
         console.error(e);
-        return;
+        displayWarning("Couldn't fetch status: " + e);
+        groupStatus = {};
+    }
+
+    if(groupStatus.name) {
+        group = groupStatus.name;
+    } else {
+        console.warn("no group name in status");
+        group = decodeURIComponent(
+            location.pathname.replace(/^\/[a-z]*\//, '').replace(/\/$/, ''),
+        );
     }
 
     let parms = new URLSearchParams(window.location.search);
