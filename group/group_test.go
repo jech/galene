@@ -42,7 +42,7 @@ func TestGroup(t *testing.T) {
 		t.Errorf("Expected [], got %v", subs)
 	}
 
-	if public := GetPublic(); len(public) != 1 || public[0].Name != "group/subgroup" {
+	if public := GetPublic(""); len(public) != 1 || public[0].Name != "group/subgroup" {
 		t.Errorf("Expected group/subgroup, got %v", public)
 	}
 }

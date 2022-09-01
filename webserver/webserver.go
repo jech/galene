@@ -332,9 +332,18 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
 
+func groupBase(r *http.Request) string {
+	base := url.URL{
+		Scheme: r.URL.Scheme,
+		Host:   r.Host,
+		Path:   "/group/",
+	}
+	return base.String()
+}
+
 func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
-	path := path.Dir(r.URL.Path)
-	name := parseGroupName("/group/", path)
+	pth := path.Dir(r.URL.Path)
+	name := parseGroupName("/group/", pth)
 	if name == "" {
 		notFound(w)
 		return
@@ -351,16 +360,7 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scheme := "wss"
-	if Insecure {
-		scheme = "ws"
-	}
-	endpoint := url.URL{
-		Scheme: scheme,
-		Host:   r.Host,
-		Path:   "/ws",
-	}
-	d := g.Status(false, endpoint.String())
+	d := g.Status(false, groupBase(r))
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("cache-control", "no-cache")
 
@@ -380,7 +380,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g := group.GetPublic()
+	g := group.GetPublic(groupBase(r))
 	e := json.NewEncoder(w)
 	e.Encode(g)
 }

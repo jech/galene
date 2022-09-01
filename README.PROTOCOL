@@ -28,31 +28,33 @@ server to client direction.
 
 ## Before connecting
 
-Before it connects and joins a group, a client may perform an HTTP GET
-request on the URL `/public-groups.json`.  This yields a JSON array of
-objects, one for each group that has been marked public in its
-configuration file.  Each object has the following fields:
+The client needs to know the location of the group, the (user-visible) URL
+at which the group is found.  This may be obtained either by explicit
+configuration by the user, or by parsing the `/public-groups.json` file
+which may contain an array of group statuses (see below).
+
+A client then performs an HTTP GET request on the file `.status.json` at
+the group's location.  This yields a single JSON object, which contains
+the following fields:
 
  - `name`: the group's name
- - `displayName` (optional): a longer version of the name used for display;
- - `description` (optional): a user-readable description.
+ - `location`: the group's location
+ - `endpoint`: the URL of the server's WebSocket endpoint
+ - `displayName`: a longer version of the name used for display;
+ - `description`: a user-readable description;
+ - `authServer`: the URL of the authentication server, if any;
+ - `authPortal`: the uRL of the authentication portal, if any;
  - `locked`: true if the group is locked;
  - `clientCount`: the number of clients currently in the group.
 
-If token-based authorisation is in use for the group, then the dictionary
-contains the following additional field:
+All fields are optional except `name`, `location` and `endpoint`.
 
- - `authServer`: the URL of the authorisation server.
-
-A client may also fetch the URL `/group/name/.status.json` to retrieve the
-status of a single group.  If the group has not been marked as public,
-then the fields `locked` and `clientCount` are omitted.
 
 ## Connecting
 
-The client connects to the websocket at `/ws`.  Galene uses a symmetric,
-asynchronous protocol: there are no requests and responses, and most
-messages may be sent by either peer.
+The client connects to the websocket at the URL obtained at the previous
+step.  Galene uses a symmetric, asynchronous protocol: there are no
+requests and responses, and most messages may be sent by either peer.
 
 ## Message syntax
 

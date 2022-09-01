@@ -110,7 +110,7 @@ async function listPublicGroups() {
         let td = document.createElement('td');
         let a = document.createElement('a');
         a.textContent = group.displayName || group.name;
-        a.href = '/group/' + group.name + '/';
+        a.href = group.location;
         td.appendChild(a);
         tr.appendChild(td);
         let td2 = document.createElement('td');

@@ -1177,6 +1177,7 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (s
 
 type Status struct {
 	Name        string `json:"name"`
+	Location    string `json:"location"`
 	Endpoint    string `json:"endpoint"`
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -1186,10 +1187,40 @@ type Status struct {
 	ClientCount *int   `json:"clientCount,omitempty"`
 }
 
-func (g *Group) Status(authentified bool, endpoint string) Status {
+// Status returns a group's status.
+// Base is the base URL for groups; if omitted, then both the Location and
+// Endpoint members are omitted from the result.
+func (g *Group) Status(authentified bool, base string) Status {
 	desc := g.Description()
+
+	var location, endpoint string
+	if base != "" {
+		burl, err := url.Parse(base)
+		if err == nil {
+			wss := "wss"
+			if burl.Scheme == "http" {
+				wss = "ws"
+			}
+			l := url.URL{
+				Scheme: burl.Scheme,
+				Host:   burl.Host,
+				Path:   path.Join(burl.Path, g.name) + "/",
+			}
+			location = l.String()
+			e := url.URL{
+				Scheme: wss,
+				Host:   burl.Host,
+				Path:   "/ws",
+			}
+			endpoint = e.String()
+		} else {
+			log.Printf("Couldn't parse base URL %v", base)
+		}
+	}
+
 	d := Status{
 		Name:        g.name,
+		Location:    location,
 		Endpoint:    endpoint,
 		DisplayName: desc.DisplayName,
 		AuthServer:  desc.AuthServer,
@@ -1207,11 +1238,11 @@ func (g *Group) Status(authentified bool, endpoint string) Status {
 	return d
 }
 
-func GetPublic() []Status {
+func GetPublic(base string) []Status {
 	gs := make([]Status, 0)
 	Range(func(g *Group) bool {
 		if g.Description().Public {
-			gs = append(gs, g.Status(false, ""))
+			gs = append(gs, g.Status(false, base))
 		}
 		return true
 	})
