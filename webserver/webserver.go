@@ -102,7 +102,7 @@ func cspHeader(w http.ResponseWriter, connect string) {
 		c = "connect-src " + connect + " ws: wss: 'self';"
 	}
 	w.Header().Add("Content-Security-Policy",
-		c + " img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
+		c+" img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
 }
 
 func notFound(w http.ResponseWriter) {
@@ -327,7 +327,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status := g.Status(false)
+	status := g.Status(false, "")
 	cspHeader(w, status.AuthServer)
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
@@ -351,7 +351,16 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := g.Status(false)
+	scheme := "wss"
+	if Insecure {
+		scheme = "ws"
+	}
+	endpoint := url.URL{
+		Scheme: scheme,
+		Host:   r.Host,
+		Path:   "/ws",
+	}
+	d := g.Status(false, endpoint.String())
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("cache-control", "no-cache")
 

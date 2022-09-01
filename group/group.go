@@ -1177,6 +1177,7 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (s
 
 type Status struct {
 	Name        string `json:"name"`
+	Endpoint    string `json:"endpoint"`
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 	AuthServer  string `json:"authServer,omitempty"`
@@ -1185,10 +1186,11 @@ type Status struct {
 	ClientCount *int   `json:"clientCount,omitempty"`
 }
 
-func (g *Group) Status(authentified bool) Status {
+func (g *Group) Status(authentified bool, endpoint string) Status {
 	desc := g.Description()
 	d := Status{
 		Name:        g.name,
+		Endpoint:    endpoint,
 		DisplayName: desc.DisplayName,
 		AuthServer:  desc.AuthServer,
 		AuthPortal:  desc.AuthPortal,
@@ -1209,7 +1211,7 @@ func GetPublic() []Status {
 	gs := make([]Status, 0)
 	Range(func(g *Group) bool {
 		if g.Description().Public {
-			gs = append(gs, g.Status(false))
+			gs = append(gs, g.Status(false, ""))
 		}
 		return true
 	})

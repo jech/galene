@@ -3431,7 +3431,12 @@ async function serverConnect() {
     serverConnection.onusermessage = gotUserMessage;
     serverConnection.onfiletransfer = gotFileTransfer;
 
-    let url = `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`;
+    let url = groupStatus.endpoint;
+    if(!url) {
+        console.warn("no endpoint in status");
+        url = `ws${location.protocol === 'https:' ? 's' : ''}://${location.host}/ws`;
+    }
+
     try {
         await serverConnection.connect(url);
     } catch(e) {
