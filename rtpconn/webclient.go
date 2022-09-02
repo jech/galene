@@ -110,6 +110,7 @@ func (c *webClient) PushClient(group, kind, id, username string, perms []string,
 
 type clientMessage struct {
 	Type             string                   `json:"type"`
+	Version          []string                 `json:"version"`
 	Kind             string                   `json:"kind,omitempty"`
 	Id               string                   `json:"id,omitempty"`
 	Replace          string                   `json:"replace,omitempty"`
@@ -854,6 +855,15 @@ func StartClient(conn *websocket.Conn) (err error) {
 		return
 	}
 
+	versionError := true
+	if m.Version != nil {
+		for _, v := range m.Version {
+			if v == "1" {
+				versionError = false
+			}
+		}
+	}
+
 	c := &webClient{
 		id:       m.Id,
 		actionCh: make(chan struct{}, 1),
@@ -878,7 +888,7 @@ func StartClient(conn *websocket.Conn) (err error) {
 		c.close(e)
 	}()
 
-	return clientLoop(c, conn)
+	return clientLoop(c, conn, versionError)
 }
 
 type pushConnAction struct {
@@ -950,7 +960,7 @@ func addnew(v string, l []string) []string {
 	return l
 }
 
-func clientLoop(c *webClient, ws *websocket.Conn) error {
+func clientLoop(c *webClient, ws *websocket.Conn, versionError bool) error {
 	read := make(chan interface{}, 1)
 	go clientReader(ws, read, c.done)
 
@@ -962,10 +972,23 @@ func clientLoop(c *webClient, ws *websocket.Conn) error {
 	defer ticker.Stop()
 
 	err := c.write(clientMessage{
-		Type: "handshake",
+		Type:    "handshake",
+		Version: []string{"1"},
 	})
 	if err != nil {
 		return err
+	}
+
+	if versionError {
+		c.write(clientMessage{
+			Type:       "usermessage",
+			Kind:       "warning",
+			Dest:       c.id,
+			Privileged: true,
+			Value: "This client is using an unknown protocol version.\n" +
+				"Perhaps it needs upgrading?\n" +
+				"Trying to continue, things may break.",
+		})
 	}
 
 	for {
@@ -1384,22 +1407,22 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				log.Printf("Join group: %v", err)
 			}
 			return c.write(clientMessage{
-				Type:        "joined",
-				Kind:        "fail",
-				Group:       m.Group,
-				Username:    c.username,
-				Value:       s,
+				Type:     "joined",
+				Kind:     "fail",
+				Group:    m.Group,
+				Username: c.username,
+				Value:    s,
 			})
 		}
 		if redirect := g.Description().Redirect; redirect != "" {
 			// We normally redirect at the HTTP level, but the group
 			// description could have been edited in the meantime.
 			return c.write(clientMessage{
-				Type:        "joined",
-				Kind:        "redirect",
-				Group:       m.Group,
-				Username:    c.username,
-				Value:       redirect,
+				Type:     "joined",
+				Kind:     "redirect",
+				Group:    m.Group,
+				Username: c.username,
+				Value:    redirect,
 			})
 		}
 		c.group = g

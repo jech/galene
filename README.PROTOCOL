@@ -81,12 +81,15 @@ start pipelining messages to the server.
 ```javascript
 {
     type: 'handshake',
+    version: ["1"],
     id: id
 }
 ```
 
-If the field `id` is absent, then the peer doesn't originate streams (it
-is a server).
+The version field contains an array of supported protocol versions; the
+client may announce multiple versions, but the server will always reply
+with a singleton.  If the field `id` is absent, then the peer doesn't
+originate streams.
 
 A peer may, at any time, send a `ping` message.
 

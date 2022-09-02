@@ -1,5 +1,8 @@
-Galene 0.5.6 (unreleased):
+Galene 0.6 (unreleased):
 
+  * Version the protocol: the handshake message now contains a version
+    number, and the server will warn if it is incorrect.  This will become
+    a hard error in the future.
   * Rework the peer-to-peer file transfer protocol.  It now lives in
     protocol.js, which makes it easy to use by third-party clients.
   * Extend the authorization protocol to allow the authorization server to

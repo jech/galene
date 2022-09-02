@@ -223,6 +223,7 @@ function ServerConnection() {
 /**
   * @typedef {Object} message
   * @property {string} type
+  * @property {Array<string>} [version]
   * @property {string} [kind]
   * @property {string} [id]
   * @property {string} [replace]
@@ -289,6 +290,7 @@ ServerConnection.prototype.connect = async function(url) {
         this.socket.onopen = function(e) {
             sc.send({
                 type: 'handshake',
+                version: ["1"],
                 id: sc.id,
             });
             if(sc.onconnected)
@@ -322,6 +324,8 @@ ServerConnection.prototype.connect = async function(url) {
             let m = JSON.parse(e.data);
             switch(m.type) {
             case 'handshake':
+                if(!m.version || !m.version.includes('1'))
+                    console.warn(`Unexpected protocol version ${m.version}.`);
                 break;
             case 'offer':
                 sc.gotOffer(m.id, m.label, m.source, m.username,
