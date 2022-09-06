@@ -1177,7 +1177,7 @@ func handleAction(c *webClient, a interface{}) error {
 			}
 		}
 		perms := append([]string(nil), c.permissions...)
-		return c.write(clientMessage{
+		err := c.write(clientMessage{
 			Type:             "joined",
 			Kind:             a.kind,
 			Group:            a.group,
@@ -1187,6 +1187,23 @@ func handleAction(c *webClient, a interface{}) error {
 			Data:             data,
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
+		if err != nil {
+			return err
+		}
+		h := c.group.GetChatHistory()
+		for _, m := range h {
+			err := c.write(clientMessage{
+				Type:     "chathistory",
+				Id:       m.Id,
+				Username: m.User,
+				Time:     m.Time,
+				Value:    m.Value,
+				Kind:     m.Kind,
+			})
+			if err != nil {
+				return err
+			}
+		}
 	case permissionsChangedAction:
 		g := c.Group()
 		if g == nil {
@@ -1426,20 +1443,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			})
 		}
 		c.group = g
-		h := c.group.GetChatHistory()
-		for _, m := range h {
-			err := c.write(clientMessage{
-				Type:     "chathistory",
-				Id:       m.Id,
-				Username: m.User,
-				Time:     m.Time,
-				Value:    m.Value,
-				Kind:     m.Kind,
-			})
-			if err != nil {
-				return err
-			}
-		}
 	case "request":
 		requested, err := parseRequested(m.Request)
 		if err != nil {
