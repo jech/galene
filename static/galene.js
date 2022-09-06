@@ -2594,12 +2594,11 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
     if(kind !== 'me') {
         let p = formatLines(message.toString().split('\n'));
         let doHeader = true;
-        if(!peerId && !dest && !nick) {
-            doHeader = false;
-        } else if(lastMessage.nick !== (nick || null) ||
-                  lastMessage.peerId !== peerId ||
-                  lastMessage.dest !== (dest || null) ||
-                  !time || !lastMessage.time) {
+        if(lastMessage.nick !== (nick || null) ||
+           lastMessage.peerId !== (peerId || null) ||
+           lastMessage.dest !== (dest || null) ||
+           !time || !lastMessage.time) {
+            console.log("A", nick, peerId, dest, time, lastMessage.time);
             doHeader = true;
         } else {
             let delta = time - lastMessage.time;
@@ -2608,16 +2607,14 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
 
         if(doHeader) {
             let header = document.createElement('p');
-            if(peerId || nick || dest) {
-                let user = document.createElement('span');
-                let u = serverConnection.users[dest];
-                let name = (u && u.username);
-                user.textContent = dest ?
-                    `${nick||'(anon)'} \u2192 ${name || '(anon)'}` :
-                    (nick || '(anon)');
-                user.classList.add('message-user');
-                header.appendChild(user);
-            }
+            let user = document.createElement('span');
+            let u = dest && serverConnection.users[dest];
+            let name = (u && u.username);
+            user.textContent = dest ?
+                `${nick || '(anon)'} \u2192 ${name || '(anon)'}` :
+                (nick || '(anon)');
+            user.classList.add('message-user');
+            header.appendChild(user);
             header.classList.add('message-header');
             container.appendChild(header);
             if(time) {

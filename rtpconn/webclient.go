@@ -1194,7 +1194,7 @@ func handleAction(c *webClient, a interface{}) error {
 		for _, m := range h {
 			err := c.write(clientMessage{
 				Type:     "chathistory",
-				Id:       m.Id,
+				Source:   m.Id,
 				Username: m.User,
 				Time:     m.Time,
 				Value:    m.Value,
