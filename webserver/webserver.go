@@ -591,17 +591,17 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 }
 
 func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname string) bool {
-	desc, err := group.GetDescription(groupname)
-	if err != nil {
-		return false
-	}
-
 	user, pass, ok := r.BasicAuth()
 	if !ok {
 		return false
 	}
 
-	_, p, err := desc.GetPermission(groupname,
+	g := group.Get(groupname)
+	if g == nil {
+		return false
+	}
+
+	_, p, err := g.GetPermission(
 		group.ClientCredentials{
 			Username: user,
 			Password: pass,

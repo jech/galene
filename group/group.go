@@ -563,7 +563,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 	clients := g.getClientsUnlocked(nil)
 
 	if !member("system", c.Permissions()) {
-		username, perms, err := g.description.GetPermission(group, creds)
+		username, perms, err := g.getPermission(creds)
 		if err != nil {
 			return nil, err
 		}
@@ -815,7 +815,7 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 	return h
 }
 
-func matchClient(group string, creds ClientCredentials, users []ClientPattern) (bool, bool) {
+func matchClient(creds ClientCredentials, users []ClientPattern) (bool, bool) {
 	matched := false
 	for _, u := range users {
 		if u.Username == creds.Username {
@@ -1103,12 +1103,14 @@ func readDescription(name string) (*Description, error) {
 	return &desc, nil
 }
 
-func (desc *Description) GetPermission(group string, creds ClientCredentials) (string, []string, error) {
+// called locked
+func (g *Group) getPermission(creds ClientCredentials) (string, []string, error) {
+	desc := g.description
 	if creds.Token == "" {
 		if !desc.AllowAnonymous && creds.Username == "" {
 			return "", nil, ErrAnonymousNotAuthorised
 		}
-		if found, good := matchClient(group, creds, desc.Op); found {
+		if found, good := matchClient(creds, desc.Op); found {
 			if good {
 				var p []string
 				p = []string{"op", "present"}
@@ -1119,13 +1121,13 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (s
 			}
 			return "", nil, ErrNotAuthorised
 		}
-		if found, good := matchClient(group, creds, desc.Presenter); found {
+		if found, good := matchClient(creds, desc.Presenter); found {
 			if good {
 				return creds.Username, []string{"present"}, nil
 			}
 			return "", nil, ErrNotAuthorised
 		}
-		if found, good := matchClient(group, creds, desc.Other); found {
+		if found, good := matchClient(creds, desc.Other); found {
 			if good {
 				return creds.Username, nil, nil
 			}
@@ -1164,7 +1166,7 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (s
 				continue
 			}
 		}
-		if url.Path == path.Join("/group", group)+"/" {
+		if url.Path == path.Join("/group", g.name)+"/" {
 			ok = true
 			break
 		}
@@ -1173,6 +1175,12 @@ func (desc *Description) GetPermission(group string, creds ClientCredentials) (s
 		return "", nil, ErrNotAuthorised
 	}
 	return sub, perms, nil
+}
+
+func (g *Group) GetPermission(creds ClientCredentials) (string, []string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.getPermission(creds)
 }
 
 type Status struct {
