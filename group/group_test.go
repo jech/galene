@@ -159,15 +159,15 @@ var goodClients = []credPerm{
 }
 
 func TestPermissions(t *testing.T) {
-	var d Description
-	err := json.Unmarshal([]byte(descJSON), &d)
+	var g Group
+	err := json.Unmarshal([]byte(descJSON), &g.description)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
 	for _, c := range badClients {
 		t.Run("bad "+c.Username, func(t *testing.T) {
-			_, p, err := d.GetPermission("test", c)
+			_, p, err := g.GetPermission(c)
 			if err != ErrNotAuthorised {
 				t.Errorf("GetPermission %v: %v %v", c, err, p)
 			}
@@ -176,7 +176,7 @@ func TestPermissions(t *testing.T) {
 
 	for _, cp := range goodClients {
 		t.Run("good "+cp.c.Username, func(t *testing.T) {
-			u, p, err := d.GetPermission("test", cp.c)
+			u, p, err := g.GetPermission(cp.c)
 			if err != nil {
 				t.Errorf("GetPermission %v: %v", cp.c, err)
 			} else if u != cp.c.Username ||
