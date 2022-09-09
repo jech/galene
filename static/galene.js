@@ -2598,7 +2598,6 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
            lastMessage.peerId !== (peerId || null) ||
            lastMessage.dest !== (dest || null) ||
            !time || !lastMessage.time) {
-            console.log("A", nick, peerId, dest, time, lastMessage.time);
             doHeader = true;
         } else {
             let delta = time - lastMessage.time;
