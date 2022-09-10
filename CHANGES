@@ -1,4 +1,4 @@
-Galene 0.6 (unreleased):
+10 September 2022: Galene 0.6
 
   * Version the protocol: the handshake message now contains a version
     number, and the server will warn if it is incorrect.  This will become
@@ -11,6 +11,10 @@ Galene 0.6 (unreleased):
     Thanks to Martin Pépin.
   * Check that a given group exists before redirecting from the landing
     page.  This avoids an unsightly 404 error when the user makes a typo.
+  * Publish the group name end websocket endpoint in the group status.
+    This avoids hardwirint the server structure in the client.
+  * Fix a race condition that could cause chathistory messages to be sent
+    before the joined status.
 
 23 July 2022: Galene 0.5.5
 
