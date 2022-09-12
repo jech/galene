@@ -2,7 +2,7 @@
 
 ## Build the `galene` binary
 
-You will need Go 1.13 or later (type `go version`).  Then do:
+You will need Go 1.16 or later (type `go version`).  Then do:
 
     CGO_ENABLED=0 go build -ldflags='-s -w'
 
