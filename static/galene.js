@@ -367,7 +367,7 @@ function gotDownStream(c) {
         displayError(e);
     };
     c.ondowntrack = function(track, transceiver, label, stream) {
-        setMedia(c, false);
+        setMedia(c);
     };
     c.onnegotiationcompleted = function() {
         resetMedia(c);
@@ -379,7 +379,7 @@ function gotDownStream(c) {
     if(getSettings().activityDetection)
         c.setStatsInterval(activityDetectionInterval);
 
-    setMedia(c, false);
+    setMedia(c);
 }
 
 // Store current browser viewport height in css variable
@@ -1311,7 +1311,7 @@ async function replaceUpStream(c) {
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
     setUpStream(cn, c.stream);
-    await setMedia(cn, true,
+    await setMedia(cn,
                    cn.label == 'camera' && getSettings().mirrorView,
                    cn.label == 'video' && media);
     return cn;
@@ -1411,7 +1411,7 @@ async function addLocalMedia(localId) {
     }
 
     setUpStream(c, stream);
-    await setMedia(c, true, settings.mirrorView);
+    await setMedia(c, settings.mirrorView);
     setButtonsVisibility();
 }
 
@@ -1450,7 +1450,7 @@ async function addShareMedia() {
     let c = newUpStream();
     c.label = 'screenshare';
     setUpStream(c, stream);
-    await setMedia(c, true);
+    await setMedia(c);
     setButtonsVisibility();
 }
 
@@ -1495,7 +1495,7 @@ async function addFileMedia(file) {
         displayWarning('You have been muted');
     }
 
-    await setMedia(c, true, false, video);
+    await setMedia(c, false, video);
     c.userdata.play = true;
     setButtonsVisibility();
 }
@@ -1671,15 +1671,13 @@ function scheduleReconsiderDownRate() {
  * setMedia adds a new media element corresponding to stream c.
  *
  * @param {Stream} c
- * @param {boolean} isUp
- *     - indicates whether the stream goes in the up direction
  * @param {boolean} [mirror]
  *     - whether to mirror the video
  * @param {HTMLVideoElement} [video]
  *     - the video element to add.  If null, a new element with custom
  *       controls will be created.
  */
-async function setMedia(c, isUp, mirror, video) {
+async function setMedia(c, mirror, video) {
     let peersdiv = document.getElementById('peers');
 
     let div = document.getElementById('peer-' + c.localId);
@@ -1697,7 +1695,7 @@ async function setMedia(c, isUp, mirror, video) {
             media = video;
         } else {
             media = document.createElement('video');
-            if(isUp)
+            if(c.up)
                 media.muted = true;
         }
 
@@ -1717,7 +1715,7 @@ async function setMedia(c, isUp, mirror, video) {
     if(!video && media.srcObject !== c.stream)
         media.srcObject = c.stream;
 
-    if(!isUp) {
+    if(!c.up) {
         media.onfullscreenchange = function(e) {
             forceDownRate(c.id, document.fullscreenElement === media, false);
         }
@@ -1737,7 +1735,7 @@ async function setMedia(c, isUp, mirror, video) {
     showVideo();
     resizePeers();
 
-    if(!isUp && isSafari() && !findUpMedia('camera')) {
+    if(!c.up && isSafari() && !findUpMedia('camera')) {
         // Safari doesn't allow autoplay unless the user has granted media access
         try {
             let stream = await navigator.mediaDevices.getUserMedia({audio: true});
