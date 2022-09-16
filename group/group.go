@@ -1185,8 +1185,9 @@ func (g *Group) GetPermission(creds ClientCredentials) (string, []string, error)
 
 type Status struct {
 	Name        string `json:"name"`
-	Location    string `json:"location"`
-	Endpoint    string `json:"endpoint"`
+	Redirect    string `json:"redirect,omitempty"`
+	Location    string `json:"location,omitempty"`
+	Endpoint    string `json:"endpoint,omitempty"`
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 	AuthServer  string `json:"authServer,omitempty"`
@@ -1200,6 +1201,15 @@ type Status struct {
 // Endpoint members are omitted from the result.
 func (g *Group) Status(authentified bool, base string) Status {
 	desc := g.Description()
+
+	if desc.Redirect != "" {
+		return Status{
+			Name:        g.name,
+			Redirect:    desc.Redirect,
+			DisplayName: desc.DisplayName,
+			Description: desc.Description,
+		}
+	}
 
 	var location, endpoint string
 	if base != "" {

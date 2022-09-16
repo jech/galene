@@ -119,8 +119,12 @@ async function listPublicGroups() {
             td2.textContent = group.description;
         tr.appendChild(td2);
         let td3 = document.createElement('td');
-        let locked = group.locked ? ', locked' : '';
-        td3.textContent = `(${group.clientCount} clients${locked})`;
+        if(!group.redirect) {
+            let locked = group.locked ? ', locked' : '';
+            td3.textContent = `(${group.clientCount} clients${locked})`;
+        } else {
+            td3.textContent = '(remote)';
+        }
         tr.appendChild(td3);
         table.appendChild(tr);
     }
