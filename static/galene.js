@@ -2172,6 +2172,26 @@ function setUserStatus(id, elt, userinfo) {
         elt.classList.add('user-status-raisehand');
     else
         elt.classList.remove('user-status-raisehand');
+
+    let microphone=false, camera = false;
+    for(let label in userinfo.streams) {
+        for(let kind in userinfo.streams[label]) {
+            if(kind == 'audio')
+                microphone = true;
+            else
+                camera = true;
+        }
+    }
+    if(camera) {
+        elt.classList.remove('user-status-microphone');
+        elt.classList.add('user-status-camera');
+    } else if(microphone) {
+        elt.classList.add('user-status-microphone');
+        elt.classList.remove('user-status-camera');
+    } else {
+        elt.classList.remove('user-status-microphone');
+        elt.classList.remove('user-status-camera');
+    }
 }
 
 /**

@@ -1156,6 +1156,22 @@ header .collapse:hover {
     content: "\f256";
 }
 
+#users > div::after {
+    font-family: 'Font Awesome 6 Free';
+    color: #808080;
+    margin-left: 5px;
+    font-weight: 900;
+    float: right;
+}
+
+#users > div.user-status-microphone::after {
+    content: "\f130";
+}
+
+#users > div.user-status-camera::after {
+    content: "\f030";
+}
+
 .close-icon {
     font: normal 1em/1 Arial, sans-serif;
     display: inline-block;
