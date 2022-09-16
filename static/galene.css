@@ -905,6 +905,10 @@ h1 {
     border: 2px solid #610a86;
 }
 
+.peer-hidden {
+    display: none;
+}
+
 .media {
     width: 100%;
     max-height: calc(var(--vh, 1vh) * 100 - 76px);

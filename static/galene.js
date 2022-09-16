@@ -41,6 +41,7 @@ let token = null;
  * @property {string} [send]
  * @property {string} [request]
  * @property {boolean} [activityDetection]
+ * @property {boolean} [displayAll]
  * @property {Array.<number>} [resolution]
  * @property {boolean} [mirrorView]
  * @property {boolean} [blackboardMode]
@@ -216,6 +217,13 @@ function reflectSettings() {
         getInputElement('activitybox').checked = settings.activityDetection;
     } else {
         settings.activityDetection = getInputElement('activitybox').checked;
+        store = true;
+    }
+
+    if(settings.hasOwnProperty('displayAll')) {
+        getInputElement('displayallbox').checked = settings.displayAll;
+    } else {
+        settings.displayAll = getInputElement('displayallbox').checked;
         store = true;
     }
 
@@ -658,6 +666,18 @@ getInputElement('activitybox').onchange = function(e) {
         }
     }
 };
+
+getInputElement('displayallbox').onchange = function(e) {
+    if(!(this instanceof HTMLInputElement))
+        throw new Error('Unexpected type for this');
+    updateSettings({displayAll: this.checked});
+    for(let id in serverConnection.down) {
+        let c = serverConnection.down[id];
+        let elt = document.getElementById('peer-' + c.localId);
+        showHideMedia(c, elt);
+    }
+};
+
 
 /**
  * @this {Stream}
@@ -1678,15 +1698,16 @@ function scheduleReconsiderDownRate() {
  *       controls will be created.
  */
 async function setMedia(c, mirror, video) {
-    let peersdiv = document.getElementById('peers');
-
     let div = document.getElementById('peer-' + c.localId);
     if(!div) {
         div = document.createElement('div');
         div.id = 'peer-' + c.localId;
         div.classList.add('peer');
+        let peersdiv = document.getElementById('peers');
         peersdiv.appendChild(div);
     }
+
+    showHideMedia(c, div)
 
     let media = /** @type {HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
@@ -1743,6 +1764,29 @@ async function setMedia(c, mirror, video) {
         } catch(e) {
         }
     }
+}
+
+
+/**
+ * @param {Stream} c
+ * @param {HTMLElement} elt
+ */
+function showHideMedia(c, elt) {
+    let display = c.up || getSettings().displayAll;
+    if(!display && c.stream) {
+        let tracks = c.stream.getTracks();
+        for(let i = 0; i < tracks.length; i++) {
+            let t = tracks[i];
+            if(t.kind === 'video') {
+                display = true;
+                break;
+            }
+        }
+    }
+    if(display)
+        elt.classList.remove('peer-hidden');
+    else
+        elt.classList.add('peer-hidden');
 }
 
 /**
