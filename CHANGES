@@ -1,3 +1,8 @@
+Galene 0.6.1 (unreleased):
+
+  * Add a camera/microphone indicator in the users list.
+  * Hide audio-only peers by default.
+
 10 September 2022: Galene 0.6
 
   * Version the protocol: the handshake message now contains a version
