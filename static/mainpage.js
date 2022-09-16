@@ -30,12 +30,13 @@ document.getElementById('groupform').onsubmit = async function(e) {
     if(group === '')
         return;
     let url = '/group/' + group + '/';
+    let statusUrl = url + '.status.json';
 
     try {
         groupinput.disabled = true;
         button.disabled = true;
         try {
-            let resp = await fetch(url, {
+            let resp = await fetch(statusUrl, {
                 method: 'HEAD',
             });
             if(!resp.ok) {
@@ -46,7 +47,7 @@ document.getElementById('groupform').onsubmit = async function(e) {
                 return;
             }
         } catch(e) {
-            displayError(`Coudln't connect: ${e.toString()}`);
+            displayError(`Couldn't connect: ${e.toString()}`);
             return;
         }
     } finally {
