@@ -458,10 +458,9 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 		g.description = desc
 	}
 
-	clients := g.getClientsUnlocked(nil)
-	autoLockKick(g, clients)
+	autoLockKick(g)
 
-	return g, clients, nil
+	return g, g.getClientsUnlocked(nil), nil
 }
 
 func Range(f func(g *Group) bool) {
@@ -629,11 +628,13 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 }
 
 // called locked
-func autoLockKick(g *Group, clients []Client) {
+func autoLockKick(g *Group) {
 	if !(g.description.Autolock && g.locked == nil) &&
 		!g.description.Autokick {
 		return
 	}
+
+	clients := g.getClientsUnlocked(nil)
 	for _, c := range clients {
 		if member("op", c.Permissions()) {
 			return
@@ -642,11 +643,9 @@ func autoLockKick(g *Group, clients []Client) {
 	if g.description.Autolock && g.locked == nil {
 		m := "this group is locked"
 		g.locked = &m
-		go func(clients []Client) {
-			for _, c := range clients {
-				c.Joined(g.Name(), "change")
-			}
-		}(g.getClientsUnlocked(nil))
+		for _, c := range clients {
+			c.Joined(g.Name(), "change")
+		}
 	}
 
 	if g.description.Autokick {
@@ -676,7 +675,7 @@ func DelClient(c Client) {
 			g.Name(), "delete", c.Id(), "", nil, nil,
 		)
 	}
-	autoLockKick(g, clients)
+	autoLockKick(g)
 }
 
 func (g *Group) GetClients(except Client) []Client {
