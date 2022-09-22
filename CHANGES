@@ -1,5 +1,7 @@
 Galene 0.6.1 (unreleased):
 
+  * Ensure that autolocked groups are locked on creation.  Thanks to
+    Michael Ströder.
   * Add a camera/microphone indicator in the users list.
   * Hide audio-only peers by default.
 

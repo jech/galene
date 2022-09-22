@@ -433,20 +433,16 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 			timestamp:   time.Now(),
 		}
 		groups.groups[name] = g
-		return g, nil, nil
 	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	if desc != nil {
-		if descriptionMatch(g.description, desc) {
-			return g, nil, nil
+		if !descriptionMatch(g.description, desc) {
+			g.description = desc
 		}
-		g.description = desc
-	} else if descriptionUnchanged(name, g.description) {
-		return g, nil, nil
-	} else {
+	} else if !descriptionUnchanged(name, g.description) {
 		desc, err = readDescription(name)
 		if err != nil {
 			if !os.IsNotExist(err) {
