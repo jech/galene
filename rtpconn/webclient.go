@@ -1168,8 +1168,9 @@ func handleAction(c *webClient, a interface{}) error {
 	case joinedAction:
 		var status *group.Status
 		var data map[string]interface{}
+		var g *group.Group
 		if a.group != "" {
-			g := group.Get(a.group)
+			g = group.Get(a.group)
 			if g != nil {
 				s := g.Status(true, "")
 				status = &s
@@ -1190,18 +1191,25 @@ func handleAction(c *webClient, a interface{}) error {
 		if err != nil {
 			return err
 		}
-		h := c.group.GetChatHistory()
-		for _, m := range h {
-			err := c.write(clientMessage{
-				Type:     "chathistory",
-				Source:   m.Id,
-				Username: m.User,
-				Time:     m.Time,
-				Value:    m.Value,
-				Kind:     m.Kind,
-			})
-			if err != nil {
-				return err
+		if a.kind == "join" {
+			if g == nil {
+				log.Println("g is null when joining" +
+					"this shouldn't happen")
+				return nil
+			}
+			h := g.GetChatHistory()
+			for _, m := range h {
+				err := c.write(clientMessage{
+					Type:     "chathistory",
+					Source:   m.Id,
+					Username: m.User,
+					Time:     m.Time,
+					Value:    m.Value,
+					Kind:     m.Kind,
+				})
+				if err != nil {
+					return err
+				}
 			}
 		}
 	case permissionsChangedAction:
