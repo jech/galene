@@ -1,10 +1,11 @@
 Galene 0.6.1 (unreleased):
 
+  * Add a camera/microphone indicator in the users list, and hide
+    audio-only peers by default.  They can be reenabled in the side menu.
   * Ensure that autolocked groups are locked on creation.  Thanks to
     Michael Ströder.
   * Don't send chat history multiple times.  Thanks to Rémy Nollet.
-  * Add a camera/microphone indicator in the users list.
-  * Hide audio-only peers by default.
+  * Fix status display for remote (redirected) groups.
 
 10 September 2022: Galene 0.6
 
