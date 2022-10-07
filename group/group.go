@@ -438,9 +438,11 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	notify := false
 	if desc != nil {
 		if !descriptionMatch(g.description, desc) {
 			g.description = desc
+			notify = true
 		}
 	} else if !descriptionUnchanged(name, g.description) {
 		desc, err = readDescription(name)
@@ -452,11 +454,16 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 			return nil, nil, err
 		}
 		g.description = desc
+		notify = true
 	}
 
 	autoLockKick(g)
 
-	return g, g.getClientsUnlocked(nil), nil
+	var clients []Client
+	if notify {
+		clients = g.getClientsUnlocked(nil)
+	}
+	return g, clients, nil
 }
 
 func Range(f func(g *Group) bool) {
