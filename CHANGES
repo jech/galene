@@ -1,4 +1,4 @@
-Galene 0.6.1 (unreleased):
+7 October 2022: Galene 0.6.1
 
   * Add a camera/microphone indicator in the users list, and hide
     audio-only peers by default.  They can be reenabled in the side menu.
