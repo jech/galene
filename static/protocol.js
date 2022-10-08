@@ -712,16 +712,15 @@ ServerConnection.prototype.userMessage = function(kind, dest, value, noecho) {
  * groupAction sends a request to act on the current group.
  *
  * @param {string} kind
- *     - One of 'clearchat', 'lock', 'unlock', 'record' or 'unrecord'.
- * @param {string} [message] - An optional user-readable message.
+ * @param {any} [data]
  */
-ServerConnection.prototype.groupAction = function(kind, message) {
+ServerConnection.prototype.groupAction = function(kind, data) {
     this.send({
         type: 'groupaction',
         source: this.id,
         kind: kind,
         username: this.username,
-        value: message,
+        value: data,
     });
 };
 
