@@ -150,13 +150,17 @@ func (g *Group) ClientCount() int {
 	return len(g.clients)
 }
 
-func (g *Group) EmptyTime() time.Duration {
+func (g *Group) mayExpire() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if len(g.clients) > 0 {
-		return 0
+
+	if g.description.Public {
+		return false
 	}
-	return time.Since(g.timestamp)
+	if len(g.clients) > 0 {
+		return false
+	}
+	return time.Since(g.timestamp) > maxHistoryAge(g.description)
 }
 
 var groups struct {
@@ -1286,7 +1290,6 @@ func Update() {
 	}
 
 	names := GetNames()
-
 	for _, name := range names {
 		g := Get(name)
 		if g == nil {
@@ -1294,13 +1297,13 @@ func Update() {
 		}
 
 		deleted := false
-		historyAge := maxHistoryAge(g.description)
-		if !g.description.Public && g.EmptyTime() > historyAge {
+		if g.mayExpire() {
 			// Delete checks if the group is still empty
 			deleted = Delete(name)
 		}
 
-		if !deleted && !descriptionUnchanged(name, g.description) {
+		// update group description
+		if !deleted {
 			Add(name, nil)
 		}
 	}
