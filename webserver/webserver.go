@@ -333,8 +333,12 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func groupBase(r *http.Request) string {
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
 	base := url.URL{
-		Scheme: r.URL.Scheme,
+		Scheme: scheme,
 		Host:   r.Host,
 		Path:   "/group/",
 	}
