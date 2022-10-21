@@ -401,7 +401,7 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 func publicHandler(w http.ResponseWriter, r *http.Request) {
 	base, err := groupBase(r)
 	if err != nil {
-		log.Println("couldn't determine group base: %v", err)
+		log.Printf("couldn't determine group base: %v", err)
 		http.Error(w, "Internal server error",
 			http.StatusInternalServerError)
 		return
