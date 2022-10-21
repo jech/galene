@@ -342,7 +342,12 @@ func groupBase(r *http.Request) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return u.JoinPath("/group/").String(), nil
+		base := url.URL{
+			Scheme: u.Scheme,
+			Host:   u.Host,
+			Path:   path.Join(u.Path, "/group/"),
+		}
+		return base.String(), nil
 	}
 	scheme := "https"
 	if r.TLS == nil {
