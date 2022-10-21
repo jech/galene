@@ -857,6 +857,7 @@ type Configuration struct {
 	fileSize int64     `json:"-"`
 
 	CanonicalHost string          `json:"canonicalHost"`
+	ProxyURL      string          `json:"proxyURL"`
 	Admin         []ClientPattern `json:"admin"`
 }
 

@@ -47,15 +47,19 @@ The server may be configured in the JSON file `data/config.json`.  This
 file may look as follows:
 
     {
-        "canonicalHost": "galene.example.org",
         "admin":[{"username":"root","password":"secret"}]
+        "canonicalHost": "galene.example.org",
     }
 
 The fields are as follows:
 
-- `canonicalHost`: the canonical name of the host running the server;
+- `proxyURL`: if running behind a reverse proxy, this specifies the
+  address of the proxy.
 - `admin` defines the users allowed to look at the `/stats.html` file; it
   has the same syntax as user definitions in groups (see below).
+- `canonicalHost`: the canonical name of the host running the server; this
+  will cause clients to be redirected if they use a different hostname to
+  access the server.
 
 
 # Group definitions

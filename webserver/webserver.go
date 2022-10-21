@@ -332,7 +332,18 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
 
-func groupBase(r *http.Request) string {
+func groupBase(r *http.Request) (string, error) {
+	conf, err := group.GetConfiguration()
+	if err != nil {
+		return "", nil
+	}
+	if conf.ProxyURL != "" {
+		u, err := url.Parse(conf.ProxyURL)
+		if err != nil {
+			return "", err
+		}
+		return u.JoinPath("/group/").String(), nil
+	}
 	scheme := "https"
 	if r.TLS == nil {
 		scheme = "http"
@@ -342,7 +353,7 @@ func groupBase(r *http.Request) string {
 		Host:   r.Host,
 		Path:   "/group/",
 	}
-	return base.String()
+	return base.String(), nil
 }
 
 func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -364,7 +375,13 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := g.Status(false, groupBase(r))
+	base, err := groupBase(r)
+	if err != nil {
+		http.Error(w, "Internal server error",
+			http.StatusInternalServerError)
+		return
+	}
+	d := g.Status(false, base)
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("cache-control", "no-cache")
 
@@ -377,6 +394,13 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {
+	base, err := groupBase(r)
+	if err != nil {
+		log.Println("couldn't determine group base: %v", err)
+		http.Error(w, "Internal server error",
+			http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("cache-control", "no-cache")
 
@@ -384,7 +408,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g := group.GetPublic(groupBase(r))
+	g := group.GetPublic(base)
 	e := json.NewEncoder(w)
 	e.Encode(g)
 }
