@@ -147,6 +147,40 @@ If you are using *systemd*:
     WantedBy=multi-user.target
 
 
+# Running behind a reverse proxy
+
+Galene is designed to be directly exposed to the Internet.  In order to
+run Galene behind a reverse proxy, you might need to make a number of
+tweaks to your configuration.
+
+First, you might need to inform Galene of the URL at which users connect
+(the reverse proxy's URL) by adding an entry `proxyURL` to your
+`data/config.json` file:
+
+    {
+        "proxyURL": "https://galene.example.org/"
+    }
+
+Second, and depending on your proxy implementation, you might need to
+request that the proxy pass WebSocket handshakes to the URL at `ws`; for
+example, with Nginx, you will need to say something like the following:
+
+    location /ws {
+        proxy_pass ...;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+    }
+
+Finally, in order to avoid TLS termination issues, you may want to run
+Galene over plain HTTP instead of HTTPS by using the command-line flag
+`-insecure`.
+
+Note that even if you're using a reverse proxy, clients will attempt to
+establish direct UDP flows with Galene and direct TCP connections to
+Galene's TURN server; see the section on "Configuring your firewall"
+above.
+
+
 # Connectivity issues and ICE Servers
 
 Most connectivity issues are due to an incorrect ICE configuration.
