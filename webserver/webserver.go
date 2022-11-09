@@ -469,9 +469,17 @@ func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
 	}
 }
 
+/*
 var wsUpgrader = websocket.Upgrader{
 	HandshakeTimeout: 30 * time.Second,
 }
+*/
+//Fix wss checkOrigin error when Galene is behind Proxy HTTPS->HTTP
+var wsUpgrader = websocket.Upgrader{
+	HandshakeTimeout: 30 * time.Second,
+	CheckOrigin:      func(*http.Request) bool { return true },
+}
+
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
