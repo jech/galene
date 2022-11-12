@@ -1,5 +1,4 @@
-// +build !windows
-// +build !plan9
+// +build linux
 
 package limit
 
