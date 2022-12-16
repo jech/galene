@@ -239,6 +239,7 @@ function ServerConnection() {
   * @property {string} [group]
   * @property {unknown} [value]
   * @property {boolean} [noecho]
+  * @property {number} [time]
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
   * @property {string} [label]
