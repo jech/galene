@@ -47,28 +47,12 @@ func TestGroup(t *testing.T) {
 	}
 }
 
-func TestJSTime(t *testing.T) {
-	tm := time.Now()
-	js := ToJSTime(tm)
-	tm2 := FromJSTime(js)
-	js2 := ToJSTime(tm2)
-
-	if js != js2 {
-		t.Errorf("%v != %v", js, js2)
-	}
-
-	delta := tm.Sub(tm2)
-	if delta < -time.Millisecond/2 || delta > time.Millisecond/2 {
-		t.Errorf("Delta %v, %v, %v", delta, tm, tm2)
-	}
-}
-
 func TestChatHistory(t *testing.T) {
 	g := Group{
 		description: &Description{},
 	}
 	for i := 0; i < 2*maxChatHistory; i++ {
-		g.AddToChatHistory("id", "user", ToJSTime(time.Now()), "",
+		g.AddToChatHistory("id", "user", time.Now(), "",
 			fmt.Sprintf("%v", i),
 		)
 	}

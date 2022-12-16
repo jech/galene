@@ -60,7 +60,7 @@ func (err ProtocolError) Error() string {
 type ChatHistoryEntry struct {
 	Id    string
 	User  string
-	Time  int64
+	Time  time.Time
 	Kind  string
 	Value interface{}
 }
@@ -760,18 +760,6 @@ func (g *Group) WallOps(message string) {
 	}
 }
 
-func FromJSTime(tm int64) time.Time {
-	if tm == 0 {
-		return time.Time{}
-	}
-	return time.Unix(int64(tm)/1000, (int64(tm)%1000)*1000000)
-}
-
-func ToJSTime(tm time.Time) int64 {
-	return int64((tm.Sub(time.Unix(0, 0)) + time.Millisecond/2) /
-		time.Millisecond)
-}
-
 const maxChatHistory = 50
 
 func (g *Group) ClearChatHistory() {
@@ -780,7 +768,7 @@ func (g *Group) ClearChatHistory() {
 	g.history = nil
 }
 
-func (g *Group) AddToChatHistory(id, user string, time int64, kind string, value interface{}) {
+func (g *Group) AddToChatHistory(id, user string, time time.Time, kind string, value interface{}) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -796,7 +784,7 @@ func (g *Group) AddToChatHistory(id, user string, time int64, kind string, value
 func discardObsoleteHistory(h []ChatHistoryEntry, duration time.Duration) []ChatHistoryEntry {
 	i := 0
 	for i < len(h) {
-		if time.Since(FromJSTime(h[i].Time)) <= duration {
+		if time.Since(h[i].Time) <= duration {
 			break
 		}
 		i++

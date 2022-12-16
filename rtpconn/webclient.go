@@ -112,6 +112,7 @@ type clientMessage struct {
 	Type             string                   `json:"type"`
 	Version          []string                 `json:"version"`
 	Kind             string                   `json:"kind,omitempty"`
+	Error            string                   `json:"error,omitempty"`
 	Id               string                   `json:"id,omitempty"`
 	Replace          string                   `json:"replace,omitempty"`
 	Source           string                   `json:"source,omitempty"`
@@ -126,7 +127,7 @@ type clientMessage struct {
 	Group            string                   `json:"group,omitempty"`
 	Value            interface{}              `json:"value,omitempty"`
 	NoEcho           bool                     `json:"noecho,omitempty"`
-	Time             int64                    `json:"time,omitempty"`
+	Time             string                   `json:"time,omitempty"`
 	SDP              string                   `json:"sdp,omitempty"`
 	Candidate        *webrtc.ICECandidateInit `json:"candidate,omitempty"`
 	Label            string                   `json:"label,omitempty"`
@@ -834,6 +835,8 @@ func readMessage(conn *websocket.Conn, m *clientMessage) error {
 	return conn.ReadJSON(&m)
 }
 
+const protocolVersion = "2"
+
 func StartClient(conn *websocket.Conn) (err error) {
 	var m clientMessage
 
@@ -858,7 +861,7 @@ func StartClient(conn *websocket.Conn) (err error) {
 	versionError := true
 	if m.Version != nil {
 		for _, v := range m.Version {
-			if v == "1" {
+			if v == protocolVersion {
 				versionError = false
 			}
 		}
@@ -973,7 +976,7 @@ func clientLoop(c *webClient, ws *websocket.Conn, versionError bool) error {
 
 	err := c.write(clientMessage{
 		Type:    "handshake",
-		Version: []string{"1"},
+		Version: []string{protocolVersion},
 	})
 	if err != nil {
 		return err
@@ -1203,7 +1206,7 @@ func handleAction(c *webClient, a interface{}) error {
 					Type:     "chathistory",
 					Source:   m.Id,
 					Username: m.User,
-					Time:     m.Time,
+					Time:     m.Time.Format(time.RFC3339),
 					Value:    m.Value,
 					Kind:     m.Kind,
 				})
@@ -1418,7 +1421,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			},
 		)
 		if err != nil {
-			var s string
+			var e, s string
 			if os.IsNotExist(err) {
 				s = "group does not exist"
 			} else if err == group.ErrNotAuthorised {
@@ -1426,8 +1429,8 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				time.Sleep(200 * time.Millisecond)
 			} else if err == group.ErrAnonymousNotAuthorised {
 				s = "please choose a username"
-			} else if e, ok := err.(group.UserError); ok {
-				s = string(e)
+			} else if err, ok := err.(group.UserError); ok {
+				s = err.Error()
 			} else {
 				s = "internal server error"
 				log.Printf("Join group: %v", err)
@@ -1435,6 +1438,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return c.write(clientMessage{
 				Type:     "joined",
 				Kind:     "fail",
+				Error:    e,
 				Group:    m.Group,
 				Username: c.username,
 				Value:    s,
@@ -1559,12 +1563,12 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return c.error(group.UserError("join a group first"))
 		}
 
-		tm := group.ToJSTime(time.Now())
+		now := time.Now()
 
 		if m.Type == "chat" {
 			if m.Dest == "" {
 				g.AddToChatHistory(
-					m.Source, m.Username, tm, m.Kind, m.Value,
+					m.Source, m.Username, now, m.Kind, m.Value,
 				)
 			}
 		}
@@ -1574,7 +1578,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Dest:       m.Dest,
 			Username:   m.Username,
 			Privileged: member("op", c.permissions),
-			Time:       tm,
+			Time:       now.Format(time.RFC3339),
 			Kind:       m.Kind,
 			NoEcho:     m.NoEcho,
 			Value:      m.Value,
@@ -1677,7 +1681,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Type:     "chat",
 				Dest:     c.id,
 				Username: "Server",
-				Time:     group.ToJSTime(time.Now()),
+				Time:     time.Now().Format(time.RFC3339),
 				Value:    s,
 			})
 		case "setdata":
