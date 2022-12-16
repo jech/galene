@@ -2520,7 +2520,7 @@ function gotFileTransferEvent(state, data) {
  * @param {string} id
  * @param {string} dest
  * @param {string} username
- * @param {number} time
+ * @param {Date} time
  * @param {boolean} privileged
  * @param {string} kind
  * @param {any} message
@@ -2605,16 +2605,15 @@ function formatLines(lines) {
 }
 
 /**
- * @param {number} time
+ * @param {Date} time
  * @returns {string}
  */
 function formatTime(time) {
-    let delta = Date.now() - time;
-    let date = new Date(time);
-    let m = date.getMinutes();
+    let delta = Date.now() - time.getTime();
+    let m = time.getMinutes();
     if(delta > -30000)
-        return date.getHours() + ':' + ((m < 10) ? '0' : '') + m;
-    return date.toLocaleString();
+        return time.getHours() + ':' + ((m < 10) ? '0' : '') + m;
+    return time.toLocaleString();
 }
 
 /**
@@ -2622,7 +2621,7 @@ function formatTime(time) {
  * @property {string} [nick]
  * @property {string} [peerId]
  * @property {string} [dest]
- * @property {number} [time]
+ * @property {Date} [time]
  */
 
 /** @type {lastMessage} */
@@ -2632,7 +2631,7 @@ let lastMessage = {};
  * @param {string} peerId
  * @param {string} dest
  * @param {string} nick
- * @param {number} time
+ * @param {Date} time
  * @param {boolean} privileged
  * @param {boolean} history
  * @param {string} kind
@@ -2662,7 +2661,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
            !time || !lastMessage.time) {
             doHeader = true;
         } else {
-            let delta = time - lastMessage.time;
+            let delta = time.getTime() - lastMessage.time.getTime();
             doHeader = delta < 0 || delta > 60000;
         }
 
@@ -2725,7 +2724,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
  * @param {string} message
  */
 function localMessage(message) {
-    return addToChatbox(null, null, null, Date.now(), false, false, '', message);
+    return addToChatbox(null, null, null, new Date(), false, false, '', message);
 }
 
 function clearChat() {
@@ -2960,7 +2959,7 @@ commands.msg = {
             throw new Error(`Unknown user ${p[0]}`);
         serverConnection.chat('', id, p[1]);
         addToChatbox(serverConnection.id, id, serverConnection.username,
-                     Date.now(), false, false, '', p[1]);
+                     new Date(), false, false, '', p[1]);
     }
 };
 

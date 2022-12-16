@@ -107,6 +107,12 @@ function ServerConnection() {
      */
     this.socket = null;
     /**
+     * The negotiated protocol version.
+     *
+     * @type {string}
+     */
+    this.version = null;
+    /**
      * The set of all up streams, indexed by their id.
      *
      * @type {Object<string,Stream>}
@@ -187,7 +193,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, history: boolean, kind: string, message: unknown) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: Date, privileged: boolean, history: boolean, kind: string, message: unknown) => void}
      */
     this.onchat = null;
     /**
@@ -199,7 +205,7 @@ function ServerConnection() {
      * 'id' is non-null, 'privileged' indicates whether the message was
      * sent by an operator.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: number, privileged: boolean, kind: string, message: unknown) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: Date, privileged: boolean, kind: string, message: unknown) => void}
      */
     this.onusermessage = null;
     /**
@@ -225,6 +231,7 @@ function ServerConnection() {
   * @property {string} type
   * @property {Array<string>} [version]
   * @property {string} [kind]
+  * @property {string} [error]
   * @property {string} [id]
   * @property {string} [replace]
   * @property {string} [source]
@@ -239,7 +246,7 @@ function ServerConnection() {
   * @property {string} [group]
   * @property {unknown} [value]
   * @property {boolean} [noecho]
-  * @property {number} [time]
+  * @property {string|number} [time]
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
   * @property {string} [label]
@@ -291,7 +298,7 @@ ServerConnection.prototype.connect = async function(url) {
         this.socket.onopen = function(e) {
             sc.send({
                 type: 'handshake',
-                version: ["1"],
+                version: ["2", "1"],
                 id: sc.id,
             });
             if(sc.onconnected)
@@ -324,10 +331,23 @@ ServerConnection.prototype.connect = async function(url) {
         this.socket.onmessage = function(e) {
             let m = JSON.parse(e.data);
             switch(m.type) {
-            case 'handshake':
-                if(!m.version || !m.version.includes('1'))
-                    console.warn(`Unexpected protocol version ${m.version}.`);
+            case 'handshake': {
+                /** @type {string} */
+                let v;
+                if(!m.version || !(m.version instanceof Array) ||
+                   m.version.length < 1 || typeof(m.version[0]) !== 'string') {
+                    v = null;
+                } else {
+                    v = m.version[0];
+                }
+                if(v === "1" || v === "2") {
+                    sc.version = v;
+                } else {
+                    console.warn(`Unknown protocol version ${v || m.version}`);
+                    sc.version = "1"
+                }
                 break;
+            }
             case 'offer':
                 sc.gotOffer(m.id, m.label, m.source, m.username,
                             m.sdp, m.replace);
@@ -419,8 +439,8 @@ ServerConnection.prototype.connect = async function(url) {
             case 'chathistory':
                 if(sc.onchat)
                     sc.onchat.call(
-                        sc, m.source, m.dest, m.username, m.time, m.privileged,
-                        m.type === 'chathistory', m.kind, m.value,
+                        sc, m.source, m.dest, m.username, parseTime(m.time),
+                        m.privileged, m.type === 'chathistory', m.kind, m.value,
                     );
                 break;
             case 'usermessage':
@@ -428,7 +448,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.fileTransfer(m.source, m.username, m.value);
                 else if(sc.onusermessage)
                     sc.onusermessage.call(
-                        sc, m.source, m.dest, m.username, m.time,
+                        sc, m.source, m.dest, m.username, parseTime(m.time),
                         m.privileged, m.kind, m.value,
                     );
                 break;
@@ -447,6 +467,25 @@ ServerConnection.prototype.connect = async function(url) {
         };
     });
 };
+
+/**
+ * Protocol version 1 uses integers for dates, later versions use dates in
+ * ISO 8601 format.  This function takes a date in either format and
+ * returns a Date object.
+ *
+ * @param {string|number} value
+ * @returns {Date}
+ */
+function parseTime(value) {
+    if(!value)
+        return null;
+    try {
+        return new Date(value);
+    } catch(e) {
+        console.warn(`Couldn't parse ${value}:`, e);
+        return null;
+    }
+}
 
 /**
  * join requests to join a group.  The onjoined callback will be called

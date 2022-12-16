@@ -70,6 +70,14 @@ message types:
  - `dest`, the client-id of the destination client;
  - `privileged`, set by the server to indicate that the originating client
    had the `op` privilege at the time when it sent the message.
+ - `value`, the value of the message (which can be of any type).
+
+There are two kinds of errors.  Unsolicited errors are sent using messages
+of type `usermessage` of kind `error` or `warning`.  Errors sent in reply
+to a message use the same type as the usual reply, but with a specific
+kind (such as `fail`).  In either case, the field `value` contains
+a human-readable error message, while the field `error`, if present,
+contains a stable, program-readable identifier for the error.
 
 ## Establishing and maintaining a connection
 
@@ -81,15 +89,15 @@ start pipelining messages to the server.
 ```javascript
 {
     type: 'handshake',
-    version: ["1"],
+    version: ["2"],
     id: id
 }
 ```
 
-The version field contains an array of supported protocol versions; the
-client may announce multiple versions, but the server will always reply
-with a singleton.  If the field `id` is absent, then the peer doesn't
-originate streams.
+The version field contains an array of supported protocol versions, in
+decreasing preference order; the client may announce multiple versions,
+but the server will always reply with a singleton.  If the field `id` is
+absent, then the peer doesn't originate streams.
 
 A peer may, at any time, send a `ping` message.
 
@@ -302,6 +310,7 @@ A chat message may be sent using a `chat` message.
     username: username,
     dest: dest-id,
     privileged: boolean,
+    time: time,
     noecho: false,
     value: message
 }
@@ -313,8 +322,10 @@ originated by the server.  The message is forwarded by the server without
 interpretation, the server only validates that the `source` and `username`
 fields are authentic.  The field `privileged` is set to true by the server
 if the message was originated by a client with the `op` permission.  The
-field `noecho` is set by the client if it doesn't wish to receive a copy
-of its own message.
+field `time` is the timestamp of the message, coded as a number in version
+1 of the protocol, and as a string in ISO 8601 format in later versions.
+The field `noecho` is set by the client if it doesn't wish to receive
+a copy of its own message.
 
 The `chathistory` message is similar to the `chat` message, but carries
 a message taken from the chat history.  Most clients should treat
