@@ -2531,27 +2531,28 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
     case 'error':
     case 'warning':
     case 'info':
-        let from = id ? (username || 'Anonymous') : 'The Server';
-        if(privileged)
-            displayError(`${from} said: ${message}`, kind);
-        else
+        if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
+            return;
+        }
+        let from = id ? (username || 'Anonymous') : 'The Server';
+        displayError(`${from} said: ${message}`, kind);
         break;
     case 'mute':
-        if(privileged) {
-            setLocalMute(true, true);
-            let by = username ? ' by ' + username : '';
-            displayWarning(`You have been muted${by}`);
-        } else {
+        if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
+            return;
         }
+        setLocalMute(true, true);
+        let by = username ? ' by ' + username : '';
+        displayWarning(`You have been muted${by}`);
         break;
     case 'clearchat':
-        if(privileged) {
-            clearChat();
-        } else {
+        if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
+            return;
         }
+        clearChat();
         break;
     default:
         console.warn(`Got unknown user message ${kind}`);
