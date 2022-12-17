@@ -1393,7 +1393,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 	case "join":
 		if m.Kind == "leave" {
 			if c.group == nil || c.group.Name() != m.Group {
-				return group.ProtocolError("you are not joined")
+				return group.UserError("you are not joined")
 			}
 			leaveGroup(c)
 		}
@@ -1691,7 +1691,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			g.UpdateData(data)
 		default:
-			return group.ProtocolError("unknown group action")
+			return group.UserError("unknown group action")
 		}
 	case "useraction":
 		g := c.group
@@ -1753,7 +1753,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				}
 			}(g.GetClients(nil))
 		default:
-			return group.ProtocolError("unknown user action")
+			return group.UserError("unknown user action")
 		}
 	case "pong":
 		// nothing
