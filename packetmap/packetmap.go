@@ -30,8 +30,11 @@ func (m *Map) Map(seqno uint16, pid uint16) (bool, uint16, uint16) {
 	defer m.mu.Unlock()
 
 	if m.delta == 0 && m.entries == nil {
-		m.next = seqno + 1
-		m.nextPid = pid
+		if compare(m.next, seqno) <= 0 ||
+			uint16(m.next - seqno) > 8 * 1024 {
+			m.next = seqno + 1
+			m.nextPid = pid
+		}
 		return true, seqno, 0
 	}
 
