@@ -3540,6 +3540,7 @@ async function start() {
     } else {
         let container = document.getElementById("login-container");
         container.classList.remove('invisible');
+        document.getElementById('username').focus()
     }
     setViewportHeight();
 }
