@@ -45,7 +45,7 @@ func (m *Map) Map(seqno uint16, pid uint16) (bool, uint16, uint16) {
 			m.nextPid = pid
 			return true, seqno, 0
 		}
-		addMapping(m, seqno, pid, m.delta, m.pidDelta)
+		addMapping(m, seqno, m.delta, m.pidDelta)
 		m.next = seqno + 1
 		m.nextPid = pid
 		return true, seqno + m.delta, m.pidDelta
@@ -70,7 +70,7 @@ func (m *Map) reset() {
 	m.entries = nil
 }
 
-func addMapping(m *Map, seqno, pid uint16, delta, pidDelta uint16) {
+func addMapping(m *Map, seqno, delta, pidDelta uint16) {
 	if len(m.entries) == 0 {
 		// this shouldn't happen
 		return
