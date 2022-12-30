@@ -103,6 +103,12 @@ func cspHeader(w http.ResponseWriter, connect string) {
 	}
 	w.Header().Add("Content-Security-Policy",
 		c+" img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
+
+	// Make browser stop sending referrer information
+	w.Header().Add("Referrer-Policy", "no-referrer")
+
+	// Require correct MIME type to load CSS and JS
+	w.Header().Add("X-Content-Type-Options", "nosniff")
 }
 
 func notFound(w http.ResponseWriter) {
