@@ -3841,6 +3841,7 @@ async function start() {
         window.location.href = groupStatus.authPortal;
     } else {
         setVisibility('login-container', true);
+        document.getElementById('username').focus()
     }
     setViewportHeight();
 }
