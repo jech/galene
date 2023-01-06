@@ -233,7 +233,7 @@ type Flags struct {
 	Start           bool
 	End             bool
 	Keyframe        bool
-	Pid             uint16	// only returned for VP8
+	Pid             uint16 // only returned for VP8
 	Tid             uint8
 	Sid             uint8
 	TidUpSync       bool
@@ -243,7 +243,7 @@ type Flags struct {
 }
 
 func PacketFlags(codec string, buf []byte) (Flags, error) {
-	if len(buf) < 12 {
+	if len(buf) < 4 {
 		return Flags{}, errTruncated
 	}
 
@@ -309,7 +309,7 @@ func RewritePacket(codec string, data []byte, setMarker bool, seqno uint16, delt
 		return errTruncated
 	}
 
-	if(setMarker) {
+	if setMarker {
 		data[1] |= 0x80
 	}
 
@@ -321,7 +321,7 @@ func RewritePacket(codec string, data []byte, setMarker bool, seqno uint16, delt
 
 	offset := 12
 	offset += int(data[0]&0x0F) * 4
-	if len(data) < offset+4 {
+	if len(data) <= offset {
 		return errTruncated
 	}
 
@@ -339,19 +339,30 @@ func RewritePacket(codec string, data []byte, setMarker bool, seqno uint16, delt
 		if !x {
 			return nil
 		}
-		i := (data[offset+1] & 0x80) != 0
+		offset++
+		if len(data) <= offset {
+			return errTruncated
+		}
+		i := (data[offset] & 0x80) != 0
 		if !i {
 			return nil
 		}
-		m := (data[offset+2] & 0x80) != 0
+		offset++
+		if len(data) <= offset {
+			return errTruncated
+		}
+		m := (data[offset] & 0x80) != 0
 		if m {
-			pid := (uint16(data[offset+2]&0x7F) << 8) |
-				uint16(data[offset+3])
+			if len(data) <= offset+1 {
+				return errTruncated
+			}
+			pid := (uint16(data[offset]&0x7F) << 8) |
+				uint16(data[offset+1])
 			pid = (pid + delta) & 0x7FFF
-			data[offset+2] = 0x80 | byte((pid>>8)&0x7F)
-			data[offset+3] = byte(pid & 0xFF)
+			data[offset] = 0x80 | byte((pid>>8)&0x7F)
+			data[offset+1] = byte(pid & 0xFF)
 		} else {
-			data[offset+2] = (data[offset+2] + uint8(delta)) & 0x7F
+			data[offset] = (data[offset] + uint8(delta)) & 0x7F
 		}
 		return nil
 	}
