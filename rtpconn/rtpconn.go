@@ -283,7 +283,15 @@ func (down *rtpDownTrack) Write(buf []byte) (int, error) {
 		}
 	}
 
-	ok, newseqno, piddelta := down.packetmap.Map(flags.Seqno, flags.Pid)
+	var ok bool
+	var newseqno, piddelta uint16
+	if flags.MissingPid {
+		ok, newseqno, piddelta =
+			down.packetmap.MapContinuation(flags.Seqno)
+	} else {
+		ok, newseqno, piddelta =
+			down.packetmap.Map(flags.Seqno, flags.Pid)
+	}
 	if !ok {
 		return 0, nil
 	}
@@ -923,7 +931,7 @@ func maxUpBitrate(t *rtpUpTrack) uint64 {
 	// assume that lower spatial layers take up 1/5 of
 	// the throughput
 	if maxsid > 0 {
-		maxrate = sadd(maxrate, maxrate / 4)
+		maxrate = sadd(maxrate, maxrate/4)
 	}
 	// assume that each layer takes two times less
 	// throughput than the higher one.  Then we've
@@ -1003,7 +1011,7 @@ func sendUpRTCP(up *rtpUpConnection) error {
 		}
 		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
 		if t.Kind() == webrtc.RTPCodecTypeAudio {
-			rate = sadd(rate, 100 * 1024)
+			rate = sadd(rate, 100*1024)
 		} else if t.Label() == "l" {
 			rate = sadd(rate, group.LowBitrate)
 		} else {
