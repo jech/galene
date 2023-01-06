@@ -171,6 +171,59 @@ func TestWraparound(t *testing.T) {
 				uint16(i-2), 1, ok, s, p)
 		}
 	}
+
+	ok, s, p = m.Map((256000 & 0xFFFF) + 2, 1)
+	expect := uint16((256000) & 0xFFFF)
+	if !ok || s != expect || p != 1 {
+		t.Errorf("Expected %v, 1, got %v, %v, %v", expect, ok, s, p)
+	}
+}
+
+func TestWraparoundDrop(t *testing.T) {
+	m := Map{}
+
+	ok, s, p := m.Map(0, 0)
+	if !ok || s != 0 || p != 0 {
+		t.Errorf("Expected 0, 0, got %v, %v, %v", ok, s, p)
+	}
+
+	ok, s, p = m.Map(1, 0)
+	if !ok || s != 1 || p != 0 {
+		t.Errorf("Expected 1, 0, got %v, %v, %v", ok, s, p)
+	}
+
+	ok = m.Drop(2, 1)
+	if !ok || m.pidDelta != 1 {
+		t.Errorf("Expected 1, got %v, %v", ok, m.pidDelta)
+	}
+
+	ok = m.Drop(3, 1)
+	if !ok || m.pidDelta != 1 {
+		t.Errorf("Expected 1, got %v, %v", ok, m.pidDelta)
+	}
+
+	for i := 4; i < 256000; i+= 3 {
+		ok, s, p = m.Map(uint16(i), uint16((i/2) & 0x7FFF))
+		if !ok || s != uint16((i-1)/3*2) || p != 1 {
+			t.Errorf("Expected %v, %v, got %v, %v, %v",
+				uint16((i-1)/3*2), 1, ok, s, p)
+		}
+		ok, s, p = m.Map(uint16(i + 1), uint16((i/2) & 0x7FFF))
+		if !ok || s != uint16((i-1)/3*2 + 1) || p != 1 {
+			t.Errorf("Expected %v, %v, got %v, %v, %v",
+				uint16((i-1)/3*2 + 1), 1, ok, s, p)
+		}
+		ok = m.Drop(uint16(i + 2), uint16((i/2) & 0x7FFF))
+		if !ok {
+			t.Errorf("Expected ok")
+		}
+	}
+
+	ok, s, p = m.Map((256000 & 0xFFFF) + 4, 0)
+	expect := uint16(((256000 - 1)/3*2 + 4) & 0xFFFF)
+	if !ok || s != expect || p != 1 {
+		t.Errorf("Expected %v, 1, got %v, %v, %v", expect, ok, s, p)
+	}
 }
 
 func TestReset(t *testing.T) {
