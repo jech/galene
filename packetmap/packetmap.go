@@ -61,6 +61,33 @@ func (m *Map) Map(seqno uint16, pid uint16) (bool, uint16, uint16) {
 	return m.direct(seqno)
 }
 
+// MapContinuation is like map, but used for padding packets that don't
+// have a pid.
+func (m *Map) MapContinuation(seqno uint16) (bool, uint16, uint16) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.delta == 0 && m.entries == nil {
+		if m.next == seqno {
+			m.next = seqno + 1
+		}
+		return true, seqno, 0
+	}
+
+	if m.next == seqno {
+		addMapping(m, seqno, m.delta, m.pidDelta)
+		m.next = seqno + 1
+		return true, seqno + m.delta, m.pidDelta
+	}
+
+	if compare(m.next, seqno) <= 0 {
+		return false, 0, 0
+	}
+
+	return m.direct(seqno)
+}
+
+
 func (m *Map) reset() {
 	m.next = 0
 	m.nextPid = 0

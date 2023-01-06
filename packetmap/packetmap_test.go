@@ -141,6 +141,40 @@ func TestDrop(t *testing.T) {
 	}
 }
 
+func TestPadding(t *testing.T) {
+	m := Map{}
+
+	ok, s, p := m.Map(42, 1001)
+	if !ok || s != 42 || p != 0 {
+		t.Errorf("Expected 42, 0, got %v, %v, %v", ok, s, p)
+	}
+
+	ok, s, p = m.MapContinuation(43)
+	if !ok || s != 43 || p != 0 {
+		t.Errorf("Expected 43, 0, got %v %v %v", ok, s, p)
+	}
+
+	ok, s, p = m.Map(43, 1001)
+	if !ok || s != 43 || p != 0 {
+		t.Errorf("Expected 43, 0, got %v %v %v", ok, s, p)
+	}
+
+	ok, s, p = m.Map(44, 1002)
+	if !ok || s != 44 || p != 0 {
+		t.Errorf("Expected 44, 0, got %v %v %v", ok, s, p)
+	}
+
+	ok = m.Drop(45, 1003)
+	if !ok {
+		t.Errorf("Not ok")
+	}
+
+	ok, s, p = m.MapContinuation(46)
+	if !ok || s != 45 || p != 1 {
+		t.Errorf("Expected 45, 0, got %v %v %v", ok, s, p)
+	}
+}
+
 func TestWraparound(t *testing.T) {
 	m := Map{}
 
