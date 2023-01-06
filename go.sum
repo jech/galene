@@ -29,6 +29,8 @@ github.com/gorilla/websocket v1.5.0/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/ad
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/jech/cert v0.0.0-20210819231831-aca735647728 h1:tN+W1ll2oKuJGMCaO1CRK4rr+xSRjVSfWmnKlACdx38=
 github.com/jech/cert v0.0.0-20210819231831-aca735647728/go.mod h1:FXUA/zpiQfV4uBVN2kAwkf3X7pU7l1l2ovS45CsSYZs=
+github.com/jech/rtp v1.6.6-0.20230106211622-35cc0f7fad45 h1:VqLy+KBoTQBYgd7dqr1WwJiKmTojw+rTcAnpV97SbXk=
+github.com/jech/rtp v1.6.6-0.20230106211622-35cc0f7fad45/go.mod h1:bDb5n+BFZxXx0Ea7E5qe+klMuqiBrP+w8XSjiWtCUko=
 github.com/jech/samplebuilder v0.0.0-20220417174833-7353a593563a h1:yFkaguK4pmi0K33b8TA9T5Qoj0mZHpNPMCFdtru2yDg=
 github.com/jech/samplebuilder v0.0.0-20220417174833-7353a593563a/go.mod h1:U83y/Kl/5BrI9ceNw17+lmguIrlUlMVntxKmZmei5EA=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
@@ -71,10 +73,6 @@ github.com/pion/rtcp v1.2.8/go.mod h1:qVPhiCzAm4D/rxb6XzKeyZiQK69yJpbUDJSF7TgrqN
 github.com/pion/rtcp v1.2.9/go.mod h1:qVPhiCzAm4D/rxb6XzKeyZiQK69yJpbUDJSF7TgrqNo=
 github.com/pion/rtcp v1.2.10 h1:nkr3uj+8Sp97zyItdN60tE/S6vk4al5CPRR6Gejsdjc=
 github.com/pion/rtcp v1.2.10/go.mod h1:ztfEwXZNLGyF1oQDttz/ZKIBaeeg/oWbRYqzBM9TL1I=
-github.com/pion/rtp v1.7.0/go.mod h1:bDb5n+BFZxXx0Ea7E5qe+klMuqiBrP+w8XSjiWtCUko=
-github.com/pion/rtp v1.7.2/go.mod h1:bDb5n+BFZxXx0Ea7E5qe+klMuqiBrP+w8XSjiWtCUko=
-github.com/pion/rtp v1.7.13 h1:qcHwlmtiI50t1XivvoawdCGTP4Uiypzfrsap+bijcoA=
-github.com/pion/rtp v1.7.13/go.mod h1:bDb5n+BFZxXx0Ea7E5qe+klMuqiBrP+w8XSjiWtCUko=
 github.com/pion/sctp v1.7.10/go.mod h1:EhpTUQu1/lcK3xI+eriS6/96fWetHGCvBi9MSsnaBN0=
 github.com/pion/sctp v1.7.12/go.mod h1:xFe9cLMZ5Vj6eOzpyiKjT9SwGM4KpK/8Jbw5//jc+0s=
 github.com/pion/sctp v1.8.0/go.mod h1:xFe9cLMZ5Vj6eOzpyiKjT9SwGM4KpK/8Jbw5//jc+0s=

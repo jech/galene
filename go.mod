@@ -19,3 +19,5 @@ require (
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 )
+
+replace github.com/pion/rtp => github.com/jech/rtp v1.6.6-0.20230106211622-35cc0f7fad45
