@@ -1148,7 +1148,12 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 		log.Printf("Token authentication: %v", err)
 		return "", nil, ErrNotAuthorised
 	}
-	if !desc.AllowAnonymous && sub == "" {
+	if sub == nil {
+		log.Printf("Token authentication: token has no sub")
+		return "", nil, ErrNotAuthorised
+	}
+	username := *sub
+	if !desc.AllowAnonymous && username == "" {
 		return "", nil, ErrAnonymousNotAuthorised
 	}
 	conf, err := GetConfiguration()
@@ -1181,7 +1186,7 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 	if !ok {
 		return "", nil, ErrNotAuthorised
 	}
-	return sub, perms, nil
+	return username, perms, nil
 }
 
 func (g *Group) GetPermission(creds ClientCredentials) (string, []string, error) {

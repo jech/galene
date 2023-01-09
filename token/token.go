@@ -115,23 +115,23 @@ func toStringArray(a []interface{}) ([]string, bool) {
 	return b, true
 }
 
-func Valid(token string, keys []map[string]interface{}) (string, []string, []string, error) {
+func Valid(token string, keys []map[string]interface{}) (*string, []string, []string, error) {
 	tok, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		return getKey(t.Header, keys)
 	})
 	if err != nil {
-		return "", nil, nil, err
+		return nil, nil, nil, err
 	}
 	claims := tok.Claims.(jwt.MapClaims)
 
-	var sub string
+	var sub *string
 	if s, ok := claims["sub"]; ok && s != nil {
 		ss, ok := s.(string)
 		if !ok {
-			return "", nil, nil,
+			return nil, nil, nil,
 				errors.New("invalid 'sub' field")
 		}
-		sub = ss
+		sub = &ss
 	}
 
 	var aud []string
@@ -142,11 +142,11 @@ func Valid(token string, keys []map[string]interface{}) (string, []string, []str
 		case []interface{}:
 			aud, ok = toStringArray(a)
 			if !ok {
-				return "", nil, nil,
+				return nil, nil, nil,
 					errors.New("invalid 'aud' field")
 			}
 		default:
-			return "", nil, nil,
+			return nil, nil, nil,
 				errors.New("invalid 'aud' field")
 		}
 	}
@@ -155,12 +155,12 @@ func Valid(token string, keys []map[string]interface{}) (string, []string, []str
 	if p, ok := claims["permissions"]; ok && p != nil {
 		pp, ok := p.([]interface{})
 		if !ok {
-			return "", nil, nil,
+			return nil, nil, nil,
 				errors.New("invalid 'permissions' field")
 		}
 		perms, ok = toStringArray(pp)
 		if !ok {
-			return "", nil, nil,
+			return nil, nil, nil,
 				errors.New("invalid 'permissions' field")
 		}
 	}

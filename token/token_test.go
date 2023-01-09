@@ -70,11 +70,44 @@ func TestValid(t *testing.T) {
 	goodToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDI5NCwiZXhwIjoyOTA2NzUwMjk0LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0.6xXpgBkBMn4PSBpnwYHb-gRn_Q97Yq9DoKkAf2_6iwc"
 
 	sub, aud, perms, err := Valid(goodToken, keys)
-
 	if err != nil {
 		t.Errorf("Token invalid: %v", err)
 	} else {
-		if sub != "john" {
+		if sub == nil || *sub != "john" {
+			t.Errorf("Unexpected sub: %v", sub)
+		}
+		if !reflect.DeepEqual(aud, []string{"https://galene.org:8443/group/auth/"}) {
+			t.Errorf("Unexpected aud: %v", aud)
+		}
+		if !reflect.DeepEqual(perms, []string{"present"}) {
+			t.Errorf("Unexpected perms: %v", perms)
+		}
+	}
+
+	anonymousToken := "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIiLCJhdWQiOiJodHRwczovL2dhbGVuZS5vcmc6ODQ0My9ncm91cC9hdXRoLyIsInBlcm1pc3Npb25zIjpbInByZXNlbnQiXSwiaWF0IjoxNjQ1MzEwMjk0LCJleHAiOjI5MDY3NTAyOTQsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTIzNC8ifQo.xwpHIRzKAIgiHKG1pVQyZlXcolmvRwNvBm6FN2gTwZw"
+
+	sub, aud, perms, err = Valid(anonymousToken, keys)
+	if err != nil {
+		t.Errorf("Token invalid: %v", err)
+	} else {
+		if sub == nil || *sub != "" {
+			t.Errorf("Unexpected sub: %v", sub)
+		}
+		if !reflect.DeepEqual(aud, []string{"https://galene.org:8443/group/auth/"}) {
+			t.Errorf("Unexpected aud: %v", aud)
+		}
+		if !reflect.DeepEqual(perms, []string{"present"}) {
+			t.Errorf("Unexpected perms: %v", perms)
+		}
+	}
+
+	noSubToken := "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJodHRwczovL2dhbGVuZS5vcmc6ODQ0My9ncm91cC9hdXRoLyIsInBlcm1pc3Npb25zIjpbInByZXNlbnQiXSwiaWF0IjoxNjQ1MzEwMjk0LCJleHAiOjI5MDY3NTAyOTQsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTIzNC8ifQo.7LvoZEKPNVvsRe8SjLxmKa1TgjTA4ZQo2LMPJSXl-ro"
+
+	sub, aud, perms, err = Valid(noSubToken, keys)
+	if err != nil {
+		t.Errorf("Token invalid: %v", err)
+	} else {
+		if sub != nil {
 			t.Errorf("Unexpected sub: %v", sub)
 		}
 		if !reflect.DeepEqual(aud, []string{"https://galene.org:8443/group/auth/"}) {
@@ -88,7 +121,6 @@ func TestValid(t *testing.T) {
 	badToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDQ2OSwiZXhwIjoyOTA2NzUwNDY5LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0."
 
 	_, _, _, err = Valid(badToken, keys)
-
 	var verr *jwt.ValidationError
 	if !errors.As(err, &verr) {
 		t.Errorf("Token should fail")
@@ -97,7 +129,6 @@ func TestValid(t *testing.T) {
 	expiredToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDMyMiwiZXhwIjoxNjQ1MzEwMzUyLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0.jyqRhoV6iK54SvlP33Fy630aDo-sLNmKKi1kcfqs378"
 
 	_, _, _, err = Valid(expiredToken, keys)
-
 	if !errors.As(err, &verr) {
 		t.Errorf("Token should be expired")
 	}
