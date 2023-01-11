@@ -1,3 +1,13 @@
+11 January 2023: Galene 0.6.2
+
+  * Disable simulcast for screensharing; this didn't work well with many
+    browsers.
+  * Fix parsing of VP8 packets with degenerate headers.
+  * Fix computation of group URL when running in insecure mode.
+  * Add configuration option "proxyURL", which makes it easier to run
+    Galene behind a reverse proxy.
+  * Disable ulimit checking on BSD systems, where our code doesn't compile.
+
 7 October 2022: Galene 0.6.1
 
   * Add a camera/microphone indicator in the users list, and hide
