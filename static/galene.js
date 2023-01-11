@@ -607,9 +607,6 @@ function mapRequest(what) {
     case 'audio':
         return {'': ['audio']};
         break;
-    case 'screenshare-low':
-        return {screenshare: ['audio','video-low'], '': ['audio']};
-        break;
     case 'screenshare':
         return {screenshare: ['audio','video'], '': ['audio']};
         break;
@@ -1227,7 +1224,7 @@ function setUpStream(c, stream) {
             let bps = getMaxVideoThroughput();
             // Firefox doesn't like us setting the RID if we're not
             // simulcasting.
-            if(simulcast) {
+            if(simulcast && c.label !== 'screenshare') {
                 encodings.push({
                     rid: 'h',
                     maxBitrate: bps || unlimitedRate,
