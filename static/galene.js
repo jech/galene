@@ -2441,28 +2441,32 @@ function gotFileTransfer(f) {
 /**
  * @param {TransferredFile} f
  * @param {string} status
- * @param {boolean} [delyes]
- * @param {boolean} [delno]
  */
-function setFileStatus(f, status, delyes, delno) {
+function setFileStatus(f, status) {
     let statusdiv = document.getElementById('status-' + f.fullid());
     if(!statusdiv)
         throw new Error("Couldn't find statusdiv");
     statusdiv.textContent = status;
-    if(delyes || delno) {
-        let div = document.getElementById('file-' + f.fullid());
-        if(!div)
-            throw new Error("Couldn't find file div");
-        if(delyes) {
-            let byes = document.getElementById('byes-' + f.fullid())
-            if(byes)
-                div.removeChild(byes);
-        }
-        if(delno) {
-            let bno = document.getElementById('bno-' + f.fullid())
-            if(bno)
-                div.removeChild(bno);
-        }
+}
+
+/**
+ * @param {TransferredFile} f
+ * @param {boolean} delyes
+ * @param {boolean} delno
+ */
+function delFileStatusButtons(f, delyes, delno) {
+    let div = document.getElementById('file-' + f.fullid());
+    if(!div)
+        throw new Error("Couldn't find file div");
+    if(delyes) {
+        let byes = document.getElementById('byes-' + f.fullid())
+        if(byes)
+            div.removeChild(byes);
+    }
+    if(delno) {
+        let bno = document.getElementById('bno-' + f.fullid())
+        if(bno)
+            div.removeChild(bno);
     }
 }
 
@@ -2477,7 +2481,8 @@ function gotFileTransferEvent(state, data) {
     case 'inviting':
         break;
     case 'connecting':
-        setFileStatus(f, 'Connecting...', true);
+        delFileStatusButtons(f, true);
+        setFileStatus(f, 'Connecting...');
         break;
     case 'connected':
         if(f.up)
@@ -2486,7 +2491,8 @@ function gotFileTransferEvent(state, data) {
             setFileStatus(f, `Receiving... ${f.datalen}/${f.size}`);
         break;
     case 'done':
-        setFileStatus(f, 'Done.', true, true);
+        delFileStatusButtons(f, true, true);
+        setFileStatus(f, 'Done.');
         if(!f.up) {
             let url = URL.createObjectURL(data);
             let a = document.createElement('a');
@@ -2499,10 +2505,11 @@ function gotFileTransferEvent(state, data) {
         }
         break;
     case 'cancelled':
+        delFileStatusButtons(f, true, true);
         if(data)
-            setFileStatus(f, `Cancelled: ${data.toString()}.`, true, true);
+            setFileStatus(f, `Cancelled: ${data.toString()}.`);
         else
-            setFileStatus(f, 'Cancelled.', true, true);
+            setFileStatus(f, 'Cancelled.');
         break;
     case 'closed':
         break;
