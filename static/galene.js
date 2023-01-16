@@ -2416,12 +2416,15 @@ function gotFileTransfer(f) {
         f.cancel();
     };
     bno.id = "bno-" + f.fullid();
-    let status = document.createElement('div');
+    let status = document.createElement('span');
     status.id = 'status-' + f.fullid();
     if(!f.up) {
         status.textContent =
             '(Choosing "Accept" will disclose your IP address.)';
     }
+    let statusp = document.createElement('p');
+    statusp.id = 'statusp-' + f.fullid();
+    statusp.appendChild(status);
     let div = document.createElement('div');
     div.id = 'file-' + f.fullid();
     div.appendChild(p);
@@ -2429,7 +2432,7 @@ function gotFileTransfer(f) {
         div.appendChild(byes);
     if(bno)
         div.appendChild(bno);
-    div.appendChild(status);
+    div.appendChild(statusp);
     div.classList.add('message');
     div.classList.add('message-private');
     div.classList.add('message-row');
@@ -2441,20 +2444,52 @@ function gotFileTransfer(f) {
 /**
  * @param {TransferredFile} f
  * @param {string} status
+ * @param {number} [value]
  */
-function setFileStatus(f, status) {
-    let statusdiv = document.getElementById('status-' + f.fullid());
-    if(!statusdiv)
-        throw new Error("Couldn't find statusdiv");
-    statusdiv.textContent = status;
+function setFileStatus(f, status, value) {
+    let statuselt = document.getElementById('status-' + f.fullid());
+    if(!statuselt)
+        throw new Error("Couldn't find statusp");
+    statuselt.textContent = status;
+    if(value) {
+        let progress = document.getElementById('progress-' + f.fullid());
+         if(!progress || !(progress instanceof HTMLProgressElement))
+            throw new Error("Couldn't find progress element");
+        progress.value = value;
+        let label = document.getElementById('progresstext-' + f.fullid());
+        let percent = Math.round(100 * value / progress.max);
+        label.textContent = `${percent}%`;
+    }
+}
+
+/**
+ * @param {TransferredFile} f
+ * @param {number} [max]
+ */
+function createFileProgress(f, max) {
+    let statusp = document.getElementById('statusp-' + f.fullid());
+    if(!statusp)
+        throw new Error("Couldn't find status div");
+    /** @type HTMLProgressElement */
+    let progress = document.createElement('progress');
+    progress.id = 'progress-' + f.fullid();
+    progress.classList.add('file-progress');
+    progress.max = max;
+    progress.value = 0;
+    statusp.appendChild(progress);
+    let progresstext = document.createElement('span');
+    progresstext.id = 'progresstext-' + f.fullid();
+    progresstext.textContent = '0%';
+    statusp.appendChild(progresstext);
 }
 
 /**
  * @param {TransferredFile} f
  * @param {boolean} delyes
  * @param {boolean} delno
+ * @param {boolean} [delprogress]
  */
-function delFileStatusButtons(f, delyes, delno) {
+function delFileStatusButtons(f, delyes, delno, delprogress) {
     let div = document.getElementById('file-' + f.fullid());
     if(!div)
         throw new Error("Couldn't find file div");
@@ -2467,6 +2502,16 @@ function delFileStatusButtons(f, delyes, delno) {
         let bno = document.getElementById('bno-' + f.fullid())
         if(bno)
             div.removeChild(bno);
+    }
+    if(delprogress) {
+        let statusp = document.getElementById('statusp-' + f.fullid());
+        let progress = document.getElementById('progress-' + f.fullid());
+        let progresstext =
+            document.getElementById('progresstext-' + f.fullid());
+        if(progress)
+            statusp.removeChild(progress);
+        if(progresstext)
+            statusp.removeChild(progresstext);
     }
 }
 
@@ -2481,17 +2526,15 @@ function gotFileTransferEvent(state, data) {
     case 'inviting':
         break;
     case 'connecting':
-        delFileStatusButtons(f, true);
+        delFileStatusButtons(f, true, false);
         setFileStatus(f, 'Connecting...');
+        createFileProgress(f, f.size);
         break;
     case 'connected':
-        if(f.up)
-            setFileStatus(f, `Sending... ${f.datalen}/${f.size}`);
-        else
-            setFileStatus(f, `Receiving... ${f.datalen}/${f.size}`);
+        setFileStatus(f, f.up ? 'Sending...' : 'Receiving...', f.datalen);
         break;
     case 'done':
-        delFileStatusButtons(f, true, true);
+        delFileStatusButtons(f, true, true, true);
         setFileStatus(f, 'Done.');
         if(!f.up) {
             let url = URL.createObjectURL(data);
@@ -2505,7 +2548,7 @@ function gotFileTransferEvent(state, data) {
         }
         break;
     case 'cancelled':
-        delFileStatusButtons(f, true, true);
+        delFileStatusButtons(f, true, true, true);
         if(data)
             setFileStatus(f, `Cancelled: ${data.toString()}.`);
         else

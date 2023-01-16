@@ -1331,3 +1331,9 @@ header .collapse:hover {
 .contextualMenu{
     z-index: 2999;
 }
+
+.file-progress {
+    accent-color: #610a86;
+    margin-left: 10px;
+    margin-right: 10px;
+}
