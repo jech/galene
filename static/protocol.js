@@ -1685,7 +1685,8 @@ TransferredFile.prototype.close = function() {
 }
 
 /**
- * Buffer a chunk of data received during a file transfer.  Do not call this.
+ * Buffer a chunk of data received during a file transfer.
+ * Do not call this, it is called automatically when data is received.
  *
  * @param {Blob|ArrayBuffer} data
  */
@@ -1884,7 +1885,8 @@ TransferredFile.prototype.receive = async function() {
 }
 
 /**
- * Negotiate a file transfer on the sender side.  Don't call this.
+ * Negotiate a file transfer on the sender side.
+ * Don't call this, it is called automatically we receive an offer.
  *
  * @param {string} sdp
  */
@@ -1974,6 +1976,7 @@ TransferredFile.prototype.send = async function() {
 
     f.dc.bufferedAmountLowThreshold = 65536;
 
+    /** @param {Uint8Array} a */
     async function write(a) {
         while(f.dc.bufferedAmount > f.dc.bufferedAmountLowThreshold) {
             await new Promise((resolve, reject) => {
@@ -2012,9 +2015,7 @@ TransferredFile.prototype.send = async function() {
             await write(data);
         } else {
             for(let i = 0; i < v.value.length; i += 16384) {
-                let d = new Uint8Array(
-                    data.buffer, i, Math.min(16384, data.length - i),
-                );
+                let d = data.subarray(i, Math.min(i + 16384, data.length));
                 await write(d);
             }
         }
@@ -2056,13 +2057,19 @@ TransferredFile.prototype.receiveData = async function(data) {
     f.dc.onmessage = null;
 
     if(f.datalen != f.size) {
-        f.cancel('unexpected file size');
+        f.cancel('extra data at end of file');
         return;
     }
 
     let blob = f.getBufferedData();
+    if(blob.size != f.size) {
+        f.cancel("inconsistent data size (this shouldn't happen)");
+        return;
+    }
     f.event('done', blob);
 
+    // we've received the whole file.  Send the final handshake, but don't
+    // complain if the peer has closed the channel in the meantime.
     await new Promise((resolve, reject) => {
         let timer = setTimeout(function(e) { resolve(); }, 2000);
         f.dc.onclose = function(e) {
@@ -2100,8 +2107,10 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
         try {
             if(sc.onfiletransfer)
                 sc.onfiletransfer.call(sc, f);
-            else
+            else {
                 f.cancel('this client does not implement file transfer');
+                return;
+            }
         } catch(e) {
             f.cancel(e);
             return;
