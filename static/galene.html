@@ -102,14 +102,19 @@
               <div class="login-container invisible" id="login-container">
                 <div class="login-box">
                   <form id="userform" class="userform">
+                    <label class="selector" for="connection">Connection</label>
+                    <div class="selector">
+                        <span class="inline-half"><input type="radio" name="connection" value="simple" checked>Simple</input></span>
+                        <span class="inline-half"><input type="radio" name="connection" value="full">Full</input></span>
+                    </div>
                     <label for="username">Username</label>
                     <input id="username" type="text" name="username"
                            autocomplete="username" class="form-control"/>
-                    <label for="password">Password</label>
+                    <label for="password" class="full">Password</label>
                     <input id="password" type="password" name="password"
-                           autocomplete="current-password" class="form-control"/>
-                    <label>Enable at start:</label>
-                    <div class="present-switch">
+                           autocomplete="current-password" class="full form-control"/>
+                    <label class="full">Enable at start:</label>
+                    <div class="present-switch full">
                       <p class="switch-radio">
                         <input id="presentoff" type="radio" name="presentradio" value="" checked/>
                         <label for="presentoff">Nothing</label>

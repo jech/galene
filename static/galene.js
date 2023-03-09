@@ -3550,6 +3550,66 @@ async function serverConnect() {
     }
 }
 
+async function guiConfig() {
+    let config;
+    try {
+        let r = await fetch('/guiconfig.json');
+        if(!r.ok) {
+            r = await fetch('/guiconfig-template.json');
+            if(!r.ok)
+                throw new Error(`${r.status} ${r.statusText}`);
+        }
+        config = await r.json();
+    } catch(e) {
+        console.error(e);
+        config = {};
+    }
+    return config;
+}
+
+function setVisible(items, isVisible) {
+    for(var item_index = 0; item_index < items.length; item_index++) {
+        if (isVisible === false) {
+            items[item_index].style.display = 'None';
+        } else {
+            items[item_index].style.display = null;
+        }
+    }
+}
+
+async function setConnexionOption() {
+    let config = await guiConfig()
+    if (config.selector === 2) {
+        // Connexion with selector
+        setVisible(document.getElementsByClassName('selector'), true);
+        setVisible(document.getElementsByClassName('full'), false);
+        document.getElementsByClassName('login-box')[0].style.height = '14em';
+    } else if (config.selector === 1) {
+        // Connexion Only simple
+        setVisible(document.getElementsByClassName('selector'), false);
+        setVisible(document.getElementsByClassName('full'), false);
+        document.getElementsByClassName('login-box')[0].style.height = '11em';
+    }  else {
+        // Connexion Only full
+        setVisible(document.getElementsByClassName('selector'), false);
+        setVisible(document.getElementsByClassName('full'), true);
+        document.getElementsByClassName('login-box')[0].style.height = '23em';
+    }
+
+    var connection_items = document.getElementsByName('connection');
+    for(var connection_index = 0; connection_index < connection_items.length; connection_index++) {
+        connection_items[connection_index].onchange = function() {
+            if (this.value === 'simple') {
+                setVisible(document.getElementsByClassName('full'), false);
+                document.getElementsByClassName('login-box')[0].style.height = '14em';
+            } else {
+                setVisible(document.getElementsByClassName('full'), true);
+                document.getElementsByClassName('login-box')[0].style.height = '27em';        
+            }
+      }
+    }    
+}
+
 async function start() {
     try {
         let r = await fetch(".status.json")
@@ -3579,6 +3639,7 @@ async function start() {
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 
+    await setConnexionOption();
     if(parms.has('token')) {
         token = parms.get('token');
         await serverConnect();

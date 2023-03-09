@@ -6,6 +6,12 @@ h1 {
     display: inline;
 }
 
+.inline-half {
+    width: 100px;
+    display: inline-table;
+    margin-left:10px
+}
+
 .signature {
     border-top: solid;
     padding-top: 0;
