@@ -3,8 +3,9 @@ stages:
 
 build_linux_arm64:
     stage: compilation
-    image: golang:1.9
+    image: golang:latest
     script: 
+      - sed -i 's|github.com/jech/galene/|./|g' galene.go
       - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags='-s -w'
       - mkdir groups
       - mkdir data
