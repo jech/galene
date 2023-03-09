@@ -9,8 +9,8 @@ build_linux_arm64:
       - mkdir groups
       - mkdir data
     artifacts:
-      - galene
-      - static
-      - data
-      - groups
-
+      paths:
+       - galene
+       - static
+       - data
+       - groups
