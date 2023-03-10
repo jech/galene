@@ -289,7 +289,7 @@ function setConnected(connected) {
     } else {
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
-        displayError('Disconnected', 'error');
+        displayError(translate_text("Disconnected"), 'error');
         hideVideo();
         window.onresize = null;
     }
@@ -617,7 +617,7 @@ function mapRequest(what) {
         return {'': ['audio','video']}
         break;
     default:
-        throw new Error(`Unknown value ${what} in request`);
+        throw new Error(translate_text("Unknown value {0} in request").format(what));
     }
 }
 
@@ -881,7 +881,7 @@ function newUpStream(localId) {
  */
 async function setSendParameters(c, bps, simulcast) {
     if(!c.up)
-        throw new Error('Setting throughput of down stream');
+        throw new Error(translate_text("Setting throughput of down stream"));
     let senders = c.pc.getSenders();
     for(let i = 0; i < senders.length; i++) {
         let s = senders[i];
@@ -954,7 +954,7 @@ function cancelReconsiderParameters() {
 function Filter(stream, definition) {
     /** @ts-ignore */
     if(!HTMLCanvasElement.prototype.captureStream) {
-        throw new Error('Filters are not supported on this platform');
+        throw new Error(translate_text("Filters are not supported on this platform"));
     }
 
     /** @type {MediaStream} */
@@ -1095,7 +1095,7 @@ let filters = {
         description: "Horizontal mirror",
         f: function(src, width, height, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
-                throw new Error('bad context type');
+                throw new Error(translate_text("bad context type"));
             if(ctx.canvas.width !== width || ctx.canvas.height !== height) {
                 ctx.canvas.width = width;
                 ctx.canvas.height = height;
@@ -1110,7 +1110,7 @@ let filters = {
         description: "Vertical mirror",
         f: function(src, width, height, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
-                throw new Error('bad context type');
+                throw new Error(translate_text("bad context type"));
             if(ctx.canvas.width !== width || ctx.canvas.height !== height) {
                 ctx.canvas.width = width;
                 ctx.canvas.height = height;
@@ -1177,14 +1177,14 @@ function doSimulcast() {
 
 function setUpStream(c, stream) {
     if(c.stream != null)
-        throw new Error("Setting nonempty stream");
+        throw new Error(translate_text("Setting nonempty stream"));
 
     c.setStream(stream);
 
     try {
         setFilter(c);
     } catch(e) {
-        displayWarning("Couldn't set filter: " + e);
+        displayWarning(translate_text("Couldn't set filter: ") + e);
     }
 
     c.onclose = replace => {
@@ -1424,7 +1424,7 @@ async function addLocalMedia(localId) {
         if(filter)
             c.userdata.filterDefinition = filter;
         else
-            displayWarning(`Unknown filter ${settings.filter}`);
+            displayWarning(translate_text("Unknown filter {0}").format(settings.filter));
     }
 
     setUpStream(c, stream);
@@ -1453,7 +1453,7 @@ async function addShareMedia() {
     let stream = null;
     try {
         if(!('getDisplayMedia' in navigator.mediaDevices))
-            throw new Error('Your browser does not support screen sharing');
+            throw new Error(translate_text("Your browser does not support screen sharing"));
         stream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
             audio: true,
@@ -1489,7 +1489,7 @@ async function addFileMedia(file) {
         /** @ts-ignore */
         stream = video.mozCaptureStream();
     else {
-        displayError("This browser doesn't support file playback");
+        displayError(translate_text("This browser doesn't support file playback"));
         return;
     }
 
@@ -1509,7 +1509,7 @@ async function addFileMedia(file) {
     let muted = getSettings().localMute;
     if(presenting && !muted) {
         setLocalMute(true, true);
-        displayWarning('You have been muted');
+        displayWarning(translate_text("You have been muted"));
     }
 
     await setMedia(c, false, video);
@@ -1585,7 +1585,7 @@ function muteLocalTracks(mute) {
 function forceDownRate(id, force, value) {
     let c = serverConnection.down[id];
     if(!c)
-        throw new Error("Unknown down stream");
+        throw new Error(translate_text("Unknown down stream"));
     if('requested' in c.userdata) {
         if(force)
             c.userdata.requested.force = !!value;
@@ -1636,7 +1636,7 @@ function reconsiderDownRate(id) {
     }
     let c = serverConnection.down[id];
     if(!c)
-        throw new Error("Unknown down stream");
+        throw new Error(translate_text("Unknown down stream"));
     let normalrequest = mapRequestLabel(getSettings().request, c.label);
 
     let requestlow = mapVideoToLow(normalrequest);
@@ -1651,7 +1651,7 @@ function reconsiderDownRate(id) {
         let media = /** @type {HTMLVideoElement} */
             (document.getElementById('media-' + c.localId));
         if(!media)
-            throw new Error("No media for stream");
+            throw new Error(translate_text("No media for stream"));
         let w = media.scrollWidth;
         let h = media.scrollHeight;
         if(w && h && w * h <= 320 * 240) {
@@ -1870,7 +1870,7 @@ function setVolumeButton(muted, button, slider) {
     }
 
     if(!(slider instanceof HTMLInputElement))
-        throw new Error("Couldn't find volume slider");
+        throw new Error(translate_text("Couldn't find volume slider"));
     slider.disabled = muted;
 }
 
@@ -1895,7 +1895,7 @@ function registerControlHandlers(localId, media, container) {
             try {
                 let c = serverConnection.findByLocalId(localId);
                 if(!c)
-                    throw new Error('Closing unknown stream');
+                    throw new Error(translate_text("Closing unknown stream"));
                 c.close();
             } catch(e) {
                 console.error(e);
@@ -1931,7 +1931,7 @@ function registerControlHandlers(localId, media, container) {
                 if(media.requestPictureInPicture) {
                     media.requestPictureInPicture();
                 } else {
-                    displayWarning('Picture in Picture not supported.');
+                    displayWarning(translate_text("Picture in Picture not supported."));
                 }
             };
         } else {
@@ -1953,7 +1953,7 @@ function registerControlHandlers(localId, media, container) {
                     /** @ts-ignore */
                     media.webkitRequestFullscreen();
                 } else {
-                    displayWarning('Full screen not supported!');
+                    displayWarning(translate_text("Full screen not supported!"));
                 }
             };
         } else {
@@ -1969,7 +1969,7 @@ function delMedia(localId) {
     let mediadiv = document.getElementById('peers');
     let peer = document.getElementById('peer-' + localId);
     if(!peer)
-        throw new Error('Removing unknown media');
+        throw new Error(translate_text("Removing unknown media"));
 
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + localId));
@@ -2093,47 +2093,47 @@ function stringCompare(a, b) {
  */
 function userMenu(elt) {
     if(!elt.id.startsWith('user-'))
-        throw new Error('Unexpected id for user menu');
+        throw new Error(translate_text("Unexpected id for user menu"));
     let id = elt.id.slice('user-'.length);
     let user = serverConnection.users[id];
     if(!user)
-        throw new Error("Couldn't find user")
+        throw new Error(translate_text("Couldn't find user"))
     let items = [];
     if(id === serverConnection.id) {
         let mydata = serverConnection.users[serverConnection.id].data;
         if(mydata['raisehand'])
-            items.push({label: 'Unraise hand', onClick: () => {
+            items.push({label: translate_text("Unraise hand"), onClick: () => {
                 serverConnection.userAction(
                     'setdata', serverConnection.id, {'raisehand': null},
                 );
             }});
         else
-            items.push({label: 'Raise hand', onClick: () => {
+            items.push({label: translate_text("Raise hand"), onClick: () => {
                 serverConnection.userAction(
                     'setdata', serverConnection.id, {'raisehand': true},
                 );
             }});
         if(serverConnection.permissions.indexOf('present')>= 0 && canFile())
-            items.push({label: 'Broadcast file', onClick: presentFile});
-        items.push({label: 'Restart media', onClick: renegotiateStreams});
+            items.push({label: translate_text("Broadcast file"), onClick: presentFile});
+        items.push({label: translate_text("Restart media"), onClick: renegotiateStreams});
     } else {
-        items.push({label: 'Send file', onClick: () => {
+        items.push({label: translate_text("Send file"), onClick: () => {
             sendFile(id);
         }});
         if(serverConnection.permissions.indexOf('op') >= 0) {
             items.push({type: 'seperator'}); // sic
             if(user.permissions.indexOf('present') >= 0)
-                items.push({label: 'Forbid presenting', onClick: () => {
+                items.push({label: translate_text("Forbid presenting"), onClick: () => {
                     serverConnection.userAction('unpresent', id);
                 }});
             else
-                items.push({label: 'Allow presenting', onClick: () => {
+                items.push({label: translate_text("Allow presenting"), onClick: () => {
                     serverConnection.userAction('present', id);
                 }});
-            items.push({label: 'Mute', onClick: () => {
+            items.push({label: translate_text("Mute"), onClick: () => {
                 serverConnection.userMessage('mute', id);
             }});
-            items.push({label: 'Kick out', onClick: () => {
+            items.push({label: translate_text("Kick out"), onClick: () => {
                 serverConnection.userAction('kick', id);
             }});
         }
@@ -2208,7 +2208,7 @@ function changeUser(id, userinfo) {
  * @param {user} userinfo
  */
 function setUserStatus(id, elt, userinfo) {
-    elt.textContent = userinfo.username ? userinfo.username : '(anon)';
+    elt.textContent = userinfo.username ? userinfo.username : translate_text("(anon)");
     if(userinfo.data.raisehand)
         elt.classList.add('user-status-raisehand');
     else
@@ -2275,11 +2275,11 @@ function displayUsername() {
     let present = serverConnection.permissions.indexOf('present') >= 0;
     let text = '';
     if(op && present)
-        text = '(op, presenter)';
+        text = translate_text("(op, presenter)");
     else if(op)
-        text = 'operator';
+        text = translate_text("operator");
     else if(present)
-        text = 'presenter';
+        text = translate_text("presenter");
     document.getElementById('permspan').textContent = text;
 }
 
@@ -2323,7 +2323,7 @@ async function gotJoined(kind, group, perms, status, data, message) {
 
     switch(kind) {
     case 'fail':
-        displayError('The server said: ' + message);
+        displayError(translate_text("The server said: ") + message);
         this.close();
         setButtonsVisibility();
         return;
@@ -2345,21 +2345,21 @@ async function gotJoined(kind, group, perms, status, data, message) {
             return;
         break;
     default:
-        displayError('Unknown join message');
+        displayError(translate_text("Unknown join message"));
         this.close();
         return;
     }
 
     let input = /** @type{HTMLTextAreaElement} */
         (document.getElementById('input'));
-    input.placeholder = 'Type /help for help';
+    input.placeholder = translate_text("Type /help for help");
     setTimeout(() => {input.placeholder = '';}, 8000);
 
     if(status.locked)
-        displayWarning('This group is locked');
+        displayWarning(translate_text("This group is locked"));
 
     if(typeof RTCPeerConnection === 'undefined')
-        displayWarning("This browser doesn't support WebRTC");
+        displayWarning(translate_text("This browser doesn't support WebRTC"));
     else
         this.request(mapRequest(getSettings().request));
 
@@ -2381,7 +2381,7 @@ async function gotJoined(kind, group, perms, status, data, message) {
             }
         } else {
             displayMessage(
-                "Press Enable to enable your camera or microphone"
+                translate_text("Press Enable to enable your camera or microphone")
             );
         }
     }
@@ -2394,24 +2394,21 @@ function gotFileTransfer(f) {
     f.onevent = gotFileTransferEvent;
     let p = document.createElement('p');
     if(f.up)
-        p.textContent =
-        `We have offered to send a file called "${f.name}" ` +
-        `to user ${f.username}.`;
+        p.textContent = translate_text("We have offered to send a file called {0} to user {1}").format(f.name, f.username)
     else
-        p.textContent =
-        `User ${f.username} offered to send us a file ` +
-        `called "${f.name}" of size ${f.size}.`
+        p.textContent = translate_text("User {0} offered to send us a file called {1} of size {2}").format(f.username, f.name, f.size)
     let bno = null, byes = null;
     if(!f.up) {
         byes = document.createElement('button');
-        byes.textContent = 'Accept';
+        byes.textContent = translate_text("Accept");
         byes.onclick = function(e) {
             f.receive();
         };
         byes.id = "byes-" + f.fullid();
     }
     bno = document.createElement('button');
-    bno.textContent = f.up ? 'Cancel' : 'Reject';
+    bno.textContent = f.up ? translate_text("Cancel") : 
+                             translate_text("Reject");
     bno.onclick = function(e) {
         f.cancel();
     };
@@ -2420,7 +2417,7 @@ function gotFileTransfer(f) {
     status.id = 'status-' + f.fullid();
     if(!f.up) {
         status.textContent =
-            '(Choosing "Accept" will disclose your IP address.)';
+        translate_text("(Choosing 'Accept' will disclose your IP address.)");
     }
     let statusp = document.createElement('p');
     statusp.id = 'statusp-' + f.fullid();
@@ -2527,15 +2524,15 @@ function gotFileTransferEvent(state, data) {
         break;
     case 'connecting':
         delFileStatusButtons(f, true, false);
-        setFileStatus(f, 'Connecting...');
+        setFileStatus(f, translate_text("Connecting..."));
         createFileProgress(f, f.size);
         break;
     case 'connected':
-        setFileStatus(f, f.up ? 'Sending...' : 'Receiving...', f.datalen);
+        setFileStatus(f, f.up ? translate_text("Sending...") : translate_text("Receiving..."), f.datalen);
         break;
     case 'done':
         delFileStatusButtons(f, true, true, true);
-        setFileStatus(f, 'Done.');
+        setFileStatus(f, translate_text("Done."));
         if(!f.up) {
             let url = URL.createObjectURL(data);
             let a = document.createElement('a');
@@ -2550,9 +2547,9 @@ function gotFileTransferEvent(state, data) {
     case 'cancelled':
         delFileStatusButtons(f, true, true, true);
         if(data)
-            setFileStatus(f, `Cancelled: ${data.toString()}.`);
+            setFileStatus(f, translate_text("Cancelled: {0}").format(data.toString()));
         else
-            setFileStatus(f, 'Cancelled.');
+            setFileStatus(f, translate_text("Cancelled."));
         break;
     case 'closed':
         break;
@@ -2582,8 +2579,9 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
         }
-        let from = id ? (username || 'Anonymous') : 'The Server';
-        displayError(`${from} said: ${message}`, kind);
+        let from = id ? (username || translate_text("Anonymous")) : 
+                    translate_text("The Server");
+        displayError(translate_text("{0} said: {1}").format(from, message), kind);
         break;
     case 'mute':
         if(!privileged) {
@@ -2591,8 +2589,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
             return;
         }
         setLocalMute(true, true);
-        let by = username ? ' by ' + username : '';
-        displayWarning(`You have been muted${by}`);
+        let by = username ? translate_text(" by {0}").format(username) : '';
+        displayWarning(translate_text("You have been muted{0}").format(by));
         break;
     case 'clearchat':
         if(!privileged) {
@@ -2718,9 +2716,9 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
             let user = document.createElement('span');
             let u = dest && serverConnection.users[dest];
             let name = (u && u.username);
-            user.textContent = dest ?
-                `${nick || '(anon)'} \u2192 ${name || '(anon)'}` :
-                (nick || '(anon)');
+            user.textContent = dest ? 
+                                '{0}  \u2192 {1}'.format(nick || translate_text("(anon)"), name || translate_text("(anon)")) : 
+                                (nick || translate_text("(anon)"));
             user.classList.add('message-user');
             header.appendChild(user);
             header.classList.add('message-header');
@@ -2744,7 +2742,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
         asterisk.textContent = '*';
         asterisk.classList.add('message-me-asterisk');
         let user = document.createElement('span');
-        user.textContent = nick || '(anon)';
+        user.textContent = nick || translate_text("(anon)");
         user.classList.add('message-me-user');
         let content = document.createElement('span');
         formatLine(message.toString()).forEach(elt => {
@@ -2804,126 +2802,15 @@ function operatorPredicate() {
     if(serverConnection && serverConnection.permissions &&
        serverConnection.permissions.indexOf('op') >= 0)
         return null;
-    return 'You are not an operator';
+    return translate_text("You are not an operator");
 }
 
 function recordingPredicate() {
     if(serverConnection && serverConnection.permissions &&
        serverConnection.permissions.indexOf('record') >= 0)
         return null;
-    return 'You are not allowed to record';
+    return translate_text("You are not allowed to record");
 }
-
-commands.help = {
-    description: 'display this help',
-    f: (c, r) => {
-        /** @type {string[]} */
-        let cs = [];
-        for(let cmd in commands) {
-            let c = commands[cmd];
-            if(!c.description)
-                continue;
-            if(c.predicate && c.predicate())
-                continue;
-            cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
-        }
-        localMessage(cs.sort().join('\n'));
-    }
-};
-
-commands.me = {
-    f: (c, r) => {
-        // handled as a special case
-        throw new Error("this shouldn't happen");
-    }
-};
-
-commands.set = {
-    f: (c, r) => {
-        if(!r) {
-            let settings = getSettings();
-            let s = "";
-            for(let key in settings)
-                s = s + `${key}: ${JSON.stringify(settings[key])}\n`;
-            localMessage(s);
-            return;
-        }
-        let p = parseCommand(r);
-        let value;
-        if(p[1]) {
-            value = JSON.parse(p[1]);
-        } else {
-            value = true;
-        }
-        updateSetting(p[0], value);
-        reflectSettings();
-    }
-};
-
-commands.unset = {
-    f: (c, r) => {
-        delSetting(r.trim());
-        return;
-    }
-};
-
-commands.leave = {
-    description: "leave group",
-    f: (c, r) => {
-        if(!serverConnection)
-            throw new Error('Not connected');
-        serverConnection.close();
-    }
-};
-
-commands.clear = {
-    predicate: operatorPredicate,
-    description: 'clear the chat history',
-    f: (c, r) => {
-        serverConnection.groupAction('clearchat');
-    }
-};
-
-commands.lock = {
-    predicate: operatorPredicate,
-    description: 'lock this group',
-    parameters: '[message]',
-    f: (c, r) => {
-        serverConnection.groupAction('lock', r);
-    }
-};
-
-commands.unlock = {
-    predicate: operatorPredicate,
-    description: 'unlock this group, revert the effect of /lock',
-    f: (c, r) => {
-        serverConnection.groupAction('unlock');
-    }
-};
-
-commands.record = {
-    predicate: recordingPredicate,
-    description: 'start recording',
-    f: (c, r) => {
-        serverConnection.groupAction('record');
-    }
-};
-
-commands.unrecord = {
-    predicate: recordingPredicate,
-    description: 'stop recording',
-    f: (c, r) => {
-        serverConnection.groupAction('unrecord');
-    }
-};
-
-commands.subgroups = {
-    predicate: operatorPredicate,
-    description: 'list subgroups',
-    f: (c, r) => {
-        serverConnection.groupAction('subgroups');
-    }
-};
 
 function renegotiateStreams() {
     for(let id in serverConnection.up)
@@ -2931,20 +2818,6 @@ function renegotiateStreams() {
     for(let id in serverConnection.down)
         serverConnection.down[id].restartIce();
 }
-
-commands.renegotiate = {
-    description: 'renegotiate media streams',
-    f: (c, r) => {
-        renegotiateStreams();
-    }
-};
-
-commands.replace = {
-    f: (c, r) => {
-        replaceUpStreams(null);
-    }
-};
-
 
 /**
  * parseCommand splits a string into two space-separated parts.  The first
@@ -2995,22 +2868,6 @@ function findUserId(user) {
     return null;
 }
 
-commands.msg = {
-    parameters: 'user message',
-    description: 'send a private message',
-    f: (c, r) => {
-        let p = parseCommand(r);
-        if(!p[0])
-            throw new Error('/msg requires parameters');
-        let id = findUserId(p[0]);
-        if(!id)
-            throw new Error(`Unknown user ${p[0]}`);
-        serverConnection.chat('', id, p[1]);
-        addToChatbox(serverConnection.id, id, serverConnection.username,
-                     new Date(), false, false, '', p[1]);
-    }
-};
-
 /**
    @param {string} c
    @param {string} r
@@ -3018,110 +2875,23 @@ commands.msg = {
 function userCommand(c, r) {
     let p = parseCommand(r);
     if(!p[0])
-        throw new Error(`/${c} requires parameters`);
+        throw new Error(translate_text("/{0} requires parameters").format(c));
     let id = findUserId(p[0]);
     if(!id)
-        throw new Error(`Unknown user ${p[0]}`);
+        throw new Error(translate_text("Unknown user {0}").format(p[0]));
     serverConnection.userAction(c, id, p[1]);
 }
 
 function userMessage(c, r) {
     let p = parseCommand(r);
     if(!p[0])
-        throw new Error(`/${c} requires parameters`);
+        throw new Error(translate_text("/{0} requires parameters").format(c));
     let id = findUserId(p[0]);
     if(!id)
-        throw new Error(`Unknown user ${p[0]}`);
+        throw new Error(translate_text("Unknown user {0}").format(p[0]));
     serverConnection.userMessage(c, id, p[1]);
 }
 
-commands.kick = {
-    parameters: 'user [message]',
-    description: 'kick out a user',
-    predicate: operatorPredicate,
-    f: userCommand,
-};
-
-commands.op = {
-    parameters: 'user',
-    description: 'give operator status',
-    predicate: operatorPredicate,
-    f: userCommand,
-};
-
-commands.unop = {
-    parameters: 'user',
-    description: 'revoke operator status',
-    predicate: operatorPredicate,
-    f: userCommand,
-};
-
-commands.present = {
-    parameters: 'user',
-    description: 'give user the right to present',
-    predicate: operatorPredicate,
-    f: userCommand,
-};
-
-commands.unpresent = {
-    parameters: 'user',
-    description: 'revoke the right to present',
-    predicate: operatorPredicate,
-    f: userCommand,
-};
-
-commands.mute = {
-    parameters: 'user',
-    description: 'mute a remote user',
-    predicate: operatorPredicate,
-    f: userMessage,
-};
-
-commands.muteall = {
-    description: 'mute all remote users',
-    predicate: operatorPredicate,
-    f: (c, r) => {
-        serverConnection.userMessage('mute', null, null, true);
-    }
-}
-
-commands.warn = {
-    parameters: 'user message',
-    description: 'send a warning to a user',
-    predicate: operatorPredicate,
-    f: (c, r) => {
-        userMessage('warning', r);
-    },
-};
-
-commands.wall = {
-    parameters: 'message',
-    description: 'send a warning to all users',
-    predicate: operatorPredicate,
-    f: (c, r) => {
-        if(!r)
-            throw new Error('empty message');
-        serverConnection.userMessage('warning', '', r);
-    },
-};
-
-commands.raise = {
-    description: 'raise hand',
-    f: (c, r) => {
-        serverConnection.userAction(
-            "setdata", serverConnection.id, {"raisehand": true},
-        );
-    }
-}
-
-commands.unraise = {
-    description: 'unraise hand',
-    f: (c, r) => {
-        serverConnection.userAction(
-            "setdata", serverConnection.id, {"raisehand": null},
-        );
-    }
-}
 
 /** @returns {boolean} */
 function canFile() {
@@ -3151,22 +2921,6 @@ function presentFile() {
     input.click();
 }
 
-commands.presentfile = {
-    description: 'broadcast a video or audio file',
-    f: (c, r) => {
-        presentFile();
-    },
-    predicate: () => {
-        if(!canFile())
-            return 'Your browser does not support presenting arbitrary files';
-        if(!serverConnection || !serverConnection.permissions ||
-           serverConnection.permissions.indexOf('present') < 0)
-            return 'You are not authorised to present.';
-        return null;
-    }
-};
-
-
 /**
  * @param {string} id
  */
@@ -3189,19 +2943,264 @@ function sendFile(id) {
     input.click();
 }
 
-commands.sendfile = {
-    parameters: 'user',
-    description: 'send a file (this will disclose your IP address)',
-    f: (c, r) => {
-        let p = parseCommand(r);
-        if(!p[0])
-            throw new Error(`/${c} requires parameters`);
-        let id = findUserId(p[0]);
-        if(!id)
-            throw new Error(`Unknown user ${p[0]}`);
-        sendFile(id);
-    },
-};
+function assign_commands() {
+    commands.help = {
+        description: translate_text("display this help"),
+        f: (c, r) => {
+            /** @type {string[]} */
+            let cs = [];
+            for(let cmd in commands) {
+                let c = commands[cmd];
+                if(!c.description)
+                    continue;
+                if(c.predicate && c.predicate())
+                    continue;
+                cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
+            }
+            localMessage(cs.sort().join('\n'));
+        }
+    };
+
+    commands.me = {
+        f: (c, r) => {
+            // handled as a special case
+            throw new Error("this shouldn't happen");
+        }
+    };
+
+    commands.set = {
+        f: (c, r) => {
+            if(!r) {
+                let settings = getSettings();
+                let s = "";
+                for(let key in settings)
+                    s = s + `${key}: ${JSON.stringify(settings[key])}\n`;
+                localMessage(s);
+                return;
+            }
+            let p = parseCommand(r);
+            let value;
+            if(p[1]) {
+                value = JSON.parse(p[1]);
+            } else {
+                value = true;
+            }
+            updateSetting(p[0], value);
+            reflectSettings();
+        }
+    };
+
+    commands.unset = {
+        f: (c, r) => {
+            delSetting(r.trim());
+            return;
+        }
+    };
+
+    commands.leave = {
+        description: translate_text("leave group"),
+        f: (c, r) => {
+            if(!serverConnection)
+                throw new Error(translate_text("Not connected"));
+            serverConnection.close();
+        }
+    };
+
+    commands.clear = {
+        predicate: operatorPredicate,
+        description: translate_text("clear the chat history"),
+        f: (c, r) => {
+            serverConnection.groupAction('clearchat');
+        }
+    };
+
+    commands.lock = {
+        predicate: operatorPredicate,
+        description: translate_text("lock this group"),
+        parameters: translate_text("[message]"),
+        f: (c, r) => {
+            serverConnection.groupAction('lock', r);
+        }
+    };
+
+    commands.unlock = {
+        predicate: operatorPredicate,
+        description: translate_text("unlock this group, revert the effect of /lock"),
+        f: (c, r) => {
+            serverConnection.groupAction('unlock');
+        }
+    };
+
+    commands.record = {
+        predicate: recordingPredicate,
+        description: translate_text("start recording"),
+        f: (c, r) => {
+            serverConnection.groupAction('record');
+        }
+    };
+
+    commands.unrecord = {
+        predicate: recordingPredicate,
+        description: translate_text("stop recording"),
+        f: (c, r) => {
+            serverConnection.groupAction('unrecord');
+        }
+    };
+
+    commands.subgroups = {
+        predicate: operatorPredicate,
+        description: translate_text("list subgroups"),
+        f: (c, r) => {
+            serverConnection.groupAction('subgroups');
+        }
+    };
+
+    commands.renegotiate = {
+        description: translate_text("renegotiate media streams"),
+        f: (c, r) => {
+            renegotiateStreams();
+        }
+    };
+
+    commands.replace = {
+        f: (c, r) => {
+            replaceUpStreams(null);
+        }
+    };
+
+    commands.msg = {
+        parameters: translate_text("user message"),
+        description: translate_text("send a private message"),
+        f: (c, r) => {
+            let p = parseCommand(r);
+            if(!p[0])
+                throw new Error(translate_text("/msg requires parameters"));
+            let id = findUserId(p[0]);
+            if(!id)
+                throw new Error(translate_text("Unknown user {0}").format(p[0]));
+            serverConnection.chat('', id, p[1]);
+            addToChatbox(serverConnection.id, id, serverConnection.username,
+                        new Date(), false, false, '', p[1]);
+        }
+    };
+
+    commands.kick = {
+        parameters: translate_text("user [message]"),
+        description: translate_text("kick out a user"),
+        predicate: operatorPredicate,
+        f: userCommand,
+    };
+
+    commands.op = {
+        parameters: translate_text("user"),
+        description: translate_text("give operator status"),
+        predicate: operatorPredicate,
+        f: userCommand,
+    };
+
+    commands.unop = {
+        parameters: translate_text("user"),
+        description: translate_text("revoke operator status"),
+        predicate: operatorPredicate,
+        f: userCommand,
+    };
+
+    commands.present = {
+        parameters: translate_text("user"),
+        description: translate_text("give user the right to present"),
+        predicate: operatorPredicate,
+        f: userCommand,
+    };
+
+    commands.unpresent = {
+        parameters: translate_text("user"),
+        description: translate_text("revoke the right to present"),
+        predicate: operatorPredicate,
+        f: userCommand,
+    };
+
+    commands.mute = {
+        parameters: translate_text("user"),
+        description: translate_text("mute a remote user"),
+        predicate: operatorPredicate,
+        f: userMessage,
+    };
+
+    commands.muteall = {
+        description: translate_text("mute all remote users"),
+        predicate: operatorPredicate,
+        f: (c, r) => {
+            serverConnection.userMessage('mute', null, null, true);
+        }
+    }
+
+    commands.warn = {
+        parameters: translate_text("user message"),
+        description: translate_text("send a warning to a user"),
+        predicate: operatorPredicate,
+        f: (c, r) => {
+            userMessage('warning', r);
+        },
+    };
+
+    commands.wall = {
+        parameters: translate_text("message"),
+        description: translate_text("send a warning to all users"),
+        predicate: operatorPredicate,
+        f: (c, r) => {
+            if(!r)
+                throw new Error(translate_text("empty message"));
+            serverConnection.userMessage('warning', '', r);
+        },
+    };
+
+    commands.raise = {
+        description: translate_text("raise hand"),
+        f: (c, r) => {
+            serverConnection.userAction(
+                "setdata", serverConnection.id, {"raisehand": true},
+            );
+        }
+    }
+
+    commands.unraise = {
+        description: translate_text("unraise hand"),
+        f: (c, r) => {
+            serverConnection.userAction(
+                "setdata", serverConnection.id, {"raisehand": null},
+            );
+        }
+    }
+
+    commands.presentfile = {
+        description: translate_text("broadcast a video or audio file"),
+        f: (c, r) => {
+            presentFile();
+        },
+        predicate: () => {
+            if(!canFile())
+                return translate_text("Your browser does not support presenting arbitrary files");
+            if(!serverConnection || !serverConnection.permissions ||
+            serverConnection.permissions.indexOf('present') < 0)
+                return translate_text("You are not authorised to present.");
+            return null;
+        }
+    };
+
+    commands.sendfile = {
+        parameters: translate_text("user"),
+        description: translate_text("send a file (this will disclose your IP address)"),
+        f: (c, r) => {
+            let p = parseCommand(r);
+            if(!p[0])
+                throw new Error(translate_text("/{0} requires parameters").format(c));
+            let id = findUserId(p[0]);
+            if(!id)
+                throw new Error(translate_text("Unknown user {0}").format(p[0]));
+            sendFile(id);
+        },
+    };
+}
 
 /**
  * Test loopback through a TURN relay.
@@ -3210,7 +3209,7 @@ commands.sendfile = {
  */
 async function relayTest() {
     if(!serverConnection)
-        throw new Error('not connected');
+        throw new Error(translate_text("Not connected"));
     let conf = Object.assign({}, serverConnection.getRTCConfiguration());
     conf.iceTransportPolicy = 'relay';
     let pc1 = new RTCPeerConnection(conf);
@@ -3236,7 +3235,7 @@ async function relayTest() {
                 d2.onmessage = e => {
                     let t = parseInt(e.data);
                     if(isNaN(t))
-                        reject(new Error('corrupt data'));
+                        reject(new Error(translate_text("corrupt data")));
                     else
                         resolve(Date.now() - t);
                 }
@@ -3296,7 +3295,7 @@ function handleInput() {
             } else {
                 let c = commands[cmd];
                 if(!c) {
-                    displayError(`Uknown command /${cmd}, type /help for help`);
+                    displayError(translate_text("Uknown command /{0}, type /help for help").format(cmd));
                     return;
                 }
                 if(c.predicate) {
@@ -3321,7 +3320,7 @@ function handleInput() {
     }
 
     if(!serverConnection || !serverConnection.socket) {
-        displayError("Not connected.");
+        displayError(translate_text("Not connected"));
         return;
     }
 
@@ -3558,7 +3557,7 @@ async function start() {
         groupStatus = await r.json()
     } catch(e) {
         console.error(e);
-        displayWarning("Couldn't fetch status: " + e);
+        displayWarning(translate_text("Couldn't fetch status: ") + e);
         groupStatus = {};
     }
 
@@ -3591,4 +3590,10 @@ async function start() {
     setViewportHeight();
 }
 
-start();
+
+(async function() {
+    await run_translate();
+    console.info("translate OK")
+    assign_commands();
+    start();
+})();

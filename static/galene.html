@@ -38,24 +38,24 @@
               <ul class="nav-menu">
                 <li>
                   <button id="presentbutton" class="invisible btn btn-success">
-                    <i class="fas fa-play" aria-hidden="true"></i><span class="nav-text"> Enable</span>
+                    <i class="fas fa-play" aria-hidden="true"></i><span class="nav-text lang"> Enable</span>
                   </button>
                 </li>
                 <li>
                   <button id="unpresentbutton" class="invisible btn btn-cancel">
-                    <i class="fas fa-stop" aria-hidden="true"></i><span class="nav-text"> Disable</span>
+                    <i class="fas fa-stop" aria-hidden="true"></i><span class="nav-text lang"> Disable</span>
                   </button>
                 </li>
                 <li>
                   <div id="mutebutton" class="nav-link nav-button">
                     <span><i class="fas fa-microphone-slash" aria-hidden="true"></i></span>
-                    <label>Mute</label>
+                    <label class="lang">Mute</label>
                   </div>
                 </li>
                 <li>
                   <div id="sharebutton" class="invisible nav-link nav-button">
                     <span><i class="fas fa-share-square" aria-hidden="true"></i></span>
-                    <label>Share Screen</label>
+                    <label class="lang">Share Screen</label>
                   </div>
                 </li>
                 <li>
@@ -102,30 +102,30 @@
               <div class="login-container invisible" id="login-container">
                 <div class="login-box">
                   <form id="userform" class="userform">
-                    <label for="username">Username</label>
+                    <label for="username" class="lang">Username</label>
                     <input id="username" type="text" name="username"
                            autocomplete="username" class="form-control"/>
-                    <label for="password">Password</label>
+                    <label for="password" class="lang">Password</label>
                     <input id="password" type="password" name="password"
                            autocomplete="current-password" class="form-control"/>
-                    <label>Enable at start:</label>
+                    <label class="lang">Enable at start:</label>
                     <div class="present-switch">
                       <p class="switch-radio">
                         <input id="presentoff" type="radio" name="presentradio" value="" checked/>
-                        <label for="presentoff">Nothing</label>
+                        <label for="presentoff" class="lang">Nothing</label>
                       </p>
                       <p class="switch-radio">
                         <input id="presentmike" type="radio" name="presentradio" value="mike"/>
-                        <label for="presentmike">Microphone</label>
+                        <label for="presentmike" class="lang">Microphone</label>
                       </p>
                       <p class="switch-radio">
                         <input id="presentboth" type="radio" name="presentradio" value="both"/>
-                        <label for="presentboth">Camera and microphone</label>
+                        <label for="presentboth" class="lang">Camera and microphone</label>
                       </p>
                     </div>
                     <div class="clear"></div>
                     <div class="connect">
-                      <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect"/>
+                      <input id="connectbutton" type="submit" class="btn btn-blue lang" value="Connect"/>
                     </div>
                   </form>
                   <div class="clear"></div>
@@ -155,95 +155,95 @@
             <div class="user-logout">
               <a id="disconnectbutton">
                 <span class="logout-icon"><i class="fas fa-sign-out-alt"></i></span>
-                <span class="logout-text">Logout</span>
+                <span class="logout-text lang">Logout</span>
               </a>
             </div>
           </div>
         </div>
         <div id="mediaoptions" class="invisible">
           <fieldset>
-            <legend>Media Options</legend>
-            <label for="videoselect" class="sidenav-label-first">Camera:</label>
+            <legend class="lang">Media Options</legend>
+            <label for="videoselect" class="sidenav-label-first lang">Camera:</label>
             <select id="videoselect" class="select select-inline">
-              <option value="">off</option>
+              <option value="" class="lang">off</option>
             </select>
   
-            <label for="audioselect" class="sidenav-label">Microphone:</label>
+            <label for="audioselect" class="sidenav-label lang">Microphone:</label>
             <select id="audioselect" class="select select-inline">
-              <option value="">off</option>
+              <option value="" class="lang">off</option>
             </select>
 
             <form>
               <input id="mirrorbox" type="checkbox" checked/>
-              <label for="mirrorbox">Mirror view</label>
+              <label for="mirrorbox" class="lang">Mirror view</label>
             </form>
 
             <form>
               <input id="blackboardbox" type="checkbox"/>
-              <label for="blackboardbox">Blackboard mode</label>
+              <label for="blackboardbox" class="lang">Blackboard mode</label>
             </form>
   
             <form>
               <input id="preprocessingbox" type="checkbox"/ checked>
-              <label for="preprocessingbox">Noise suppression</label>
+              <label for="preprocessingbox" class="lang">Noise suppression</label>
             </form>
 
             <form>
               <input id="hqaudiobox" type="checkbox"/>
-              <label for="hqaudiobox">High-quality audio</label>
+              <label for="hqaudiobox" class="lang">High-quality audio</label>
             </form>
 
           </fieldset>
         </div>
 
         <fieldset>
-          <legend>Other Settings</legend>
+          <legend class="lang">Other Settings</legend>
 
           <form id="filterform">
-            <label for="filterselect" class="sidenav-label-first">Filter:</label>
+            <label for="filterselect" class="sidenav-label-first lang">Filter:</label>
             <select id="filterselect" class="select select-inline">
-              <option value="" selected>none</option>
+              <option value="" selected class="lang">none</option>
             </select>
           </form>
 
           <form id="sendform">
-            <label for="sendselect" class="sidenav-label-first">Send:</label>
+            <label for="sendselect" class="sidenav-label-first lang">Send:</label>
             <select id="sendselect" class="select select-inline">
-              <option value="lowest">lowest</option>
-              <option value="low">low</option>
-              <option value="normal" selected>normal</option>
-              <option value="unlimited">unlimited</option>
+              <option value="lowest" class="lang">lowest</option>
+              <option value="low" class="lang">low</option>
+              <option value="normal" selected class="lang">normal</option>
+              <option value="unlimited" class="lang">unlimited</option>
             </select>
           </form>
 
           <form id="simulcastform">
-            <label for="simulcastselect" class="sidenav-label-first">Simulcast:</label>
+            <label for="simulcastselect" class="sidenav-label-first lang">Simulcast:</label>
             <select id="simulcastselect" class="select select-inline">
-              <option value="off">off</option>
-              <option value="auto" selected>auto</option>
-              <option value="on">on</option>
+              <option value="off" class="lang">off</option>
+              <option value="auto" selected class="lang">auto</option>
+              <option value="on" class="lang">on</option>
             </select>
           </form>
 
           <form id="requestform">
-            <label for="requestselect" class="sidenav-label">Receive:</label>
+            <label for="requestselect" class="sidenav-label lang">Receive:</label>
             <select id="requestselect" class="select select-inline">
-              <option value="">nothing</option>
-              <option value="audio">audio only</option>
-              <option value="screenshare">screenshare only</option>
-              <option value="everything-low">low quality</option>
-              <option value="everything" selected>everything</option>
+              <option value="" class="lang">nothing</option>
+              <option value="audio" class="lang">audio only</option>
+              <option value="screenshare" class="lang">screenshare only</option>
+              <option value="everything-low" class="lang">low quality</option>
+              <option value="everything" selected class="lang">everything</option>
             </select>
           </form>
   
           <form>
             <input id="activitybox" type="checkbox"/>
-            <label for="activitybox">Activity detection</label>
+            <label for="activitybox" class="lang">Activity detection</label>
           </form>
 
           <form>
             <input id="displayallbox" type="checkbox"/>
-            <label for="displayallbox">Display audio-only users</label>
+            <label for="displayallbox" class="lang">Display audio-only users</label>
           </form>
         </fieldset>
       </div>
@@ -282,6 +282,7 @@
     <script src="/protocol.js" defer></script>
     <script src="/external/toastify/toastify.js" defer></script>
     <script src="/external/contextual/contextual.js" defer></script>
+    <script src="/translate.js" defer></script>
     <script src="/galene.js" defer></script>
   </body>
 </html>
