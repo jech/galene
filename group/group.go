@@ -1111,81 +1111,66 @@ func readDescription(name string) (*Description, error) {
 }
 
 // called locked
+func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error) {
+	desc := g.description
+
+	if !desc.AllowAnonymous && creds.Username == "" {
+		return nil, ErrAnonymousNotAuthorised
+	}
+	if found, good := matchClient(creds, desc.Op); found {
+		if good {
+			if desc.AllowRecording {
+				return []string{"op", "present", "record"}, nil
+			}
+			return []string{"op", "present"}, nil
+		}
+		return nil, ErrNotAuthorised
+	}
+	if found, good := matchClient(creds, desc.Presenter); found {
+		if good {
+			return []string{"present"}, nil
+		}
+		return nil, ErrNotAuthorised
+	}
+	if found, good := matchClient(creds, desc.Other); found {
+		if good {
+			return nil, nil
+		}
+		return nil, ErrNotAuthorised
+	}
+	return nil, ErrNotAuthorised
+}
+
+// called locked
 func (g *Group) getPermission(creds ClientCredentials) (string, []string, error) {
 	desc := g.description
-	if creds.Token == "" {
-		if !desc.AllowAnonymous && creds.Username == "" {
-			return "", nil, ErrAnonymousNotAuthorised
+	var username string
+	var perms []string
+	if creds.Token != "" {
+		tok, err := token.Parse(creds.Token, desc.AuthKeys)
+		if err != nil {
+			return "", nil, err
 		}
-		if found, good := matchClient(creds, desc.Op); found {
-			if good {
-				var p []string
-				p = []string{"op", "present"}
-				if desc.AllowRecording {
-					p = append(p, "record")
-				}
-				return creds.Username, p, nil
-			}
-			return "", nil, ErrNotAuthorised
+
+		conf, err := GetConfiguration()
+		if err != nil {
+			return "", nil, err
 		}
-		if found, good := matchClient(creds, desc.Presenter); found {
-			if good {
-				return creds.Username, []string{"present"}, nil
-			}
-			return "", nil, ErrNotAuthorised
+
+		username, perms, err =
+			tok.Check(conf.CanonicalHost, g.name, &creds.Username)
+		if err != nil {
+			return "", nil, err
 		}
-		if found, good := matchClient(creds, desc.Other); found {
-			if good {
-				return creds.Username, nil, nil
-			}
-			return "", nil, ErrNotAuthorised
+	} else {
+		var err error
+		username = creds.Username
+		perms, err = g.getPasswordPermission(creds)
+		if err != nil {
+			return "", nil, err
 		}
-		return "", nil, ErrNotAuthorised
 	}
 
-	sub, aud, perms, err := token.Valid(creds.Token, desc.AuthKeys)
-	if err != nil {
-		log.Printf("Token authentication: %v", err)
-		return "", nil, ErrNotAuthorised
-	}
-	if sub == nil {
-		log.Printf("Token authentication: token has no sub")
-		return "", nil, ErrNotAuthorised
-	}
-	username := *sub
-	if !desc.AllowAnonymous && username == "" {
-		return "", nil, ErrAnonymousNotAuthorised
-	}
-	conf, err := GetConfiguration()
-	if err != nil {
-		log.Printf("Read config.json: %v", err)
-		return "", nil, err
-	}
-	ok := false
-	for _, u := range aud {
-		url, err := url.Parse(u)
-		if err != nil {
-			log.Printf("Token URL: %v", err)
-			continue
-		}
-		// if canonicalHost is not set, we allow tokens
-		// for any domain name.  Hopefully different
-		// servers use distinct keys.
-		if conf.CanonicalHost != "" {
-			if !strings.EqualFold(
-				url.Host, conf.CanonicalHost,
-			) {
-				continue
-			}
-		}
-		if url.Path == path.Join("/group", g.name)+"/" {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return "", nil, ErrNotAuthorised
-	}
 	return username, perms, nil
 }
 
