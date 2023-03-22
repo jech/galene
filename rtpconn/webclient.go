@@ -102,7 +102,7 @@ func (c *webClient) SetPermissions(perms []string) {
 	c.permissions = perms
 }
 
-func (c *webClient) PushClient(group, kind, id, username string, perms []string, data map[string]interface{}) error {
+func (c *webClient) PushClient(group, kind, id string, username string, perms []string, data map[string]interface{}) error {
 	return c.action(pushClientAction{
 		group, kind, id, username, perms, data,
 	})
@@ -117,7 +117,7 @@ type clientMessage struct {
 	Replace          string                   `json:"replace,omitempty"`
 	Source           string                   `json:"source,omitempty"`
 	Dest             string                   `json:"dest,omitempty"`
-	Username         string                   `json:"username,omitempty"`
+	Username         *string                  `json:"username,omitempty"`
 	Password         string                   `json:"password,omitempty"`
 	Token            string                   `json:"token,omitempty"`
 	Privileged       bool                     `json:"privileged,omitempty"`
@@ -555,7 +555,7 @@ func negotiate(c *webClient, down *rtpDownConnection, restartIce bool, replace s
 		Label:    down.remote.Label(),
 		Replace:  replace,
 		Source:   source,
-		Username: username,
+		Username: &username,
 		SDP:      down.pc.LocalDescription().SDP,
 	})
 }
@@ -930,7 +930,7 @@ type joinedAction struct {
 
 type kickAction struct {
 	id       string
-	username string
+	username *string
 	message  string
 }
 
@@ -1160,11 +1160,12 @@ func handleAction(c *webClient, a interface{}) error {
 			return nil
 		}
 		perms := append([]string(nil), a.permissions...)
+		username := a.username
 		return c.write(clientMessage{
 			Type:        "user",
 			Kind:        a.kind,
 			Id:          a.id,
-			Username:    a.username,
+			Username:    &username,
 			Permissions: perms,
 			Data:        a.data,
 		})
@@ -1181,11 +1182,12 @@ func handleAction(c *webClient, a interface{}) error {
 			}
 		}
 		perms := append([]string(nil), c.permissions...)
+		username := c.username
 		err := c.write(clientMessage{
 			Type:             "joined",
 			Kind:             a.kind,
 			Group:            a.group,
-			Username:         c.username,
+			Username:         &username,
 			Permissions:      perms,
 			Status:           status,
 			Data:             data,
@@ -1222,11 +1224,12 @@ func handleAction(c *webClient, a interface{}) error {
 		}
 		perms := append([]string(nil), c.permissions...)
 		status := g.Status(true, "")
+		username := c.username
 		c.write(clientMessage{
 			Type:             "joined",
 			Kind:             "change",
 			Group:            g.Name(),
-			Username:         c.username,
+			Username:         &username,
 			Permissions:      perms,
 			Status:           &status,
 			RTCConfiguration: ice.ICEConfiguration(),
@@ -1360,7 +1363,7 @@ func setPermissions(g *group.Group, id string, perm string) error {
 	return c.action(permissionsChangedAction{})
 }
 
-func (c *webClient) Kick(id, user, message string) error {
+func (c *webClient) Kick(id string, user *string, message string) error {
 	return c.action(kickAction{id, user, message})
 }
 
@@ -1368,7 +1371,7 @@ func (c *webClient) Joined(group, kind string) error {
 	return c.action(joinedAction{group, kind})
 }
 
-func kickClient(g *group.Group, id, user, dest string, message string) error {
+func kickClient(g *group.Group, id string, user *string, dest string, message string) error {
 	client := g.GetClient(dest)
 	if client == nil {
 		return group.UserError("no such user")
@@ -1385,8 +1388,8 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 	}
 
 	if m.Type != "join" {
-		if m.Username != "" {
-			if m.Username != c.Username() {
+		if m.Username != nil {
+			if *m.Username != c.Username() {
 				return group.ProtocolError("spoofed username")
 			}
 		}
@@ -1411,7 +1414,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				"cannot join multiple groups",
 			)
 		}
-		c.username = m.Username
 		c.data = m.Data
 		g, err := group.AddClient(m.Group, c,
 			group.ClientCredentials{
@@ -1435,23 +1437,25 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				s = "internal server error"
 				log.Printf("Join group: %v", err)
 			}
+			username := c.username
 			return c.write(clientMessage{
 				Type:     "joined",
 				Kind:     "fail",
 				Error:    e,
 				Group:    m.Group,
-				Username: c.username,
+				Username: &username,
 				Value:    s,
 			})
 		}
 		if redirect := g.Description().Redirect; redirect != "" {
 			// We normally redirect at the HTTP level, but the group
 			// description could have been edited in the meantime.
+			username := c.username
 			return c.write(clientMessage{
 				Type:     "joined",
 				Kind:     "redirect",
 				Group:    m.Group,
-				Username: c.username,
+				Username: &username,
 				Value:    redirect,
 			})
 		}
@@ -1677,10 +1681,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				s = s + fmt.Sprintf("%v (%v client%v)\n",
 					sg.Name, sg.Clients, plural)
 			}
+			username := "Server"
 			c.write(clientMessage{
 				Type:     "chat",
 				Dest:     c.id,
-				Username: "Server",
+				Username: &username,
 				Time:     time.Now().Format(time.RFC3339),
 				Value:    s,
 			})

@@ -642,7 +642,7 @@ func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname str
 
 	_, p, err := g.GetPermission(
 		group.ClientCredentials{
-			Username: user,
+			Username: &user,
 			Password: pass,
 		},
 	)

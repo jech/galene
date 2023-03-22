@@ -36,7 +36,7 @@ func (err UserError) Error() string {
 
 type KickError struct {
 	Id       string
-	Username string
+	Username *string
 	Message  string
 }
 
@@ -45,8 +45,8 @@ func (err KickError) Error() string {
 	if err.Message != "" {
 		m += " (" + err.Message + ")"
 	}
-	if err.Username != "" {
-		m += " by " + err.Username
+	if err.Username != nil && *err.Username != "" {
+		m += " by " + *err.Username
 	}
 	return m
 }
@@ -59,7 +59,7 @@ func (err ProtocolError) Error() string {
 
 type ChatHistoryEntry struct {
 	Id    string
-	User  string
+	User  *string
 	Time  time.Time
 	Kind  string
 	Value interface{}
@@ -625,9 +625,8 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 	c.PushClient(g.Name(), "add", c.Id(), u, p, s)
 	for _, cc := range clients {
 		pp := cc.Permissions()
-		c.PushClient(
-			g.Name(), "add", cc.Id(), cc.Username(), pp, cc.Data(),
-		)
+		uu := cc.Username()
+		c.PushClient(g.Name(), "add", cc.Id(), uu, pp, cc.Data())
 		cc.PushClient(g.Name(), "add", id, u, p, s)
 	}
 
@@ -679,7 +678,7 @@ func DelClient(c Client) {
 	c.Joined(g.Name(), "leave")
 	for _, cc := range clients {
 		cc.PushClient(
-			g.Name(), "delete", c.Id(), "", nil, nil,
+			g.Name(), "delete", c.Id(), c.Username(), nil, nil,
 		)
 	}
 	autoLockKick(g)
@@ -729,7 +728,7 @@ func (g *Group) Range(f func(c Client) bool) {
 
 func kickall(g *Group, message string) {
 	g.Range(func(c Client) bool {
-		c.Kick("", "", message)
+		c.Kick("", nil, message)
 		return true
 	})
 }
@@ -768,7 +767,7 @@ func (g *Group) ClearChatHistory() {
 	g.history = nil
 }
 
-func (g *Group) AddToChatHistory(id, user string, time time.Time, kind string, value interface{}) {
+func (g *Group) AddToChatHistory(id string, user *string, time time.Time, kind string, value interface{}) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -810,9 +809,14 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 }
 
 func matchClient(creds ClientCredentials, users []ClientPattern) (bool, bool) {
+	if creds.Username == nil {
+		return false, false
+	}
+	username := *creds.Username
+
 	matched := false
 	for _, u := range users {
-		if u.Username == creds.Username {
+		if u.Username == username {
 			matched = true
 			if u.Password == nil {
 				return true, true
@@ -1102,7 +1106,10 @@ func readDescription(name string) (*Description, error) {
 func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error) {
 	desc := g.description
 
-	if !desc.AllowAnonymous && creds.Username == "" {
+	if creds.Username == nil {
+		return nil, errors.New("username not provided")
+	}
+	if !desc.AllowAnonymous && *creds.Username == "" {
 		return nil, ErrAnonymousNotAuthorised
 	}
 	if found, good := matchClient(creds, desc.Op); found {
@@ -1146,17 +1153,19 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 		}
 
 		username, perms, err =
-			tok.Check(conf.CanonicalHost, g.name, &creds.Username)
+			tok.Check(conf.CanonicalHost, g.name, creds.Username)
 		if err != nil {
 			return "", nil, err
 		}
-	} else {
+	} else if creds.Username != nil {
+		username = *creds.Username
 		var err error
-		username = creds.Username
 		perms, err = g.getPasswordPermission(creds)
 		if err != nil {
 			return "", nil, err
 		}
+	} else {
+		return "", nil, errors.New("neither username nor token provided")
 	}
 
 	return username, perms, nil

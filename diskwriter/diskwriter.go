@@ -101,7 +101,7 @@ func (client *Client) Close() error {
 	return nil
 }
 
-func (client *Client) Kick(id, user, message string) error {
+func (client *Client) Kick(id string, user *string, message string) error {
 	err := client.Close()
 	group.DelClient(client)
 	return err

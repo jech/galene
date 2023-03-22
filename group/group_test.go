@@ -51,8 +51,9 @@ func TestChatHistory(t *testing.T) {
 	g := Group{
 		description: &Description{},
 	}
+	user := "user"
 	for i := 0; i < 2*maxChatHistory; i++ {
-		g.AddToChatHistory("id", "user", time.Now(), "",
+		g.AddToChatHistory("id", &user, time.Now(), "",
 			fmt.Sprintf("%v", i),
 		)
 	}
@@ -108,10 +109,15 @@ func TestDescriptionJSON(t *testing.T) {
 	}
 }
 
+var jch = "jch"
+var john = "john"
+var james = "james"
+var paul = "paul"
+
 var badClients = []ClientCredentials{
-	{Username: "jch", Password: "foo"},
-	{Username: "john", Password: "foo"},
-	{Username: "james", Password: "foo"},
+	{Username: &jch, Password: "foo"},
+	{Username: &john, Password: "foo"},
+	{Username: &james, Password: "foo"},
 }
 
 type credPerm struct {
@@ -121,23 +127,23 @@ type credPerm struct {
 
 var goodClients = []credPerm{
 	{
-		ClientCredentials{Username: "jch", Password: "topsecret"},
+		ClientCredentials{Username: &jch, Password: "topsecret"},
 		[]string{"op", "present"},
 	},
 	{
-		ClientCredentials{Username: "john", Password: "secret"},
+		ClientCredentials{Username: &john, Password: "secret"},
 		[]string{"present"},
 	},
 	{
-		ClientCredentials{Username: "john", Password: "secret2"},
+		ClientCredentials{Username: &john, Password: "secret2"},
 		[]string{"present"},
 	},
 	{
-		ClientCredentials{Username: "james", Password: "secret3"},
+		ClientCredentials{Username: &james, Password: "secret3"},
 		nil,
 	},
 	{
-		ClientCredentials{Username: "paul", Password: "secret3"},
+		ClientCredentials{Username: &paul, Password: "secret3"},
 		nil,
 	},
 }
@@ -150,7 +156,7 @@ func TestPermissions(t *testing.T) {
 	}
 
 	for _, c := range badClients {
-		t.Run("bad "+c.Username, func(t *testing.T) {
+		t.Run("bad "+*c.Username, func(t *testing.T) {
 			_, p, err := g.GetPermission(c)
 			if err != ErrNotAuthorised {
 				t.Errorf("GetPermission %v: %v %v", c, err, p)
@@ -159,11 +165,11 @@ func TestPermissions(t *testing.T) {
 	}
 
 	for _, cp := range goodClients {
-		t.Run("good "+cp.c.Username, func(t *testing.T) {
+		t.Run("good "+*cp.c.Username, func(t *testing.T) {
 			u, p, err := g.GetPermission(cp.c)
 			if err != nil {
 				t.Errorf("GetPermission %v: %v", cp.c, err)
-			} else if u != cp.c.Username ||
+			} else if u != *cp.c.Username ||
 				!reflect.DeepEqual(p, cp.p) {
 				t.Errorf("%v: got %v %v, expected %v",
 					cp.c, u, p, cp.p)

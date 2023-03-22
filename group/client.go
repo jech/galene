@@ -83,7 +83,7 @@ type ClientPattern struct {
 
 type ClientCredentials struct {
 	System   bool
-	Username string
+	Username *string
 	Password string
 	Token    string
 }
@@ -100,5 +100,5 @@ type Client interface {
 	RequestConns(target Client, g *Group, id string) error
 	Joined(group, kind string) error
 	PushClient(group, kind, id, username string, perms []string, data map[string]interface{}) error
-	Kick(id, user, message string) error
+	Kick(id string, user *string, message string) error
 }
