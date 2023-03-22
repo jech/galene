@@ -179,6 +179,27 @@ func TestPermissions(t *testing.T) {
 
 }
 
+func TestUsernameTaken(t *testing.T) {
+	var g Group
+	err := json.Unmarshal([]byte(descJSON), &g.description)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if g.UserExists("") {
+		t.Error("UserExists(\"\") is true, expected false")
+	}
+	if !g.UserExists("john") {
+		t.Error("UserExists(john) is false")
+	}
+	if !g.UserExists("john") {
+		t.Error("UserExists(james) is false")
+	}
+	if g.UserExists("paul") {
+		t.Error("UserExists(paul) is true")
+	}
+}
+
 func TestFmtpValue(t *testing.T) {
 	type fmtpTest struct {
 		fmtp  string

@@ -27,6 +27,7 @@ var UDPMin, UDPMax uint16
 
 var ErrNotAuthorised = errors.New("not authorised")
 var ErrAnonymousNotAuthorised = errors.New("anonymous users not authorised in this group")
+var ErrDuplicateUsername = errors.New("this username is taken")
 
 type UserError string
 
@@ -1136,6 +1137,33 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error)
 	return nil, ErrNotAuthorised
 }
 
+// Return true if there is a user entry with the given username.
+// Always return false for an empty username.
+func (g *Group) UserExists(username string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.userExists(username)
+}
+
+// called locked
+func (g *Group) userExists(username string) bool {
+	if username == "" {
+		return false
+	}
+
+	desc := g.description
+	for _, ps := range [][]ClientPattern{
+		desc.Op, desc.Presenter, desc.Other,
+	} {
+		for _, p := range ps {
+			if p.Username == username {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // called locked
 func (g *Group) getPermission(creds ClientCredentials) (string, []string, error) {
 	desc := g.description
@@ -1156,6 +1184,12 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 			tok.Check(conf.CanonicalHost, g.name, creds.Username)
 		if err != nil {
 			return "", nil, err
+		}
+		if username == "" && creds.Username != nil {
+			if g.userExists(*creds.Username) {
+				return "", nil, ErrDuplicateUsername
+			}
+			username = *creds.Username
 		}
 	} else if creds.Username != nil {
 		username = *creds.Username

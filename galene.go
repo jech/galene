@@ -16,6 +16,7 @@ import (
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
 	"github.com/jech/galene/limit"
+	"github.com/jech/galene/token"
 	"github.com/jech/galene/turnserver"
 	"github.com/jech/galene/webserver"
 )
@@ -111,6 +112,12 @@ func main() {
 	}
 
 	ice.ICEFilename = filepath.Join(group.DataDirectory, "ice-servers.json")
+	token.SetStatefulFilename(
+		filepath.Join(
+			filepath.Join(group.DataDirectory, "var"),
+			"tokens.jsonl",
+		),
+	)
 
 	// make sure the list of public groups is updated early
 	go group.Update()
