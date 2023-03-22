@@ -297,10 +297,9 @@ function setConnected(connected) {
 
 /**
   * @this {ServerConnection}
-  * @param {string} [username]
   */
-async function gotConnected(username) {
-    let credentials;
+async function gotConnected() {
+    let username, credentials;
     if(token) {
         credentials = {
             type: 'token',
