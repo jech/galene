@@ -2569,9 +2569,10 @@ function gotFileTransferEvent(state, data) {
  * @param {Date} time
  * @param {boolean} privileged
  * @param {string} kind
+ * @param {string} error
  * @param {any} message
  */
-function gotUserMessage(id, dest, username, time, privileged, kind, message) {
+function gotUserMessage(id, dest, username, time, privileged, kind, error, message) {
     switch(kind) {
     case 'kicked':
     case 'error':
@@ -2600,12 +2601,66 @@ function gotUserMessage(id, dest, username, time, privileged, kind, message) {
         }
         clearChat();
         break;
+    case 'token':
+        if(!privileged) {
+            console.error(`Got unprivileged message of kind ${kind}`);
+            return;
+        }
+        if(error) {
+            displayError(`Token operation failed: ${message}`)
+            return
+        }
+        if(typeof message != 'object') {
+            displayError('Unexpected type for token');
+            return;
+        }
+        let f = formatToken(message);
+        localMessage(f[0] + ': ' + f[1]);
+        break;
+    case 'tokenlist':
+        if(!privileged) {
+            console.error(`Got unprivileged message of kind ${kind}`);
+            return;
+        }
+        if(error) {
+            displayError(`Token operation failed: ${message}`)
+            return
+        }
+        let s = '';
+        for(let i = 0; i < message.length; i++) {
+            let f = formatToken(message[i]);
+            s = s + f[0] + ': ' + f[1] + "\n";
+        }
+        localMessage(s);
+        break;
     default:
         console.warn(`Got unknown user message ${kind}`);
         break;
     }
 };
 
+/**
+ * @param {Object} token
+ */
+function formatToken(token) {
+    let url = new URL(window.location.href);
+    let params = new URLSearchParams();
+    params.append('token', token.token);
+    url.search = params.toString();
+    let foruser = ''
+    if(token.username)
+        foruser = ` for user ${token.username}`;
+    /** @type{Date} */
+    let expires = null;
+    if(token.expires)
+        expires = new Date(token.expires);
+    return [
+        (expires && (expires >= new Date())) ?
+            `Invitation${foruser} valid until ${expires.toLocaleString()}` :
+            `Expired invitation${foruser}`,
+        url.toString(),
+    ];
+}
 
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#&()=?]+[-a-zA-Z0-9@:%/_\\+~#&()=]/g;
 
@@ -2923,6 +2978,132 @@ commands.subgroups = {
         serverConnection.groupAction('subgroups');
     }
 };
+
+/**
+ * @type {Object<string,number>}
+ */
+const units = {
+    s: 1000,
+    min: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    mon: 31 * 24 * 60 * 60 * 1000,
+    yr: 365 * 24 * 60 * 60 * 1000,
+};
+
+/**
+ * @param {string} s
+ * @returns {string|number}
+ */
+function parseExpiration(s) {
+    if(!s)
+        return units.d;
+    let re = /^([0-9]+)(s|min|h|d|yr)$/
+    let e = re.exec(s)
+    if(e) {
+        let unit = units[e[2]];
+        if(!unit)
+            throw new Error(`Couldn't find unit ${e[2]}`);
+        return parseInt(e[1]) * unit;
+    }
+    let d = new Date(s);
+    if(d.toString() === 'Invalid Date')
+        throw new Error("Couldn't parse expiration date");
+    return d.toISOString();
+}
+
+function protocol2Predicate() {
+    if(serverConnection.version === "1")
+        return "This server is too old";
+    return null;
+}
+
+function makeTokenPredicate() {
+    return protocol2Predicate() ||
+        (serverConnection.permissions.indexOf('token') < 0 ?
+         "You don't have permission to create tokens" : null);
+}
+
+function editTokenPredicate() {
+    return protocol2Predicate() ||
+        (serverConnection.permissions.indexOf('token') < 0 ||
+         serverConnection.permissions.indexOf('op') < 0 ?
+         "You don't have permission to edit or list tokens" : null);
+}
+
+commands.invite = {
+    predicate: makeTokenPredicate,
+    description: "create an invitation link",
+    parameters: "[username] [expiration]",
+    f: (c, r) => {
+        let p = parseCommand(r);
+        let v = {
+            group: group,
+        };
+        if(p[0])
+            v.username = p[0];
+        if(p[1])
+            v.expires = parseExpiration(p[1]);
+        else
+            v.expires = units.d;
+        if(serverConnection.permissions.indexOf('present') >= 0)
+            v.permissions = ['present'];
+        else
+            v.permissions = [];
+        serverConnection.groupAction('maketoken', v);
+    }
+}
+
+/**
+ * @param {string} t
+ */
+function parseToken(t) {
+    let m = /^https?:\/\/.*?token=([^?]+)/.exec(t);
+    if(m) {
+        return m[1];
+    } else if(!/^https?:\/\//.exec(t)) {
+        return t
+    } else {
+        throw new Error("Couldn't parse link");
+    }
+}
+
+commands.reinvite = {
+    predicate: editTokenPredicate,
+    description: "extend an invitation link",
+    parameters: "link [expiration]",
+    f: (c, r) => {
+        let p = parseCommand(r);
+        let v = {}
+        v.token = parseToken(p[0]);
+        if(p[1])
+            v.expires = parseExpiration(p[1]);
+        else
+            v.expires = units.d;
+        serverConnection.groupAction('edittoken', v);
+    }
+}
+
+commands.revoke = {
+    predicate: editTokenPredicate,
+    description: "revoke an invitation link",
+    parameters: "link",
+    f: (c, r) => {
+        let token = parseToken(r);
+        serverConnection.groupAction('edittoken', {
+            token: token,
+            expires: -units.s,
+        });
+    }
+}
+
+commands.listtokens = {
+    predicate: editTokenPredicate,
+    description: "list invitation links",
+    f: (c, r) => {
+        serverConnection.groupAction('listtokens');
+    }
+}
 
 function renegotiateStreams() {
     for(let id in serverConnection.up)

@@ -205,7 +205,7 @@ function ServerConnection() {
      * 'id' is non-null, 'privileged' indicates whether the message was
      * sent by an operator.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: Date, privileged: boolean, kind: string, message: unknown) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: Date, privileged: boolean, kind: string, error: string, message: unknown) => void}
      */
     this.onusermessage = null;
     /**
@@ -453,7 +453,7 @@ ServerConnection.prototype.connect = async function(url) {
                 else if(sc.onusermessage)
                     sc.onusermessage.call(
                         sc, m.source, m.dest, m.username, parseTime(m.time),
-                        m.privileged, m.kind, m.value,
+                        m.privileged, m.kind, m.error, m.value,
                     );
                 break;
             case 'ping':
