@@ -1,6 +1,8 @@
 package rtpconn
 
 import (
+	crand "crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +19,7 @@ import (
 	"github.com/jech/galene/estimator"
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
+	"github.com/jech/galene/token"
 )
 
 func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
@@ -1700,6 +1703,124 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				))
 			}
 			g.UpdateData(data)
+		case "maketoken":
+			terror := func(e, m string) error {
+				return c.write(clientMessage{
+					Type:       "usermessage",
+					Kind:       "token",
+					Privileged: true,
+					Error:      e,
+					Value:      m,
+				})
+			}
+			if !member("token", c.permissions) {
+				return terror("not-authorised", "not authorised")
+			}
+			tok, err := parseStatefulToken(m.Value)
+			if err != nil {
+				return terror("not-authorised", "not authorised")
+			}
+
+			if tok.Token == "" {
+				buf := make([]byte, 8)
+				crand.Read(buf)
+				tok.Token =
+					base64.RawURLEncoding.EncodeToString(buf)
+			} else {
+				return terror("error", "client specified token")
+			}
+
+			if tok.Group != c.group.Name() {
+				return terror("error", "wrong group in token")
+			}
+
+			if tok.Expires == nil {
+				return terror("error", "token doesn't expire")
+			}
+
+			for _, p := range tok.Permissions {
+				if !member(p, c.permissions) {
+					return terror(
+						"not-authorised",
+						"not authorised",
+					)
+				}
+			}
+
+			new, err := token.Add(tok)
+			if err != nil {
+				return terror("error", err.Error())
+			}
+			c.write(clientMessage{
+				Type:       "usermessage",
+				Kind:       "token",
+				Privileged: true,
+				Value:      new,
+			})
+		case "edittoken":
+			terror := func(e, m string) error {
+				return c.write(clientMessage{
+					Type:       "usermessage",
+					Kind:       "token",
+					Privileged: true,
+					Error:      e,
+					Value:      m,
+				})
+			}
+			if !member("op", c.permissions) ||
+				!member("token", c.permissions) {
+				return terror("not-authorised", "not authorised")
+			}
+			tok, err := parseStatefulToken(m.Value)
+			if err != nil {
+				return terror("error", err.Error())
+			}
+			if tok.Group != "" || tok.Username != nil ||
+				tok.Permissions != nil ||
+				tok.NotBefore != nil {
+				return terror(
+					"error", "this field cannot be edited",
+				)
+			}
+			if tok.Expires == nil {
+				return terror("error", "trying to edit nothing")
+			}
+			new, err := token.Edit(
+				c.group.Name(), tok.Token, *tok.Expires,
+			)
+			if err != nil {
+				return terror("error", err.Error())
+			}
+			c.write(clientMessage{
+				Type:       "usermessage",
+				Kind:       "token",
+				Privileged: true,
+				Value:      new,
+			})
+		case "listtokens":
+			terror := func(e, m string) error {
+				return c.write(clientMessage{
+					Type:       "usermessage",
+					Kind:       "tokenlist",
+					Privileged: true,
+					Error:      e,
+					Value:      m,
+				})
+			}
+			if !member("op", c.permissions) ||
+				!member("token", c.permissions) {
+				return terror("not-authorised", "not authorised")
+			}
+			tokens, err := token.List(c.group.Name())
+			if err != nil {
+				return terror("error", err.Error())
+			}
+			c.write(clientMessage{
+				Type:       "usermessage",
+				Kind:       "tokenlist",
+				Privileged: true,
+				Value:      tokens,
+			})
 		default:
 			return group.UserError("unknown group action")
 		}
@@ -1776,6 +1897,103 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		return group.ProtocolError("unexpected message")
 	}
 	return nil
+}
+
+func parseStatefulToken(value interface{}) (*token.Stateful, error) {
+	data, ok := value.(map[string]interface{})
+	if !ok || data == nil {
+		return nil, errors.New("bad token value")
+	}
+	parseString := func(key string) (*string, error) {
+		v := data[key]
+		if v == nil {
+			return nil, nil
+		}
+		vv, ok := v.(string)
+		if !ok {
+			return nil, errors.New("bad string value")
+		}
+		return &vv, nil
+	}
+	parseStringList := func(key string) ([]string, error) {
+		v := data[key]
+		if v == nil {
+			return nil, nil
+		}
+		vv, ok := v.([]interface{})
+		if !ok {
+			return nil, errors.New("bad string list")
+		}
+		vvv := make([]string, 0, len(vv))
+		for _, s := range vv {
+			ss, ok := s.(string)
+			if !ok {
+				return nil, errors.New("bad string list")
+			}
+			vvv = append(vvv, ss)
+		}
+		return vvv, nil
+	}
+	parseTime := func(key string) (*time.Time, error) {
+		v := data[key]
+		if v == nil {
+			return nil, nil
+		}
+		switch v := v.(type) {
+		case string:
+			vv, err := time.Parse(time.RFC3339, v)
+			if err != nil {
+				return nil, errors.New("bad time value")
+			}
+			return &vv, nil
+		case float64: // relative time
+			vv := time.Now().Add(time.Duration(v) * time.Millisecond)
+			return &vv, nil
+		default:
+			return nil, errors.New("bad time value")
+		}
+	}
+
+	t, err := parseString("token")
+	if err != nil {
+		return nil, err
+	}
+	tt := ""
+	if t != nil {
+		tt = *t
+	}
+	u, err := parseString("username")
+	if err != nil {
+		return nil, err
+	}
+	g, err := parseString("group")
+	if err != nil {
+		return nil, err
+	}
+	gg := ""
+	if g != nil {
+		gg = *g
+	}
+	p, err := parseStringList("permissions")
+	if err != nil {
+		return nil, err
+	}
+	e, err := parseTime("expires")
+	if err != nil {
+		return nil, err
+	}
+	n, err := parseTime("not-before")
+	if err != nil {
+		return nil, err
+	}
+	return &token.Stateful{
+		Token:       tt,
+		Group:       gg,
+		Username:    u,
+		Permissions: p,
+		Expires:     e,
+		NotBefore:   n,
+	}, nil
 }
 
 func clientReader(conn *websocket.Conn, read chan<- interface{}, done <-chan struct{}) {
