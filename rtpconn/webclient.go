@@ -1434,8 +1434,14 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				time.Sleep(200 * time.Millisecond)
 			} else if err == group.ErrAnonymousNotAuthorised {
 				s = "please choose a username"
-			} else if err, ok := err.(group.UserError); ok {
+			} else if _, ok := err.(group.UserError); ok {
 				s = err.Error()
+			} else if err == token.ErrUsernameRequired {
+				s = err.Error()
+				e = "need-username"
+			} else if err == group.ErrDuplicateUsername {
+				s = err.Error()
+				e = "duplicate-username"
 			} else {
 				s = "internal server error"
 				log.Printf("Join group: %v", err)
@@ -1736,6 +1742,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 
 			if tok.Expires == nil {
 				return terror("error", "token doesn't expire")
+			}
+
+			if tok.Username != nil &&
+				c.group.UserExists(*tok.Username) {
+				return terror("error", "that username is taken")
 			}
 
 			for _, p := range tok.Permissions {
