@@ -179,7 +179,7 @@ function ServerConnection() {
      *
      * kind is one of 'join', 'fail', 'change' or 'leave'.
      *
-     * @type{(this: ServerConnection, kind: string, group: string, permissions: Array<string>, status: Object<string,any>, data: Object<string,any>, message: string) => void}
+     * @type{(this: ServerConnection, kind: string, group: string, permissions: Array<string>, status: Object<string,any>, data: Object<string,any>, error: string, message: string) => void}
      */
     this.onjoined = null;
     /**
@@ -321,7 +321,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onuser.call(sc, id, 'delete');
             }
             if(sc.group && sc.onjoined)
-                sc.onjoined.call(sc, 'leave', sc.group, [], {}, {}, '');
+                sc.onjoined.call(sc, 'leave', sc.group, [], {}, {}, '', '');
             sc.group = null;
             sc.username = null;
             if(sc.onclose)
@@ -393,7 +393,7 @@ ServerConnection.prototype.connect = async function(url) {
                     sc.onjoined.call(sc, m.kind, m.group,
                                      m.permissions || [],
                                      m.status, m.data,
-                                     m.value || null);
+                                     m.error || null, m.value || null);
                 break;
             case 'user':
                 switch(m.kind) {
@@ -505,8 +505,10 @@ ServerConnection.prototype.join = async function(group, username, credentials, d
         type: 'join',
         kind: 'join',
         group: group,
-        username: username,
     };
+    if(typeof username !== 'undefined' && username !== null)
+        m.username = username;
+
     if((typeof credentials) === 'string') {
         m.password = credentials;
     } else {

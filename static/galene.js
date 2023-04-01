@@ -32,6 +32,9 @@ let groupStatus = {};
 /** @type {string} */
 let token = null;
 
+/** @type {boolean} */
+let connectingAgain = false;
+
 /**
  * @typedef {Object} settings
  * @property {boolean} [localMute]
@@ -289,27 +292,39 @@ function setConnected(connected) {
     } else {
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
-        displayError('Disconnected', 'error');
+        if(!connectingAgain)
+            displayError('Disconnected', 'error');
         hideVideo();
         window.onresize = null;
     }
 }
 
 /**
-  * @this {ServerConnection}
-  */
+ * @this {ServerConnection}
+ */
 async function gotConnected() {
-    let username, credentials;
+    setConnected(true);
+    let again = connectingAgain;
+    connectingAgain = false;
+    await join(again);
+}
+
+/**
+ * @param {boolean} again
+ */
+async function join(again) {
+    let username = getInputElement('username').value.trim();
+    let credentials;
     if(token) {
         credentials = {
             type: 'token',
             token: token,
         };
-        token = null;
+        if(!again)
+            // the first time around, we need to join with no username in
+            // order to give the server a chance to reply with 'need-username'.
+            username = null;
     } else {
-        setConnected(true);
-
-        username = getInputElement('username').value.trim();
         let pw = getInputElement('password').value;
         getInputElement('password').value = '';
         if(!groupStatus.authServer)
@@ -324,7 +339,7 @@ async function gotConnected() {
     }
 
     try {
-        await this.join(group, username, credentials);
+        await serverConnection.join(group, username, credentials);
     } catch(e) {
         console.error(e);
         displayError(e);
@@ -2314,29 +2329,42 @@ function setTitle(title) {
  * @param {Array<string>} perms
  * @param {Object<string,any>} status
  * @param {Object<string,any>} data
+ * @param {string} error
  * @param {string} message
  */
-async function gotJoined(kind, group, perms, status, data, message) {
+async function gotJoined(kind, group, perms, status, data, error, message) {
     let present = presentRequested;
     presentRequested = null;
 
     switch(kind) {
     case 'fail':
-        displayError('The server said: ' + message);
+        if(error === 'need-username' || error === 'duplicate-username') {
+            setVisibility('passwordform', false);
+            connectingAgain = true;
+        } else {
+            token = null;
+        }
+        if(error !== 'need-username')
+            displayError('The server said: ' + message);
         this.close();
         setButtonsVisibility();
         return;
     case 'redirect':
         this.close();
+        token = null;
         document.location.href = message;
         return;
     case 'leave':
         this.close();
+        token = null;
         setButtonsVisibility();
         return;
     case 'join':
     case 'change':
-        groupStatus = status;
+        token = null;
+        // don't discard endPoint and friends
+        for(let key in status)
+            groupStatus[key] = status[key];
         setTitle((status && status.displayName) || capitalise(group));
         displayUsername();
         setButtonsVisibility();
@@ -2344,10 +2372,13 @@ async function gotJoined(kind, group, perms, status, data, message) {
             return;
         break;
     default:
+        token = null;
         displayError('Unknown join message');
         this.close();
         return;
     }
+
+    token = null;
 
     let input = /** @type{HTMLTextAreaElement} */
         (document.getElementById('input'));
@@ -3622,12 +3653,8 @@ document.getElementById('userform').onsubmit = async function(e) {
     e.preventDefault();
     if(connecting)
         return;
-    connecting = true;
-    try {
-        await serverConnect();
-    } finally {
-        connecting = false;
-    }
+
+    setVisibility('passwordform', true);
 
     if(getInputElement('presentboth').checked)
         presentRequested = 'both';
@@ -3635,8 +3662,15 @@ document.getElementById('userform').onsubmit = async function(e) {
         presentRequested = 'mike';
     else
         presentRequested = null;
-
     getInputElement('presentoff').checked = true;
+
+    // Connect to the server, gotConnected will join.
+    connecting = true;
+    try {
+        await serverConnect();
+    } finally {
+        connecting = false;
+    }
 };
 
 document.getElementById('disconnectbutton').onclick = function(e) {
@@ -3759,14 +3793,15 @@ async function start() {
     addFilters();
     setMediaChoices(false).then(e => reflectSettings());
 
-    if(parms.has('token')) {
+    if(parms.has('token'))
         token = parms.get('token');
+
+    if(token) {
         await serverConnect();
     } else if(groupStatus.authPortal) {
         window.location.href = groupStatus.authPortal;
     } else {
-        let container = document.getElementById("login-container");
-        container.classList.remove('invisible');
+        setVisibility('login-container', true);
     }
     setViewportHeight();
 }
