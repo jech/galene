@@ -1396,6 +1396,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return group.UserError("you are not joined")
 			}
 			leaveGroup(c)
+			return nil
 		}
 
 		if m.Kind != "join" {
