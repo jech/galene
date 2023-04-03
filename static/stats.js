@@ -31,12 +31,12 @@ async function listStats() {
         l = await r.json();
     } catch(e) {
         console.error(e);
-        table.textContent = `Couldn't fetch stats: ${e}`;
+        table.textContent = translate_text("Couldn't fetch stats: {0}").format(e);
         return;
     }
 
     if(l.length === 0) {
-        table.textContent = '(No group found.)';
+        table.textContent = translate_text('(No group found.)');
         return;
     }
 
@@ -130,4 +130,9 @@ function formatTrack(table, track) {
     table.appendChild(tr);
 }
 
-listStats();
+(async function() {
+    await run_translate();
+    listStats();
+})();
+
+
