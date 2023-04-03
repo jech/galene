@@ -128,7 +128,7 @@ type credPerm struct {
 var goodClients = []credPerm{
 	{
 		ClientCredentials{Username: &jch, Password: "topsecret"},
-		[]string{"op", "present"},
+		[]string{"op", "present", "token"},
 	},
 	{
 		ClientCredentials{Username: &john, Password: "secret"},
@@ -140,11 +140,11 @@ var goodClients = []credPerm{
 	},
 	{
 		ClientCredentials{Username: &james, Password: "secret3"},
-		nil,
+		[]string{},
 	},
 	{
 		ClientCredentials{Username: &paul, Password: "secret3"},
-		nil,
+		[]string{},
 	},
 }
 

@@ -953,6 +953,9 @@ type Description struct {
 	// Whether recording is allowed.
 	AllowRecording bool `json:"allow-recording,omitempty"`
 
+	// Whether creating tokens is allowed
+	AllowTokens bool `json:"allow-tokens,omitempty"`
+
 	// Whether subgroups are created on the fly.
 	AllowSubgroups bool `json:"allow-subgroups,omitempty"`
 
@@ -1115,22 +1118,31 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error)
 	}
 	if found, good := matchClient(creds, desc.Op); found {
 		if good {
+			p := []string{"op", "present", "token"}
 			if desc.AllowRecording {
-				return []string{"op", "present", "record"}, nil
+				p = append(p, "record")
 			}
-			return []string{"op", "present"}, nil
+			return p, nil
 		}
 		return nil, ErrNotAuthorised
 	}
 	if found, good := matchClient(creds, desc.Presenter); found {
 		if good {
-			return []string{"present"}, nil
+			p := []string{"present"}
+			if desc.AllowTokens {
+				p = append(p, "token")
+			}
+			return p, nil
 		}
 		return nil, ErrNotAuthorised
 	}
 	if found, good := matchClient(creds, desc.Other); found {
 		if good {
-			return nil, nil
+			p := []string{}
+			if desc.AllowTokens {
+				p = append(p, "token")
+			}
+			return p, nil
 		}
 		return nil, ErrNotAuthorised
 	}
