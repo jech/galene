@@ -292,3 +292,71 @@ func TestTokenStorage(t *testing.T) {
 		t.Errorf("existence check: %v", err)
 	}
 }
+
+func TestExpire(t *testing.T) {
+	d := t.TempDir()
+	s := state{
+		filename: filepath.Join(d, "test.jsonl"),
+	}
+	now := time.Now()
+	future := now.Add(time.Hour)
+	past := now.Add(-time.Hour * 24 * 6)
+	longPast := now.Add(-time.Hour * 24 * 8)
+	user := "user"
+
+	tokens := []*Stateful{
+		&Stateful{
+			Token:       "tok1",
+			Group:       "test",
+			Username:    &user,
+			Permissions: []string{"present"},
+			Expires:     &now,
+		},
+		&Stateful{
+			Token:       "tok2",
+			Group:       "test",
+			Username:    &user,
+			Permissions: []string{"present"},
+			Expires:     &future,
+		},
+		&Stateful{
+			Token:       "tok3",
+			Group:       "test",
+			Username:    &user,
+			Permissions: []string{"present"},
+			Expires:     &now,
+		},
+		&Stateful{
+			Token:       "tok4",
+			Group:       "test",
+			Username:    &user,
+			Permissions: []string{"present"},
+			Expires:     &past,
+		},
+		&Stateful{
+			Token:       "tok5",
+			Group:       "test",
+			Username:    &user,
+			Permissions: []string{"present"},
+			Expires:     &longPast,
+		},
+	}
+
+	for _, token := range tokens {
+		_, err := s.Add(token)
+		if err != nil {
+			t.Errorf("Add: %v", err)
+		}
+	}
+
+	expectTokens(t, s.tokens, tokens)
+	expectTokenFile(t, s.filename, tokens)
+
+	err := s.Expire()
+	if err != nil {
+		t.Errorf("Expire: %v", err)
+	}
+
+	expectTokens(t, s.tokens, tokens[:len(tokens)-1])
+	expectTokenFile(t, s.filename, tokens[:len(tokens)-1])
+}

@@ -2130,7 +2130,7 @@ function userMenu(elt) {
         if(serverConnection.version !== "1" &&
            serverConnection.permissions.indexOf('token') >= 0) {
             items.push({label: 'Invite user', onClick: () => {
-                serverConnection.groupAction('maketoken', units.d);
+                makeToken(null);
             }});
         }
         if(serverConnection.permissions.indexOf('present') >= 0 && canFile())
@@ -3079,26 +3079,34 @@ function editTokenPredicate() {
          "You don't have permission to edit or list tokens" : null);
 }
 
+/**
+ * @param {string} username
+ * @param {number|string} [expires]
+ */
+function makeToken(username, expires) {
+    let v = {
+        group: group,
+    };
+    if(username)
+        v.username = username;
+    if(expires)
+        v.expires = expires;
+    else
+        v.expires = units.d;
+    if(serverConnection.permissions.indexOf('present') >= 0)
+        v.permissions = ['present'];
+    else
+        v.permissions = [];
+    serverConnection.groupAction('maketoken', v);
+}
+
 commands.invite = {
     predicate: makeTokenPredicate,
     description: "create an invitation link",
     parameters: "[username] [expiration]",
     f: (c, r) => {
         let p = parseCommand(r);
-        let v = {
-            group: group,
-        };
-        if(p[0])
-            v.username = p[0];
-        if(p[1])
-            v.expires = parseExpiration(p[1]);
-        else
-            v.expires = units.d;
-        if(serverConnection.permissions.indexOf('present') >= 0)
-            v.permissions = ['present'];
-        else
-            v.permissions = [];
-        serverConnection.groupAction('maketoken', v);
+        makeToken(p[0], parseExpiration(p[1]));
     }
 }
 

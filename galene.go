@@ -149,7 +149,10 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			go group.Update()
+			go func() {
+				group.Update()
+				token.Expire()
+			}()
 		case <-slowTicker.C:
 			go relayTest()
 		case <-terminate:

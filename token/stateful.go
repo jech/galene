@@ -355,3 +355,36 @@ func (state *state) List(group string) ([]*Stateful, error) {
 func List(group string) ([]*Stateful, error) {
 	return tokens.List(group)
 }
+
+func (state *state) Expire() error {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	err := state.load()
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	cutoff := now.Add(-time.Hour * 24 * 7)
+
+	modified := false
+	for k, t := range state.tokens {
+		if t.Expires.Before(cutoff) {
+			delete(state.tokens, k)
+			modified = true
+		}
+	}
+
+	if modified {
+		err := state.rewrite()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func Expire() error {
+	return tokens.Expire()
+}
