@@ -1,3 +1,17 @@
+Galene 0.7.0 (unreleased)
+
+  * Updated the protocol version to 2.  The only incompatible change is
+    the representation of dates, which now use ISO 8601 format.
+  * Implemented stateful tokens ("invitations").
+  * Made more errors non-fatal, which makes it possible for the client
+    to recover in more situations.
+  * Reworked the progress indicator used during file transfer.
+  * Added Referrer-Policy and X-Content-Type-Options headers to HTTP
+    responses (galene was already generating HTML links with the
+    "noreferrer" option).  Thanks to Alexandre Iooss.
+  * Fixed a bug in the handling of leave messages.  (The current client
+    never sends leave, it just disconnects.)
+
 11 January 2023: Galene 0.6.2
 
   * Disable simulcast for screensharing; this didn't work well with many
