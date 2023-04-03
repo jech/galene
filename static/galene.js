@@ -2127,7 +2127,13 @@ function userMenu(elt) {
                     'setdata', serverConnection.id, {'raisehand': true},
                 );
             }});
-        if(serverConnection.permissions.indexOf('present')>= 0 && canFile())
+        if(serverConnection.version !== "1" &&
+           serverConnection.permissions.indexOf('token') >= 0) {
+            items.push({label: 'Invite user', onClick: () => {
+                serverConnection.groupAction('maketoken', units.d);
+            }});
+        }
+        if(serverConnection.permissions.indexOf('present') >= 0 && canFile())
             items.push({label: 'Broadcast file', onClick: presentFile});
         items.push({label: 'Restart media', onClick: renegotiateStreams});
     } else {
@@ -2647,6 +2653,17 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         }
         let f = formatToken(message);
         localMessage(f[0] + ': ' + f[1]);
+        if('share' in navigator) {
+            try {
+                navigator.share({
+                    title: `Invitation to Galene group ${message.group}`,
+                    text: f[0],
+                    url: f[1],
+                });
+            } catch(e) {
+                console.warn("Share failed", e);
+            }
+        }
         break;
     case 'tokenlist':
         if(!privileged) {
