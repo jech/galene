@@ -368,22 +368,26 @@ ServerConnection.prototype.connect = async function(url) {
                 sc.gotRemoteIce(m.id, m.candidate);
                 break;
             case 'joined':
-                if(sc.group) {
-                    if(m.group !== sc.group) {
-                        throw new Error('Joined multiple groups');
-                    }
-                } else {
-                    sc.group = m.group;
-                }
-                sc.username = m.username;
-                sc.permissions = m.permissions || [];
-                sc.rtcConfiguration = m.rtcConfiguration || null;
-                if(m.kind == 'leave') {
+                if(m.kind === 'leave' || m.kind === 'fail') {
                     for(let id in sc.users) {
                         delete(sc.users[id]);
                         if(sc.onuser)
                             sc.onuser.call(sc, id, 'delete');
                     }
+                    sc.username = null;
+                    sc.permissions = [];
+                    sc.rtcConfiguration = null;
+                } else if(m.kind === 'join' || m.kind == 'change') {
+                    if(m.kind === 'join' && sc.group) {
+                        throw new Error('Joined multiple groups');
+                    } else if(m.kind === 'change' && m.group != sc.group) {
+                        console.warn('join(change) for inconsistent group');
+                        break;
+                    }
+                    sc.group = m.group;
+                    sc.username = m.username;
+                    sc.permissions = m.permissions || [];
+                    sc.rtcConfiguration = m.rtcConfiguration || null;
                 }
                 if(sc.onjoined)
                     sc.onjoined.call(sc, m.kind, m.group,
