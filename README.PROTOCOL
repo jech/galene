@@ -64,6 +64,8 @@ message types:
 
  - `type`, the type of the message;
  - `kind`, the subtype of the message;
+ - `error`, indicates that the message is an error indication, and
+   specifies the kind of error that occurred;
  - `id`, the id of the object being manipulated;
  - `source`, the client-id of the originating client;
  - `username`, the username of the originating client;
@@ -96,8 +98,8 @@ start pipelining messages to the server.
 
 The version field contains an array of supported protocol versions, in
 decreasing preference order; the client may announce multiple versions,
-but the server will always reply with a singleton.  If the field `id` is
-absent, then the peer doesn't originate streams.
+but the server will always reply with a single version.  If the field `id`
+is absent, then the peer doesn't originate streams.
 
 A peer may, at any time, send a `ping` message.
 
@@ -142,6 +144,7 @@ its permissions or in the recommended RTC configuration.
 {
     type: 'joined',
     kind: 'join' or 'fail' or 'change' or 'leave',
+    error: may be set if kind is 'fail',
     group: group,
     username: username,
     permissions: permissions,
@@ -154,8 +157,8 @@ its permissions or in the recommended RTC configuration.
 The `username` field is the username that the server assigned to this
 user.  The `permissions` field is an array of strings that may contain the
 values `present`, `op` and `record`.  The `status` field is a dictionary
-that contains status information about the group, in the same format as at
-the `.status.json` URL above.
+that contains status information about the group, and updates the data
+obtained from the `.status.json` URL described above.
 
 ## Maintaining group membership
 
