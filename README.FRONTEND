@@ -73,7 +73,7 @@ will trigger.  There, you update your user interface and request incoming
 streams:
 
 ```javascript
-serverConnection.onjoined = function(kind, group, perms, status, data, message) {
+serverConnection.onjoined = function(kind, group, perms, status, data, error, message) {
     switch(kind) {
     case 'join':
         this.request({'':['audio','video']});
@@ -87,7 +87,13 @@ serverConnection.onjoined = function(kind, group, perms, status, data, message) 
         document.location.href = message;
         break;
     case 'fail':
-        // display the friendly error message
+         if(error === 'need-username') {
+            // the user attempted to login with a token that does not
+            // specify a username.  Display a dialog requesting a username,
+            // then join again
+        } else {
+            // display the friendly error message
+        }
         break;
 }
 ```
