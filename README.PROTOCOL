@@ -232,9 +232,11 @@ a JSEP session description).  Galène will interpret the `nack`,
 accordingly.
 
 The sender may either send a single stream per media section in the SDP,
-or use rid-based simulcasting.  In the latter case, it should send two
-video streams, one with rid 'h' and high throughput, and one with rid 'l'
-and throughput limited to roughly 100kbit/s.
+or use rid-based simulcasting with the streams ordered in decreasing order
+of throughput.  In that case, it should send two video streams, the
+first one with high throughput, and the second one with throughput limited
+to roughly 100kbit/s.  If more than two streams are sent, then only the
+first and the last one will be considered.
 
 The receiver may either abort the stream immediately (see below), or send
 an answer.

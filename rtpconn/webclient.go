@@ -743,21 +743,12 @@ func requestConns(target group.Client, g *group.Group, id string) {
 	}
 }
 
-func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.UpTrack) ([]conn.UpTrack, bool) {
-	r := override
-	if r == nil {
-		var ok bool
-		r, ok = c.requested[up.Label()]
-		if !ok {
-			r, ok = c.requested[""]
-		}
-		if !ok || len(r) == 0 {
-			return nil, false
-		}
+func requestedTracks(c *webClient, requested []string, tracks []conn.UpTrack) ([]conn.UpTrack, bool) {
+	if len(requested) == 0 {
+		return nil, false
 	}
-
 	var audio, video, videoLow bool
-	for _, s := range r {
+	for _, s := range requested {
 		switch s {
 		case "audio":
 			audio = true
@@ -770,50 +761,42 @@ func requestedTracks(c *webClient, override []string, up conn.Up, tracks []conn.
 		}
 	}
 
-	find := func(kind webrtc.RTPCodecType, labels ...string) conn.UpTrack {
-		for _, l := range labels {
-			for _, t := range tracks {
-				if t.Kind() != kind {
-					continue
-				}
-				if t.Label() == l {
-					return t
-				}
-			}
-		}
+	find := func(kind webrtc.RTPCodecType, last bool) (conn.UpTrack, int) {
+		var track conn.UpTrack
+		count := 0
 		for _, t := range tracks {
 			if t.Kind() != kind {
 				continue
 			}
-			return t
+			track = t
+			count++
+			if !last {
+				break
+			}
 		}
-		return nil
+		return track, count
 	}
 
 	var ts []conn.UpTrack
 	limitSid := false
 	if audio {
-		t := find(webrtc.RTPCodecTypeAudio)
+		t, _ := find(webrtc.RTPCodecTypeAudio, false)
 		if t != nil {
 			ts = append(ts, t)
 		}
 	}
 	if video {
-		t := find(
-			webrtc.RTPCodecTypeVideo, "h", "m", "video",
-		)
+		t, _ := find(webrtc.RTPCodecTypeVideo, false)
 		if t != nil {
 			ts = append(ts, t)
 		}
 	} else if videoLow {
-		t := find(
-			webrtc.RTPCodecTypeVideo, "l", "m", "video",
-		)
+		t, count := find(webrtc.RTPCodecTypeVideo, true)
 		if t != nil {
 			ts = append(ts, t)
-			if t.Label() != "l" {
-				limitSid = true
-			}
+		}
+		if count < 2 {
+			limitSid = true
 		}
 	}
 
@@ -1053,11 +1036,18 @@ func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, re
 		} else {
 			old = getDownConn(c, up.Id())
 		}
-		var override []string
+		var req []string
 		if old != nil {
-			override = old.requested
+			req = old.requested
 		}
-		requested, limitSid = requestedTracks(c, override, up, tracks)
+		if req == nil {
+			var ok bool
+			req, ok = c.requested[up.Label()]
+			if !ok {
+				req = c.requested[""]
+			}
+		}
+		requested, limitSid = requestedTracks(c, req, tracks)
 	}
 
 	if replace != "" {
