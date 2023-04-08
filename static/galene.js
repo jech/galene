@@ -2651,7 +2651,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             displayError('Unexpected type for token');
             return;
         }
-        let f = formatToken(message);
+        let f = formatToken(message, false);
         localMessage(f[0] + ': ' + f[1]);
         if('share' in navigator) {
             try {
@@ -2676,7 +2676,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         }
         let s = '';
         for(let i = 0; i < message.length; i++) {
-            let f = formatToken(message[i]);
+            let f = formatToken(message[i], true);
             s = s + f[0] + ': ' + f[1] + "\n";
         }
         localMessage(s);
@@ -2689,23 +2689,37 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
 
 /**
  * @param {Object} token
+ * @param {boolean} [details]
  */
-function formatToken(token) {
+function formatToken(token, details) {
     let url = new URL(window.location.href);
     let params = new URLSearchParams();
     params.append('token', token.token);
     url.search = params.toString();
-    let foruser = ''
+    let foruser = '', by = '', togroup = '';
     if(token.username)
         foruser = ` for user ${token.username}`;
+    if(details) {
+        if(token.issuedBy)
+            by = ' issued by ' + token.issuedBy;
+        if(token.issuedAt) {
+            if(by === '')
+                by = ' issued at ' + token.issuedAt;
+            else
+                by = by + ' at ' + (new Date(token.issuedAt)).toLocaleString();
+        }
+    } else {
+        if(token.group)
+            togroup = ' to group ' + token.group;
+    }
     /** @type{Date} */
     let expires = null;
     if(token.expires)
         expires = new Date(token.expires);
     return [
         (expires && (expires >= new Date())) ?
-            `Invitation${foruser} valid until ${expires.toLocaleString()}` :
-            `Expired invitation${foruser}`,
+            `Invitation${foruser}${togroup}${by} valid until ${expires.toLocaleString()}` :
+            `Expired invitation${foruser}${togroup}${by}`,
         url.toString(),
     ];
 }

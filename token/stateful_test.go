@@ -11,23 +11,29 @@ import (
 	"time"
 )
 
+func timeEqual(a, b *time.Time) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a!= nil && b != nil {
+		return (*a).Equal(*b)
+	}
+
+	return false
+}
+
 func equal(a, b *Stateful) bool {
 	if a.Token != b.Token || a.Group != b.Group ||
 		!reflect.DeepEqual(a.Username, b.Username) ||
-		!reflect.DeepEqual(a.Permissions, b.Permissions) {
-		return false
-	}
-	if a.Expires != nil && b.Expires != nil {
-		return (*a.Expires).Equal(*b.Expires)
-	}
-	if (a.Expires != nil) != (b.Expires != nil) {
+		!reflect.DeepEqual(a.Permissions, b.Permissions) ||
+		!timeEqual(a.Expires, b.Expires) ||
+		!reflect.DeepEqual(a.IssuedBy, b.IssuedBy) ||
+		!timeEqual(a.IssuedAt, b.IssuedAt) {
 		return false
 	}
 
-	if a.NotBefore != nil && b.NotBefore != nil {
-		return (*a.NotBefore).Equal(*b.NotBefore)
-	}
-	return (a.NotBefore != nil) == (b.NotBefore != nil)
+	return true
 }
 
 func TestStatefulCheck(t *testing.T) {

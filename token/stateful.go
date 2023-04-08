@@ -19,6 +19,8 @@ type Stateful struct {
 	Permissions []string   `json:"permissions"`
 	Expires     *time.Time `json:"expires"`
 	NotBefore   *time.Time `json:"not-before,omitempty"`
+	IssuedAt    *time.Time `json:"issuedAt,omitempty"`
+	IssuedBy    *string    `json:"issuedBy,omitempty"`
 }
 
 func (token *Stateful) Clone() *Stateful {

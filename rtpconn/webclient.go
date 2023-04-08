@@ -1748,6 +1748,14 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				}
 			}
 
+			user := c.username
+			if user != "" {
+				tok.IssuedBy = &user
+			}
+
+			now := time.Now()
+			tok.IssuedAt = &now
+
 			new, err := token.Add(tok)
 			if err != nil {
 				return terror("error", err.Error())
@@ -1778,7 +1786,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			if tok.Group != "" || tok.Username != nil ||
 				tok.Permissions != nil ||
-				tok.NotBefore != nil {
+				tok.NotBefore != nil ||
+				tok.IssuedBy != nil ||
+				tok.IssuedAt != nil {
 				return terror(
 					"error", "this field cannot be edited",
 				)
