@@ -954,7 +954,7 @@ type Description struct {
 	AllowRecording bool `json:"allow-recording,omitempty"`
 
 	// Whether creating tokens is allowed
-	AllowTokens bool `json:"allow-tokens,omitempty"`
+	UnrestrictedTokens bool `json:"unrestricted-tokens,omitempty"`
 
 	// Whether subgroups are created on the fly.
 	AllowSubgroups bool `json:"allow-subgroups,omitempty"`
@@ -1129,7 +1129,7 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error)
 	if found, good := matchClient(creds, desc.Presenter); found {
 		if good {
 			p := []string{"present"}
-			if desc.AllowTokens {
+			if desc.UnrestrictedTokens {
 				p = append(p, "token")
 			}
 			return p, nil
@@ -1139,7 +1139,7 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error)
 	if found, good := matchClient(creds, desc.Other); found {
 		if good {
 			p := []string{}
-			if desc.AllowTokens {
+			if desc.UnrestrictedTokens {
 				p = append(p, "token")
 			}
 			return p, nil
