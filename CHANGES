@@ -1,16 +1,18 @@
-Galene 0.7.0 (unreleased)
+10 April 2023: Galene 0.7.0
 
-  * Updated the protocol version to 2.  The only incompatible change is
-    the representation of dates, which now use ISO 8601 format.
+  * Updated the protocol version to 2.  Dates are now represented in
+    ISO 8601 format, and there is a new "error" field in error messages
+    that contains a machine-readable identifier.
   * Implemented stateful tokens ("invitations").
   * Made more errors non-fatal, which makes it possible for the client
     to recover in more situations.
   * Reworked the progress indicator used during file transfer.
   * Added Referrer-Policy and X-Content-Type-Options headers to HTTP
-    responses (galene was already generating HTML links with the
+    responses (Galene was already generating HTML links with the
     "noreferrer" option).  Thanks to Alexandre Iooss.
-  * Fixed a bug in the handling of leave messages.  (The current client
-    never sends leave, it just disconnects.)
+  * Fixed a bug in the handling of leave messages.  (The bundled client
+    never sends leave, it just disconnects, so the bug never triggerred.)
+  * Changed the way simulcast tracks are selected to not depend on the rid.
 
 11 January 2023: Galene 0.6.2
 
