@@ -1265,6 +1265,17 @@ function setUpStream(c, stream) {
             streams: [stream],
             sendEncodings: encodings,
         });
+
+        // Firefox before 110 does not implement sendEncodings, and
+        // requires this hack, which throws an exception on Chromium.
+        try {
+            let p = tr.sender.getParameters();
+            if(!p.encodings) {
+                p.encodings = encodings;
+                tr.sender.setParameters(p);
+            }
+        } catch(e) {
+        }
     }
 
     // c.stream might be different from stream if there's a filter
