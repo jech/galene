@@ -1265,25 +1265,6 @@ function setUpStream(c, stream) {
             streams: [stream],
             sendEncodings: encodings,
         });
-
-        // Firefox workaround
-        function match(a, b) {
-            if(!a || !b)
-                return false;
-            if(a.length !== b.length)
-                return false;
-            for(let i = 0; i < a.length; i++) {
-                if(a.maxBitrate !== b.maxBitrate)
-                    return false;
-            }
-            return true;
-        }
-
-        let p = tr.sender.getParameters();
-        if(!p || !match(p.encodings, encodings)) {
-            p.encodings = encodings;
-            tr.sender.setParameters(p);
-        }
     }
 
     // c.stream might be different from stream if there's a filter
