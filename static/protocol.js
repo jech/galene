@@ -2170,7 +2170,7 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
             console.error(`Unexpected ${message.type} for file transfer`);
             return;
         }
-        f.event('cancelled');
+        f.event('cancelled', message.value || null);
         f.close();
         break;
     }
