@@ -609,17 +609,18 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 			}
 		}
 	}
-
-	if g.clients[c.Id()] != nil {
+	id := c.Id()
+	if id == "" {
+		return nil, errors.New("client has empty id")
+	}
+	if g.clients[id] != nil {
 		return nil, ProtocolError("duplicate client id")
 	}
-
-	g.clients[c.Id()] = c
+	g.clients[id] = c
 	g.timestamp = time.Now()
 
 	c.Joined(g.Name(), "join")
 
-	id := c.Id()
 	u := c.Username()
 	p := c.Permissions()
 	s := c.Data()
