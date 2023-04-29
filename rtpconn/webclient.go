@@ -113,7 +113,7 @@ func (c *webClient) PushClient(group, kind, id string, username string, perms []
 
 type clientMessage struct {
 	Type             string                   `json:"type"`
-	Version          []string                 `json:"version"`
+	Version          []string                 `json:"version,omitempty"`
 	Kind             string                   `json:"kind,omitempty"`
 	Error            string                   `json:"error,omitempty"`
 	Id               string                   `json:"id,omitempty"`
