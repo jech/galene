@@ -2704,13 +2704,19 @@ function formatToken(token, details) {
         if(token.group)
             togroup = ' to group ' + token.group;
     }
+    let since = '';
+    if(token["not-before"])
+        since = ` since ${(new Date(token['not-before'])).toLocaleString()}`
     /** @type{Date} */
     let expires = null;
-    if(token.expires)
-        expires = new Date(token.expires);
+    let until = '';
+    if(token.expires) {
+        expires = new Date(token.expires)
+        until = ` until ${expires.toLocaleString()}`;
+    }
     return [
         (expires && (expires >= new Date())) ?
-            `Invitation${foruser}${togroup}${by} valid until ${expires.toLocaleString()}` :
+            `Invitation${foruser}${togroup}${by} valid${since}${until}` :
             `Expired invitation${foruser}${togroup}${by}`,
         url.toString(),
     ];
