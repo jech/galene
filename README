@@ -91,11 +91,13 @@ it easy to copy or link group definitions.  You may use subdirectories:
 a file `groups/teaching/networking.json` defines a group called
 *teaching/networking*.
 
+
+## Examples
+
 A typical group definition file looks like this:
 
     {
         "op":[{"username":"jch","password":"1234"}],
-        "presenter":[{}],
         "allow-recording": true,
         "allow-subgroups": true
     }
@@ -105,20 +107,45 @@ password *1234*, empty username and password for presenters (ordinary
 users with the right to enable their camera and microphone).  The
 `allow-recording` entry says that the operator is allowed to record videos
 to disk, and the `allow-subgroups` entry says that subgroups will be
-created automatically.
+created automatically.  This particular group does not allow password
+login for ordinary users, and is suitable if you use invitations (see
+*Stateful Token* below) for ordinary users.
 
-More precisely, every group definition file contains a single JSON
-directory (a list of entries between `{' and `}').  All fields are
-optional, but unless you specify at least one user definition (`op`,
-`presenter`, or `other`), nobody will be able to join the group.  The
-following fields are allowed:
+In order to allow password login for ordinary users, add a list of users
+as the entry `presenter`:
+
+    {
+        "op": [{"username":"jch","password":"1234"}],
+        "presenter": [{"username":"john", "password": "secret"}]
+    }
+
+If the group is to be publicly accessible, you may allow logins with any
+username and an empty password:
+
+    {
+        "op": [{"username":"jch","password":"1234"}],
+        "presenter": [{}],
+        "public": true
+    }
+
+The empty dictionary `{}` is a wildcard entry: it matches any username and
+any password.  Setting `public` causes the group to be displayed in the
+list of public groups on the landing page
+
+
+## Reference
+
+Every group definition file contains a single JSON directory (a list of
+entries between `{' and `}').  All fields are optional, but unless you
+specify at least one user definition (`op`, `presenter`, or `other`),
+nobody will be able to join the group.  The following fields are allowed:
 
  - `op`, `presenter`, `other`: each of these is an array of user
    definitions (see *Authorisation* below) and specifies the users allowed
    to connect respectively with operator privileges, with presenter
    privileges, and as passive listeners;
  - `authKeys`, `authServer` and `authPortal`: see *Authorisation* below;
- - `public`: if true, then the group is visible on the landing page;
+ - `public`: if true, then the group is listed on the landing page;
  - `displayName`: a human-friendly version of the group name;
  - `description`: a human-readable description of the group; this is
    displayed on the landing page for public groups;
