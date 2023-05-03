@@ -281,6 +281,21 @@
       </div>
     </div>
 
+    <dialog id="invite-dialog">
+      <form method="dialog">
+        <label for="invite-username">Username (optional):</label>
+        <input id="invite-username" type="text"/>
+        <br>
+        <label for="invite-not-before">Not before:</label>
+        <input id="invite-not-before" type="datetime-local"/>
+        <br>
+        <label for="invite-expires">Expires:</label>
+        <input id="invite-expires" type="datetime-local"/>
+        <br>
+        <button id="invite-cancel" value="cancel" type="button">Cancel</button>
+        <button value="invite" value="invite">Invite</button>
+    </dialog>
+
     <script src="/protocol.js" defer></script>
     <script src="/external/toastify/toastify.js" defer></script>
     <script src="/external/contextual/contextual.js" defer></script>

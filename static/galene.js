@@ -2095,6 +2095,88 @@ function stringCompare(a, b) {
 }
 
 /**
+ * @param {string} v
+ */
+function dateFromInput(v) {
+    let d = new Date(v);
+    if(d.toString() === 'Invalid Date')
+        throw new Error('Invalid date');
+    return d;
+}
+
+/**
+ * @param {Date} d
+ */
+function dateToInput(d) {
+    let dd = new Date(d);
+    dd.setMinutes(dd.getMinutes() - dd.getTimezoneOffset());
+    return dd.toISOString().slice(0, -1);
+}
+
+function inviteMenu() {
+    let d = /** @type {HTMLDialogElement} */
+        (document.getElementById('invite-dialog'));
+    if(!('HTMLDialogElement' in window) || !d.showModal) {
+        makeToken();
+        return;
+    }
+    d.returnValue = '';
+    let c = getButtonElement('invite-cancel');
+    c.onclick = function(e) { d.close('cancel'); };
+    let u = getInputElement('invite-username');
+    u.value = '';
+    let now = new Date();
+    now.setMilliseconds(0);
+    now.setSeconds(0);
+    let nb = getInputElement('invite-not-before');
+    nb.min = dateToInput(now);
+    let ex = getInputElement('invite-expires');
+    let expires = new Date(now);
+    expires.setDate(expires.getDate() + 2);
+    ex.min = dateToInput(expires);
+    ex.value = dateToInput(expires);
+    d.showModal();
+}
+
+document.getElementById('invite-dialog').onclose = function(e) {
+    if(!(this instanceof HTMLDialogElement))
+        throw new Error('Unexpected type for this');
+    let dialog = /** @type {HTMLDialogElement} */(this);
+    if(dialog.returnValue !== 'invite')
+        return;
+    let u = getInputElement('invite-username');
+    let username = u.value.trim() || null;
+    let nb = getInputElement('invite-not-before');
+    let notBefore = null;
+    if(nb.value) {
+        try {
+            notBefore = dateFromInput(nb.value);
+        } catch(e) {
+            displayError(`Couldn't parse ${nb.value}: ${e}`);
+            return;
+        }
+    }
+    let ex = getInputElement('invite-expires');
+    let expires = null;
+    if(ex.value) {
+        try {
+            expires = dateFromInput(ex.value);
+        } catch(e) {
+            displayError(`Couldn't parse ${nb.value}: ${e}`);
+            return;
+        }
+    }
+    let template = {}
+    if(username)
+        template.username = username;
+    if(notBefore)
+        template['not-before'] = notBefore;
+    if(expires)
+        template.expires = expires;
+    makeToken(template);
+};
+
+/**
  * @param {HTMLElement} elt
  */
 function userMenu(elt) {
@@ -2122,7 +2204,7 @@ function userMenu(elt) {
         if(serverConnection.version !== "1" &&
            serverConnection.permissions.indexOf('token') >= 0) {
             items.push({label: 'Invite user', onClick: () => {
-                makeToken();
+                inviteMenu();
             }});
         }
         if(serverConnection.permissions.indexOf('present') >= 0 && canFile())

@@ -1337,3 +1337,7 @@ header .collapse:hover {
     margin-left: 10px;
     margin-right: 10px;
 }
+
+#invite-dialog {
+    background-color: #eee;
+}
