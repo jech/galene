@@ -2122,7 +2122,7 @@ function userMenu(elt) {
         if(serverConnection.version !== "1" &&
            serverConnection.permissions.indexOf('token') >= 0) {
             items.push({label: 'Invite user', onClick: () => {
-                makeToken(null);
+                makeToken();
             }});
         }
         if(serverConnection.permissions.indexOf('present') >= 0 && canFile())
@@ -3047,11 +3047,11 @@ const units = {
 
 /**
  * @param {string} s
- * @returns {string|number}
+ * @returns {Date|number}
  */
 function parseExpiration(s) {
     if(!s)
-        return units.d;
+        return null;
     let re = /^([0-9]+)(s|min|h|d|yr)$/
     let e = re.exec(s)
     if(e) {
@@ -3063,7 +3063,7 @@ function parseExpiration(s) {
     let d = new Date(s);
     if(d.toString() === 'Invalid Date')
         throw new Error("Couldn't parse expiration date");
-    return d.toISOString();
+    return d;
 }
 
 function protocol2Predicate() {
@@ -3086,20 +3086,25 @@ function editTokenPredicate() {
 }
 
 /**
- * @param {string} username
- * @param {number|string} [expires]
+ * @param {Object} [template]
  */
-function makeToken(username, expires) {
+function makeToken(template) {
+    if(!template)
+        template = {};
     let v = {
         group: group,
-    };
-    if(username)
-        v.username = username;
-    if(expires)
-        v.expires = expires;
+    }
+    if('username' in template)
+        v.username = template.username;
+    if('expires' in template)
+        v.expires = template.expires;
     else
         v.expires = units.d;
-    if(serverConnection.permissions.indexOf('present') >= 0)
+    if('not-before' in template)
+        v["not-before"] = template["not-before"];
+    if('permissions' in template)
+        v.permissions = template.permissions;
+    else if(serverConnection.permissions.indexOf('present') >= 0)
         v.permissions = ['present'];
     else
         v.permissions = [];
@@ -3112,7 +3117,13 @@ commands.invite = {
     parameters: "[username] [expiration]",
     f: (c, r) => {
         let p = parseCommand(r);
-        makeToken(p[0], parseExpiration(p[1]));
+        let template = {};
+        if(p[0])
+            template.username = p[0];
+        let expires = parseExpiration(p[1]);
+        if(expires)
+            template.expires = expires;
+        makeToken(template);
     }
 }
 
