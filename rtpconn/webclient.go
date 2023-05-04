@@ -1714,7 +1714,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			tok, err := parseStatefulToken(m.Value)
 			if err != nil {
-				return terror("not-authorised", "not authorised")
+				return terror("error", err.Error())
 			}
 
 			if tok.Token == "" {
