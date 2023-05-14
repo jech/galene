@@ -120,7 +120,7 @@ func toStringArray(a []interface{}) ([]string, bool) {
 	return b, true
 }
 
-func parseJWT(token string, keys []map[string]interface{}) (Token, error) {
+func parseJWT(token string, keys []map[string]interface{}) (*JWT, error) {
 	t, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		return getKey(t.Header, keys)
 	})

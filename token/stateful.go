@@ -55,11 +55,14 @@ func SetStatefulFilename(filename string) {
 	tokens.modTime = time.Time{}
 }
 
-func getStateful(token string) (Token, error) {
+func getStateful(token string) (*Stateful, error) {
 	tokens.mu.Lock()
 	defer tokens.mu.Unlock()
 	err := tokens.load()
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	if tokens.tokens == nil {
