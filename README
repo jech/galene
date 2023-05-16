@@ -66,8 +66,8 @@ The server may be configured in the JSON file `data/config.json`.  This
 file may look as follows:
 
     {
-        "admin":[{"username":"root","password":"secret"}]
-        "canonicalHost": "galene.example.org",
+        "admin":[{"username":"root","password":"secret"}],
+        "canonicalHost": "galene.example.org"
     }
 
 The fields are as follows:
