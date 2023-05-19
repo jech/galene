@@ -238,6 +238,11 @@ func Edit(group, token string, expires time.Time) (*Stateful, error) {
 
 // called locked
 func (state *state) edit(group, token string, expires *time.Time) (*Stateful, error) {
+	err := state.load()
+	if err != nil {
+		return nil, err
+	}
+
 	if state.tokens == nil {
 		return nil, os.ErrNotExist
 	}
@@ -257,7 +262,7 @@ func (state *state) edit(group, token string, expires *time.Time) (*Stateful, er
 		new.Expires = expires
 		state.tokens[token] = new
 	}
-	err := state.rewrite()
+	err = state.rewrite()
 	if err != nil {
 		state.tokens[token] = old
 		return nil, err
