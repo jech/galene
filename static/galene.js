@@ -275,6 +275,14 @@ function showVideo() {
     scheduleReconsiderDownRate();
 }
 
+function isSafari() {
+    let ua = navigator.userAgent.toLowerCase();
+    return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
+}
+
+/** @type {MediaStream} */
+let safariStream = null;
+
 /**
   * @param{boolean} connected
   */
@@ -288,6 +296,15 @@ function setConnected(connected) {
         displayUsername();
         window.onresize = function(e) {
             scheduleReconsiderDownRate();
+        }
+        if(isSafari()) {
+            /* Safari doesn't allow autoplay and omits host candidates
+             * unless there is Open one and keep it around. */
+            if(!safariStream) {
+                navigator.mediaDevices.getUserMedia({audio: true}).then(s => {
+                    safariStream = s;
+                });
+            }
         }
     } else {
         userbox.classList.add('invisible');
@@ -1145,11 +1162,6 @@ function addFilters() {
     }
 }
 
-function isSafari() {
-    let ua = navigator.userAgent.toLowerCase();
-    return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
-}
-
 const unlimitedRate = 1000000000;
 const simulcastRate = 100000;
 const hqAudioRate = 128000;
@@ -1444,7 +1456,7 @@ async function addShareMedia() {
     if(!safariScreenshareDone) {
         if(isSafari()) {
             let ok = confirm(
-                'Screen sharing in Safari is badly broken.  ' +
+                'Screen sharing in Safari is broken.  ' +
                     'It will work at first, ' +
                     'but then your video will randomly freeze.  ' +
                     'Are you sure that you wish to enable screensharing?'
@@ -1758,15 +1770,6 @@ async function setMedia(c, mirror, video) {
 
     showVideo();
     resizePeers();
-
-    if(!c.up && isSafari() && !findUpMedia('camera')) {
-        // Safari doesn't allow autoplay unless the user has granted media access
-        try {
-            let stream = await navigator.mediaDevices.getUserMedia({audio: true});
-            stream.getTracks().forEach(t => t.stop());
-        } catch(e) {
-        }
-    }
 }
 
 
