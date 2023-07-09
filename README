@@ -170,14 +170,13 @@ nobody will be able to join the group.  The following fields are allowed:
  - `redirect`: if set, then attempts to join the group will be redirected
    to the given URL; most other fields are ignored in this case;
  - `codecs`: this is a list of codecs allowed in this group.  The default
-   is `["vp8", "opus"]`.
+   is `["vp9", "opus"]`.
    
 Supported video codecs include:
 
- - `"vp8"` (compatible with all supported browsers);
- - `"vp9"` (better video quality, but incompatible with Safari);
- - `"av1"` (even better video quality, only supported by some browsers,
-   recording is not supported, SVC is not supported);
+ - `"vp8"` (legacy, supported by all browsers);
+ - `"vp9"` (compatible with all recent browsers);
+ - `"av1"` (experimental, buggy in many browsers);
  - `"h264"` (incompatible with Debian and with some Android devices, SVC
    is not supported).
 
