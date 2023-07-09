@@ -215,29 +215,18 @@ func Add(token *Stateful) (*Stateful, error) {
 	return tokens.Add(token)
 }
 
-func (state *state) Del(group, token string) error {
-	tokens.mu.Lock()
-	defer tokens.mu.Unlock()
-	_, err := state.edit(group, token, nil)
-	return err
-}
-
-func Del(group, token string) error {
-	return tokens.Del(group, token)
+func Edit(group, token string, expires time.Time) (*Stateful, error) {
+	return tokens.Edit(group, token, expires)
 }
 
 func (state *state) Edit(group, token string, expires time.Time) (*Stateful, error) {
 	tokens.mu.Lock()
 	defer tokens.mu.Unlock()
-	return state.edit(group, token, &expires)
-}
-
-func Edit(group, token string, expires time.Time) (*Stateful, error) {
-	return tokens.Edit(group, token, expires)
+	return state.edit(group, token, expires)
 }
 
 // called locked
-func (state *state) edit(group, token string, expires *time.Time) (*Stateful, error) {
+func (state *state) edit(group, token string, expires time.Time) (*Stateful, error) {
 	err := state.load()
 	if err != nil {
 		return nil, err
@@ -254,14 +243,11 @@ func (state *state) edit(group, token string, expires *time.Time) (*Stateful, er
 	if old.Group != group {
 		return nil, os.ErrPermission
 	}
-	var new *Stateful
-	if expires.Equal(time.Time{}) {
-		delete(state.tokens, token)
-	} else {
-		new = old.Clone()
-		new.Expires = expires
-		state.tokens[token] = new
-	}
+
+	new := old.Clone()
+	new.Expires = &expires
+	state.tokens[token] = new
+
 	err = state.rewrite()
 	if err != nil {
 		state.tokens[token] = old
