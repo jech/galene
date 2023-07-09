@@ -280,6 +280,11 @@ function isSafari() {
     return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
 }
 
+function isFirefox() {
+    let ua = navigator.userAgent.toLowerCase();
+    return ua.indexOf('firefox') >= 0;
+}
+
 /** @type {MediaStream} */
 let safariStream = null;
 
@@ -3917,6 +3922,10 @@ async function start() {
             location.pathname.replace(/^\/[a-z]*\//, '').replace(/\/$/, ''),
         );
     }
+
+    // Disable simulcast on Firefox by default, it's buggy.
+    if(isFirefox())
+        getSelectElement('simulcastselect').value = 'off';
 
     let parms = new URLSearchParams(window.location.search);
     if(window.location.search)
