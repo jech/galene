@@ -31,6 +31,8 @@ func (token *Stateful) Clone() *Stateful {
 		Permissions: append([]string(nil), token.Permissions...),
 		Expires:     token.Expires,
 		NotBefore:   token.NotBefore,
+		IssuedAt:    token.IssuedAt,
+		IssuedBy:    token.IssuedBy,
 	}
 }
 
