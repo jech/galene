@@ -1,3 +1,7 @@
+Galene 0.8 (unreleased)
+
+  * Change default video codec to VP9.
+
 9 July 2023: Galene 0.7.2
 
   * Improve workaround for Safari's autoplay-related mis-features.
