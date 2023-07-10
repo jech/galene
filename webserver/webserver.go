@@ -304,6 +304,16 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dir, id := parseWhip(r.URL.Path)
+	if dir != "" {
+		if id == "" {
+			whipEndpointHandler(w, r)
+		} else {
+			whipResourceHandler(w, r)
+		}
+		return
+	}
+
 	name := parseGroupName("/group/", r.URL.Path)
 	if name == "" {
 		notFound(w)
