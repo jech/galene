@@ -479,8 +479,26 @@ var wsUpgrader = websocket.Upgrader{
 	HandshakeTimeout: 30 * time.Second,
 }
 
+var wsPublicUpgrader = websocket.Upgrader{
+	HandshakeTimeout: 30 * time.Second,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := wsUpgrader.Upgrade(w, r, nil)
+	conf, err := group.GetConfiguration()
+	if err != nil {
+		http.Error(w, "Internal server error",
+			http.StatusInternalServerError)
+		return
+	}
+	upgrader := wsUpgrader
+	if conf.PublicServer {
+		upgrader = wsPublicUpgrader
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("Websocket upgrade: %v", err)
 		return

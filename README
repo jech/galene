@@ -74,6 +74,9 @@ The fields are as follows:
 
 - `admin` defines the users allowed to look at the `/stats.html` file; it
   has the same syntax as user definitions in groups (see below).
+- `publicServer`: if true, then cross-origin access to the server is
+  allowed.  This is safe if the server is on the public Internet, but not
+  necessarily so if it is on a private network.
 - `proxyURL`: if running behind a reverse proxy, this specifies the
   address of the proxy.
 - `canonicalHost`: the canonical name of the host running the server; this

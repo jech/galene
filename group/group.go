@@ -854,6 +854,7 @@ type Configuration struct {
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
 
+	PublicServer  bool            `json:"publicServer"`
 	CanonicalHost string          `json:"canonicalHost"`
 	ProxyURL      string          `json:"proxyURL"`
 	Admin         []ClientPattern `json:"admin"`
