@@ -1,21 +1,23 @@
 Galene 0.8 (unreleased)
 
-  * Change default video codec to VP9.
-  * Disable simulcast on Firefox by default.
+  * Changed default video codec to VP9.
+  * Added a new configuration option "publicServer".
+  * Implemented the WHIP protocol (draft-ietf-wich-whip).
+  * Disabled simulcast on Firefox by default.
 
 9 July 2023: Galene 0.7.2
 
-  * Improve workaround for Safari's autoplay-related mis-features.
-  * Fix minor bugs related to stateful tokens.
+  * Improveed workaround for Safari's autoplay-related mis-features.
+  * Fixed minor bugs related to stateful tokens.
 
 14 May 2023: Galene 0.7.1
 
-  * Fix incorrect error-handling in token parsing, which could cause
+  * Fixed incorrect error-handling in token parsing, which could cause
     Galene to crash after receiving a mis-formatted token.
   * Implement a dialog for creating tokens.
-  * Tweak peer-to-peer file transfer to more reliably return an error
+  * Tweaked peer-to-peer file transfer to more reliably return an error
     message to the user.
-  * Fix the workaround for non-standard simulcast in older Firefox
+  * Fixed the workaround for non-standard simulcast in older Firefox
     versions.
 
 10 April 2023: Galene 0.7.0
