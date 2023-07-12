@@ -3,6 +3,7 @@ package group
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/url"
@@ -203,7 +204,8 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 		case "2":
 			return 100, nil
 		default:
-			return 0, errors.New("unknown VP9 profile")
+			return 0, fmt.Errorf("unknown VP9 profile %v", profile)
+
 		}
 	case "video/av1":
 		return 35, nil
@@ -218,7 +220,9 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 		case "42e0":
 			return 108, nil
 		default:
-			return 0, errors.New("unknown H.264 profile")
+			return 0, fmt.Errorf(
+				"unknown H.264 profile %v", profile,
+			)
 		}
 	case "audio/opus":
 		return 111, nil
@@ -229,7 +233,7 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 	case "audio/pcma":
 		return 8, nil
 	default:
-		return 0, errors.New("unknown codec")
+		return 0, fmt.Errorf("unknown codec %v", codec.MimeType)
 	}
 }
 
