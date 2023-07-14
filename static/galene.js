@@ -40,7 +40,7 @@ let connectingAgain = false;
  * @property {boolean} [localMute]
  * @property {string} [video]
  * @property {string} [audio]
- * @property {string} [simulcast]
+ * @property {string} [scalability]
  * @property {string} [send]
  * @property {string} [request]
  * @property {boolean} [activityDetection]
@@ -195,10 +195,10 @@ function reflectSettings() {
         store = true;
     }
 
-    if(settings.hasOwnProperty('simulcast')) {
-        getSelectElement('simulcastselect').value = settings.simulcast
+    if(settings.hasOwnProperty('scalability')) {
+        getSelectElement('scalabilityselect').value = settings.scalability;
     } else {
-        settings.simulcast = getSelectElement('simulcastselect').value;
+        settings.scalability = getSelectElement('scalabilityselect').value;
         store = true;
     }
 
@@ -278,11 +278,6 @@ function showVideo() {
 function isSafari() {
     let ua = navigator.userAgent.toLowerCase();
     return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
-}
-
-function isFirefox() {
-    let ua = navigator.userAgent.toLowerCase();
-    return ua.indexOf('firefox') >= 0;
 }
 
 /** @type {MediaStream} */
@@ -496,7 +491,7 @@ function setButtonsVisibility() {
 
     setVisibility('mediaoptions', present);
     setVisibility('sendform', present);
-    setVisibility('simulcastform', present);
+    setVisibility('scalabilityform', present);
 
     setVisibility('collapse-video', mediacount && mobilelayout);
 }
@@ -598,24 +593,6 @@ getSelectElement('filterselect').onchange = async function(e) {
     }
 };
 
-/** @returns {number} */
-function getMaxVideoThroughput() {
-    let v = getSettings().send;
-    switch(v) {
-    case 'lowest':
-        return 150000;
-    case 'low':
-        return 300000;
-    case 'normal':
-        return 700000;
-    case 'unlimited':
-        return null;
-    default:
-        console.error('Unknown video quality', v);
-        return 700000;
-    }
-}
-
 getSelectElement('sendselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
@@ -623,10 +600,10 @@ getSelectElement('sendselect').onchange = async function(e) {
     await reconsiderSendParameters();
 };
 
-getSelectElement('simulcastselect').onchange = async function(e) {
+getSelectElement('scalabilityselect').onchange = async function(e) {
     if(!(this instanceof HTMLSelectElement))
         throw new Error('Unexpected type for this');
-    updateSettings({simulcast: this.value});
+    updateSettings({scalability: this.value});
     await reconsiderSendParameters();
 };
 
@@ -908,14 +885,78 @@ function newUpStream(localId) {
     return c;
 }
 
+const simulcastRate = 100000;
+const hqAudioRate = 128000;
+const videoRates = {
+    lowest: 150000,
+    low: 300000,
+    normal: 700000,
+    high: 1500000,
+    highest: 3000000,
+};
+
 /**
- * Sets an up stream's video throughput and simulcast parameters.
+ * @typedef {Object} sendParameters
+ * @property {number} maxBitrate
+ * @property {string} scalabilityMode
+ * @property {boolean} simulcast
+ */
+
+/**
+ * @returns {sendParameters}
+ */
+function getSendParameters() {
+    let bps = videoRates[getSettings().send];
+    if(!bps) {
+        console.error('Unknown video quality');
+        bps = 700000;
+    }
+
+    /** @type{sendParameters} */
+    let parms = {
+        maxBitrate: bps,
+        scalabilityMode: 'L1T1',
+        simulcast: false,
+    }
+
+    switch(getSettings().scalability) {
+    case 'off':
+        return parms;
+    case 'svc':
+        parms.scalabilityMode = 'L3T3';
+        return parms;
+    case 'simulcast':
+        parms.simulcast = true;
+        return parms;
+    case 'both':
+        parms.scalabilityMode = 'L1T3';
+        parms.simulcast = true;
+        return parms;
+    default:
+        let count = 0;
+        for(let n in serverConnection.users) {
+            if(!serverConnection.users[n].permissions["system"]) {
+                count++;
+                if(count > 2)
+                    break;
+            }
+        }
+        if(count <= 2)
+            return parms;
+        if(!bps || bps < 2 * simulcastRate)
+            return parms;
+        parms.scalabilityMode = 'L3T3';
+        return parms;
+    }
+}
+
+/**
+ * Sets an up stream's video throughput and scalability parameters.
  *
  * @param {Stream} c
- * @param {number} bps
- * @param {boolean} simulcast
+ * @param {sendParameters} parms
  */
-async function setSendParameters(c, bps, simulcast) {
+async function setSendParameters(c, parms) {
     if(!c.up)
         throw new Error('Setting throughput of down stream');
     let senders = c.pc.getSenders();
@@ -925,14 +966,15 @@ async function setSendParameters(c, bps, simulcast) {
             continue;
         let p = s.getParameters();
         if((!p.encodings ||
-            !simulcast && p.encodings.length != 1) ||
-           (simulcast && p.encodings.length != 2)) {
+            !parms.simulcast && p.encodings.length != 1) ||
+           (parms.simulcast && p.encodings.length < 2)) {
             await replaceUpStream(c);
             return;
         }
         p.encodings.forEach(e => {
             if(!e.rid || e.rid === 'h')
-                e.maxBitrate = bps || unlimitedRate;
+                e.maxBitrate = parms.maxBitrate;
+            e.scalabilityMode = parms.scalabilityMode;
         });
         await s.setParameters(p);
     }
@@ -945,12 +987,11 @@ let reconsiderParametersTimer = null;
  */
 async function reconsiderSendParameters() {
     cancelReconsiderParameters();
-    let t = getMaxVideoThroughput();
-    let s = doSimulcast();
+    let parms = getSendParameters();
     let promises = [];
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
-        promises.push(setSendParameters(c, t, s));
+        promises.push(setSendParameters(c, parms));
     }
     await Promise.all(promises);
 }
@@ -1167,37 +1208,6 @@ function addFilters() {
     }
 }
 
-const unlimitedRate = 1000000000;
-const simulcastRate = 100000;
-const hqAudioRate = 128000;
-
-/**
- * Decide whether we want to send simulcast.
- *
- * @returns {boolean}
- */
-function doSimulcast() {
-    switch(getSettings().simulcast) {
-    case 'on':
-        return true;
-    case 'off':
-        return false;
-    default:
-        let count = 0;
-        for(let n in serverConnection.users) {
-            if(!serverConnection.users[n].permissions["system"]) {
-                count++;
-                if(count > 2)
-                    break;
-            }
-        }
-        if(count <= 2)
-            return false;
-        let bps = getMaxVideoThroughput();
-        return bps <= 0 || bps >= 2 * simulcastRate;
-    }
-}
-
 /**
  * Sets up c to send the given stream.  Some extra parameters are stored
  * in c.userdata.
@@ -1250,24 +1260,26 @@ function setUpStream(c, stream) {
         };
 
         let encodings = [];
-        let simulcast = doSimulcast();
+        let parms = getSendParameters();
         if(t.kind === 'video') {
-            let bps = getMaxVideoThroughput();
             // Firefox doesn't like us setting the RID if we're not
             // simulcasting.
-            if(simulcast && c.label !== 'screenshare') {
+            if(parms.simulcast) {
                 encodings.push({
                     rid: 'h',
-                    maxBitrate: bps || unlimitedRate,
+                    maxBitrate: parms.maxBitrate,
+                    scalabilityMode: parms.scalabilityMode,
                 });
                 encodings.push({
                     rid: 'l',
                     scaleResolutionDownBy: 2,
                     maxBitrate: simulcastRate,
+                    scalabilityMode: parms.scalabilityMode,
                 });
             } else {
                 encodings.push({
-                    maxBitrate: bps || unlimitedRate,
+                    maxBitrate: parms.maxBitrate,
+                    scalabilityMode: parms.scalabilityMode,
                 });
             }
         } else {
@@ -1277,22 +1289,11 @@ function setUpStream(c, stream) {
                 });
             }
         }
-        let tr = c.pc.addTransceiver(t, {
+        c.pc.addTransceiver(t, {
             direction: 'sendonly',
             streams: [stream],
             sendEncodings: encodings,
         });
-
-        // Firefox before 110 does not implement sendEncodings, and
-        // requires this hack, which throws an exception on Chromium.
-        try {
-            let p = tr.sender.getParameters();
-            if(!p.encodings) {
-                p.encodings = encodings;
-                tr.sender.setParameters(p);
-            }
-        } catch(e) {
-        }
     }
 
     // c.stream might be different from stream if there's a filter
@@ -3922,10 +3923,6 @@ async function start() {
             location.pathname.replace(/^\/[a-z]*\//, '').replace(/\/$/, ''),
         );
     }
-
-    // Disable simulcast on Firefox by default, it's buggy.
-    if(isFirefox())
-        getSelectElement('simulcastselect').value = 'off';
 
     let parms = new URLSearchParams(window.location.search);
     if(window.location.search)
