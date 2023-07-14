@@ -340,6 +340,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 	s := webrtc.SettingEngine{}
 	s.SetSRTPReplayProtectionWindow(512)
+	s.DisableActiveTCP(true)
 	if !UseMDNS {
 		s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
 	}
