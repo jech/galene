@@ -918,6 +918,8 @@ function newUpStream(localId) {
 async function setSendParameters(c, bps, simulcast) {
     if(!c.up)
         throw new Error('Setting throughput of down stream');
+    if(c.label === 'screenshare')
+        simulcast = false;
     let senders = c.pc.getSenders();
     for(let i = 0; i < senders.length; i++) {
         let s = senders[i];
@@ -1250,12 +1252,12 @@ function setUpStream(c, stream) {
         };
 
         let encodings = [];
-        let simulcast = doSimulcast();
+        let simulcast = c.label !== 'screenshare' && doSimulcast();
         if(t.kind === 'video') {
             let bps = getMaxVideoThroughput();
             // Firefox doesn't like us setting the RID if we're not
             // simulcasting.
-            if(simulcast && c.label !== 'screenshare') {
+            if(simulcast) {
                 encodings.push({
                     rid: 'h',
                     maxBitrate: bps || unlimitedRate,
