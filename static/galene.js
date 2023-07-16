@@ -3164,23 +3164,15 @@ function parseExpiration(s) {
     return d;
 }
 
-function protocol2Predicate() {
-    if(serverConnection.version === "1")
-        return "This server is too old";
-    return null;
-}
-
 function makeTokenPredicate() {
-    return protocol2Predicate() ||
-        (serverConnection.permissions.indexOf('token') < 0 ?
-         "You don't have permission to create tokens" : null);
+    return (serverConnection.permissions.indexOf('token') < 0 ?
+            "You don't have permission to create tokens" : null);
 }
 
 function editTokenPredicate() {
-    return protocol2Predicate() ||
-        (serverConnection.permissions.indexOf('token') < 0 ||
-         serverConnection.permissions.indexOf('op') < 0 ?
-         "You don't have permission to edit or list tokens" : null);
+    return (serverConnection.permissions.indexOf('token') < 0 ||
+            serverConnection.permissions.indexOf('op') < 0 ?
+            "You don't have permission to edit or list tokens" : null);
 }
 
 /**
