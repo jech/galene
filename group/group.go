@@ -199,7 +199,7 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 	case "video/vp9":
 		profile := fmtpValue(codec.SDPFmtpLine, "profile-id")
 		switch profile {
-		case "0":
+		case "", "0":
 			return 98, nil
 		case "2":
 			return 100, nil
@@ -211,6 +211,9 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 		return 35, nil
 	case "video/h264":
 		profile := fmtpValue(codec.SDPFmtpLine, "profile-level-id")
+		if profile == "" {
+			return 102, nil
+		}
 		if len(profile) < 4 {
 			return 0, errors.New("malforned H.264 profile")
 		}
