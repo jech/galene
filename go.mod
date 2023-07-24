@@ -10,10 +10,10 @@ require (
 	github.com/jech/samplebuilder v0.0.0-20221109182433-6cbba09fc1c9
 	github.com/pion/ice/v2 v2.3.9
 	github.com/pion/rtcp v1.2.10
-	github.com/pion/rtp v1.7.14-0.20230109165057-d62c6716b99a
+	github.com/pion/rtp v1.8.0
 	github.com/pion/sdp/v3 v3.0.6
-	github.com/pion/turn/v2 v2.1.2
-	github.com/pion/webrtc/v3 v3.2.12
+	github.com/pion/turn/v2 v2.1.3
+	github.com/pion/webrtc/v3 v3.2.13
 	golang.org/x/crypto v0.11.0
 	golang.org/x/sys v0.10.0
 )
