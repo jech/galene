@@ -487,6 +487,18 @@ func requestKeyframe(t *diskTrack) {
 // Called locked.
 func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 	codec := t.remote.Codec().MimeType
+
+	if valid(t.origin) {
+		if int32(p.Timestamp-value(t.origin)) < 0 {
+			if value(t.origin)-p.Timestamp < 0x10000 {
+				// Drop late packet before origin
+				return nil
+			}
+			// We've gone around 2^31 timestamps, force creating a new file to avoid wraparound
+			t.conn.close()
+		}
+	}
+
 	if len(codec) > 6 && strings.EqualFold(codec[:6], "video/") {
 		kf, _ := gcodecs.Keyframe(codec, p)
 		if kf {
