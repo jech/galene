@@ -767,7 +767,7 @@ function gotDownStats(stats) {
     c.pc.getReceivers().forEach(r => {
         let tid = r.track && r.track.id;
         let s = tid && stats[tid];
-        let energy = s && s['track'] && s['track'].audioEnergy;
+        let energy = s && s['inbound-rtp'] && s['inbound-rtp'].audioEnergy;
         if(typeof energy === 'number')
             maxEnergy = Math.max(maxEnergy, energy);
     });

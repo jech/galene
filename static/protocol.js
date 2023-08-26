@@ -1466,7 +1466,7 @@ Stream.prototype.updateStats = async function() {
 
         if(report) {
             for(let r of report.values()) {
-                if(rtid && r.type === 'track') {
+                if(rtid && r.type === 'inbound-rtp') {
                     if(!('totalAudioEnergy' in r))
                         continue;
                     if(!stats[rtid])
