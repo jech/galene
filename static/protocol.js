@@ -1216,10 +1216,11 @@ Stream.prototype.close = function(replace) {
     let changed = recomputeUserStreams(c.sc, userid);
     if(changed && c.sc.onuser)
         c.sc.onuser.call(c.sc, userid, "change");
-    c.sc = null;
 
     if(c.onclose)
         c.onclose.call(c, replace);
+
+    c.sc = null;
 };
 
 /**
