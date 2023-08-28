@@ -298,7 +298,7 @@ ServerConnection.prototype.connect = async function(url) {
         this.socket.onopen = function(e) {
             sc.send({
                 type: 'handshake',
-                version: ["2"],
+                version: ['2'],
                 id: sc.id,
             });
             if(sc.onconnected)
@@ -332,9 +332,10 @@ ServerConnection.prototype.connect = async function(url) {
             let m = JSON.parse(e.data);
             switch(m.type) {
             case 'handshake': {
-                if(m.version === "2")
-                    sc.version = m.version;
-                else {
+                if((m.version instanceof Array) && m.version.includes('2')) {
+                    sc.version = '2';
+                } else {
+                    sc.version = null;
                     console.error(`Unknown protocol version ${m.version}`);
                     throw new Error(`Unknown protocol version ${m.version}`);
                 }
