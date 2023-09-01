@@ -379,7 +379,7 @@ func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 
 func APIFromNames(names []string) (*webrtc.API, error) {
 	if len(names) == 0 {
-		names = []string{"vp9", "opus"}
+		names = []string{"vp8", "opus"}
 	}
 	var codecs []webrtc.RTPCodecParameters
 	for _, n := range names {
