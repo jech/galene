@@ -1402,6 +1402,9 @@ async function addLocalMedia(localId) {
         } else if(settings.blackboardMode) {
             video.width = { min: 640, ideal: 1920 };
             video.height = { min: 400, ideal: 1080 };
+        } else {
+            video.width = { ideal: 640 };
+            video.height = { ideal: 400 };
         }
     }
 
