@@ -9,22 +9,31 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/jech/galene/group"
 )
 
 func main() {
+	var algorithm string
 	var iterations int
+	var cost int
 	var length int
 	var saltLen int
 	var username string
 	flag.StringVar(&username, "user", "",
 		"generate entry for given `username`")
-	flag.IntVar(&iterations, "iterations", 4096, "`number` of iterations")
-	flag.IntVar(&length, "key", 32, "key `length`")
-	flag.IntVar(&saltLen, "salt", 8, "salt `length`")
+	flag.StringVar(&algorithm, "hash", "pbkdf2",
+		"hashing `algorithm`")
+	flag.IntVar(&iterations, "iterations", 4096,
+		"`number` of iterations (pbkdf2)")
+	flag.IntVar(&cost, "cost", bcrypt.DefaultCost,
+		"`cost` (bcrypt)")
+	flag.IntVar(&length, "key", 32, "key `length` (pbkdf2)")
+	flag.IntVar(&saltLen, "salt", 8, "salt `length` (pbkdf2)")
 	flag.Parse()
 
 	if len(flag.Args()) == 0 {
@@ -43,17 +52,34 @@ func main() {
 		if err != nil {
 			log.Fatalf("Salt: %v", err)
 		}
-		key := pbkdf2.Key(
-			[]byte(pw), salt, iterations, length, sha256.New,
-		)
+		var p group.Password
+		if strings.EqualFold(algorithm, "pbkdf2") {
+			key := pbkdf2.Key(
+				[]byte(pw), salt, iterations, length, sha256.New,
+			)
+			p = group.Password{
+				Type:       "pbkdf2",
+				Hash:       "sha-256",
+				Key:        hex.EncodeToString(key),
+				Salt:       hex.EncodeToString(salt),
+				Iterations: iterations,
+			}
+		} else if strings.EqualFold(algorithm, "bcrypt") {
+			key, err := bcrypt.GenerateFromPassword(
+				[]byte(pw), cost,
+			)
+			if err != nil {
+				log.Fatalf("Couldn't hash password: %v", err)
+			}
 
-		p := group.Password{
-			Type:       "pbkdf2",
-			Hash:       "sha-256",
-			Key:        hex.EncodeToString(key),
-			Salt:       hex.EncodeToString(salt),
-			Iterations: iterations,
+			p = group.Password{
+				Type: "bcrypt",
+				Key:  string(key),
+			}
+		} else {
+			log.Fatalf("Unknown hash type %v", algorithm)
 		}
+
 		e := json.NewEncoder(os.Stdout)
 		if username != "" {
 			creds := group.ClientPattern{

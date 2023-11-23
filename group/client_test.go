@@ -17,6 +17,10 @@ var pw3 = Password{
 	Iterations: 4096,
 }
 var pw4 = Password{
+	Type: "bcrypt",
+	Key: "$2a$10$afOr2f33onT/nDFFyT3mbOq5FMSw1wWXfyTXQTBMbKvZpBkoD3Qwu",
+}
+var pw5 = Password{
 	Type: "bad",
 }
 
@@ -26,6 +30,9 @@ func TestGood(t *testing.T) {
 	}
 	if match, err := pw3.Match("pass"); err != nil || !match {
 		t.Errorf("pw3 doesn't match (%v)", err)
+	}
+	if match, err := pw4.Match("pass"); err != nil || !match {
+		t.Errorf("pw4 doesn't match (%v)", err)
 	}
 }
 
@@ -39,7 +46,10 @@ func TestBad(t *testing.T) {
 	if match, err := pw3.Match("bad"); err != nil || match {
 		t.Errorf("pw3 matches")
 	}
-	if match, err := pw4.Match("bad"); err == nil || match {
+	if match, err := pw4.Match("bad"); err != nil || match {
+		t.Errorf("pw4 matches")
+	}
+	if match, err := pw5.Match("bad"); err == nil || match {
 		t.Errorf("pw4 matches")
 	}
 }
@@ -50,7 +60,7 @@ func TestJSON(t *testing.T) {
 		t.Errorf("Expected \"pass\", got %v", string(plain))
 	}
 
-	for _, pw := range []Password{pw1, pw2, pw3, pw4} {
+	for _, pw := range []Password{pw1, pw2, pw3, pw4, pw5} {
 		j, err := json.Marshal(pw)
 		if err != nil {
 			t.Fatalf("Marshal: %v", err)
@@ -80,6 +90,15 @@ func BenchmarkPlain(b *testing.B) {
 func BenchmarkPBKDF2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		match, err := pw3.Match("bad")
+		if err != nil || match {
+			b.Errorf("pw3 matched")
+		}
+	}
+}
+
+func BenchmarkBCrypt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		match, err := pw4.Match("bad")
 		if err != nil || match {
 			b.Errorf("pw3 matched")
 		}

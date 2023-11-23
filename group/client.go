@@ -8,6 +8,7 @@ import (
 	"errors"
 	"hash"
 
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/jech/galene/conn"
@@ -47,6 +48,12 @@ func (p Password) Match(pw string) (bool, error) {
 			[]byte(pw), salt, p.Iterations, len(key), h,
 		)
 		return bytes.Equal(key, theirKey), nil
+	case "bcrypt":
+		err := bcrypt.CompareHashAndPassword([]byte(p.Key), []byte(pw))
+		if err == bcrypt.ErrMismatchedHashAndPassword {
+			return false, nil
+		}
+		return err == nil, err
 	default:
 		return false, errors.New("unknown password type")
 	}
