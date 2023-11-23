@@ -1,9 +1,14 @@
 Galene 0.8 (unreleased)
 
-  * Changed default video codec to VP9.
   * Added a new configuration option "publicServer".
   * Implemented the WHIP protocol (draft-ietf-wich-whip).
   * Disabled simulcast on Firefox by default.
+  * Removed support for protocol version 1 (used before version 0.7)
+  * Worked around clients that don't set the VP9 and H.264 profiles.
+  * Updated the activity detection code to work with newer browsers.
+    Thanks to Jackson Vieira.
+  * Constrained videos sent from a browser to use 4:3 aspect.
+  * Implemented BCrypt as an alternate password encryption algorithm.
 
 9 July 2023: Galene 0.7.2
 
