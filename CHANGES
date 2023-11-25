@@ -1,4 +1,4 @@
-Galene 0.8 (unreleased)
+25 November 2023: Galene 0.8
 
   * Added a new configuration option "publicServer".
   * Implemented the WHIP protocol (draft-ietf-wich-whip).
