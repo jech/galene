@@ -426,6 +426,10 @@ textarea.form-reply {
     margin-right: 0.33em;
 }
 
+.message-me-content {
+    white-space: pre-wrap;
+}
+
 .video-container {
     height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;

@@ -2830,18 +2830,18 @@ function formatToken(token, details) {
 const urlRegexp = /https?:\/\/[-a-zA-Z0-9@:%/._\\+~#&()=?]+[-a-zA-Z0-9@:%/_\\+~#&()=]/g;
 
 /**
- * @param {string} line
- * @returns {Array.<Text|HTMLElement>}
+ * @param {string} text
+ * @returns {HTMLDivElement}
  */
-function formatLine(line) {
+function formatText(text) {
     let r = new RegExp(urlRegexp);
     let result = [];
     let pos = 0;
     while(true) {
-        let m = r.exec(line);
+        let m = r.exec(text);
         if(!m)
             break;
-        result.push(document.createTextNode(line.slice(pos, m.index)));
+        result.push(document.createTextNode(text.slice(pos, m.index)));
         let a = document.createElement('a');
         a.href = m[0];
         a.textContent = m[0];
@@ -2850,25 +2850,13 @@ function formatLine(line) {
         result.push(a);
         pos = m.index + m[0].length;
     }
-    result.push(document.createTextNode(line.slice(pos)));
-    return result;
-}
+    result.push(document.createTextNode(text.slice(pos)));
 
-/**
- * @param {string[]} lines
- * @returns {HTMLElement}
- */
-function formatLines(lines) {
-    let elts = [];
-    if(lines.length > 0)
-        elts = formatLine(lines[0]);
-    for(let i = 1; i < lines.length; i++) {
-        elts.push(document.createElement('br'));
-        elts = elts.concat(formatLine(lines[i]));
-    }
-    let elt = document.createElement('p');
-    elts.forEach(e => elt.appendChild(e));
-    return elt;
+    let div = document.createElement('div');
+    result.forEach(e => {
+        div.appendChild(e);
+    });
+    return div;
 }
 
 /**
@@ -2902,7 +2890,7 @@ let lastMessage = {};
  * @param {boolean} privileged
  * @param {boolean} history
  * @param {string} kind
- * @param {unknown} message
+ * @param {string|HTMLElement} message
  */
 function addToChatbox(peerId, dest, nick, time, privileged, history, kind, message) {
     let row = document.createElement('div');
@@ -2919,8 +2907,17 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
     if(dest)
         container.classList.add('message-private');
 
+    /** @type{HTMLElement} */
+    let body;
+    if(message instanceof HTMLElement) {
+        body = message;
+    } else if(typeof message === 'string') {
+        body = formatText(message);
+    } else {
+        throw new Error('Cannot add element to chatbox');
+    }
+
     if(kind !== 'me') {
-        let p = formatLines(message.toString().split('\n'));
         let doHeader = true;
         if(lastMessage.nick !== (nick || null) ||
            lastMessage.peerId !== (peerId || null) ||
@@ -2952,6 +2949,8 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
             }
         }
 
+        let p = document.createElement('p');
+        p.appendChild(body);
         p.classList.add('message-content');
         container.appendChild(p);
         lastMessage.nick = (nick || null);
@@ -2965,14 +2964,10 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
         let user = document.createElement('span');
         user.textContent = nick || '(anon)';
         user.classList.add('message-me-user');
-        let content = document.createElement('span');
-        formatLine(message.toString()).forEach(elt => {
-            content.appendChild(elt);
-        });
-        content.classList.add('message-me-content');
+        body.classList.add('message-me-content');
         container.appendChild(asterisk);
         container.appendChild(user);
-        container.appendChild(content);
+        container.appendChild(body);
         container.classList.add('message-me');
         lastMessage = {};
     }
@@ -2988,7 +2983,7 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
 }
 
 /**
- * @param {string} message
+ * @param {string|HTMLElement} message
  */
 function localMessage(message) {
     return addToChatbox(null, null, null, new Date(), false, false, '', message);

@@ -193,7 +193,7 @@ function ServerConnection() {
     /**
      * onchat is called whenever a new chat message is received.
      *
-     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: Date, privileged: boolean, history: boolean, kind: string, message: unknown) => void}
+     * @type {(this: ServerConnection, id: string, dest: string, username: string, time: Date, privileged: boolean, history: boolean, kind: string, message: string) => void}
      */
     this.onchat = null;
     /**
@@ -437,7 +437,8 @@ ServerConnection.prototype.connect = async function(url) {
                 if(sc.onchat)
                     sc.onchat.call(
                         sc, m.source, m.dest, m.username, parseTime(m.time),
-                        m.privileged, m.type === 'chathistory', m.kind, m.value,
+                        m.privileged, m.type === 'chathistory', m.kind,
+                        '' + m.value,
                     );
                 break;
             case 'usermessage':
