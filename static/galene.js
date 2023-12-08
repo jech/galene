@@ -478,25 +478,31 @@ function setVisibility(id, visible) {
 function setButtonsVisibility() {
     let connected = serverConnection && serverConnection.socket;
     let permissions = serverConnection.permissions;
-    let present = permissions.indexOf('present') >= 0;
-    let local = !!findUpMedia('camera');
     let canWebrtc = !(typeof RTCPeerConnection === 'undefined');
+    let canPresent = canWebrtc &&
+        ('mediaDevices' in navigator) &&
+        ('getUserMedia' in navigator.mediaDevices) &&
+        permissions.indexOf('present') >= 0;
+    let canShare = canWebrtc &&
+        ('mediaDevices' in navigator) &&
+        ('getDisplayMedia' in navigator.mediaDevices) &&
+        permissions.indexOf('present') >= 0;
+    let local = !!findUpMedia('camera');
     let mediacount = document.getElementById('peers').childElementCount;
     let mobilelayout = isMobileLayout();
 
     // don't allow multiple presentations
-    setVisibility('presentbutton', canWebrtc && present && !local);
+    setVisibility('presentbutton', canPresent && !local);
     setVisibility('unpresentbutton', local);
 
-    setVisibility('mutebutton', !connected || present);
+    setVisibility('mutebutton', !connected || canPresent);
 
     // allow multiple shared documents
-    setVisibility('sharebutton', canWebrtc && present &&
-                  ('getDisplayMedia' in navigator.mediaDevices));
+    setVisibility('sharebutton', canShare);
 
-    setVisibility('mediaoptions', present);
-    setVisibility('sendform', present);
-    setVisibility('simulcastform', present);
+    setVisibility('mediaoptions', canPresent);
+    setVisibility('sendform', canPresent);
+    setVisibility('simulcastform', canPresent);
 
     setVisibility('collapse-video', mediacount && mobilelayout);
 }
@@ -864,7 +870,8 @@ async function setMediaChoices(done) {
 
     let devices = [];
     try {
-        devices = await navigator.mediaDevices.enumerateDevices();
+        if('mediaDevices' in navigator)
+            devices = await navigator.mediaDevices.enumerateDevices();
     } catch(e) {
         console.error(e);
         return;
@@ -2487,7 +2494,9 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
     else
         this.request(mapRequest(getSettings().request));
 
-    if(serverConnection.permissions.indexOf('present') >= 0 &&
+    if(('mediaDevices' in navigator) &&
+       ('getUserMedia' in navigator.mediaDevices) &&
+       serverConnection.permissions.indexOf('present') >= 0 &&
        !findUpMedia('camera')) {
         if(present) {
             if(present === 'mike')
