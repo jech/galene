@@ -304,7 +304,7 @@ function setConnected(connected) {
         }
         if(isSafari()) {
             /* Safari doesn't allow autoplay and omits host candidates
-             * unless there is Open one and keep it around. */
+             * unless there is an open device. */
             if(!safariStream) {
                 navigator.mediaDevices.getUserMedia({audio: true}).then(s => {
                     safariStream = s;
