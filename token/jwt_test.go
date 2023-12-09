@@ -125,8 +125,11 @@ func TestJWT(t *testing.T) {
 		t.Errorf("Couldn't parse noSubToken: %v", err)
 	}
 	username, perms, err = tok.Check("galene.org:8443", "auth", &jack)
-	if err == nil {
-		t.Errorf("noSubToken is valid")
+	if err != nil {
+		t.Errorf("noSubToken is not valid: %v", err)
+	}
+	if username != "" || !reflect.DeepEqual(perms, []string{"present"}) {
+		t.Errorf("Expected \"\", [present], got %v %v", username, perms)
 	}
 
 	badToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJwZXJtaXNzaW9ucyI6WyJwcmVzZW50Il0sImlhdCI6MTY0NTMxMDQ2OSwiZXhwIjoyOTA2NzUwNDY5LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjEyMzQvIn0."

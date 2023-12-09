@@ -9,8 +9,9 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWT jwt.Token
@@ -108,9 +109,14 @@ func getKey(header map[string]interface{}, keys []map[string]interface{}) (inter
 	return nil, errors.New("key not found")
 }
 
-func toStringArray(a []interface{}) ([]string, bool) {
-	b := make([]string, len(a))
-	for i, v := range a {
+func toStringArray(a interface{}) ([]string, bool) {
+	aa, ok := a.([]interface{})
+	if !ok {
+		return nil, false
+	}
+
+	b := make([]string, len(aa))
+	for i, v := range aa {
 		w, ok := v.(string)
 		if !ok {
 			return nil, false
@@ -121,9 +127,15 @@ func toStringArray(a []interface{}) ([]string, bool) {
 }
 
 func parseJWT(token string, keys []map[string]interface{}) (*JWT, error) {
-	t, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
-		return getKey(t.Header, keys)
-	})
+	t, err := jwt.Parse(
+		token,
+		func(t *jwt.Token) (interface{}, error) {
+			return getKey(t.Header, keys)
+		},
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+		jwt.WithLeeway(5*time.Second),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -131,34 +143,18 @@ func parseJWT(token string, keys []map[string]interface{}) (*JWT, error) {
 }
 
 func (token *JWT) Check(host, group string, username *string) (string, []string, error) {
-	claims := token.Claims.(jwt.MapClaims)
-
-	s, ok := claims["sub"]
-	if !ok {
-		return "", nil, errors.New("token has no 'sub' field")
-	}
-	sub, ok := s.(string)
-	if !ok {
-		return "", nil, errors.New("invalid 'sub' field")
+	sub, err := token.Claims.GetSubject()
+	if err != nil {
+		return "", nil, err
 	}
 	// we accept tokens with a different username from the one provided,
 	// and use the token's 'sub' field to override the username
 
-	var aud []string
-	if a, ok := claims["aud"]; ok && a != nil {
-		switch a := a.(type) {
-		case string:
-			aud = []string{a}
-		case []interface{}:
-			aud, ok = toStringArray(a)
-			if !ok {
-				return "", nil, errors.New("invalid 'aud' field")
-			}
-		default:
-			return "", nil, errors.New("invalid 'aud' field")
-		}
+	aud, err := token.Claims.GetAudience()
+	if err != nil {
+		return "", nil, err
 	}
-	ok = false
+	ok := false
 	for _, u := range aud {
 		url, err := url.Parse(u)
 		if err != nil {
@@ -181,13 +177,14 @@ func (token *JWT) Check(host, group string, username *string) (string, []string,
 		return "", nil, errors.New("token for wrong group")
 	}
 
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", nil, errors.New("unexpected type for token")
+	}
+
 	var perms []string
 	if p, ok := claims["permissions"]; ok && p != nil {
-		pp, ok := p.([]interface{})
-		if !ok {
-			return "", nil, errors.New("invalid 'permissions' field")
-		}
-		perms, ok = toStringArray(pp)
+		perms, ok = toStringArray(p)
 		if !ok {
 			return "", nil, errors.New("invalid 'permissions' field")
 		}
