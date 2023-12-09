@@ -82,10 +82,7 @@ func TestNTP(t *testing.T) {
 	now2 := NTPToTime(ntp)
 	ntp2 := TimeToNTP(now2)
 
-	diff1 := now2.Sub(now)
-	if diff1 < 0 {
-		diff1 = -diff1
-	}
+	diff1 := now2.Sub(now).Abs()
 	if diff1 > time.Nanosecond {
 		t.Errorf("Expected %v, got %v (diff=%v)",
 			now, now2, diff1)

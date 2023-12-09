@@ -10,10 +10,9 @@ import (
 var epoch = time.Now()
 
 // FromDuration converts a time.Duration into units of 1/hz.
-// Negative values are clamped to zero.
 func FromDuration(d time.Duration, hz uint32) int64 {
 	if d < 0 {
-		return -FromDuration(-d, hz)
+		return -FromDuration(d.Abs(), hz)
 	}
 	hi, lo := bits.Mul64(uint64(d), uint64(hz))
 	q, _ := bits.Div64(hi, lo, uint64(time.Second))
