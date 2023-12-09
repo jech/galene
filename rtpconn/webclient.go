@@ -2060,7 +2060,7 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 			}
 			return
 		default:
-			log.Printf("clientWiter: unexpected message %T", m)
+			log.Printf("clientWriter: unexpected message %T", m)
 			return
 		}
 	}
