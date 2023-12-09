@@ -52,8 +52,7 @@ func canPresent(perms []string) bool {
 	return false
 }
 
-func getBearerToken(r *http.Request) string {
-	auth := r.Header.Get("Authorization")
+func parseBearerToken(auth string) string {
 	auths := strings.Split(auth, ",")
 	for _, a := range auths {
 		a = strings.Trim(a, " \t")
@@ -178,7 +177,8 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := getBearerToken(r)
+	token := parseBearerToken(r.Header.Get("Authorization"))
+
 	whip := "whip"
 	creds := group.ClientCredentials{
 		Username: &whip,
@@ -258,7 +258,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if t := c.Token(); t != "" {
-		token := getBearerToken(r)
+		token := parseBearerToken(r.Header.Get("Authorization"))
 		if token != t {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
