@@ -360,16 +360,7 @@ func groupBase(r *http.Request) (string, error) {
 		return "", nil
 	}
 	if conf.ProxyURL != "" {
-		u, err := url.Parse(conf.ProxyURL)
-		if err != nil {
-			return "", err
-		}
-		base := url.URL{
-			Scheme: u.Scheme,
-			Host:   u.Host,
-			Path:   path.Join(u.Path, "/group/"),
-		}
-		return base.String(), nil
+		return url.JoinPath(conf.ProxyURL, "/group/")
 	}
 	scheme := "https"
 	if r.TLS == nil {
