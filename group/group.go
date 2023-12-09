@@ -181,12 +181,9 @@ func (g *Group) API() (*webrtc.API, error) {
 func fmtpValue(fmtp, key string) string {
 	fields := strings.Split(fmtp, ";")
 	for _, f := range fields {
-		kv := strings.SplitN(f, "=", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		if kv[0] == key {
-			return kv[1]
+		k, v, found := strings.Cut(f, "=")
+		if found && k == key {
+			return v
 		}
 	}
 	return ""
