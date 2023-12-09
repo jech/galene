@@ -415,18 +415,20 @@ type rtpUpTrack struct {
 	bufferedNACKs []uint16
 }
 
+type trackActionKind int
+
 const (
-	trackActionAdd = iota
+	trackActionAdd trackActionKind = iota
 	trackActionDel
 	trackActionKeyframe
 )
 
 type trackAction struct {
-	action int
+	action trackActionKind
 	track  conn.DownTrack
 }
 
-func (up *rtpUpTrack) action(action int, track conn.DownTrack) {
+func (up *rtpUpTrack) action(action trackActionKind, track conn.DownTrack) {
 	up.actions.Put(trackAction{action, track})
 }
 
