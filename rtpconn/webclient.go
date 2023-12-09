@@ -20,6 +20,7 @@ import (
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
 	"github.com/jech/galene/token"
+	"github.com/jech/galene/unbounded"
 )
 
 func errorToWSCloseMessage(id string, err error) (*clientMessage, []byte) {
@@ -65,16 +66,11 @@ type webClient struct {
 	done        chan struct{}
 	writeCh     chan interface{}
 	writerDone  chan struct{}
-	actionCh    chan struct{}
+	actions     *unbounded.Channel[any]
 
 	mu   sync.Mutex
 	down map[string]*rtpDownConnection
 	up   map[string]*rtpUpConnection
-
-	// action may be called with the group mutex taken, and therefore
-	// actions needs to use its own mutex.
-	actionMu sync.Mutex
-	actions  []interface{}
 }
 
 func (c *webClient) Group() *group.Group {
@@ -106,9 +102,10 @@ func (c *webClient) SetPermissions(perms []string) {
 }
 
 func (c *webClient) PushClient(group, kind, id string, username string, perms []string, data map[string]interface{}) error {
-	return c.action(pushClientAction{
+	c.action(pushClientAction{
 		group, kind, id, username, perms, data,
 	})
+	return nil
 }
 
 type clientMessage struct {
@@ -733,7 +730,8 @@ func (c *webClient) setRequestedStream(down *rtpDownConnection, requested []stri
 }
 
 func (c *webClient) RequestConns(target group.Client, g *group.Group, id string) error {
-	return c.action(requestConnsAction{g, target, id})
+	c.action(requestConnsAction{g, target, id})
+	return nil
 }
 
 func requestConns(target group.Client, g *group.Group, id string) {
@@ -804,10 +802,7 @@ func requestedTracks(c *webClient, requested []string, tracks []conn.UpTrack) ([
 }
 
 func (c *webClient) PushConn(g *group.Group, id string, up conn.Up, tracks []conn.UpTrack, replace string) error {
-	err := c.action(pushConnAction{g, id, up, tracks, replace})
-	if err != nil {
-		return err
-	}
+	c.action(pushConnAction{g, id, up, tracks, replace})
 	return nil
 }
 
@@ -854,9 +849,9 @@ func StartClient(conn *websocket.Conn) (err error) {
 	}
 
 	c := &webClient{
-		id:       m.Id,
-		actionCh: make(chan struct{}, 1),
-		done:     make(chan struct{}),
+		id:      m.Id,
+		actions: unbounded.New[any](),
+		done:    make(chan struct{}),
 	}
 
 	defer close(c.done)
@@ -996,11 +991,8 @@ func clientLoop(c *webClient, ws *websocket.Conn, versionError bool) error {
 			case error:
 				return m
 			}
-		case <-c.actionCh:
-			c.actionMu.Lock()
-			actions := c.actions
-			c.actions = nil
-			c.actionMu.Unlock()
+		case <-c.actions.Ch:
+			actions := c.actions.Get()
 			for _, a := range actions {
 				err := handleAction(c, a)
 				if err != nil {
@@ -1090,7 +1082,7 @@ func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, re
 	return nil
 }
 
-func handleAction(c *webClient, a interface{}) error {
+func handleAction(c *webClient, a any) error {
 	switch a := a.(type) {
 	case pushConnAction:
 		if c.group == nil || c.group != a.group {
@@ -1353,15 +1345,18 @@ func setPermissions(g *group.Group, id string, perm string) error {
 	default:
 		return group.UserError("unknown permission")
 	}
-	return c.action(permissionsChangedAction{})
+	c.action(permissionsChangedAction{})
+	return nil
 }
 
 func (c *webClient) Kick(id string, user *string, message string) error {
-	return c.action(kickAction{id, user, message})
+	c.action(kickAction{id, user, message})
+	return nil
 }
 
 func (c *webClient) Joined(group, kind string) error {
-	return c.action(joinedAction{group, kind})
+	c.action(joinedAction{group, kind})
+	return nil
 }
 
 func kickClient(g *group.Group, id string, user *string, dest string, message string) error {
@@ -2087,22 +2082,8 @@ func (c *webClient) Warn(oponly bool, message string) error {
 
 var ErrClientDead = errors.New("client is dead")
 
-func (c *webClient) action(a interface{}) error {
-	c.actionMu.Lock()
-	empty := len(c.actions) == 0
-	c.actions = append(c.actions, a)
-	c.actionMu.Unlock()
-
-	if empty {
-		select {
-		case c.actionCh <- struct{}{}:
-			return nil
-		case <-c.done:
-			return ErrClientDead
-		default:
-		}
-	}
-	return nil
+func (c *webClient) action(a interface{}) {
+	c.actions.Put(a)
 }
 
 func (c *webClient) write(m clientMessage) error {

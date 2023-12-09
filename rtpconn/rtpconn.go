@@ -23,6 +23,7 @@ import (
 	"github.com/jech/galene/packetcache"
 	"github.com/jech/galene/packetmap"
 	"github.com/jech/galene/rtptime"
+	"github.com/jech/galene/unbounded"
 )
 
 type bitrate struct {
@@ -403,7 +404,7 @@ type rtpUpTrack struct {
 	jitter   *jitter.Estimator
 	cname    atomic.Value
 
-	actionCh   chan struct{}
+	actions    *unbounded.Channel[trackAction]
 	readerDone chan struct{}
 
 	mu            sync.Mutex
@@ -412,7 +413,6 @@ type rtpUpTrack struct {
 	srRTPTime     uint32
 	local         []conn.DownTrack
 	bufferedNACKs []uint16
-	actions       []trackAction
 }
 
 const (
@@ -427,17 +427,7 @@ type trackAction struct {
 }
 
 func (up *rtpUpTrack) action(action int, track conn.DownTrack) {
-	up.mu.Lock()
-	empty := len(up.actions) == 0
-	up.actions = append(up.actions, trackAction{action, track})
-	up.mu.Unlock()
-
-	if empty {
-		select {
-		case up.actionCh <- struct{}{}:
-		default:
-		}
-	}
+	up.actions.Put(trackAction{action, track})
 }
 
 func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
@@ -682,7 +672,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 			cache:      packetcache.New(minPacketCache(remote)),
 			rate:       estimator.New(time.Second),
 			jitter:     jitter.New(remote.Codec().ClockRate),
-			actionCh:   make(chan struct{}, 1),
+			actions:    unbounded.New[trackAction](),
 			readerDone: make(chan struct{}),
 		}
 
@@ -923,7 +913,7 @@ func maxUpBitrate(t *rtpUpTrack) uint64 {
 	// assume that lower spatial layers take up 1/5 of
 	// the throughput
 	if maxsid > 0 {
-		maxrate = sadd(maxrate, maxrate / 4)
+		maxrate = sadd(maxrate, maxrate/4)
 	}
 	// assume that each layer takes two times less
 	// throughput than the higher one.  Then we've
@@ -1003,7 +993,7 @@ func sendUpRTCP(up *rtpUpConnection) error {
 		}
 		ssrcs = append(ssrcs, uint32(t.track.SSRC()))
 		if t.Kind() == webrtc.RTPCodecTypeAudio {
-			rate = sadd(rate, 100 * 1024)
+			rate = sadd(rate, 100*1024)
 		} else if t.Label() == "l" {
 			rate = sadd(rate, group.LowBitrate)
 		} else {

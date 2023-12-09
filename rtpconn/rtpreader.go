@@ -31,11 +31,8 @@ func readLoop(track *rtpUpTrack) {
 	for {
 
 		select {
-		case <-track.actionCh:
-			track.mu.Lock()
-			actions := track.actions
-			track.actions = nil
-			track.mu.Unlock()
+		case <-track.actions.Ch:
+			actions := track.actions.Get()
 			for _, action := range actions {
 				switch action.action {
 				case trackActionAdd, trackActionDel:
