@@ -14,8 +14,8 @@ require (
 	github.com/pion/sdp/v3 v3.0.6
 	github.com/pion/turn/v2 v2.1.4
 	github.com/pion/webrtc/v3 v3.2.23
-	golang.org/x/crypto v0.15.0
-	golang.org/x/sys v0.14.0
+	golang.org/x/crypto v0.17.0
+	golang.org/x/sys v0.15.0
 )
 
 require (
