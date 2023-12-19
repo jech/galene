@@ -293,6 +293,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "PATCH" {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
 
 	}
 
