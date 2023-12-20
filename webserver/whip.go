@@ -316,18 +316,37 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// RFC 8840
 	lines := bytes.Split(body, []byte{'\n'})
-	var ufrag []byte
+	mLineIndex := -1
+	var mid, ufrag []byte
 	for _, l := range lines {
 		l = bytes.TrimRight(l, " \r")
 		if bytes.HasPrefix(l, []byte("a=ice-ufrag:")) {
 			ufrag = l[len("a=ice-ufrag:"):]
+		} else if bytes.HasPrefix(l, []byte("m=")) {
+			mLineIndex++
+			mid = nil
+		} else if bytes.HasPrefix(l, []byte("a=mid:")) {
+			mid = l[len("a=mid:"):]
 		} else if bytes.HasPrefix(l, []byte("a=candidate:")) {
-			err := c.GotICECandidate(l[2:], ufrag)
+			init := webrtc.ICECandidateInit{
+				Candidate: string(l[2:]),
+			}
+			if len(mid) > 0 {
+				s := string(mid)
+				init.SDPMid = &s
+			}
+			if mLineIndex >= 0 {
+				i := uint16(mLineIndex)
+				init.SDPMLineIndex = &i
+			}
+			if len(ufrag) > 0 {
+				s := string(ufrag)
+				init.UsernameFragment = &s
+			}
+			err := c.GotICECandidate(init)
 			if err != nil {
 				log.Printf("WHIP candidate: %v", err)
 			}
-		} else if bytes.Equal(l, []byte("a=end-of-candidates")) {
-			c.GotICECandidate(nil, ufrag)
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)

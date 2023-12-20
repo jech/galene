@@ -193,17 +193,7 @@ func (c *WhipClient) gotOffer(ctx context.Context, offer []byte) ([]byte, error)
 	return []byte(conn.pc.CurrentLocalDescription().SDP), nil
 }
 
-func (c *WhipClient) GotICECandidate(candidate, ufrag []byte) error {
-	zero := uint16(0)
-	init := webrtc.ICECandidateInit{
-		Candidate:     string(candidate),
-		SDPMLineIndex: &zero,
-	}
-	if ufrag != nil {
-		u := string(ufrag)
-		init.UsernameFragment = &u
-	}
-
+func (c *WhipClient) GotICECandidate(init webrtc.ICECandidateInit) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.connection == nil {
