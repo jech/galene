@@ -27,7 +27,11 @@ type Password RawPassword
 func (p Password) Match(pw string) (bool, error) {
 	switch p.Type {
 	case "":
+		return false, errors.New("missing password")
+	case "plain":
 		return p.Key == pw, nil
+	case "wildcard":
+		return true, nil
 	case "pbkdf2":
 		key, err := hex.DecodeString(p.Key)
 		if err != nil {
@@ -64,6 +68,7 @@ func (p *Password) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, &k)
 	if err == nil {
 		*p = Password{
+			Type: "plain",
 			Key: k,
 		}
 		return nil
@@ -77,7 +82,7 @@ func (p *Password) UnmarshalJSON(b []byte) error {
 }
 
 func (p Password) MarshalJSON() ([]byte, error) {
-	if p.Type == "" && p.Hash == "" && p.Salt == "" && p.Iterations == 0 {
+	if p.Type == "plain" && p.Hash == "" && p.Salt == "" && p.Iterations == 0 {
 		return json.Marshal(p.Key)
 	}
 	return json.Marshal(RawPassword(p))

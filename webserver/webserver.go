@@ -466,13 +466,24 @@ func adminMatch(username, password string) (bool, error) {
 		return false, err
 	}
 
-	for _, cred := range conf.Admin {
-		if cred.Username == "" || cred.Username == username {
-			if ok, _ := cred.Password.Match(password); ok {
+	u, found := conf.Users[username]
+	if found {
+		ok, err := u.Password.Match(password)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, nil
+		}
+		perms := u.Permissions.Permissions(nil)
+		for _, p := range perms {
+			if p == "admin" {
 				return true, nil
 			}
 		}
+		return false, nil
 	}
+
 	return false, nil
 }
 

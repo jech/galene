@@ -847,43 +847,6 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 	return h
 }
 
-func matchClient(creds ClientCredentials, users []ClientPattern) (bool, bool) {
-	if creds.Username == nil {
-		return false, false
-	}
-	username := *creds.Username
-
-	matched := false
-	for _, u := range users {
-		if u.Username == username {
-			matched = true
-			if u.Password == nil {
-				return true, true
-			}
-			m, _ := u.Password.Match(creds.Password)
-			if m {
-				return true, true
-			}
-		}
-	}
-	if matched {
-		return true, false
-	}
-
-	for _, u := range users {
-		if u.Username == "" {
-			if u.Password == nil {
-				return true, true
-			}
-			m, _ := u.Password.Match(creds.Password)
-			if m {
-				return true, true
-			}
-		}
-	}
-	return false, false
-}
-
 // Configuration represents the contents of the data/config.json file.
 type Configuration struct {
 	// The modtime and size of the file.  These are used to detect
@@ -891,10 +854,13 @@ type Configuration struct {
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
 
-	PublicServer  bool            `json:"publicServer"`
-	CanonicalHost string          `json:"canonicalHost"`
-	ProxyURL      string          `json:"proxyURL"`
-	Admin         []ClientPattern `json:"admin"`
+	PublicServer  bool   `json:"publicServer"`
+	CanonicalHost string `json:"canonicalHost"`
+	ProxyURL      string `json:"proxyURL"`
+	Users         map[string]UserDescription
+
+	// obsolete fields
+	Admin []ClientPattern `json:"admin"`
 }
 
 func (conf Configuration) Zero() bool {
@@ -945,52 +911,56 @@ func GetConfiguration() (*Configuration, error) {
 	if err != nil {
 		return nil, err
 	}
+	if conf.Admin != nil {
+		log.Printf("%v: field \"admin\" is obsolete, ignored", filename)
+		conf.Admin = nil
+	}
 	configuration.configuration = &conf
 	return configuration.configuration, nil
 }
 
 // called locked
-func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error) {
+func (g *Group) getPasswordPermission(creds ClientCredentials) (Permissions, error) {
 	desc := g.description
 
 	if creds.Username == nil {
-		return nil, errors.New("username not provided")
+		return Permissions{}, errors.New("username not provided")
 	}
-	if !desc.AllowAnonymous && *creds.Username == "" {
-		return nil, ErrAnonymousNotAuthorised
-	}
-	if found, good := matchClient(creds, desc.Op); found {
-		if good {
-			p := []string{"op", "present", "token"}
-			if desc.AllowRecording {
-				p = append(p, "record")
+	if desc.Users != nil {
+		if c, found := desc.Users[*creds.Username]; found {
+			ok, err := c.Password.Match(creds.Password)
+			if err != nil {
+				return Permissions{}, err
 			}
-			return p, nil
-		}
-		return nil, &NotAuthorisedError{}
-	}
-	if found, good := matchClient(creds, desc.Presenter); found {
-		if good {
-			p := []string{"present"}
-			if desc.UnrestrictedTokens {
-				p = append(p, "token")
+			if ok {
+				return c.Permissions, nil
+			} else {
+				return Permissions{}, &NotAuthorisedError{}
 			}
-			return p, nil
 		}
-		return nil, &NotAuthorisedError{}
 	}
-	if found, good := matchClient(creds, desc.Other); found {
-		if good {
-			p := []string{}
-			if desc.UnrestrictedTokens {
-				p = append(p, "token")
-			}
-			return p, nil
-		}
-		return nil, &NotAuthorisedError{}
 
+	for _, c := range desc.FallbackUsers {
+		if c.Password.Type == "wildcard" {
+			continue
+		}
+		ok, _ := c.Password.Match(creds.Password)
+		if ok {
+			return c.Permissions, nil
+		}
 	}
-	return nil, &NotAuthorisedError{}
+
+	for _, c := range desc.FallbackUsers {
+		if c.Password.Type != "wildcard" {
+			continue
+		}
+		ok, _ := c.Password.Match(creds.Password)
+		if ok {
+			return c.Permissions, nil
+		}
+	}
+
+	return Permissions{}, &NotAuthorisedError{}
 }
 
 // Return true if there is a user entry with the given username.
@@ -1003,21 +973,12 @@ func (g *Group) UserExists(username string) bool {
 
 // called locked
 func (g *Group) userExists(username string) bool {
-	if username == "" {
+	desc := g.description
+	if desc.Users == nil {
 		return false
 	}
-
-	desc := g.description
-	for _, ps := range [][]ClientPattern{
-		desc.Op, desc.Presenter, desc.Other,
-	} {
-		for _, p := range ps {
-			if p.Username == username {
-				return true
-			}
-		}
-	}
-	return false
+	_, found := desc.Users[username]
+	return found
 }
 
 // called locked
@@ -1049,11 +1010,11 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 		}
 	} else if creds.Username != nil {
 		username = *creds.Username
-		var err error
-		perms, err = g.getPasswordPermission(creds)
+		ps, err := g.getPasswordPermission(creds)
 		if err != nil {
 			return "", nil, err
 		}
+		perms = ps.Permissions(desc)
 	} else {
 		return "", nil, errors.New("neither username nor token provided")
 	}
