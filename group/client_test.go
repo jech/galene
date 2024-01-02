@@ -7,8 +7,13 @@ import (
 	"testing"
 )
 
-var pw1 = Password{}
-var pw2 = Password{Key: "pass"}
+var pw1 = Password{
+	Type: "plain",
+}
+var pw2 = Password{
+	Type: "plain",
+	Key: "pass",
+}
 var pw3 = Password{
 	Type:       "pbkdf2",
 	Hash:       "sha-256",
@@ -20,11 +25,15 @@ var pw4 = Password{
 	Type: "bcrypt",
 	Key: "$2a$10$afOr2f33onT/nDFFyT3mbOq5FMSw1wWXfyTXQTBMbKvZpBkoD3Qwu",
 }
-var pw5 = Password{
+var pw5 = Password{}
+var pw6 = Password{
 	Type: "bad",
 }
 
 func TestGood(t *testing.T) {
+	if match, err := pw1.Match(""); err != nil || !match {
+		t.Errorf("pw2 doesn't match (%v)", err)
+	}
 	if match, err := pw2.Match("pass"); err != nil || !match {
 		t.Errorf("pw2 doesn't match (%v)", err)
 	}
@@ -37,9 +46,6 @@ func TestGood(t *testing.T) {
 }
 
 func TestBad(t *testing.T) {
-	if match, err := pw1.Match("bad"); err != nil || match {
-		t.Errorf("pw1 matches")
-	}
 	if match, err := pw2.Match("bad"); err != nil || match {
 		t.Errorf("pw2 matches")
 	}
@@ -49,8 +55,14 @@ func TestBad(t *testing.T) {
 	if match, err := pw4.Match("bad"); err != nil || match {
 		t.Errorf("pw4 matches")
 	}
+	if match, err := pw5.Match(""); err == nil || match {
+		t.Errorf("pw5 matches")
+	}
 	if match, err := pw5.Match("bad"); err == nil || match {
-		t.Errorf("pw4 matches")
+		t.Errorf("pw5 matches")
+	}
+	if match, err := pw6.Match("bad"); err == nil || match {
+		t.Errorf("pw6 matches")
 	}
 }
 
@@ -71,7 +83,7 @@ func TestJSON(t *testing.T) {
 		var pw2 Password
 		err = json.Unmarshal(j, &pw2)
 		if err != nil {
-			t.Fatalf("Unmarshal: %v", err)
+			t.Errorf("Unmarshal: %v", err)
 		} else if !reflect.DeepEqual(pw, pw2) {
 			t.Errorf("Expected %v, got %v", pw, pw2)
 		}

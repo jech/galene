@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 	"time"
+	"sort"
 )
 
 func TestGroup(t *testing.T) {
@@ -70,21 +71,43 @@ func TestChatHistory(t *testing.T) {
 	}
 }
 
+func permissionsEqual(a, b []string) bool {
+	// nil case
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	if len(a) != len(b) {
+		return false
+	}
+	aa := append([]string(nil), a...)
+	sort.Slice(aa, func(i, j int) bool {
+		return aa[i] < aa[j]
+	})
+	bb := append([]string(nil), b...)
+	sort.Slice(bb, func(i, j int) bool {
+		return bb[i] < bb[j]
+	})
+	for i := range aa {
+		if aa[i] != bb[i] {
+			return false
+		}
+	}
+	return true
+}
+
 var descJSON = `
 {
-    "op": [{"username": "jch","password": "topsecret"}],
     "max-history-age": 10,
     "allow-subgroups": true,
-    "presenter": [
-        {"username": "john", "password": "secret"},
-        {"username": "john", "password": "secret2"}
-    ],
-    "other": [
-        {"username": "james", "password": "secret3"},
-        {"username": "peter", "password": "secret4"},
-        {}
+    "users": {
+        "jch": {"password": "topsecret", "permissions": "op"},
+        "john": {"password": "secret", "permissions": "present"},
+        "james": {"password": "secret2", "permissions": "observe"},
+        "peter": {"password": "secret4"}
+    },
+    "fallback-users": [
+        {"permissions": "observe", "password": {"type":"wildcard"}}
     ]
-
 }`
 
 func TestDescriptionJSON(t *testing.T) {
@@ -110,10 +133,63 @@ func TestDescriptionJSON(t *testing.T) {
 	}
 }
 
+var obsoleteJSON = `
+{
+   "op": [{"username": "jch","password": "topsecret"}],
+   "max-history-age": 10,
+   "allow-subgroups": true,
+   "presenter": [
+       {"username": "john", "password": "secret"}
+   ],
+   "other": [
+       {"username": "james", "password": "secret2"},
+       {"username": "peter", "password": "secret4"},
+       {}
+   ]
+}`
+
+func TestUpgradeDescription(t *testing.T) {
+	var d1 Description
+	err := json.Unmarshal([]byte(descJSON), &d1)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	var d2 Description
+	err = json.Unmarshal([]byte(obsoleteJSON), &d2)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	err = upgradeDescription(&d2)
+	if err != nil {
+		t.Fatalf("upgradeDescription: %v", err)
+	}
+
+	if d2.Op != nil || d2.Presenter != nil || d2.Other != nil {
+		t.Errorf("legacy field is not nil")
+	}
+
+	if len(d1.Users) != len(d2.Users) {
+		t.Errorf("length not equal: %v != %v",
+			len(d1.Users), len(d2.Users))
+	}
+
+	for k, v1 := range d1.Users {
+		v2 := d2.Users[k]
+		if !reflect.DeepEqual(v1.Password, v2.Password) ||
+			!permissionsEqual(
+				v1.Permissions.Permissions(&d1),
+				v2.Permissions.Permissions(&d2),
+			) {
+			t.Errorf("%v not equal: %v != %v", k, v1, v2)
+		}
+	}
+}
+
 var jch = "jch"
 var john = "john"
 var james = "james"
 var paul = "paul"
+var peter = "peter"
 
 var badClients = []ClientCredentials{
 	{Username: &jch, Password: "foo"},
@@ -136,15 +212,15 @@ var goodClients = []credPerm{
 		[]string{"present"},
 	},
 	{
-		ClientCredentials{Username: &john, Password: "secret2"},
-		[]string{"present"},
-	},
-	{
-		ClientCredentials{Username: &james, Password: "secret3"},
+		ClientCredentials{Username: &james, Password: "secret2"},
 		[]string{},
 	},
 	{
 		ClientCredentials{Username: &paul, Password: "secret3"},
+		[]string{},
+	},
+	{
+		ClientCredentials{Username: &peter, Password: "secret4"},
 		[]string{},
 	},
 }
@@ -172,13 +248,62 @@ func TestPermissions(t *testing.T) {
 			if err != nil {
 				t.Errorf("GetPermission %v: %v", cp.c, err)
 			} else if u != *cp.c.Username ||
-				!reflect.DeepEqual(p, cp.p) {
+				!permissionsEqual(p, cp.p) {
 				t.Errorf("%v: got %v %v, expected %v",
 					cp.c, u, p, cp.p)
 			}
 		})
 	}
 
+}
+
+func TestExtraPermissions(t *testing.T) {
+	j := `
+{
+    "users": {
+        "jch": {"password": "topsecret", "permissions": "op"},
+        "john": {"password": "secret", "permissions": "present"},
+        "james": {"password": "secret2", "permissions": "observe"}
+    }
+}`
+
+	var d Description
+	err := json.Unmarshal([]byte(j), &d)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	doit := func(u string, p []string) {
+		pu := d.Users[u].Permissions.Permissions(&d)
+		if !permissionsEqual(pu, p) {
+			t.Errorf("%v: expected %v, got %v", u, p, pu)
+		}
+	}
+
+	doit("jch", []string{"op", "token", "present"})
+	doit("john", []string{"present"})
+	doit("james", []string{})
+
+	d.AllowRecording = true
+	d.UnrestrictedTokens = false
+
+	doit("jch", []string{"op", "record", "token", "present"})
+	doit("john", []string{"present"})
+	doit("james", []string{})
+
+	d.AllowRecording = false
+	d.UnrestrictedTokens = true
+
+	doit("jch", []string{"op", "token", "present"})
+	doit("john", []string{"token", "present"})
+	doit("james", []string{})
+
+	d.AllowRecording = true
+	d.UnrestrictedTokens = true
+
+	doit("jch", []string{"op", "record", "token", "present"})
+	doit("john", []string{"token", "present"})
+	doit("james", []string{})
 }
 
 func TestUsernameTaken(t *testing.T) {

@@ -66,14 +66,15 @@ The server may be configured in the JSON file `data/config.json`.  This
 file may look as follows:
 
     {
-        "admin":[{"username":"root","password":"secret"}],
+        "users":{"root": {"password":"secret", "permissions": "admin"}},
         "canonicalHost": "galene.example.org"
     }
 
 The fields are as follows:
 
-- `admin` defines the users allowed to look at the `/stats.html` file; it
-  has the same syntax as user definitions in groups (see below).
+- `users` defines the users allowed to administer the server, and has the
+  same syntax as user definitions in groups (see below), except that the
+  only meaningful permission is `"admin"`;
 - `publicServer`: if true, then cross-origin access to the server is
   allowed.  This is safe if the server is on the public Internet, but not
   necessarily so if it is on a private network.
@@ -100,38 +101,45 @@ a file `groups/teaching/networking.json` defines a group called
 A typical group definition file looks like this:
 
     {
-        "op":[{"username":"jch","password":"1234"}],
+        "users":{
+            "jch": {"password":"1234", "permissions": "op"}
+        },
         "allow-recording": true,
-        "allow-subgroups": true
+        "auto-subgroups": true
     }
 
 This defines a group with the operator (administrator) username *jch* and
 password *1234*.  The `allow-recording` entry says that the operator is
-allowed to record videos to disk, and the `allow-subgroups` entry says
+allowed to record videos to disk, and the `auto-subgroups` entry says
 that subgroups will be created automatically.  This particular group does
 not allow password login for ordinary users, and is suitable if you use
 invitations (see *Stateful Tokens* below) for ordinary users.
 
-In order to allow password login for ordinary users, add a list of users
-as the entry `presenter`:
+In order to allow password login for ordinary users, add password entries
+with the permission `present`:
 
     {
-        "op": [{"username":"jch","password":"1234"}],
-        "presenter": [{"username":"john", "password": "secret"}]
+        "users":{
+            "jch":  {"password":"1234", "permissions": "op"}
+            "john": {"password": "secret", "permissions": "present"}
+        }
     }
 
 If the group is to be publicly accessible, you may allow logins with any
-username and an empty password:
+username using the `fallback-users` entry::
 
     {
-        "op": [{"username":"jch","password":"1234"}],
-        "presenter": [{}],
+        "users":{
+            "jch": {"password":"1234", "permissions": "op"}
+        },
+        "fallback-users": [
+            {"password": {"type": "wildcard"}, "permissions": "present"}
+        ],
         "public": true
     }
 
-The empty dictionary `{}` is a wildcard entry: it matches any username and
-any password.  Setting `public` causes the group to be displayed in the
-list of public groups on the landing page
+The password `{"type": "wildcard"}` indicates that any password will be
+accepted.
 
 
 ## Reference
@@ -141,10 +149,12 @@ entries between `{' and `}').  All fields are optional, but unless you
 specify at least one user definition (`op`, `presenter`, or `other`),
 nobody will be able to join the group.  The following fields are allowed:
 
- - `op`, `presenter`, `other`: each of these is an array of user
-   definitions (see *Authorisation* below) and specifies the users allowed
-   to connect respectively with operator privileges, with presenter
-   privileges, and as passive listeners;
+ - `users`: is a dictionary that maps user names to dictionaries with
+   entries `password` and `permissions`; `permissions` should be one of
+   `op`, `present` or `passive`;
+ - `fallback-users` is an array of dictionaries with entries `password`
+   and `permissions` that will be used for usernames with no matching
+   entry in the `users` dictionary;
  - `authKeys`, `authServer` and `authPortal`: see *Authorisation* below;
  - `public`: if true, then the group is listed on the landing page;
  - `displayName`: a human-friendly version of the group name;
@@ -161,7 +171,7 @@ nobody will be able to join the group.  The following fields are allowed:
  - `unrestricted-tokens`: if true, then ordinary users (without the "op"
    privilege) are allowed to create tokens;
  - `allow-anonymous`: if true, then users may connect with an empty username;
- - `allow-subgroups`: if true, then subgroups of the form `group/subgroup`
+ - `auto-subgroups`: if true, then subgroups of the form `group/subgroup`
    are automatically created when first accessed;
  - `autolock`: if true, the group will start locked and become locked
    whenever there are no clients with operator privileges;
@@ -200,32 +210,33 @@ even Unix passwords).
 ### Password authorisation
 
 When password authorisation is used, authorised usernames and password are
-defined directly in the group configuration file, in the `op`, `presenter`
-and `other` arrays.  Each member of the array is a dictionary, that may
-contain the fields `username` and `password`:
+defined directly in the group configuration file, in the `users` and
+`fallback-users` entries.  The `users` entry is a dictionary that maps
+user names to user descriptions; the `fallback-users` is a list of user
+descriptions that are used with usernames that don't appear in `users`.
 
- - if `username` is present, then the entry only matches clients that
-   specify this exact username; otherwise, any username matches;
- - if `password` is present, then the entry only matches clients that
-   specify this exact password; otherwise, any password matches.
+Every user description is a dictionary with fields `password` and
+`permissions`.  The `password` field may be a literal password string, or
+a dictionary describing a hashed password or a wildcard.  The
+`permissions` field should be one of `op`, `present` or `passive`.  (An
+array of Galene's internal permissions is also allowed, but this is not
+recommended, since internal permissions may vary from version to version).
 
-For example, the entry
+For fexample, the entry
 
-    {"username": "jch", "password": "1234"}
+    "users": {"jch": {"password": "1234", "permissions": "op"}}
     
-specifies username *jch* with password *1234*, while
+specifies that user "jch" may login as operator with password "1234", while
 
-    {"password": "1234"}
+    "fallback-users": [{"password": "1234", "permissions": "present"}]
     
-allows any username with password *1234*, and
+allows any username with password *1234*.  Finally,
 
-    {}
+    "fallback-users": [
+        {"password": {"type": "wildcard"}, "permissions": "present"}
+    ]
     
 allows any username with any password.
-
-By default, empty usernames are forbidden; set the `allow-anonymous`
-option to allow empty usernames.  By default, recording is forbidden;
-specify the `allow-recording` option to allow operators to record.
 
 
 ### Hashed passwords
@@ -234,16 +245,19 @@ If you don't wish to store cleartext passwords on the server, you may
 generate hashed passwords with the `galene-password-generator` utility.  A
 user entry with a hashed password looks like this:
 
-    {
-        "username": "jch",
-        "password": {
-            "type": "pbkdf2",
-            "hash": "sha-256",
-            "key": "f591c35604e6aef572851d9c3543c812566b032b6dc083c81edd15cc24449913",
-            "salt": "92bff2ace56fe38f",
-            "iterations": 4096
+    "users": {
+        "jch": {
+            "password": {
+                "type": "pbkdf2",
+                "hash": "sha-256",
+                "key": "f591c35604e6aef572851d9c3543c812566b032b6dc083c81edd15cc24449913",
+                "salt": "92bff2ace56fe38f",
+                "iterations": 4096
+            },
+            "permissions": "op"
         }
     }
+
 
 ### Stateful tokens
 

@@ -2,12 +2,114 @@ package group
 
 import (
 	"encoding/json"
+	"errors"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+type Permissions struct {
+	// non-empty for a named permissions set
+	name string
+	// only used when unnamed
+	permissions []string
+}
+
+var permissionsMap = map[string][]string{
+	"op":      []string{"op", "present", "token"},
+	"present": []string{"present"},
+	"observe": []string{},
+	"admin":   []string{"admin"},
+}
+
+func NewPermissions(name string) (Permissions, error) {
+	_, ok := permissionsMap[name]
+	if !ok {
+		return Permissions{}, errors.New("unknown permission")
+	}
+	return Permissions{
+		name: name,
+	}, nil
+}
+
+func (p Permissions) Permissions(desc *Description) []string {
+	if p.name == "" {
+		return p.permissions
+	}
+
+	perms := permissionsMap[p.name]
+
+	op := false
+	present := false
+	token := false
+	record := false
+	for _, p := range perms {
+		switch p {
+		case "op":
+			op = true
+		case "present":
+			present = true
+		case "token":
+			token = true
+		case "record":
+			record = true
+		}
+	}
+
+	if desc != nil && desc.AllowRecording {
+		if op && !record {
+			// copy the slice
+			perms = append([]string{"record"}, perms...)
+		}
+	}
+
+	if desc != nil && desc.UnrestrictedTokens {
+		if present && !token {
+			perms = append([]string{"token"}, perms...)
+		}
+	}
+
+	return perms
+}
+
+func (p *Permissions) UnmarshalJSON(b []byte) error {
+	var a []string
+	err := json.Unmarshal(b, &a)
+	if err == nil {
+		*p = Permissions{
+			permissions: a,
+		}
+		return nil
+	}
+	var s string
+	err = json.Unmarshal(b, &s)
+	if err == nil {
+		_, ok := permissionsMap[s]
+		if !ok {
+			return errors.New("Unknown permission " + s)
+		}
+		*p = Permissions{
+			name: s,
+		}
+		return nil
+	}
+	return err
+}
+
+func (p Permissions) MarshalJSON() ([]byte, error) {
+	if p.name != "" {
+		return json.Marshal(p.name)
+	}
+	return json.Marshal(p.permissions)
+}
+
+type UserDescription struct {
+	Password    Password    `json:"password"`
+	Permissions Permissions `json:"permissions"`
+}
 
 // Description represents a group description together with some metadata
 // about the JSON file it was deserialised from.
@@ -46,9 +148,6 @@ type Description struct {
 	// The time for which history entries are kept.
 	MaxHistoryAge int `json:"max-history-age,omitempty"`
 
-	// Whether users are allowed to log in with an empty username.
-	AllowAnonymous bool `json:"allow-anonymous,omitempty"`
-
 	// Whether recording is allowed.
 	AllowRecording bool `json:"allow-recording,omitempty"`
 
@@ -56,7 +155,7 @@ type Description struct {
 	UnrestrictedTokens bool `json:"unrestricted-tokens,omitempty"`
 
 	// Whether subgroups are created on the fly.
-	AllowSubgroups bool `json:"allow-subgroups,omitempty"`
+	AutoSubgroups bool `json:"auto-subgroups,omitempty"`
 
 	// Whether to lock the group when the last op logs out.
 	Autolock bool `json:"autolock,omitempty"`
@@ -64,14 +163,11 @@ type Description struct {
 	// Whether to kick all users when the last op logs out.
 	Autokick bool `json:"autokick,omitempty"`
 
-	// A list of logins for ops.
-	Op []ClientPattern `json:"op,omitempty"`
+	// Users allowed to login
+	Users map[string]UserDescription `json:"users,omitempty"`
 
-	// A list of logins for presenters.
-	Presenter []ClientPattern `json:"presenter,omitempty"`
-
-	// A list of logins for non-presenting users.
-	Other []ClientPattern `json:"other,omitempty"`
+	// Credentials for users with arbitrary username
+	FallbackUsers []UserDescription `json:"fallback-users,omitempty"`
 
 	// The (public) keys used for token authentication.
 	AuthKeys []map[string]interface{} `json:"authKeys,omitempty"`
@@ -85,6 +181,13 @@ type Description struct {
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
 	Codecs []string `json:"codecs,omitempty"`
+
+	// Obsolete fields
+	Op             []ClientPattern `json:"op,omitempty"`
+	Presenter      []ClientPattern `json:"presenter,omitempty"`
+	Other          []ClientPattern `json:"other,omitempty"`
+	AllowSubgroups bool            `json:"allow-subgroups,omitempty"`
+	AllowAnonymous bool            `json:"allow-anonymous,omitempty"`
 }
 
 const DefaultMaxHistoryAge = 4 * time.Hour
@@ -175,7 +278,7 @@ func readDescription(name string) (*Description, error) {
 		return nil, err
 	}
 	if isParent {
-		if !desc.AllowSubgroups {
+		if !desc.AutoSubgroups {
 			return nil, os.ErrNotExist
 		}
 		desc.Public = false
@@ -186,5 +289,78 @@ func readDescription(name string) (*Description, error) {
 	desc.fileSize = fi.Size()
 	desc.modTime = fi.ModTime()
 
+	err = upgradeDescription(&desc)
+	if err != nil {
+		return nil, err
+	}
+
 	return &desc, nil
+}
+
+func upgradeDescription(desc *Description) error {
+	if desc.AllowAnonymous {
+		log.Printf(
+			"%v: field allow-anonymous is obsolete, ignored",
+			desc.FileName,
+		)
+		desc.AllowAnonymous = false
+	}
+
+	if desc.AllowSubgroups {
+		desc.AutoSubgroups = true
+		desc.AllowSubgroups = false
+	}
+
+	upgradePassword := func(pw *Password) Password {
+		if pw == nil {
+			return Password{
+				Type: "wildcard",
+			}
+		}
+		return *pw
+	}
+
+	upgradeUser := func(u ClientPattern, p string) UserDescription {
+		return UserDescription{
+			Password: upgradePassword(u.Password),
+			Permissions: Permissions{
+				name: p,
+			},
+		}
+	}
+
+	upgradeUsers := func(ps []ClientPattern, p string) {
+		if desc.Users == nil {
+			desc.Users = make(map[string]UserDescription)
+		}
+		for _, u := range ps {
+			if u.Username == "" {
+				desc.FallbackUsers = append(desc.FallbackUsers,
+					upgradeUser(u, p))
+				continue
+			}
+			_, found := desc.Users[u.Username]
+			if found {
+				log.Printf("%v: duplicate user %v, ignored",
+					desc.FileName, u.Username)
+				continue
+			}
+			desc.Users[u.Username] = upgradeUser(u, p)
+		}
+	}
+
+	if desc.Op != nil {
+		upgradeUsers(desc.Op, "op")
+		desc.Op = nil
+	}
+	if desc.Presenter != nil {
+		upgradeUsers(desc.Presenter, "present")
+		desc.Presenter = nil
+	}
+	if desc.Other != nil {
+		upgradeUsers(desc.Other, "observe")
+		desc.Other = nil
+	}
+
+	return nil
 }
