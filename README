@@ -106,13 +106,11 @@ A typical group definition file looks like this:
     }
 
 This defines a group with the operator (administrator) username *jch* and
-password *1234*, empty username and password for presenters (ordinary
-users with the right to enable their camera and microphone).  The
-`allow-recording` entry says that the operator is allowed to record videos
-to disk, and the `allow-subgroups` entry says that subgroups will be
-created automatically.  This particular group does not allow password
-login for ordinary users, and is suitable if you use invitations (see
-*Stateful Token* below) for ordinary users.
+password *1234*.  The `allow-recording` entry says that the operator is
+allowed to record videos to disk, and the `allow-subgroups` entry says
+that subgroups will be created automatically.  This particular group does
+not allow password login for ordinary users, and is suitable if you use
+invitations (see *Stateful Tokens* below) for ordinary users.
 
 In order to allow password login for ordinary users, add a list of users
 as the entry `presenter`:
