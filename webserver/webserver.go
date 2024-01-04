@@ -26,7 +26,6 @@ import (
 	"github.com/jech/galene/diskwriter"
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/rtpconn"
-	"github.com/jech/galene/stats"
 )
 
 var server atomic.Value
@@ -46,10 +45,7 @@ func Serve(address string, dataDir string) error {
 	http.HandleFunc("/recordings/", recordingsHandler)
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/public-groups.json", publicHandler)
-	http.HandleFunc("/stats.json",
-		func(w http.ResponseWriter, r *http.Request) {
-			statsHandler(w, r, dataDir)
-		})
+	http.HandleFunc("/galene-api/", apiHandler)
 
 	s := &http.Server{
 		Addr:              address,
@@ -491,35 +487,6 @@ func failAuthentication(w http.ResponseWriter, realm string) {
 	w.Header().Set("www-authenticate",
 		fmt.Sprintf("basic realm=\"%v\"", realm))
 	http.Error(w, "Haha!", http.StatusUnauthorized)
-}
-
-func statsHandler(w http.ResponseWriter, r *http.Request, dataDir string) {
-	username, password, ok := r.BasicAuth()
-	if !ok {
-		failAuthentication(w, "stats")
-		return
-	}
-
-	if ok, err := adminMatch(username, password); !ok {
-		if err != nil {
-			log.Printf("Administrator password: %v", err)
-		}
-		failAuthentication(w, "stats")
-		return
-	}
-
-	w.Header().Set("content-type", "application/json")
-	w.Header().Set("cache-control", "no-cache")
-	if r.Method == "HEAD" {
-		return
-	}
-
-	ss := stats.GetGroups()
-	e := json.NewEncoder(w)
-	err := e.Encode(ss)
-	if err != nil {
-		log.Printf("stats.json: %v", err)
-	}
 }
 
 var wsUpgrader = websocket.Upgrader{
