@@ -982,13 +982,13 @@ type Description struct {
 	Other []ClientPattern `json:"other,omitempty"`
 
 	// The (public) keys used for token authentication.
-	AuthKeys []map[string]interface{} `json:"authKeys"`
+	AuthKeys []map[string]interface{} `json:"authKeys,omitempty"`
 
 	// The URL of the authentication server, if any.
-	AuthServer string `json:"authServer"`
+	AuthServer string `json:"authServer,omitempty"`
 
 	// The URL of the authentication portal, if any.
-	AuthPortal string `json:"authPortal"`
+	AuthPortal string `json:"authPortal,omitempty"`
 
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
