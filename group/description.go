@@ -3,6 +3,7 @@ package group
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"time"
 )
+
+var ErrTagMismatch = errors.New("tag mismatch")
 
 type Permissions struct {
 	// non-empty for a named permissions set
@@ -122,6 +125,9 @@ type Description struct {
 	// when a file has changed on disk.
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
+
+	// Whether this is an automatically generated subgroup
+	isSubgroup bool `json:"-"`
 
 	// The user-friendly group name
 	DisplayName string `json:"displayName,omitempty"`
@@ -256,6 +262,128 @@ func GetDescription(name string) (*Description, error) {
 	return readDescription(name)
 }
 
+// GetSanitisedDescription returns the subset of the description that is
+// published on the web interface together with a suitable ETag.
+func GetSanitisedDescription(name string) (*Description, string, error) {
+	d, err := GetDescription(name)
+	if err != nil {
+		return nil, "", err
+	}
+	if d.isSubgroup {
+		return nil, "", os.ErrNotExist
+	}
+
+	desc := *d
+	desc.Users = nil
+	desc.FallbackUsers = nil
+	desc.AuthKeys = nil
+	return &desc, makeETag(desc.fileSize, desc.modTime), nil
+}
+
+// GetDescriptionTag returns an ETag for a description.
+func GetDescriptionTag(name string) (string, error) {
+	fi, _, isParent, err := getDescriptionFile(name, os.Stat)
+	if err != nil {
+		return "", err
+	}
+	if isParent {
+		return "", os.ErrNotExist
+	}
+
+	return makeETag(fi.Size(), fi.ModTime()), nil
+}
+
+func makeETag(fileSize int64, modTime time.Time) string {
+	return fmt.Sprintf("\"%v-%v\"", fileSize, modTime.UnixNano())
+}
+
+// DeleteDescription deletes a description (and therefore persistently
+// deletes a group) but only if it matches a given ETag.
+func DeleteDescription(name, etag string) error {
+	groups.mu.Lock()
+	defer groups.mu.Unlock()
+
+	fi, fileName, isParent, err := getDescriptionFile(name, os.Stat)
+	if err != nil {
+		return err
+	}
+	if isParent {
+		return os.ErrNotExist
+	}
+	if etag != makeETag(fi.Size(), fi.ModTime()) {
+		return ErrTagMismatch
+	}
+	return os.Remove(fileName)
+}
+
+// UpdateDescription overwrites a description if it matches a given ETag.
+// In order to create a new group, pass an empty ETag.
+func UpdateDescription(name, etag string, desc *Description) error {
+	if desc.Users != nil || desc.FallbackUsers != nil || desc.AuthKeys != nil {
+		return errors.New("description is not sanitised")
+	}
+
+	groups.mu.Lock()
+	defer groups.mu.Unlock()
+
+	oldetag := ""
+	var filename string
+	old, err := readDescription(name)
+	if err == nil {
+		oldetag = makeETag(old.fileSize, old.modTime)
+		filename = old.FileName
+	} else if os.IsNotExist(err) {
+		old = nil
+		filename = filepath.Join(
+			Directory, path.Clean("/"+name)+".json",
+		)
+	} else {
+		return err
+	}
+
+	if oldetag != etag {
+		return ErrTagMismatch
+	}
+
+	newdesc := *desc
+	if old != nil {
+		newdesc.Users = old.Users
+		newdesc.FallbackUsers = old.FallbackUsers
+		newdesc.AuthKeys = old.AuthKeys
+	}
+
+	f, err := os.CreateTemp(path.Dir(filename), name + "*.temp")
+	if err != nil {
+		return err
+	}
+	temp := f.Name()
+
+	encoder := json.NewEncoder(f)
+	err = encoder.Encode(newdesc)
+	if err == nil {
+		err = f.Sync()
+	}
+	if err != nil {
+		f.Close()
+		os.Remove(temp)
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		os.Remove(temp)
+		return err
+	}
+
+	err = os.Rename(temp, filename)
+	if err != nil {
+		os.Remove(temp)
+		return err
+	}
+
+	return nil
+
+}
+
 // readDescription reads a group's description from disk
 func readDescription(name string) (*Description, error) {
 	r, fileName, isParent, err := getDescriptionFile(name, os.Open)
@@ -281,6 +409,7 @@ func readDescription(name string) (*Description, error) {
 		if !desc.AutoSubgroups {
 			return nil, os.ErrNotExist
 		}
+		desc.isSubgroup = true
 		desc.Public = false
 		desc.Description = ""
 	}
@@ -363,4 +492,37 @@ func upgradeDescription(desc *Description) error {
 	}
 
 	return nil
+}
+
+func GetUsers(group string) ([]string, string, error) {
+	desc, err := GetDescription(group)
+	if err != nil {
+		return nil, "", err
+	}
+
+	users := make([]string, 0, len(desc.Users))
+	for u := range desc.Users {
+		users = append(users, u)
+	}
+
+	return users, makeETag(desc.fileSize, desc.modTime), nil
+}
+
+func GetSanitisedUser(group, username string) (UserDescription, string, error) {
+	desc, err := GetDescription(group)
+	if err != nil {
+		return UserDescription{}, "", err
+	}
+
+	if desc.Users == nil {
+		return UserDescription{}, "", os.ErrNotExist
+	}
+
+	u, ok := desc.Users[username]
+	if !ok {
+		return UserDescription{}, "", os.ErrNotExist
+	}
+
+	u.Password = Password{}
+	return u, makeETag(desc.fileSize, desc.modTime), nil
 }
