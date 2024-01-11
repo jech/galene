@@ -328,13 +328,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 
 	g, err := group.Add(name, nil)
 	if err != nil {
-		if os.IsNotExist(err) {
-			notFound(w)
-		} else {
-			log.Printf("group.Add: %v", err)
-			http.Error(w, "Internal server error",
-				http.StatusInternalServerError)
-		}
+		httpError(w, err)
 		return
 	}
 
