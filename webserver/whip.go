@@ -2,8 +2,11 @@ package webserver
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	crand "crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -37,10 +40,56 @@ func parseWhip(pth string) (string, string) {
 	return "", ""
 }
 
+var idSecret []byte
+var idCipher cipher.Block
+
+func init() {
+	idSecret = make([]byte, 16)
+	_, err := crand.Read(idSecret)
+	if err != nil {
+		log.Fatalf("crand.Read: %v", err)
+	}
+	idCipher, err = aes.NewCipher(idSecret)
+	if err != nil {
+		log.Fatalf("NewCipher: %v", err)
+	}
+}
+
 func newId() string {
-	b := make([]byte, 16)
+	b := make([]byte, idCipher.BlockSize())
 	crand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// we obfuscate ids to avoid exposing the WHIP session URL
+func obfuscate(id string) (string, error) {
+	v, err := base64.RawURLEncoding.DecodeString(id)
+	if err != nil {
+		return "", err
+	}
+
+	if len(v) != idCipher.BlockSize() {
+		return "", errors.New("bad length")
+	}
+
+	idCipher.Encrypt(v, v)
+
+	return base64.RawURLEncoding.EncodeToString(v), nil
+}
+
+func deobfuscate(id string) (string, error) {
+	v, err := base64.RawURLEncoding.DecodeString(id)
+	if err != nil {
+		return "", err
+	}
+
+	if len(v) != idCipher.BlockSize() {
+		return "", errors.New("bad length")
+	}
+
+	idCipher.Decrypt(v, v)
+
+	return base64.RawURLEncoding.EncodeToString(v), nil
 }
 
 func canPresent(perms []string) bool {
@@ -186,6 +235,13 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := newId()
+	obfuscated, err := obfuscate(id)
+	if err != nil {
+		http.Error(w, "Internal Server Error",
+			http.StatusInternalServerError)
+		return
+	}
+
 	c := rtpconn.NewWhipClient(g, id, token)
 
 	_, err = group.AddClient(g.Name(), c, creds)
@@ -214,7 +270,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError)
 	}
 
-	w.Header().Set("Location", path.Join(r.URL.Path, id))
+	w.Header().Set("Location", path.Join(r.URL.Path, obfuscated))
 	w.Header().Set("Access-Control-Expose-Headers",
 		"Location, Content-Type, Link")
 	whipICEServers(w)
@@ -226,8 +282,14 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
-	pth, id := parseWhip(r.URL.Path)
-	if pth == "" || id == "" {
+	pth, obfuscated := parseWhip(r.URL.Path)
+	if pth == "" || obfuscated == "" {
+		http.Error(w, "Internal server error",
+			http.StatusInternalServerError)
+		return
+	}
+	id, err := deobfuscate(obfuscated)
+	if err != nil {
 		http.Error(w, "Internal server error",
 			http.StatusInternalServerError)
 		return

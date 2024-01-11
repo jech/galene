@@ -136,3 +136,23 @@ func TestFormatICEServer(t *testing.T) {
 		})
 	}
 }
+
+func TestObfuscate(t *testing.T) {
+	id := newId()
+	obfuscated, err := obfuscate(id)
+	if err != nil {
+		t.Fatalf("obfuscate: %v", err)
+	}
+	id2, err := deobfuscate(obfuscated)
+	if err != nil {
+		t.Fatalf("deobfuscate: %v", err)
+	}
+	if id != id2 {
+		t.Errorf("not equal: %v, %v", id, id2)
+	}
+
+	_, err = obfuscate("toto")
+	if err == nil {
+		t.Errorf("obfuscate: no errror")
+	}
+}
