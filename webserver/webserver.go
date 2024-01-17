@@ -351,7 +351,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 func groupBase(r *http.Request) (string, error) {
 	conf, err := group.GetConfiguration()
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	if conf.ProxyURL != "" {
 		return url.JoinPath(conf.ProxyURL, "/group/")
