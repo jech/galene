@@ -33,7 +33,7 @@ at which the group is found.  This may be obtained either by explicit
 configuration by the user, or by parsing the `/public-groups.json` file
 which may contain an array of group statuses (see below).
 
-A client then performs an HTTP GET request on the file `.status.json` at
+A client then performs an HTTP GET request on the file `.status` at
 the group's location.  This yields a single JSON object, which contains
 the following fields:
 
@@ -158,7 +158,7 @@ The `username` field is the username that the server assigned to this
 user.  The `permissions` field is an array of strings that may contain the
 values `present`, `op` and `record`.  The `status` field is a dictionary
 that contains status information about the group, and updates the data
-obtained from the `.status.json` URL described above.
+obtained from the `.status` URL described above.
 
 ## Maintaining group membership
 

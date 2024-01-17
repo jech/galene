@@ -318,9 +318,13 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, kind, rest := splitPath(r.URL.Path)
-	if kind == ".status.json" && rest == "" {
+	dir, kind, rest := splitPath(r.URL.Path)
+	if kind == ".status" && rest == "" {
 		groupStatusHandler(w, r)
+		return
+	} else if kind == ".status.json" && rest == "" {
+		http.Redirect(w, r, dir+"/"+".status",
+			http.StatusPermanentRedirect)
 		return
 	} else if kind == ".whip" {
 		if rest == "" {
@@ -384,7 +388,7 @@ func groupBase(r *http.Request) (string, error) {
 
 func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 	pth, kind, rest := splitPath(r.URL.Path)
-	if kind != ".status.json" || rest != "" {
+	if kind != ".status" || rest != "" {
 		http.Error(w, "Internal server error",
 			http.StatusInternalServerError)
 	}
