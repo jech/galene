@@ -22,42 +22,34 @@ func TestParseGroupName(t *testing.T) {
 	}
 
 	for _, pg := range a {
-		t.Run(pg.p, func(t *testing.T) {
-			g := parseGroupName("/group/", pg.p)
-			if g != pg.g {
-				t.Errorf("Path %v, got %v, expected %v",
-					pg.p, g, pg.g)
-			}
-		})
+		g := parseGroupName("/group/", pg.p)
+		if g != pg.g {
+			t.Errorf("Path %v, got %v, expected %v",
+				pg.p, g, pg.g)
+		}
 	}
 }
 
-func TestParseWhip(t *testing.T) {
-	a := []struct{ p, d, b string }{
-		{"", "", ""},
-		{"/", "", ""},
-		{"/foo", "", ""},
-		{"/foo/", "", ""},
-		{"/foo/bar", "", ""},
-		{"/foo/bar/", "", ""},
-		{"/foo/bar/baz", "", ""},
-		{"/foo/bar/baz/", "", ""},
-		{"/foo/.whip", "/foo/", ""},
-		{"/foo/.whip/", "/foo/", ""},
-		{"/foo/.whip/bar", "/foo/", "bar"},
-		{"/foo/.whip/bar/", "/foo/", "bar"},
-		{"/foo/.whip/bar/baz", "", ""},
-		{"/foo/.whip/bar/baz/", "", ""},
+func TestParseSplit(t *testing.T) {
+	a := []struct{ p, a, b, c string }{
+		{"", "", "", ""},
+		{"/a", "/a", "", ""},
+		{"/a/.b", "/a", ".b", ""},
+		{"/a/.b/", "/a", ".b", "/"},
+		{"/a/.b/c", "/a", ".b", "/c"},
+		{"/a/.b/c/", "/a", ".b", "/c/"},
+		{"/a/.b/c/d", "/a", ".b", "/c/d"},
+		{"/a/.b/c/d/", "/a", ".b", "/c/d/"},
+		{"/a/.b/c/d./", "/a", ".b", "/c/d./"},
 	}
 
-	for _, pdb := range a {
-		t.Run(pdb.p, func(t *testing.T) {
-			d, b := parseWhip(pdb.p)
-			if d != pdb.d || b != pdb.b {
-				t.Errorf("Path %v, got %v %v, expected %v %v",
-					pdb.p, d, b, pdb.d, pdb.b)
-			}
-		})
+	for _, pabc := range(a) {
+		a, b, c := splitPath(pabc.p)
+		if pabc.a != a || pabc.b != b || pabc.c != c {
+			t.Errorf("Path %v, got %v, %v, %v, expected %v, %v, %v",
+				pabc.p, a, b, c, pabc.a, pabc.b, pabc.c,
+			)
+		}
 	}
 }
 
@@ -79,14 +71,12 @@ func TestParseBearerToken(t *testing.T) {
 	}
 
 	for _, ab := range a {
-		t.Run(ab.a, func(t *testing.T) {
-			b := parseBearerToken(ab.a)
-			if b != ab.b {
-				t.Errorf("Bearer token %v, got %v, expected %v",
-					ab.a, b, ab.b,
-				)
-			}
-		})
+		b := parseBearerToken(ab.a)
+		if b != ab.b {
+			t.Errorf("Bearer token %v, got %v, expected %v",
+				ab.a, b, ab.b,
+			)
+		}
 	}
 }
 

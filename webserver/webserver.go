@@ -300,23 +300,37 @@ func parseGroupName(prefix string, p string) string {
 	return name[1:]
 }
 
+func splitPath(pth string) (string, string, string) {
+	index := strings.Index(pth, "/.")
+	if index < 0 {
+		return pth, "", ""
+	}
+
+	index2 := strings.Index(pth[index+1:], "/")
+	if index2 < 0 {
+		return pth[:index], pth[index+1:], ""
+	}
+	return pth[:index], pth[index+1 : index+1+index2], pth[index+1+index2:]
+}
+
 func groupHandler(w http.ResponseWriter, r *http.Request) {
 	if redirect(w, r) {
 		return
 	}
 
-	if strings.HasSuffix(r.URL.Path, "/.status.json") {
+	_, kind, rest := splitPath(r.URL.Path)
+	if kind == ".status.json" && rest == "" {
 		groupStatusHandler(w, r)
 		return
-	}
-
-	dir, id := parseWhip(r.URL.Path)
-	if dir != "" {
-		if id == "" {
+	} else if kind == ".whip" {
+		if rest == "" {
 			whipEndpointHandler(w, r)
 		} else {
 			whipResourceHandler(w, r)
 		}
+		return
+	} else if kind != "" {
+		notFound(w)
 		return
 	}
 
@@ -369,7 +383,11 @@ func groupBase(r *http.Request) (string, error) {
 }
 
 func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
-	pth := path.Dir(r.URL.Path)
+	pth, kind, rest := splitPath(r.URL.Path)
+	if kind != ".status.json" || rest != "" {
+		http.Error(w, "Internal server error",
+			http.StatusInternalServerError)
+	}
 	name := parseGroupName("/group/", pth)
 	if name == "" {
 		notFound(w)

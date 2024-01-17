@@ -23,23 +23,6 @@ import (
 	"github.com/jech/galene/rtpconn"
 )
 
-func parseWhip(pth string) (string, string) {
-	if pth != "/" {
-		pth = strings.TrimSuffix(pth, "/")
-	}
-	dir := path.Dir(pth)
-	base := path.Base(pth)
-	if base == ".whip" {
-		return dir + "/", ""
-	}
-
-	if path.Base(dir) == ".whip" {
-		return path.Dir(dir) + "/", base
-	}
-
-	return "", ""
-}
-
 var idSecret []byte
 var idCipher cipher.Block
 
@@ -163,8 +146,8 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pth, pthid := parseWhip(r.URL.Path)
-	if pthid != "" {
+	pth, kind, pthid := splitPath(r.URL.Path)
+	if kind != ".whip" || pthid != "/" {
 		http.Error(w, "Internal server error",
 			http.StatusInternalServerError)
 		return
@@ -282,13 +265,13 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
-	pth, obfuscated := parseWhip(r.URL.Path)
-	if pth == "" || obfuscated == "" {
+	pth, kind, rest := splitPath(r.URL.Path)
+	if kind != ".whip" || rest == "" {
 		http.Error(w, "Internal server error",
 			http.StatusInternalServerError)
 		return
 	}
-	id, err := deobfuscate(obfuscated)
+	id, err := deobfuscate(rest[1:])
 	if err != nil {
 		http.Error(w, "Internal server error",
 			http.StatusInternalServerError)
