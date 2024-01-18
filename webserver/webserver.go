@@ -400,19 +400,13 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	g, err := group.Add(name, nil)
 	if err != nil {
-		if os.IsNotExist(err) {
-			notFound(w)
-		} else {
-			http.Error(w, "Internal server error",
-				http.StatusInternalServerError)
-		}
+		httpError(w, err)
 		return
 	}
 
 	base, err := groupBase(r)
 	if err != nil {
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 	d := g.Status(false, base)
@@ -431,8 +425,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 	base, err := groupBase(r)
 	if err != nil {
 		log.Printf("couldn't determine group base: %v", err)
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 	w.Header().Set("content-type", "application/json")
@@ -512,8 +505,7 @@ var wsPublicUpgrader = websocket.Upgrader{
 func wsHandler(w http.ResponseWriter, r *http.Request) {
 	conf, err := group.GetConfiguration()
 	if err != nil {
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 	upgrader := wsUpgrader
@@ -548,7 +540,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if filepath.Separator != '/' &&
 		strings.ContainsRune(p, filepath.Separator) {
-		http.Error(w, "bad character in filename",
+		http.Error(w, "Bad character in filename",
 			http.StatusBadRequest)
 		return
 	}
@@ -556,7 +548,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 	p = path.Clean(p)
 
 	if p == "/" {
-		http.Error(w, "nothing to see", http.StatusForbidden)
+		http.Error(w, "Nothing here", http.StatusForbidden)
 		return
 	}
 
@@ -580,18 +572,18 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		group = parseGroupName("/", p)
 		if group == "" {
-			http.Error(w, "bad group name", http.StatusBadRequest)
+			http.Error(w, "Bad group name", http.StatusBadRequest)
 			return
 		}
 	} else {
 		if p[len(p)-1] == '/' {
-			http.Error(w, "bad group name", http.StatusBadRequest)
+			http.Error(w, "Bad group name", http.StatusBadRequest)
 			return
 		}
 		group, filename = path.Split(p)
 		group = parseGroupName("/", group)
 		if group == "" {
-			http.Error(w, "bad group name", http.StatusBadRequest)
+			http.Error(w, "Bad group name", http.StatusBadRequest)
 			return
 		}
 	}
@@ -625,13 +617,13 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 	if r.Method != "POST" {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	err := r.ParseForm()
 	if err != nil {
-		http.Error(w, "couldn't parse request", http.StatusBadRequest)
+		http.Error(w, "Couldn't parse request", http.StatusBadRequest)
 		return
 	}
 
@@ -641,13 +633,13 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 	case "delete":
 		filename := r.Form.Get("filename")
 		if group == "" || filename == "" {
-			http.Error(w, "no filename provided",
+			http.Error(w, "No filename provided",
 				http.StatusBadRequest)
 			return
 		}
 		if strings.ContainsRune(filename, '/') ||
 			strings.ContainsRune(filename, filepath.Separator) {
-			http.Error(w, "bad character in filename",
+			http.Error(w, "Bad character in filename",
 				http.StatusBadRequest)
 			return
 		}
@@ -666,7 +658,7 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 			http.StatusSeeOther)
 		return
 	default:
-		http.Error(w, "unknown query", http.StatusBadRequest)
+		http.Error(w, "Unknown query", http.StatusBadRequest)
 	}
 }
 
@@ -710,7 +702,7 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 	// read early, so we return permission errors to HEAD
 	fis, err := f.Readdir(-1)
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 

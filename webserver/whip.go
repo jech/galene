@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 
@@ -161,20 +160,13 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 
 	g, err := group.Add(name, nil)
 	if err != nil {
-		if os.IsNotExist(err) {
-			notFound(w)
-			return
-		}
-		log.Printf("group.Add: %v", err)
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 
 	conf, err := group.GetConfiguration()
 	if err != nil {
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 
@@ -220,8 +212,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	id := newId()
 	obfuscated, err := obfuscate(id)
 	if err != nil {
-		http.Error(w, "Internal Server Error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 
@@ -234,8 +225,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if err != nil {
 		log.Printf("WHIP: %v", err)
-		http.Error(w, "Internal Server Error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 
@@ -249,8 +239,8 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		group.DelClient(c)
 		log.Printf("WHIP offer: %v", err)
-		http.Error(w, "Internal Server Error",
-			http.StatusInternalServerError)
+		httpError(w, err)
+		return
 	}
 
 	w.Header().Set("Location", path.Join(r.URL.Path, obfuscated))
@@ -273,8 +263,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := deobfuscate(rest[1:])
 	if err != nil {
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 
@@ -312,8 +301,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	conf, err := group.GetConfiguration()
 	if err != nil {
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		httpError(w, err)
 		return
 	}
 
