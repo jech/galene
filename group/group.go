@@ -1340,6 +1340,14 @@ func Update() {
 				return nil
 			}
 			if d.IsDir() {
+				base := filepath.Base(path)
+				if base[0] == '.' {
+					log.Printf(
+						"Ignoring group directory %v",
+						path,
+					)
+					return fs.SkipDir
+				}
 				return nil
 			}
 			filename, err := filepath.Rel(Directory, path)
@@ -1356,7 +1364,7 @@ func Update() {
 			}
 			base := filepath.Base(filename)
 			if base[0] == '.' {
-				log.Printf("Group file %v ignored", filename)
+				log.Printf("Ignoring group file %v", filename)
 				return nil
 			}
 			name := strings.TrimSuffix(filename, ".json")
