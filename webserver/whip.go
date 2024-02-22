@@ -146,7 +146,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pth, kind, pthid := splitPath(r.URL.Path)
-	if kind != ".whip" || pthid != "/" {
+	if kind != ".whip" || pthid != "" {
 		http.Error(w, "Internal server error",
 			http.StatusInternalServerError)
 		return
