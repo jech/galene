@@ -1,7 +1,13 @@
+Galene 0.8.1 (unreleased)
+
+  * Security fixes to WHIP ingress.
+  * Allow proxyURL to contain a path, for people who run Galene at
+    non-root URLs.
+
 25 November 2023: Galene 0.8
 
   * Added a new configuration option "publicServer".
-  * Implemented the WHIP protocol (draft-ietf-wich-whip).
+  * Implemented the WHIP protocol (draft-ietf-wish-whip).
   * Disabled simulcast on Firefox by default.
   * Removed support for protocol version 1 (used before version 0.7)
   * Worked around clients that don't set the VP9 and H.264 profiles.
