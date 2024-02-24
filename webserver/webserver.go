@@ -361,29 +361,44 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status := g.Status(false, "")
+	status := g.Status(false, nil)
 	cspHeader(w, status.AuthServer)
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
 
-func groupBase(r *http.Request) (string, error) {
+func baseURL(r *http.Request) (*url.URL, error) {
 	conf, err := group.GetConfiguration()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+	var pu *url.URL
 	if conf.ProxyURL != "" {
-		return url.JoinPath(conf.ProxyURL, "/group/")
+		pu, err = url.Parse(conf.ProxyURL)
+		if err != nil {
+			return nil, err
+		}
 	}
 	scheme := "https"
 	if r.TLS == nil {
 		scheme = "http"
 	}
+	host := r.Host
+	path := ""
+	if pu != nil {
+		if pu.Scheme != "" {
+			scheme = pu.Scheme
+		}
+		if pu.Host != "" {
+			host = pu.Host
+		}
+		path = pu.Path
+	}
 	base := url.URL{
 		Scheme: scheme,
-		Host:   r.Host,
-		Path:   "/group/",
+		Host:   host,
+		Path:   path,
 	}
-	return base.String(), nil
+	return &base, nil
 }
 
 func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -404,9 +419,11 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	base, err := groupBase(r)
+	base, err := baseURL(r)
 	if err != nil {
-		httpError(w, err)
+		log.Printf("Parse ProxyURL: %v", err)
+		http.Error(w, "Internal server error",
+			http.StatusInternalServerError)
 		return
 	}
 	d := g.Status(false, base)
@@ -422,7 +439,7 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {
-	base, err := groupBase(r)
+	base, err := baseURL(r)
 	if err != nil {
 		log.Printf("couldn't determine group base: %v", err)
 		httpError(w, err)

@@ -42,12 +42,18 @@ func TestBase(t *testing.T) {
 		t      bool
 		h, res string
 	}{
-		{"", true, "a.org", "https://a.org/group/"},
-		{"", false, "a.org", "http://a.org/group/"},
-		{"https://b.org", true, "a.org", "https://b.org/group/"},
-		{"https://b.org", false, "a.org", "https://b.org/group/"},
-		{"http://b.org", true, "a.org", "http://b.org/group/"},
-		{"http://b.org", false, "a.org", "http://b.org/group/"},
+		{"", true, "a.org", "https://a.org"},
+		{"", false, "a.org", "http://a.org"},
+		{"/base", true, "a.org", "https://a.org/base"},
+		{"/base", false, "a.org", "http://a.org/base"},
+		{"http:", true, "a.org", "http://a.org"},
+		{"https:", false, "a.org", "https://a.org"},
+		{"http:/base", true, "a.org", "http://a.org/base"},
+		{"https:/base", false, "a.org", "https://a.org/base"},
+		{"https://b.org", true, "a.org", "https://b.org"},
+		{"https://b.org", false, "a.org", "https://b.org"},
+		{"http://b.org", true, "a.org", "http://b.org"},
+		{"http://b.org", false, "a.org", "http://b.org"},
 	}
 
 	dir := t.TempDir()
@@ -75,13 +81,13 @@ func TestBase(t *testing.T) {
 		if v.t {
 			tcs = &tls.ConnectionState{}
 		}
-		base, err := groupBase(&http.Request{
+		base, err := baseURL(&http.Request{
 			TLS:  tcs,
 			Host: v.h,
 		})
-		if err != nil || base != v.res {
+		if err != nil || base.String() != v.res {
 			t.Errorf("Expected %v, got %v (%v)",
-				v.res, base, err,
+				v.res, base.String(), err,
 			)
 		}
 	}

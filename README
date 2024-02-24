@@ -78,7 +78,7 @@ The fields are as follows:
   allowed.  This is safe if the server is on the public Internet, but not
   necessarily so if it is on a private network.
 - `proxyURL`: if running behind a reverse proxy, this specifies the
-  address of the proxy.
+  root URL that will be visible outside the proxy.
 - `canonicalHost`: the canonical name of the host running the server; this
   will cause clients to be redirected if they use a different hostname to
   access the server.

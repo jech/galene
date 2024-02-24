@@ -1161,7 +1161,7 @@ func handleAction(c *webClient, a any) error {
 		if a.group != "" {
 			g = group.Get(a.group)
 			if g != nil {
-				s := g.Status(true, "")
+				s := g.Status(true, nil)
 				status = &s
 				data = g.Data()
 			}
@@ -1208,7 +1208,7 @@ func handleAction(c *webClient, a any) error {
 			return errors.New("Permissions changed in no group")
 		}
 		perms := append([]string(nil), c.permissions...)
-		status := g.Status(true, "")
+		status := g.Status(true, nil)
 		username := c.username
 		c.write(clientMessage{
 			Type:             "joined",
