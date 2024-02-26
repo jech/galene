@@ -172,6 +172,12 @@ nobody will be able to join the group.  The following fields are allowed:
    to the given URL; most other fields are ignored in this case;
  - `codecs`: this is a list of codecs allowed in this group.  The default
    is `["vp8", "opus"]`.
+- `meeting-start` : set the starting date-time of a meeting in "YYYY-MM-DD H:i:s" format, e.g. "2024-02-25 15:00:00";
+   no user will be able to login before the starting time
+- `meeting-end` : set the end date-time of a meeting in "YYYY-MM-DD H:i:s" format, e.g. "2024-02-25 17:00:00";
+   at this time all users will be kicked out.
+- `meeting-end-warning` : set the time in minutes when all users will be warned that the meeting will end in x minutes, e.g. 10.
+   If no value is provided and a meeting-end is set, users will receive a warning 10 minutes ahead of the end of the meeting
    
 Supported video codecs include:
 
