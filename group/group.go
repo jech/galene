@@ -83,6 +83,7 @@ type Group struct {
 	history     []ChatHistoryEntry
 	timestamp   time.Time
 	data        map[string]interface{}
+	messageSent int
 }
 
 func (g *Group) Name() string {
@@ -583,6 +584,22 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 		c.SetUsername(username)
 		c.SetPermissions(perms)
 
+		// keep all users locked out if meeting hasn't start yet or meeting has already ended
+		mStart := g.description.MeetingStart
+		mEnd := g.description.MeetingEnd
+
+		if mStart != "" && mStart > time.Now().UTC().Format("2006-01-02 15:04:05") {
+			return nil, UserError(
+				"Meeting has not started yet",
+			)
+		}
+
+		if mEnd != "" && mEnd < time.Now().UTC().Format("2006-01-02 15:04:05") {
+			return nil, UserError(
+				"Meeting has already ended",
+			)
+		}
+
 		if !member("op", perms) {
 			if g.locked != nil {
 				m := *g.locked
@@ -763,6 +780,38 @@ func (g *Group) WallOps(message string) {
 		if err != nil {
 			log.Printf("WallOps: %v", err)
 		}
+	}
+}
+
+// meeting end function
+func (g *Group) MeetingEnds() {
+
+	mEnd := g.description.MeetingEnd
+	mWarningBefore := g.description.WarningBeforeEnd
+
+	if mEnd == "" {
+		return
+	}
+
+    	if mWarningBefore == 0 {
+		mWarningBefore = 10
+    	}
+
+	if g.messageSent == 0 && (mEnd <= time.Now().UTC().Add(time.Minute * time.Duration(mWarningBefore)).Format("2006-01-02 15:04:05")) {
+		g.messageSent = 1
+		clients := g.GetClients(nil)
+		for _, c := range clients {
+			w := c.(warner)
+			err := w.Warn(false, fmt.Sprintf("Meeting will end in %d minutes", mWarningBefore))
+			if err != nil {
+				log.Printf("MeetingTime: %v", err)
+			}
+		}
+	}
+
+	if mEnd < time.Now().UTC().Format("2006-01-02 15:04:05") {
+		g.messageSent = 0
+		go kickall(g, "Meeting has ended")
 	}
 }
 
