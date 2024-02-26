@@ -40,6 +40,15 @@ type Description struct {
 	// other fields are ignored.
 	Redirect string `json:"redirect,omitempty"`
 
+	// Set the start of the meeting. format: YYYY-MM-DD HH:mm:ss
+	MeetingStart string `json:"meeting-start,omitempty"`
+
+	// Set the end of the meeting. format: YYYY-MM-DD HH:mm:ss
+	MeetingEnd string `json:"meeting-end,omitempty"`
+
+	// Set a end of the meeting in minutes, integer
+	WarningBeforeEnd int `json:"meeting-end-warning,omitempty"`
+
 	// The maximum number of simultaneous clients.  Unlimited if 0.
 	MaxClients int `json:"max-clients,omitempty"`
 
