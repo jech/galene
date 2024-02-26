@@ -1007,6 +1007,8 @@ func clientLoop(c *webClient, ws *websocket.Conn, versionError bool) error {
 			// seconds, make sure we generate some activity
 			// after 55s at most.
 			if time.Since(readTime) > 45*time.Second {
+				// meeting expiry
+		       		go c.group.MeetingEnds()
 				err := c.write(clientMessage{
 					Type: "ping",
 				})
