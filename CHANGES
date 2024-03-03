@@ -1,6 +1,7 @@
 Galene 0.8.1 (unreleased)
 
   * Security fixes to WHIP ingress.
+  * Improved error messages for authentication failures.
   * Allow proxyURL to contain a path, for people who run Galene at
     non-root URLs.
 
