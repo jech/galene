@@ -1426,6 +1426,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			} else if errors.As(err, &autherr) {
 				s = "not authorised"
 				time.Sleep(200 * time.Millisecond)
+				log.Printf("Join group: %v", err)
 			} else if _, ok := err.(group.UserError); ok {
 				s = err.Error()
 			} else {

@@ -28,7 +28,6 @@ func Parse(token string, keys []map[string]interface{}) (Token, error) {
 		return nil, err1
 	} else if err2 != nil {
 		return nil, err2
-	} else {
-		return nil, os.ErrNotExist
 	}
+	return nil, os.ErrNotExist
 }

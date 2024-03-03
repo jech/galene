@@ -137,6 +137,10 @@ func parseJWT(token string, keys []map[string]interface{}) (*JWT, error) {
 		jwt.WithLeeway(5*time.Second),
 	)
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenMalformed) {
+			// assume this is not a JWT
+			return nil, nil
+		}
 		return nil, err
 	}
 	return (*JWT)(t), nil

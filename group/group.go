@@ -1012,7 +1012,7 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 	if creds.Token != "" {
 		tok, err := token.Parse(creds.Token, desc.AuthKeys)
 		if err != nil {
-			return "", nil, err
+			return "", nil, &NotAuthorisedError{err: err}
 		}
 
 		conf, err := GetConfiguration()
