@@ -46,6 +46,12 @@ type Description struct {
 	// The time for which history entries are kept.
 	MaxHistoryAge int `json:"max-history-age,omitempty"`
 
+	// Time after which joining is no longer allowed
+	Expires *time.Time `json:"expires"`
+
+	// Time before which joining is not allowed
+	NotBefore *time.Time `json:"not-before,omitempty"`
+
 	// Whether users are allowed to log in with an empty username.
 	AllowAnonymous bool `json:"allow-anonymous,omitempty"`
 

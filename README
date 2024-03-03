@@ -157,6 +157,8 @@ nobody will be able to join the group.  The following fields are allowed:
    a time;
  - `max-history-age`: the time, in seconds, during which chat history is
    kept (default 14400, i.e. 4 hours);
+ - `not-before` and `expires`: the times (in ISO 8601 or RFC 3339 format)
+   between which joining the group is allowed;
  - `allow-recording`: if true, then recording is allowed in this group;
  - `unrestricted-tokens`: if true, then ordinary users (without the "op"
    privilege) are allowed to create tokens;

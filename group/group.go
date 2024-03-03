@@ -607,6 +607,22 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 				}
 				return nil, UserError(m)
 			}
+			if g.description.NotBefore != nil ||
+				g.description.Expires != nil {
+				now := time.Now()
+				if g.description.NotBefore != nil &&
+					g.description.NotBefore.After(now) {
+					return nil, UserError(
+						"this group is not open yet",
+					)
+				}
+				if g.description.Expires != nil &&
+					g.description.Expires.Before(now) {
+					return nil, UserError(
+						"this group is closed",
+					)
+				}
+			}
 			if g.description.Autokick {
 				ops := false
 				for _, c := range clients {
