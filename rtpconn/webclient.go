@@ -1063,7 +1063,7 @@ func pushDownConn(c *webClient, id string, up conn.Up, tracks []conn.UpTrack, re
 
 	down, _, err := addDownConn(c, up)
 	if err != nil {
-		if err == os.ErrClosed {
+		if errors.Is(err, os.ErrClosed) {
 			return nil
 		}
 		return err
@@ -1412,21 +1412,22 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		)
 		if err != nil {
 			var e, s string
+			var autherr *group.NotAuthorisedError
 			if os.IsNotExist(err) {
 				s = "group does not exist"
-			} else if err == group.ErrNotAuthorised {
-				s = "not authorised"
-				time.Sleep(200 * time.Millisecond)
-			} else if err == group.ErrAnonymousNotAuthorised {
+			} else if errors.Is(err, group.ErrAnonymousNotAuthorised) {
 				s = "please choose a username"
-			} else if _, ok := err.(group.UserError); ok {
-				s = err.Error()
-			} else if err == token.ErrUsernameRequired {
+			} else if errors.Is(err, token.ErrUsernameRequired) {
 				s = err.Error()
 				e = "need-username"
-			} else if err == group.ErrDuplicateUsername {
+			} else if errors.Is(err, group.ErrDuplicateUsername) {
 				s = err.Error()
 				e = "duplicate-username"
+			} else if errors.As(err, &autherr) {
+				s = "not authorised"
+				time.Sleep(200 * time.Millisecond)
+			} else if _, ok := err.(group.UserError); ok {
+				s = err.Error()
 			} else {
 				s = "internal server error"
 				log.Printf("Join group: %v", err)

@@ -132,8 +132,10 @@ func httpError(w http.ResponseWriter, err error) {
 		notFound(w)
 		return
 	}
-	if os.IsPermission(err) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	var autherr *group.NotAuthorisedError
+	if errors.As(err, &autherr) {
+		log.Printf("HTTP server error: %v", err)
+		http.Error(w, "not authorised", http.StatusUnauthorized)
 		return
 	}
 	var mberr *http.MaxBytesError
@@ -230,7 +232,8 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			// return 403 if index.html doesn't exist
 			if os.IsNotExist(err) {
-				err = os.ErrPermission
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
 			}
 			httpError(w, err)
 			return
@@ -706,7 +709,8 @@ func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname str
 		}
 	}
 	if err != nil || !record {
-		if err == group.ErrNotAuthorised {
+		var autherr *group.NotAuthorisedError
+		if errors.As(err, &autherr) {
 			time.Sleep(200 * time.Millisecond)
 		}
 		return false

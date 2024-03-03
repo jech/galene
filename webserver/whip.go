@@ -219,11 +219,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	c := rtpconn.NewWhipClient(g, id, token)
 
 	_, err = group.AddClient(g.Name(), c, creds)
-	if err == group.ErrNotAuthorised ||
-		err == group.ErrAnonymousNotAuthorised {
-		http.Error(w, "Authentication failed", http.StatusUnauthorized)
-		return
-	} else if err != nil {
+	if err != nil {
 		log.Printf("WHIP: %v", err)
 		httpError(w, err)
 		return

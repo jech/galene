@@ -26,9 +26,25 @@ var Directory, DataDirectory string
 var UseMDNS bool
 var UDPMin, UDPMax uint16
 
-var ErrNotAuthorised = errors.New("not authorised")
-var ErrAnonymousNotAuthorised = errors.New("anonymous users not authorised in this group")
-var ErrDuplicateUsername = errors.New("this username is taken")
+type NotAuthorisedError struct {
+	err error
+}
+func (err *NotAuthorisedError) Error() string {
+	if err.err != nil {
+		return "not authorised: " + err.err.Error()
+	}
+	return "not authorised"
+}
+func (err *NotAuthorisedError) Unwrap() error {
+	return err.err
+}
+
+var ErrAnonymousNotAuthorised = &NotAuthorisedError{
+	err: errors.New("anonymous users not authorised in this group"),
+}
+var ErrDuplicateUsername = &NotAuthorisedError{
+	errors.New("this username is taken"),
+}
 
 type UserError string
 
@@ -935,7 +951,7 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error)
 			}
 			return p, nil
 		}
-		return nil, ErrNotAuthorised
+		return nil, &NotAuthorisedError{}
 	}
 	if found, good := matchClient(creds, desc.Presenter); found {
 		if good {
@@ -945,7 +961,7 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error)
 			}
 			return p, nil
 		}
-		return nil, ErrNotAuthorised
+		return nil, &NotAuthorisedError{}
 	}
 	if found, good := matchClient(creds, desc.Other); found {
 		if good {
@@ -955,9 +971,10 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) ([]string, error)
 			}
 			return p, nil
 		}
-		return nil, ErrNotAuthorised
+		return nil, &NotAuthorisedError{}
+
 	}
-	return nil, ErrNotAuthorised
+	return nil, &NotAuthorisedError{}
 }
 
 // Return true if there is a user entry with the given username.
@@ -1006,7 +1023,7 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 		username, perms, err =
 			tok.Check(conf.CanonicalHost, g.name, creds.Username)
 		if err != nil {
-			return "", nil, err
+			return "", nil, &NotAuthorisedError{err: err}
 		}
 		if username == "" && creds.Username != nil {
 			if g.userExists(*creds.Username) {
