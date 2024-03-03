@@ -2154,7 +2154,7 @@ function inviteMenu() {
     let ex = getInputElement('invite-expires');
     let expires = new Date(now);
     expires.setDate(expires.getDate() + 2);
-    ex.min = dateToInput(expires);
+    ex.min = dateToInput(now);
     ex.value = dateToInput(expires);
     d.showModal();
 }
