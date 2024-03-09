@@ -1,9 +1,11 @@
-Galene 0.8.1 (unreleased)
+9 March 2024: Galene 0.8.1
 
   * Security fixes to WHIP ingress.
   * Improved error messages for authentication failures.
+  * Added "expires" and "not-before" to group descriptions.
   * Allow proxyURL to contain a path, for people who run Galene at
-    non-root URLs.
+    non-root URLs.  This requires manually modifying the files under
+    'static/' in order to point at the right locations.
 
 25 November 2023: Galene 0.8
 
@@ -19,7 +21,7 @@ Galene 0.8.1 (unreleased)
 
 9 July 2023: Galene 0.7.2
 
-  * Improveed workaround for Safari's autoplay-related mis-features.
+  * Improved workaround for Safari's autoplay-related mis-features.
   * Fixed minor bugs related to stateful tokens.
 
 14 May 2023: Galene 0.7.1
