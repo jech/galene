@@ -205,17 +205,20 @@ func maxHistoryAge(desc *Description) time.Duration {
 	return DefaultMaxHistoryAge
 }
 
-func getDescriptionFile[T any](name string, get func(string) (T, error)) (T, string, bool, error) {
-	isParent := false
+func getDescriptionFile[T any](name string, allowSubgroups bool, get func(string) (T, error)) (T, string, bool, error) {
+	isSubgroup := false
 	for name != "" {
 		fileName := filepath.Join(
 			Directory, path.Clean("/"+name)+".json",
 		)
 		r, err := get(fileName)
 		if !os.IsNotExist(err) {
-			return r, fileName, isParent, err
+			return r, fileName, isSubgroup, err
 		}
-		isParent = true
+		if !allowSubgroups {
+			break
+		}
+		isSubgroup = true
 		name, _ = path.Split(name)
 		name = strings.TrimRight(name, "/")
 	}
@@ -239,7 +242,7 @@ func descriptionMatch(d1, d2 *Description) bool {
 // descriptionUnchanged returns true if a group's description hasn't
 // changed since it was last read.
 func descriptionUnchanged(name string, desc *Description) bool {
-	fi, fileName, _, err := getDescriptionFile(name, os.Stat)
+	fi, fileName, _, err := getDescriptionFile(name, true, os.Stat)
 	if err != nil || fileName != desc.FileName {
 		return false
 	}
@@ -259,12 +262,13 @@ func GetDescription(name string) (*Description, error) {
 		}
 	}
 
-	return readDescription(name)
+	return readDescription(name, true)
 }
 
 // readDescription reads a group's description from disk
-func readDescription(name string) (*Description, error) {
-	r, fileName, isParent, err := getDescriptionFile(name, os.Open)
+func readDescription(name string, allowSubgroups bool) (*Description, error) {
+	r, fileName, isSubgroup, err :=
+		getDescriptionFile(name, allowSubgroups, os.Open)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +287,7 @@ func readDescription(name string) (*Description, error) {
 	if err != nil {
 		return nil, err
 	}
-	if isParent {
+	if isSubgroup {
 		if !desc.AutoSubgroups {
 			return nil, os.ErrNotExist
 		}

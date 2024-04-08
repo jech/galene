@@ -446,7 +446,7 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 	g := groups.groups[name]
 	if g == nil {
 		if desc == nil {
-			desc, err = readDescription(name)
+			desc, err = readDescription(name, true)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -471,7 +471,7 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 			notify = true
 		}
 	} else if !descriptionUnchanged(name, g.description) {
-		desc, err = readDescription(name)
+		desc, err = readDescription(name, true)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				log.Printf("Reading group %v: %v", name, err)
