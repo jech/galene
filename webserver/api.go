@@ -9,6 +9,10 @@ import (
 	"github.com/jech/galene/stats"
 )
 
+func parseContentType(ctype string) string {
+	return strings.Trim(strings.Split(ctype, ";")[0], " ")
+}
+
 func apiHandler(w http.ResponseWriter, r *http.Request) {
 	username, password, ok := r.BasicAuth()
 	if !ok {
