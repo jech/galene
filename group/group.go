@@ -29,6 +29,7 @@ var UDPMin, UDPMax uint16
 type NotAuthorisedError struct {
 	err error
 }
+
 func (err *NotAuthorisedError) Error() string {
 	if err.err != nil {
 		return "not authorised: " + err.err.Error()
@@ -854,10 +855,11 @@ type Configuration struct {
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
 
-	PublicServer  bool   `json:"publicServer"`
-	CanonicalHost string `json:"canonicalHost"`
-	ProxyURL      string `json:"proxyURL"`
-	Users         map[string]UserDescription
+	PublicServer    bool   `json:"publicServer"`
+	CanonicalHost   string `json:"canonicalHost"`
+	ProxyURL        string `json:"proxyURL"`
+	WritableGroups  bool   `json:"writableGroups"`
+	Users           map[string]UserDescription
 
 	// obsolete fields
 	Admin []ClientPattern `json:"admin"`

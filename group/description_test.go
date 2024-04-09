@@ -2,6 +2,8 @@ package group
 
 import (
 	"encoding/json"
+	"errors"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -93,5 +95,123 @@ func TestUpgradeDescription(t *testing.T) {
 			) {
 			t.Errorf("%v not equal: %v != %v", k, v1, v2)
 		}
+	}
+}
+
+func TestNonWritableGroups(t *testing.T) {
+	Directory = t.TempDir()
+	configuration.configuration = &Configuration{}
+
+	_, err := GetDescription("test")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("GetDescription: got %#v, expected ErrNotExist", err)
+	}
+
+	err = UpdateDescription("test", "", &Description{})
+	if !errors.Is(err, ErrDescriptionsNotWritable) {
+		t.Errorf("UpdateDescription: got %#v, " +
+			"expected ErrDescriptionsNotWritable", err)
+	}
+}
+
+func TestWritableGroups(t *testing.T) {
+	Directory = t.TempDir()
+	configuration.configuration = &Configuration{
+		WritableGroups: true,
+	}
+
+	_, err := GetDescription("test")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("GetDescription: got %v, expected ErrNotExist", err)
+	}
+
+	err = UpdateDescription("test", "\"etag\"", &Description{})
+	if !errors.Is(err, ErrTagMismatch) {
+		t.Errorf("UpdateDescription: got %v, expected ErrTagMismatch",
+			err)
+	}
+
+	err = UpdateDescription("test", "", &Description{})
+	if err != nil {
+		t.Errorf("UpdateDescription: got %v", err)
+	}
+
+	_, err = GetDescription("test")
+	if err != nil {
+		t.Errorf("GetDescription: got %v", err)
+	}
+
+	desc, token, err := GetSanitisedDescription("test")
+	if err != nil || token == "" {
+		t.Errorf("GetSanitisedDescription: got %v", err)
+	}
+
+	desc.DisplayName = "Test"
+
+	err = UpdateDescription("test", "\"badetag\"", desc)
+	if !errors.Is(err, ErrTagMismatch) {
+		t.Errorf("UpdateDescription: got %v, expected ErrTagMismatch",
+			err)
+	}
+
+	err = UpdateDescription("test", token, desc)
+	if err != nil {
+		t.Errorf("UpdateDescription: got %v", err)
+	}
+
+	desc, err = GetDescription("test")
+	if err != nil || desc.DisplayName != "Test" {
+		t.Errorf("GetDescription: expected %v %v, got %v %v",
+			nil, "Test", err, desc.AllowAnonymous,
+		)
+	}
+
+	_, _, err = GetSanitisedUser("test", "jch")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("GetSanitisedUser: got %v, expected ErrNotExist", err)
+	}
+
+	err = UpdateUser("test", "jch", "", &UserDescription{
+		Permissions: Permissions{name: "observe"},
+	})
+	if err != nil {
+		t.Errorf("UpdateUser: got %v", err)
+	}
+
+	user, token, err := GetSanitisedUser("test", "jch")
+	if err != nil || token == "" || user.Permissions.name != "observe" {
+		t.Errorf("GetDescription: got %v %v, expected %v %v",
+			err, user.Permissions.name, nil, "observe",
+		)
+	}
+
+	err = UpdateUser("test", "jch", "", &UserDescription{
+		Permissions: Permissions{name: "present"},
+	})
+	if !errors.Is(err, ErrTagMismatch) {
+		t.Errorf("UpdateDescription: got %v, expected ErrTagMismatch",
+			err)
+	}
+
+	err = UpdateUser("test", "jch", token, &UserDescription{
+		Permissions: Permissions{name: "present"},
+	})
+	if err != nil {
+		t.Errorf("UpdateUser: got %v", err)
+	}
+
+	err = SetUserPassword("test", "jch", Password{
+		Type: "",
+		Key: "pw",
+	})
+	if err != nil {
+		t.Errorf("SetUserPassword: got %v", err)
+	}
+
+	desc, err = GetDescription("test")
+	if err != nil || desc.Users["jch"].Password.Key != "pw" {
+		t.Errorf("GetDescription: got %v %v, expected %v %v",
+			err, desc.Users["jch"].Password.Key, nil, "pw",
+		)
 	}
 }

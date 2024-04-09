@@ -75,6 +75,8 @@ The fields are as follows:
 - `users` defines the users allowed to administer the server, and has the
   same syntax as user definitions in groups (see below), except that the
   only meaningful permission is `"admin"`;
+- `writableGroups`: if true, then the API can modify group description
+  files; by default, group files are treated as read-only;
 - `publicServer`: if true, then cross-origin access to the server is
   allowed.  This is safe if the server is on the public Internet, but not
   necessarily so if it is on a private network.
