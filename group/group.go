@@ -855,11 +855,11 @@ type Configuration struct {
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
 
-	PublicServer    bool   `json:"publicServer"`
-	CanonicalHost   string `json:"canonicalHost"`
-	ProxyURL        string `json:"proxyURL"`
-	WritableGroups  bool   `json:"writableGroups"`
-	Users           map[string]UserDescription
+	PublicServer   bool   `json:"publicServer"`
+	CanonicalHost  string `json:"canonicalHost"`
+	ProxyURL       string `json:"proxyURL"`
+	WritableGroups bool   `json:"writableGroups"`
+	Users          map[string]UserDescription
 
 	// obsolete fields
 	Admin []ClientPattern `json:"admin"`
@@ -1031,16 +1031,17 @@ func (g *Group) GetPermission(creds ClientCredentials) (string, []string, error)
 }
 
 type Status struct {
-	Name        string `json:"name"`
-	Redirect    string `json:"redirect,omitempty"`
-	Location    string `json:"location,omitempty"`
-	Endpoint    string `json:"endpoint,omitempty"`
-	DisplayName string `json:"displayName,omitempty"`
-	Description string `json:"description,omitempty"`
-	AuthServer  string `json:"authServer,omitempty"`
-	AuthPortal  string `json:"authPortal,omitempty"`
-	Locked      bool   `json:"locked,omitempty"`
-	ClientCount *int   `json:"clientCount,omitempty"`
+	Name              string `json:"name"`
+	Redirect          string `json:"redirect,omitempty"`
+	Location          string `json:"location,omitempty"`
+	Endpoint          string `json:"endpoint,omitempty"`
+	DisplayName       string `json:"displayName,omitempty"`
+	Description       string `json:"description,omitempty"`
+	AuthServer        string `json:"authServer,omitempty"`
+	AuthPortal        string `json:"authPortal,omitempty"`
+	Locked            bool   `json:"locked,omitempty"`
+	ClientCount       *int   `json:"clientCount,omitempty"`
+	CanChangePassword bool   `json:"canChangePassword,omitempty"`
 }
 
 // Status returns a group's status.
@@ -1096,6 +1097,12 @@ func (g *Group) Status(authentified bool, base *url.URL) Status {
 		count := g.ClientCount()
 		d.Locked = locked
 		d.ClientCount = &count
+	}
+	if authentified {
+		conf, err := GetConfiguration()
+		if err == nil {
+			d.CanChangePassword = conf.WritableGroups
+		}
 	}
 	return d
 }
