@@ -1,0 +1,82 @@
+# Galene's administrative API
+
+Galene provides an HTTP-based API that can be used to create groups and
+users.  For example, in order to create a group, a client may do
+
+    PUT /galene-api/0/.groups/groupname/
+    Content-Type: application/json
+    If-None-Match: *
+
+The `If-None-Match` header avoids overwriting an existing group.
+
+In order to edit a group definition, a client first does
+
+    GET /galene-api/0/.groups/groupname/
+
+This yields the group definition and an entity tag (in the ETag header).
+The client then modifies the group defintion, and does
+
+    PUT /galene-api/0/.groups/groupname/
+    If-Match: "abcd"
+
+where "abcd" is the entity tag returned by the GET request.  If the group
+definition has changed in the meantime, the entity tag will no longer be
+valid, and the server will fail the update, which avoids losing an update
+in the case of a concurrent modification.
+
+
+## Endpoints
+
+The API is located under `/galene-api/0/`.  The `/0/` is a version number,
+and will be incremented if we ever find out that the current API cannot be
+extended in a backwards compatible manner.
+
+### Statistics
+
+    /galene-api/0/.stats
+
+Provides a number of statistics about the running server, in JSON.  The
+exact format is undocumented, and may change between versions.  The only
+allowed methods are HEAD and GET.
+
+### List of groups
+
+    /galene-api/0/.groups/
+
+Returns a list of groups, as plain text, one per line.  The only allowed
+methods are HEAD and GET.
+
+### Group definition
+
+    /galene-api/0/.groups/groupname
+
+Contains a "sanitised" group definition in JSON format, analogous to the
+on-disk format but without any user definitions or cryptographic keys.
+Allowed methods are HEAD, GET, PUT and DELETE.  The only accepted
+content-type is `application/json`.
+
+### List of users
+
+    /galene-api/0/.groups/groupname/.users/
+
+Returns a list of users, as plain text, one per line.  The only allowed
+methods are HEAD and GET.
+
+### User definition
+
+    /galene-api/0/.groups/groupname/.users/username
+
+Contains a "sanitised" user definition (without any passwords), a JSON
+object with a single field `permissions`.  Allowed methods are HEAD, GET,
+PUT and DELETE.  The only accepted content-type is `application/json`.
+
+### Passwords
+
+    /galene-api/0/.groups/groupname/.users/username/.password
+
+Contains the password of a given user.  The PUT method takes a full
+password definition, identical to what can appear in the `"password"`
+field of the on-disk format, while the POST method takes a string which
+will be hashed on the server.  Allowed methods are PUT, POST and DELETE.
+Accepted content-types are `application/json` for PUT and `text/plain` for
+POST.
