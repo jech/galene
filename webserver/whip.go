@@ -185,7 +185,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != "POST" {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		methodNotAllowed(w, "OPTIONS", "POST")
 		return
 	}
 
@@ -307,7 +307,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "OPTIONS" {
 		w.Header().Set("Access-Control-Allow-Methods",
-			"OPTIONS, PATCH, DELETE",
+			"OPTIONS, DELETE, PATCH",
 		)
 		w.Header().Set("Access-Control-Allow-Headers",
 			"Authorization, Content-Type",
@@ -321,7 +321,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != "PATCH" {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		methodNotAllowed(w, "OPTIONS", "DELETE", "PATCH")
 		return
 
 	}
