@@ -99,6 +99,16 @@
     font-style: italic;
 }
 
+#chpwspan a {
+    padding: 4px 0;
+    font-size: 0.9em;
+    color: #e4157e;
+}
+
+#chpwspan.invisible {
+    display: none;
+}
+
 .sidenav .user-logout a {
     font-size: 1em;
     padding: 7px 0 0;

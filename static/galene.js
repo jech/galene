@@ -29,6 +29,9 @@ let serverConnection;
 /** @type {Object} */
 let groupStatus = {};
 
+/** @type {boolean} */
+let pwAuth = false;
+
 /** @type {string} */
 let token = null;
 
@@ -332,12 +335,31 @@ async function gotConnected() {
 }
 
 /**
+ * @param {string} username
+ */
+function setChangePassword(username) {
+    let s = document.getElementById('chpwspan');
+    let a = s.children[0];
+    if(!(a instanceof HTMLAnchorElement))
+        throw new Error('Bad type for chpwspan');
+    if(username) {
+        a.href = `/change-password.html?group=${encodeURI(group)}&username=${encodeURI(username)}`;
+        a.target = '_blank';
+        s.classList.remove('invisible');
+    } else {
+        a.href = null;
+        s.classList.add('invisible');
+    }
+}
+
+/**
  * @param {boolean} again
  */
 async function join(again) {
     let username = getInputElement('username').value.trim();
     let credentials;
     if(token) {
+        pwAuth = false;
         credentials = {
             type: 'token',
             token: token,
@@ -349,15 +371,18 @@ async function join(again) {
     } else {
         let pw = getInputElement('password').value;
         getInputElement('password').value = '';
-        if(!groupStatus.authServer)
+        if(!groupStatus.authServer) {
+            pwAuth = true;
             credentials = pw;
-        else
+        } else {
+            pwAuth = false;
             credentials = {
                 type: 'authServer',
                 authServer: groupStatus.authServer,
                 location: location.href,
                 password: pw,
             };
+        }
     }
 
     try {
@@ -2459,6 +2484,7 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
         this.close();
         token = null;
         setButtonsVisibility();
+        setChangePassword(null);
         return;
     case 'join':
     case 'change':
@@ -2469,6 +2495,9 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
         setTitle((status && status.displayName) || capitalise(group));
         displayUsername();
         setButtonsVisibility();
+        setChangePassword(pwAuth && !!groupStatus.canChangePassword &&
+                          serverConnection.username
+        );
         if(kind === 'change')
             return;
         break;
