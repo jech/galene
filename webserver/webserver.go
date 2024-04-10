@@ -145,6 +145,18 @@ func httpError(w http.ResponseWriter, err error) {
 		http.StatusInternalServerError)
 }
 
+func methodNotAllowed(w http.ResponseWriter, methods ...string) {
+	ms := ""
+	for _, m := range methods {
+		if ms != "" {
+			ms = ms + ", "
+		}
+		ms = ms + m
+	}
+	w.Header().Set("Allow", ms)
+	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+}
+
 const (
 	normalCacheControl       = "max-age=1800"
 	veryCachableCacheControl = "max-age=86400"
@@ -615,7 +627,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		methodNotAllowed(w, "POST")
 		return
 	}
 
