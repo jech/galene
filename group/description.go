@@ -540,6 +540,18 @@ func GetDescriptionNames() ([]string, error) {
 	return names, err
 }
 
+func SetFallbackUsers(group string, users []UserDescription) error {
+	groups.mu.Lock()
+	defer groups.mu.Unlock()
+
+	desc, err := readDescription(group, false)
+	if err != nil {
+		return err
+	}
+	desc.FallbackUsers = users
+	return rewriteDescriptionFile(desc.FileName, desc)
+}
+
 func SetKeys(group string, keys []map[string]any) error {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()

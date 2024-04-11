@@ -128,6 +128,9 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	if kind == ".users" {
 		apiUserHandler(w, r, g, rest)
 		return
+	} else if kind == ".fallback-users" && rest == "" {
+		fallbackUsersHandler(w, r, g)
+		return
 	} else if kind == ".keys" && rest == "" {
 		keysHandler(w, r, g)
 		return
@@ -430,6 +433,46 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 	}
 
 	methodNotAllowed(w, "PUT", "POST", "DELETE")
+	return
+}
+
+func fallbackUsersHandler(w http.ResponseWriter, r *http.Request, g string) {
+	if !checkAdmin(w, r) {
+		return
+	}
+
+	if r.Method == "PUT" {
+		ctype := parseContentType(r.Header.Get("Content-Type"))
+		if !strings.EqualFold(ctype, "application/json") {
+			http.Error(w, "unsupported content type",
+				http.StatusUnsupportedMediaType)
+			return
+		}
+		d := json.NewDecoder(r.Body)
+		var users []group.UserDescription
+		err := d.Decode(&users)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		err = group.SetFallbackUsers(g, users)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	} else if r.Method == "DELETE" {
+		err := group.SetFallbackUsers(g, nil)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	methodNotAllowed(w, "PUT", "DELETE")
 	return
 }
 

@@ -55,6 +55,14 @@ on-disk format but without any user definitions or cryptographic keys.
 Allowed methods are HEAD, GET, PUT and DELETE.  The only accepted
 content-type is `application/json`.
 
+### Fallback users
+
+    /galene-api/0/.groups/groupname/.fallback-users
+
+Contains fallback user descriptions, in the same format as the
+`fallbackUsers` field of the on-disk format.  Allowed methods are PUT and
+DELETE.  The only accepted content-type is `application/json`.
+
 ### Authentication keys
 
     /galene-api/0/.groups/groupname/.keys
