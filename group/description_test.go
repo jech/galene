@@ -8,6 +8,53 @@ import (
 	"testing"
 )
 
+func TestMarshalUserDescription(t *testing.T) {
+	tests := []string{
+		`{}`,
+		`{"permissions":"present"}`,
+		`{"password":"secret"}`,
+		`{"password":"secret","permissions":"present"}`,
+		`{"password":"secret","permissions":["present"]}`,
+		`{"password":{"type":"wildcard"},"permissions":"observe"}`,
+		`{"password":{"type":"wildcard"},"permissions":[]}`,
+	}
+
+	for _, test := range tests {
+		var u UserDescription
+		err := json.Unmarshal([]byte(test), &u)
+		if err != nil {
+			t.Errorf("Unmarshal %v: %v", t, err)
+			continue
+		}
+		v, err := json.Marshal(u)
+		if err != nil || string(v) != test {
+			t.Errorf("Marshal %v: got %v %v", test, string(v), err)
+		}
+	}
+}
+
+func TestEmptyJSON(t *testing.T) {
+	type emptyTest struct {
+		value  any
+		result string
+		name   string
+	}
+
+	emptyTests := []emptyTest{
+		{Password{}, "{}", "password"},
+		{Permissions{}, "null", "permissions"},
+		{UserDescription{}, "{}", "user description"},
+	}
+
+	for _, v := range emptyTests {
+		b, err := json.Marshal(v.value)
+		if err != nil || string(b) != v.result {
+			t.Errorf("Marshal empty %v: %#v %v, expected %#v",
+				v.name, string(b), err, v.result)
+		}
+	}
+}
+
 var descJSON = `
 {
     "max-history-age": 10,
@@ -218,7 +265,7 @@ func TestWritableGroups(t *testing.T) {
 
 	pw := "pw"
 	err = SetUserPassword("test", "jch", Password{
-		Type: "",
+		Type: "plain",
 		Key:  &pw,
 	})
 	if err != nil {

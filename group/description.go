@@ -116,6 +116,18 @@ type UserDescription struct {
 	Permissions Permissions `json:"permissions"`
 }
 
+// Custom MarshalJSON in order to omit ompty fields
+func (u UserDescription) MarshalJSON() ([]byte, error) {
+	uu := make(map[string]any, 2)
+	if u.Password.Type != "" {
+		uu["password"] = &u.Password
+	}
+	if u.Permissions.name != "" || u.Permissions.permissions != nil {
+		uu["permissions"] = &u.Permissions
+	}
+	return json.Marshal(uu)
+}
+
 // Description represents a group description together with some metadata
 // about the JSON file it was deserialised from.
 type Description struct {
