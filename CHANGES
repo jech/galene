@@ -1,3 +1,18 @@
+Galene 0.9 (unreleased)
+
+  * Reworked the group definition format to be more modular.  There are
+    some incompatible changes: multiple users with the same username but
+    distinct passords are no longer supported, and the field
+    "allow-anonymous" is ignored.
+  * Reworked the definition of administrator passwords in config.json.
+    The old field "admin" is ignored, a new field "users" is required.
+    This is an incompatible change.
+  * Implemented an administrative API over HTTP, described in the file
+    "README.API".  Set the field "writableGroups" in config.json to enable
+    it.
+  * Implemented a form to allow users to change their password.  If the
+    HTTP API is enabled, a link will appear in the side menu.
+
 9 March 2024: Galene 0.8.1
 
   * Security fixes to WHIP ingress.
