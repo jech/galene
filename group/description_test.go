@@ -96,6 +96,22 @@ func TestUpgradeDescription(t *testing.T) {
 			t.Errorf("%v not equal: %v != %v", k, v1, v2)
 		}
 	}
+
+	if len(d1.FallbackUsers) != len(d2.FallbackUsers) {
+		t.Errorf("length not equal: %v != %v",
+			len(d1.FallbackUsers), len(d2.FallbackUsers))
+	}
+
+	for k, v1 := range d1.FallbackUsers {
+		v2 := d2.FallbackUsers[k]
+		if !reflect.DeepEqual(v1.Password, v2.Password) ||
+			!permissionsEqual(
+				v1.Permissions.Permissions(&d1),
+				v2.Permissions.Permissions(&d2),
+			) {
+			t.Errorf("%v not equal: %v != %v", k, v1, v2)
+		}
+	}
 }
 
 func TestNonWritableGroups(t *testing.T) {
@@ -109,7 +125,7 @@ func TestNonWritableGroups(t *testing.T) {
 
 	err = UpdateDescription("test", "", &Description{})
 	if !errors.Is(err, ErrDescriptionsNotWritable) {
-		t.Errorf("UpdateDescription: got %#v, " +
+		t.Errorf("UpdateDescription: got %#v, "+
 			"expected ErrDescriptionsNotWritable", err)
 	}
 }
@@ -202,7 +218,7 @@ func TestWritableGroups(t *testing.T) {
 
 	err = SetUserPassword("test", "jch", Password{
 		Type: "",
-		Key: "pw",
+		Key:  "pw",
 	})
 	if err != nil {
 		t.Errorf("SetUserPassword: got %v", err)
