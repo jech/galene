@@ -7,23 +7,28 @@ import (
 	"testing"
 )
 
+var key1 = ""
 var pw1 = Password{
 	Type: "plain",
+	Key:  &key1,
 }
+var key2 = "pass"
 var pw2 = Password{
 	Type: "plain",
-	Key: "pass",
+	Key:  &key2,
 }
+var key3 = "fe499504e8f144693fae828e8e371d50e019d0e4c84994fa03f7f445bd8a570a"
 var pw3 = Password{
 	Type:       "pbkdf2",
 	Hash:       "sha-256",
-	Key:        "fe499504e8f144693fae828e8e371d50e019d0e4c84994fa03f7f445bd8a570a",
+	Key:        &key3,
 	Salt:       "bcc1717851030776",
 	Iterations: 4096,
 }
+var key4 = "$2a$10$afOr2f33onT/nDFFyT3mbOq5FMSw1wWXfyTXQTBMbKvZpBkoD3Qwu"
 var pw4 = Password{
 	Type: "bcrypt",
-	Key: "$2a$10$afOr2f33onT/nDFFyT3mbOq5FMSw1wWXfyTXQTBMbKvZpBkoD3Qwu",
+	Key:  &key4,
 }
 var pw5 = Password{}
 var pw6 = Password{
@@ -63,6 +68,15 @@ func TestBad(t *testing.T) {
 	}
 	if match, err := pw6.Match("bad"); err == nil || match {
 		t.Errorf("pw6 matches")
+	}
+}
+
+func TestEmptyKey(t *testing.T) {
+	for _, tpe := range []string{"", "plain", "pbkdf2", "bcrypt", "bad"} {
+		pw := Password{Type: tpe}
+		if match, err := pw.Match(""); err == nil || match {
+			t.Errorf("empty password of type %v didn't error", tpe)
+		}
 	}
 }
 

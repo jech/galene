@@ -60,10 +60,11 @@ func main() {
 			key := pbkdf2.Key(
 				[]byte(pw), salt, iterations, length, sha256.New,
 			)
+			encoded := hex.EncodeToString(key)
 			p = group.Password{
 				Type:       "pbkdf2",
 				Hash:       "sha-256",
-				Key:        hex.EncodeToString(key),
+				Key:        &encoded,
 				Salt:       hex.EncodeToString(salt),
 				Iterations: iterations,
 			}
@@ -75,9 +76,10 @@ func main() {
 				log.Fatalf("Couldn't hash password: %v", err)
 			}
 
+			k := string(key)
 			p = group.Password{
 				Type: "bcrypt",
-				Key:  string(key),
+				Key:  &k,
 			}
 		} else {
 			log.Fatalf("Unknown hash type %v", algorithm)

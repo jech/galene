@@ -629,7 +629,7 @@ func DeleteUser(group, username, etag string) error {
 }
 
 func UpdateUser(group, username, etag string, user *UserDescription) error {
-	if user.Password.Type != "" || user.Password.Key != "" {
+	if user.Password.Type != "" || user.Password.Key != nil {
 		return errors.New("user description is not sanitised")
 	}
 	groups.mu.Lock()

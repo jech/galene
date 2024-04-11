@@ -236,7 +236,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Errorf("Get user: %v", err)
 	}
-	if user.Password.Type != "" && user.Password.Key != "" {
+	if user.Password.Type != "" && user.Password.Key != nil {
 		t.Errorf("User not sanitised properly")
 	}
 

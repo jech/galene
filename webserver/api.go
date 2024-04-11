@@ -408,10 +408,11 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		}
 		iterations := 4096
 		key := pbkdf2.Key(body, salt, iterations, 32, sha256.New)
+		encoded := hex.EncodeToString(key)
 		pw := group.Password{
 			Type:       "pbkdf2",
 			Hash:       "sha-256",
-			Key:        hex.EncodeToString(key),
+			Key:        &encoded,
 			Salt:       hex.EncodeToString(salt),
 			Iterations: iterations,
 		}

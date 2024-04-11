@@ -15,11 +15,11 @@ import (
 )
 
 type RawPassword struct {
-	Type       string `json:"type,omitempty"`
-	Hash       string `json:"hash,omitempty"`
-	Key        string `json:"key"`
-	Salt       string `json:"salt,omitempty"`
-	Iterations int    `json:"iterations,omitempty"`
+	Type       string  `json:"type,omitempty"`
+	Hash       string  `json:"hash,omitempty"`
+	Key        *string `json:"key,omitempty"`
+	Salt       string  `json:"salt,omitempty"`
+	Iterations int     `json:"iterations,omitempty"`
 }
 
 type Password RawPassword
@@ -29,11 +29,17 @@ func (p Password) Match(pw string) (bool, error) {
 	case "":
 		return false, errors.New("missing password")
 	case "plain":
-		return p.Key == pw, nil
+		if p.Key == nil {
+			return false, errors.New("missing key")
+		}
+		return *p.Key == pw, nil
 	case "wildcard":
 		return true, nil
 	case "pbkdf2":
-		key, err := hex.DecodeString(p.Key)
+		if p.Key == nil {
+			return false, errors.New("missing key")
+		}
+		key, err := hex.DecodeString(*p.Key)
 		if err != nil {
 			return false, err
 		}
@@ -53,7 +59,10 @@ func (p Password) Match(pw string) (bool, error) {
 		)
 		return bytes.Equal(key, theirKey), nil
 	case "bcrypt":
-		err := bcrypt.CompareHashAndPassword([]byte(p.Key), []byte(pw))
+		if p.Key == nil {
+			return false, errors.New("missing key")
+		}
+		err := bcrypt.CompareHashAndPassword([]byte(*p.Key), []byte(pw))
 		if err == bcrypt.ErrMismatchedHashAndPassword {
 			return false, nil
 		}
@@ -69,7 +78,7 @@ func (p *Password) UnmarshalJSON(b []byte) error {
 	if err == nil {
 		*p = Password{
 			Type: "plain",
-			Key: k,
+			Key:  &k,
 		}
 		return nil
 	}

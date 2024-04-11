@@ -216,16 +216,17 @@ func TestWritableGroups(t *testing.T) {
 		t.Errorf("UpdateUser: got %v", err)
 	}
 
+	pw := "pw"
 	err = SetUserPassword("test", "jch", Password{
 		Type: "",
-		Key:  "pw",
+		Key:  &pw,
 	})
 	if err != nil {
 		t.Errorf("SetUserPassword: got %v", err)
 	}
 
 	desc, err = GetDescription("test")
-	if err != nil || desc.Users["jch"].Password.Key != "pw" {
+	if err != nil || *desc.Users["jch"].Password.Key != "pw" {
 		t.Errorf("GetDescription: got %v %v, expected %v %v",
 			err, desc.Users["jch"].Password.Key, nil, "pw",
 		)
