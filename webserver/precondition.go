@@ -70,6 +70,34 @@ func etagMatch(etag, header string) bool {
 	return false
 }
 
+// etagMatchNoEtag evaluates preconditions for an object with no ETag.
+func etagMatchNoEtag(exists bool, header string) bool {
+	if header == "" {
+		return false
+	}
+
+	for {
+		header = strings.TrimLeft(header, " \t\n\r")
+		if len(header) == 0 {
+			break
+		}
+		if header[0] == ',' {
+			header = header[1:]
+			continue
+		}
+		if header[0] == '*' {
+			return exists
+		}
+		e, remain := scanETag(header)
+		if e == "" {
+			break
+		}
+		header = remain
+	}
+
+	return false
+}
+
 func writeNotModified(w http.ResponseWriter) {
 	// RFC 7232 section 4.1:
 	// a sender SHOULD NOT generate representation metadata other than the
@@ -97,6 +125,28 @@ func checkPreconditions(w http.ResponseWriter, r *http.Request, etag string) (do
 	}
 	inm := r.Header.Get("If-None-Match")
 	if inm != "" && etagMatch(etag, inm) {
+		if r.Method == "GET" || r.Method == "HEAD" {
+			writeNotModified(w)
+			return true
+		} else {
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return true
+		}
+	}
+
+	return false
+}
+
+// checkPreconditions evaluates request preconditions for an object with no ETag.
+// exists indicates whether the object exists.
+func checkPreconditionsNoEtag(w http.ResponseWriter, r *http.Request, exists bool) (done bool) {
+	im := r.Header.Get("If-Match")
+	if im != "" && !etagMatchNoEtag(exists, im) {
+		w.WriteHeader(http.StatusPreconditionFailed)
+		return true
+	}
+	inm := r.Header.Get("If-None-Match")
+	if inm != "" && etagMatchNoEtag(exists, inm) {
 		if r.Method == "GET" || r.Method == "HEAD" {
 			writeNotModified(w)
 			return true

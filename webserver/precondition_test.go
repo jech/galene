@@ -89,6 +89,8 @@ func TestCheckPreconditions(t *testing.T) {
 		{"POST", `"123"`, ``, `"123"`, 412},
 		{"GET", `"123"`, ``, `"124"`, 0},
 		{"GET", `"123"`, ``, `*`, 304},
+		{"POST", `"123"`, ``, `"124"`, 0},
+		{"POST", `"123"`, ``, `*`, 412},
 	}
 
 	for _, tst := range tests {
@@ -108,6 +110,49 @@ func TestCheckPreconditions(t *testing.T) {
 		if done != (tst.result != 0) || w.statusCode != tst.result {
 			t.Errorf("%#v %#v %#v: got %v, expected %v",
 				tst.etag, tst.im, tst.inm,
+				w.statusCode, tst.result)
+		}
+	}
+}
+
+func TestCheckPreconditionsNoEtag(t *testing.T) {
+	var tests = []struct {
+		method  string
+		exists  bool
+		im, inm string
+		result  int
+	}{
+		{"GET", false, ``, ``, 0},
+		{"GET", false, `*`, ``, 412},
+		{"GET", false, ``, `*`, 0},
+		{"POST", false, `*`, ``, 412},
+		{"POST", false, ``, `*`, 0},
+		{"GET", true, ``, ``, 0},
+		{"GET", true, `"124"`, ``, 412},
+		{"POST", true, `"124"`, ``, 412},
+		{"GET", true, `*`, ``, 0},
+		{"GET", true, ``, `*`, 304},
+		{"POST", true, `*`, ``, 0},
+		{"POST", true, ``, `*`, 412},
+	}
+
+	for _, tst := range tests {
+		var w testWriter
+		h := make(http.Header)
+		if tst.im != "" {
+			h.Set("If-Match", tst.im)
+		}
+		if tst.inm != "" {
+			h.Set("If-None-Match", tst.inm)
+		}
+		r := http.Request{
+			Method: tst.method,
+			Header: h,
+		}
+		done := checkPreconditionsNoEtag(&w, &r, tst.exists)
+		if done != (tst.result != 0) || w.statusCode != tst.result {
+			t.Errorf("%v %#v %#v: got %v, expected %v",
+				tst.exists, tst.im, tst.inm,
 				w.statusCode, tst.result)
 		}
 	}
