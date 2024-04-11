@@ -168,6 +168,16 @@ func TestApi(t *testing.T) {
 		t.Errorf("Get groups: %v %#v", err, s)
 	}
 
+	resp, err = do("PUT", "/galene-api/0/.groups/test/.keys",
+		"application/jwk-set+json", "", "",
+		`{"keys": [{
+                            "kty": "oct", "alg": "HS256",
+                            "k": "4S9YZLHK1traIaXQooCnPfBw_yR8j9VEPaAMWAog_YQ"
+                 }]}`)
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Set key: %v %v", err, resp.StatusCode)
+	}
+
 	s, err = getString("/galene-api/0/.groups/test/.users/")
 	if err != nil || s != "" {
 		t.Errorf("Get users: %v", err)
@@ -249,6 +259,16 @@ func TestApi(t *testing.T) {
 
 	if len(desc.Users) != 0 {
 		t.Errorf("Users (after delete): %#v", desc.Users)
+	}
+
+	if len(desc.AuthKeys) != 1 {
+		t.Errorf("Keys: %v", len(desc.AuthKeys))
+	}
+
+	resp, err = do("DELETE", "/galene-api/0/.groups/test/.keys",
+		"", "", "", "")
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Delete keys: %v %v", err, resp.StatusCode)
 	}
 
 	resp, err = do("DELETE", "/galene-api/0/.groups/test/",

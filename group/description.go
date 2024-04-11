@@ -540,6 +540,18 @@ func GetDescriptionNames() ([]string, error) {
 	return names, err
 }
 
+func SetKeys(group string, keys []map[string]any) error {
+	groups.mu.Lock()
+	defer groups.mu.Unlock()
+
+	desc, err := readDescription(group, false)
+	if err != nil {
+		return err
+	}
+	desc.AuthKeys = keys
+	return rewriteDescriptionFile(desc.FileName, desc)
+}
+
 func GetUsers(group string) ([]string, string, error) {
 	desc, err := GetDescription(group)
 	if err != nil {

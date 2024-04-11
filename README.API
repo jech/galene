@@ -55,6 +55,14 @@ on-disk format but without any user definitions or cryptographic keys.
 Allowed methods are HEAD, GET, PUT and DELETE.  The only accepted
 content-type is `application/json`.
 
+### Authentication keys
+
+    /galene-api/0/.groups/groupname/.keys
+
+Contains the keys used for validation of stateless tokens, encoded as
+a JSON key set (RFC 7517).  Allowed methods are PUT and DELETE.  The only
+accepted content-type is `application/jwk-set+json`.
+
 ### List of users
 
     /galene-api/0/.groups/groupname/.users/

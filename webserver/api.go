@@ -128,6 +128,9 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	if kind == ".users" {
 		apiUserHandler(w, r, g, rest)
 		return
+	} else if kind == ".keys" && rest == "" {
+		keysHandler(w, r, g)
+		return
 	} else if kind != "" {
 		if !checkAdmin(w, r) {
 			return
@@ -257,7 +260,7 @@ func apiUserHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	}
 
 	first2, kind2, rest2 := splitPath(pth)
-	if kind2 == ".password" && first2 != "" && rest2 == "" {
+	if first2 != "" && kind2 == ".password" && rest2 == "" {
 		passwordHandler(w, r, g, first2[1:])
 		return
 	} else if kind2 != "" || first2 == "" {
@@ -427,5 +430,49 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 	}
 
 	methodNotAllowed(w, "PUT", "POST", "DELETE")
+	return
+}
+
+type jwkset = struct {
+	Keys []map[string]any `json:"keys"`
+}
+
+func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
+	if !checkAdmin(w, r) {
+		return
+	}
+
+	if r.Method == "PUT" {
+		ctype := parseContentType(r.Header.Get("Content-Type"))
+		if !strings.EqualFold(ctype, "application/jwk-set+json") {
+			http.Error(w, "unsupported content type",
+				http.StatusUnsupportedMediaType)
+			return
+		}
+		d := json.NewDecoder(r.Body)
+		var keys jwkset
+		err := d.Decode(&keys)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		err = group.SetKeys(g, keys.Keys)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	} else if r.Method == "DELETE" {
+		err := group.SetKeys(g, nil)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	methodNotAllowed(w, "PUT", "DELETE")
 	return
 }
