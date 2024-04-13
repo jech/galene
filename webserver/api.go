@@ -126,7 +126,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	}
 
 	if kind == ".users" {
-		apiUserHandler(w, r, g, rest)
+		usersHandler(w, r, g, rest)
 		return
 	} else if kind == ".fallback-users" && rest == "" {
 		fallbackUsersHandler(w, r, g)
@@ -232,7 +232,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	return
 }
 
-func apiUserHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
+func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	if pth == "/" {
 		if !checkAdmin(w, r) {
 			return
