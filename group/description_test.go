@@ -162,11 +162,29 @@ func TestUpgradeDescription(t *testing.T) {
 	}
 }
 
-func TestNonWritableGroups(t *testing.T) {
-	Directory = t.TempDir()
-	configuration.configuration = &Configuration{}
+func setupTest(dir, datadir string, writable bool) error {
+	Directory = dir
+	DataDirectory = datadir
+	f, err := os.Create(filepath.Join(datadir, "config.json"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	conf := `{}`
+	if writable {
+		conf = `{"writableGroups": true}`
+	}
+	_, err = f.WriteString(conf)
+	return err
+}
 
-	_, err := GetDescription("test")
+func TestNonWritableGroups(t *testing.T) {
+	err := setupTest(t.TempDir(), t.TempDir(), false)
+	if err != nil {
+		t.Fatalf("setupTest: %v", err)
+	}
+
+	_, err = GetDescription("test")
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("GetDescription: got %#v, expected ErrNotExist", err)
 	}
@@ -179,12 +197,12 @@ func TestNonWritableGroups(t *testing.T) {
 }
 
 func TestWritableGroups(t *testing.T) {
-	Directory = t.TempDir()
-	configuration.configuration = &Configuration{
-		WritableGroups: true,
+	err := setupTest(t.TempDir(), t.TempDir(), true)
+	if err != nil {
+		t.Fatalf("setupTest: %v", err)
 	}
 
-	_, err := GetDescription("test")
+	_, err = GetDescription("test")
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("GetDescription: got %v, expected ErrNotExist", err)
 	}
@@ -197,7 +215,7 @@ func TestWritableGroups(t *testing.T) {
 
 	err = UpdateDescription("test", "", &Description{})
 	if err != nil {
-		t.Errorf("UpdateDescription: got %v", err)
+		t.Fatalf("UpdateDescription: got %v", err)
 	}
 
 	_, err = GetDescription("test")
