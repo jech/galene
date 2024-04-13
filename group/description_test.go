@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -202,6 +203,14 @@ func TestWritableGroups(t *testing.T) {
 	_, err = GetDescription("test")
 	if err != nil {
 		t.Errorf("GetDescription: got %v", err)
+	}
+
+	fi, err := os.Stat(filepath.Join(Directory, "test.json"))
+	if err != nil {
+		t.Errorf("Stat: %v", err)
+	}
+	if mode := fi.Mode(); mode != 0o600 {
+		t.Errorf("Mode is 0o%03o (expected 0o600)\n", mode)
 	}
 
 	desc, token, err := GetSanitisedDescription("test")
