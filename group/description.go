@@ -380,7 +380,14 @@ func rewriteDescriptionFile(filename string, desc *Description) error {
 		return ErrDescriptionsNotWritable
 	}
 
-	f, err := os.CreateTemp(path.Dir(filename), "*.temp")
+	dir := filepath.Dir(filename)
+
+	err = os.MkdirAll(dir, 0700)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.CreateTemp(dir, "*.temp")
 	if err != nil {
 		return err
 	}

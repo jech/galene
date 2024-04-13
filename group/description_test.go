@@ -306,3 +306,15 @@ func TestWritableGroups(t *testing.T) {
 		)
 	}
 }
+
+func TestSubGroup(t *testing.T) {
+	err := setupTest(t.TempDir(), t.TempDir(), true)
+	if err != nil {
+		t.Fatalf("setupTest: %v", err)
+	}
+
+	err = UpdateDescription("dir/test", "", &Description{})
+	if err != nil {
+		t.Fatalf("UpdateDescription: got %v", err)
+	}
+}
