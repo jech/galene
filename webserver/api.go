@@ -280,7 +280,6 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 
 	username := first2[1:]
 	if r.Method == "HEAD" || r.Method == "GET" {
-		w.Header().Set("content-type", "application/json")
 		user, etag, err := group.GetSanitisedUser(g, username)
 		if err != nil {
 			httpError(w, err)
