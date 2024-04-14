@@ -22,5 +22,6 @@ func Parse(token string, keys []map[string]interface{}) (Token, error) {
 		return jwt, nil
 	}
 
-	return Get(token)
+	s, _, err := Get(token)
+	return s, err
 }

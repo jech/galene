@@ -252,7 +252,7 @@ func TestTokenStorage(t *testing.T) {
 		},
 	}
 	for i, token := range tokens {
-		new, err := s.Add(token)
+		new, err := s.Update(token, "")
 		if err != nil {
 			t.Errorf("Add: %v", err)
 		}
@@ -264,19 +264,30 @@ func TestTokenStorage(t *testing.T) {
 	}
 
 	s.modTime = time.Time{}
-	err := s.load()
+	_, err := s.load()
 	if err != nil {
 		t.Errorf("Load: %v", err)
 	}
 	expectTokens(t, s.tokens, tokens)
 
-	_, err = s.Extend("test2", tokens[1].Token, now.Add(time.Hour))
-	if err == nil {
-		t.Errorf("Edit succeeded with wrong group")
-	}
-	new, err := s.Extend("test", tokens[1].Token, now.Add(time.Hour))
+	t1, etag, err := s.Get("tok2")
 	if err != nil {
-		t.Errorf("Edit: %v", err)
+		t.Fatalf("Get: %v", err)
+	}
+	t2 := t1.Clone()
+	soon := now.Add(time.Hour)
+	t2.Expires = &soon
+	_, err = s.Update(t2, "")
+	if !errors.Is(err, ErrTagMismatch) {
+		t.Errorf("Update: got %v, expected ErrTagMismatch", err)
+	}
+	_, err = s.Update(t2, "\"bad\"")
+	if !errors.Is(err, ErrTagMismatch) {
+		t.Errorf("Update: got %v, expected ErrTagMismatch", err)
+	}
+	new, err := s.Update(t2, etag)
+	if err != nil {
+		t.Fatalf("Update: %v", err)
 	}
 	tokens[1].Expires = &future
 	if !equal(new, tokens[1]) {
@@ -350,7 +361,7 @@ func TestExpire(t *testing.T) {
 	}
 
 	for _, token := range tokens {
-		_, err := s.Add(token)
+		_, err := s.Update(token, "")
 		if err != nil {
 			t.Errorf("Add: %v", err)
 		}

@@ -23,13 +23,13 @@ func TestToken(t *testing.T) {
 
 	future := time.Now().Add(time.Hour)
 	user := "user"
-	_, err = Add(&Stateful{
+	_, err = Update(&Stateful{
 		Token:       "token",
 		Group:       "group",
 		Username:    &user,
 		Permissions: []string{"present"},
 		Expires:     &future,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("Add: %v", err)
 	}

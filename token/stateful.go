@@ -3,6 +3,7 @@ package token
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"time"
 )
+
+var ErrTagMismatch = errors.New("tag mismatch")
 
 // A stateful token
 type Stateful struct {
@@ -57,26 +60,26 @@ func SetStatefulFilename(filename string) {
 	tokens.modTime = time.Time{}
 }
 
-func (state *state) Get(token string) (*Stateful, error) {
+func (state *state) Get(token string) (*Stateful, string, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
-	err := state.load()
+	etag, err := state.load()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if state.tokens == nil {
-		return nil, os.ErrNotExist
+		return nil, "", os.ErrNotExist
 	}
 	t := state.tokens[token]
 	if t == nil {
-		return nil, os.ErrNotExist
+		return nil, "", os.ErrNotExist
 	}
-	return t, nil
+	return t, etag, nil
 }
 
 // Get fetches a stateful token.
 // It returns os.ErrNotExist if the token doesn't exist.
-func Get(token string) (*Stateful, error) {
+func Get(token string) (*Stateful, string, error) {
 	return tokens.Get(token)
 }
 
@@ -103,12 +106,13 @@ func (token *Stateful) Check(host, group string, username *string) (string, []st
 	return user, token.Permissions, nil
 }
 
+// load updates the state from the corresponding file.
 // called locked
-func (state *state) load() error {
+func (state *state) load() (string, error) {
 	if state.filename == "" {
 		state.modTime = time.Time{}
 		state.tokens = nil
-		return nil
+		return state.etag(), nil
 	}
 
 	fi, err := os.Stat(state.filename)
@@ -117,14 +121,13 @@ func (state *state) load() error {
 		state.fileSize = 0
 		state.tokens = nil
 		if errors.Is(err, os.ErrNotExist) {
-			return nil
+			return "", nil
 		}
-		return err
+		return "", err
 	}
 
-	if state.modTime.Equal(fi.ModTime()) &&
-		state.fileSize == fi.Size() {
-		return nil
+	if state.modTime.Equal(fi.ModTime()) && state.fileSize == fi.Size() {
+		return state.etag(), nil
 	}
 
 	f, err := os.Open(state.filename)
@@ -133,9 +136,9 @@ func (state *state) load() error {
 		state.fileSize = 0
 		state.tokens = nil
 		if errors.Is(err, os.ErrNotExist) {
-			return nil
+			return state.etag(), nil
 		}
-		return err
+		return "", err
 	}
 
 	defer f.Close()
@@ -150,7 +153,7 @@ func (state *state) load() error {
 		} else if err != nil {
 			state.modTime = time.Time{}
 			state.fileSize = 0
-			return err
+			return "", err
 		}
 		ts[t.Token] = &t
 	}
@@ -161,35 +164,108 @@ func (state *state) load() error {
 		state.fileSize = 0
 		state.tokens = nil
 		if errors.Is(err, os.ErrNotExist) {
-			return nil
+			return state.etag(), nil
 		}
-		return err
+		return "", err
 	}
 	state.modTime = fi.ModTime()
 	state.fileSize = fi.Size()
-	return nil
+	return state.etag(), nil
 }
 
-func (state *state) Add(token *Stateful) (*Stateful, error) {
+func (state *state) etag() string {
+	if state.modTime.Equal(time.Time{}) {
+		return ""
+	}
+	return fmt.Sprintf("\"%v-%v\"",
+		state.fileSize, state.modTime.UnixNano(),
+	)
+}
+
+// Update adds or updates a token.
+// If etag is the empty string, it is added if it didn't exist.  If etag
+// is not empty, it is added if it matches the state's etag.
+func (state *state) Update(token *Stateful, etag string) (*Stateful, error) {
 	tokens.mu.Lock()
 	defer tokens.mu.Unlock()
 
 	if state.filename == "" {
+		if etag != "" {
+			return nil, ErrTagMismatch
+		}
 		return nil, os.ErrNotExist
 	}
 
-	err := state.load()
+	_, err := state.load()
 	if err != nil {
 		return nil, err
 	}
 
-	if state.tokens != nil {
-		if _, ok := state.tokens[token.Token]; ok {
-			return nil, os.ErrExist
-		}
+	if state.tokens == nil {
+		state.tokens = make(map[string]*Stateful)
 	}
 
-	err = os.MkdirAll(filepath.Dir(state.filename), 0700)
+	old, ok := state.tokens[token.Token]
+	if ok {
+		if etag != state.etag() {
+			return nil, ErrTagMismatch
+		}
+		state.tokens[token.Token] = token
+		err = state.rewrite()
+		if err != nil {
+			state.tokens[token.Token] = old
+			return nil, err
+		}
+		return token, nil
+	}
+
+	if etag != "" {
+		return nil, ErrTagMismatch
+	}
+	return state.add(token)
+}
+
+func Delete(token string, etag string) error {
+	return tokens.Delete(token, etag)
+}
+
+func (state *state) Delete(token string, etag string) error {
+	tokens.mu.Lock()
+	defer tokens.mu.Unlock()
+
+	if state.filename == "" {
+		return os.ErrNotExist
+	}
+
+	_, err := state.load()
+	if err != nil {
+		return err
+	}
+
+	if state.tokens == nil {
+		return os.ErrNotExist
+	}
+
+	old, ok := state.tokens[token]
+	if !ok {
+		return os.ErrNotExist
+	}
+	if etag != state.etag() {
+		return ErrTagMismatch
+	}
+	delete(state.tokens, token)
+	err = state.rewrite()
+	if err != nil {
+		state.tokens[token] = old
+		return err
+	}
+	return nil
+}
+
+// add unconditionally adds a token, which is assumed to not exist.
+// called locked
+func (state *state) add(token *Stateful) (*Stateful, error) {
+	err := os.MkdirAll(filepath.Dir(state.filename), 0700)
 	if err != nil {
 		return nil, err
 	}
@@ -220,49 +296,8 @@ func (state *state) Add(token *Stateful) (*Stateful, error) {
 	return token, nil
 }
 
-func Add(token *Stateful) (*Stateful, error) {
-	return tokens.Add(token)
-}
-
-func Extend(group, token string, expires time.Time) (*Stateful, error) {
-	return tokens.Extend(group, token, expires)
-}
-
-func (state *state) Extend(group, token string, expires time.Time) (*Stateful, error) {
-	tokens.mu.Lock()
-	defer tokens.mu.Unlock()
-	return state.extend(group, token, expires)
-}
-
-// called locked
-func (state *state) extend(group, token string, expires time.Time) (*Stateful, error) {
-	err := state.load()
-	if err != nil {
-		return nil, err
-	}
-
-	if state.tokens == nil {
-		return nil, os.ErrNotExist
-	}
-
-	old := state.tokens[token]
-	if old == nil {
-		return nil, os.ErrNotExist
-	}
-	if old.Group != group {
-		return nil, os.ErrPermission
-	}
-
-	new := old.Clone()
-	new.Expires = &expires
-	state.tokens[token] = new
-
-	err = state.rewrite()
-	if err != nil {
-		state.tokens[token] = old
-		return nil, err
-	}
-	return new, err
+func Update(token *Stateful, etag string) (*Stateful, error) {
+	return tokens.Update(token, etag)
 }
 
 // called locked
@@ -280,7 +315,7 @@ func (state *state) rewrite() error {
 	if err != nil {
 		return err
 	}
-	a, err := state.list("")
+	a, _, err := state.list("")
 	if err != nil {
 		os.Remove(tmpfile.Name())
 		return err
@@ -321,15 +356,15 @@ func (state *state) rewrite() error {
 }
 
 // called locked
-func (state *state) list(group string) ([]*Stateful, error) {
-	err := state.load()
+func (state *state) list(group string) ([]*Stateful, string, error) {
+	_, err := state.load()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	a := make([]*Stateful, 0)
 	if state.tokens == nil {
-		return a, nil
+		return a, state.etag(), nil
 	}
 	for _, t := range state.tokens {
 		if group != "" {
@@ -348,16 +383,16 @@ func (state *state) list(group string) ([]*Stateful, error) {
 		}
 		return (*a[i].Expires).Before(*a[j].Expires)
 	})
-	return a, nil
+	return a, state.etag(), nil
 }
 
-func (state *state) List(group string) ([]*Stateful, error) {
+func (state *state) List(group string) ([]*Stateful, string, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	return state.list(group)
 }
 
-func List(group string) ([]*Stateful, error) {
+func List(group string) ([]*Stateful, string, error) {
 	return tokens.List(group)
 }
 
@@ -365,7 +400,7 @@ func (state *state) Expire() error {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
-	err := state.load()
+	_, err := state.load()
 	if err != nil {
 		return err
 	}
