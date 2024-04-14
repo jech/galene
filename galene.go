@@ -126,14 +126,10 @@ func main() {
 	ice.Update()
 	defer turnserver.Stop()
 
-	serverDone := make(chan struct{})
-	go func() {
-		err := webserver.Serve(httpAddr, group.DataDirectory)
-		if err != nil {
-			log.Printf("Server: %v", err)
-		}
-		close(serverDone)
-	}()
+	err = webserver.Serve(httpAddr, group.DataDirectory)
+	if err != nil {
+		log.Fatalf("Server: %v", err)
+	}
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
@@ -158,8 +154,6 @@ func main() {
 		case <-terminate:
 			webserver.Shutdown()
 			return
-		case <-serverDone:
-			os.Exit(1)
 		}
 	}
 }

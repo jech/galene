@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"encoding/json"
 	"net/http"
@@ -19,13 +18,10 @@ import (
 
 var setupOnce = sync.OnceFunc(func() {
 	Insecure = true
-	go func() {
-		err := Serve("localhost:1234", "")
-		if err != nil {
-			panic("could not start server")
-		}
-	}()
-	time.Sleep(100 * time.Millisecond)
+	err := Serve("localhost:1234", "")
+	if err != nil {
+		panic("could not start server")
+	}
 })
 
 func setupTest(dir, datadir string) error {

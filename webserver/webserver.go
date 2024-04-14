@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -28,7 +27,7 @@ import (
 	"github.com/jech/galene/rtpconn"
 )
 
-var server atomic.Value
+var server *http.Server
 
 var StaticRoot string
 
@@ -67,7 +66,7 @@ func Serve(address string, dataDir string) error {
 		group.Shutdown("server is shutting down")
 	})
 
-	server.Store(s)
+	server = s
 
 	proto := "tcp"
 	if strings.HasPrefix(address, "/") {
@@ -78,18 +77,15 @@ func Serve(address string, dataDir string) error {
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
-
-	if !Insecure {
-		err = s.ServeTLS(listener, "", "")
-	} else {
-		err = s.Serve(listener)
-	}
-
-	if err == http.ErrServerClosed {
-		return nil
-	}
-	return err
+	go func() {
+		defer listener.Close()
+		if !Insecure {
+			err = s.ServeTLS(listener, "", "")
+		} else {
+			err = s.Serve(listener)
+		}
+	}()
+	return nil
 }
 
 func cspHeader(w http.ResponseWriter, connect string) {
@@ -755,12 +751,11 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 }
 
 func Shutdown() {
-	v := server.Load()
-	if v == nil {
-		return
+	if server == nil {
+		log.Printf("Shutting down nonexistent server")
 	}
-	s := v.(*http.Server)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	s.Shutdown(ctx)
+	server.Shutdown(ctx)
+	server = nil
 }
