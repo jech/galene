@@ -269,11 +269,11 @@ func TestTokenStorage(t *testing.T) {
 	}
 	expectTokens(t, s.tokens, tokens)
 
-	_, err = s.Edit("test2", tokens[1].Token, now.Add(time.Hour))
+	_, err = s.Extend("test2", tokens[1].Token, now.Add(time.Hour))
 	if err == nil {
 		t.Errorf("Edit succeeded with wrong group")
 	}
-	new, err := s.Edit("test", tokens[1].Token, now.Add(time.Hour))
+	new, err := s.Extend("test", tokens[1].Token, now.Add(time.Hour))
 	if err != nil {
 		t.Errorf("Edit: %v", err)
 	}

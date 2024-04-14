@@ -1793,7 +1793,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if tok.Expires == nil {
 				return terror("error", "trying to edit nothing")
 			}
-			new, err := token.Edit(
+			new, err := token.Extend(
 				c.group.Name(), tok.Token, *tok.Expires,
 			)
 			if err != nil {

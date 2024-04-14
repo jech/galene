@@ -217,18 +217,18 @@ func Add(token *Stateful) (*Stateful, error) {
 	return tokens.Add(token)
 }
 
-func Edit(group, token string, expires time.Time) (*Stateful, error) {
-	return tokens.Edit(group, token, expires)
+func Extend(group, token string, expires time.Time) (*Stateful, error) {
+	return tokens.Extend(group, token, expires)
 }
 
-func (state *state) Edit(group, token string, expires time.Time) (*Stateful, error) {
+func (state *state) Extend(group, token string, expires time.Time) (*Stateful, error) {
 	tokens.mu.Lock()
 	defer tokens.mu.Unlock()
-	return state.edit(group, token, expires)
+	return state.extend(group, token, expires)
 }
 
 // called locked
-func (state *state) edit(group, token string, expires time.Time) (*Stateful, error) {
+func (state *state) extend(group, token string, expires time.Time) (*Stateful, error) {
 	err := state.load()
 	if err != nil {
 		return nil, err
