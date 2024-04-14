@@ -264,7 +264,7 @@ func openDiskFile(directory, username, extension string) (*os.File, error) {
 		)
 		if err == nil {
 			return f, nil
-		} else if !os.IsExist(err) {
+		} else if !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
 	}

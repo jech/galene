@@ -291,7 +291,7 @@ func TestApi(t *testing.T) {
 	}
 
 	_, err = group.GetDescription("test")
-	if !os.IsNotExist(err) {
+	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("Group exists after delete")
 	}
 }

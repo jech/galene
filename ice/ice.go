@@ -95,7 +95,7 @@ func Update() *configuration {
 		found = true
 		file, err := os.Open(ICEFilename)
 		if err != nil {
-			if !os.IsNotExist(err) {
+			if !errors.Is(err, os.ErrNotExist) {
 				log.Printf("Open %v: %v", ICEFilename, err)
 			} else {
 				found = false

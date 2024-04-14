@@ -474,7 +474,7 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 	} else if !descriptionUnchanged(name, g.description) {
 		desc, err = readDescription(name, true)
 		if err != nil {
-			if !os.IsNotExist(err) {
+			if !errors.Is(err, os.ErrNotExist) {
 				log.Printf("Reading group %v: %v", name, err)
 			}
 			deleteUnlocked(g)
@@ -886,7 +886,7 @@ func GetConfiguration() (*Configuration, error) {
 	filename := filepath.Join(DataDirectory, "config.json")
 	fi, err := os.Stat(filename)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			if !configuration.configuration.Zero() {
 				configuration.configuration = &Configuration{}
 			}

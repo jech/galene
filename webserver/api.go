@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -170,7 +171,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 		return
 	} else if r.Method == "PUT" {
 		etag, err := group.GetDescriptionTag(g)
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			err = nil
 			etag = ""
 		} else if err != nil {
@@ -299,7 +300,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		return
 	} else if r.Method == "PUT" {
 		etag, err := group.GetUserTag(g, username)
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			etag = ""
 			err = nil
 		} else if err != nil {

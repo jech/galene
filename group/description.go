@@ -232,7 +232,7 @@ func getDescriptionFile[T any](name string, allowSubgroups bool, get func(string
 			Directory, path.Clean("/"+name)+".json",
 		)
 		r, err := get(fileName)
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return r, fileName, isSubgroup, err
 		}
 		if !allowSubgroups {
@@ -348,7 +348,7 @@ func UpdateDescription(name, etag string, desc *Description) error {
 	if err == nil {
 		oldetag = makeETag(old.fileSize, old.modTime)
 		filename = old.FileName
-	} else if os.IsNotExist(err) {
+	} else if errors.Is(err, os.ErrNotExist) {
 		old = nil
 		filename = filepath.Join(
 			Directory, path.Clean("/"+name)+".json",

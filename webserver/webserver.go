@@ -120,7 +120,7 @@ func notFound(w http.ResponseWriter) {
 var ErrIsDirectory = errors.New("is a directory")
 
 func httpError(w http.ResponseWriter, err error) {
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		notFound(w)
 		return
 	}
@@ -235,7 +235,7 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ff, err := fh.root.Open(index)
 		if err != nil {
 			// return 403 if index.html doesn't exist
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}

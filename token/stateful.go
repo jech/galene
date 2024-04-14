@@ -62,7 +62,7 @@ func getStateful(token string) (*Stateful, error) {
 	defer tokens.mu.Unlock()
 	err := tokens.load()
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, err
@@ -109,7 +109,7 @@ func (state *state) load() error {
 		state.modTime = time.Time{}
 		state.fileSize = 0
 		state.tokens = nil
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return err
@@ -125,7 +125,7 @@ func (state *state) load() error {
 		state.modTime = time.Time{}
 		state.fileSize = 0
 		state.tokens = nil
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return err
@@ -153,7 +153,7 @@ func (state *state) load() error {
 		state.modTime = time.Time{}
 		state.fileSize = 0
 		state.tokens = nil
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return err
@@ -262,7 +262,7 @@ func (state *state) extend(group, token string, expires time.Time) (*Stateful, e
 func (state *state) rewrite() error {
 	if state.tokens == nil || len(state.tokens) == 0 {
 		err := os.Remove(state.filename)
-		if err == nil || os.IsNotExist(err) {
+		if err == nil || errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return err

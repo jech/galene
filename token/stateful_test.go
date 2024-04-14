@@ -2,6 +2,7 @@ package token
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -294,7 +295,7 @@ func TestTokenStorage(t *testing.T) {
 	}
 
 	_, err = os.Stat(s.filename)
-	if !os.IsNotExist(err) {
+	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("existence check: %v", err)
 	}
 }
