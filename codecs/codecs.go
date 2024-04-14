@@ -65,6 +65,9 @@ func Keyframe(codec string, packet *rtp.Packet) (bool, bool) {
 				if len(data) <= offset {
 					return nil, offset, offset > 0
 				}
+				if offset >= 4 {
+					return nil, offset, true
+				}
 				l := data[offset]
 				length |= int(l&0x7f) << (offset * 7)
 				offset++
