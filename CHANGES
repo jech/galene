@@ -1,3 +1,8 @@
+14 April 2024: Galene 0.8.2
+
+  * Fixed possible crashes in the VP8 and AV1 parsers.
+  * Fixed keyframe detection for VP8 and VP9.
+
 9 March 2024: Galene 0.8.1
 
   * Security fixes to WHIP ingress.
