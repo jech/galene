@@ -59,7 +59,7 @@ func TestEmptyJSON(t *testing.T) {
 var descJSON = `
 {
     "max-history-age": 10,
-    "allow-subgroups": true,
+    "auto-subgroups": true,
     "users": {
         "jch": {"password": "topsecret", "permissions": "op"},
         "john": {"password": "secret", "permissions": "present"},
@@ -123,6 +123,11 @@ func TestUpgradeDescription(t *testing.T) {
 	err = upgradeDescription(&d2)
 	if err != nil {
 		t.Fatalf("upgradeDescription: %v", err)
+	}
+
+	if d1.AutoSubgroups != d2.AutoSubgroups ||
+		d1.AllowSubgroups != d2.AllowSubgroups {
+		t.Errorf("AllowSubgroups not upgraded correctly")
 	}
 
 	if d2.Op != nil || d2.Presenter != nil || d2.Other != nil {
