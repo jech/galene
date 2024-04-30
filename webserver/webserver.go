@@ -524,8 +524,18 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Websocket upgrade: %v", err)
 		return
 	}
+
+	var addr net.Addr
+	println(r.RemoteAddr)
+	tcpaddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
+	if err != nil {
+		log.Printf("ResolveTCPAddr: %v", err)
+	} else {
+		addr = tcpaddr
+	}
+
 	go func() {
-		err := rtpconn.StartClient(conn)
+		err := rtpconn.StartClient(conn, addr)
 		if err != nil {
 			log.Printf("client: %v", err)
 		}

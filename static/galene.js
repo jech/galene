@@ -2276,6 +2276,9 @@ function userMenu(elt) {
             items.push({label: 'Kick out', onClick: () => {
                 serverConnection.userAction('kick', id);
             }});
+            items.push({label: 'Identify', onClick: () => {
+                serverConnection.userAction('identify', id);
+            }});
         }
     }
     /** @ts-ignore */
@@ -2806,6 +2809,19 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             s = s + f[0] + ': ' + f[1] + "\n";
         }
         localMessage(s);
+        break;
+    case 'userinfo':
+        if(!privileged) {
+            console.error(`Got unprivileged message of kind ${kind}`);
+            return;
+        }
+        let u = message.username ?
+            'username ' + message.username :
+            'unknown username';
+        let a = message.address ?
+            'address ' + message.address :
+            'unknown address';
+        localMessage(`User ${message.id} has ${u} and ${a}.`);
         break;
     default:
         console.warn(`Got unknown user message ${kind}`);
@@ -3418,6 +3434,13 @@ function userMessage(c, r) {
 commands.kick = {
     parameters: 'user [message]',
     description: 'kick out a user',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
+commands.identify = {
+    parameters: 'user [message]',
+    description: 'identify a user',
     predicate: operatorPredicate,
     f: userCommand,
 };
