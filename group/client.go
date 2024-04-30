@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"hash"
+	"net"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
@@ -111,6 +112,7 @@ type ClientCredentials struct {
 
 type Client interface {
 	Group() *Group
+	Addr() net.Addr
 	Id() string
 	Username() string
 	SetUsername(string)

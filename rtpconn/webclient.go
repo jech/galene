@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"sync"
 	"time"
@@ -58,6 +59,7 @@ func isWSNormalError(err error) bool {
 
 type webClient struct {
 	group       *group.Group
+	addr        net.Addr
 	id          string
 	username    string
 	permissions []string
@@ -75,6 +77,10 @@ type webClient struct {
 
 func (c *webClient) Group() *group.Group {
 	return c.group
+}
+
+func (c *webClient) Addr() net.Addr {
+	return c.addr
 }
 
 func (c *webClient) Id() string {
@@ -818,7 +824,7 @@ func readMessage(conn *websocket.Conn, m *clientMessage) error {
 
 const protocolVersion = "2"
 
-func StartClient(conn *websocket.Conn) (err error) {
+func StartClient(conn *websocket.Conn, addr net.Addr) (err error) {
 	var m clientMessage
 
 	err = readMessage(conn, &m)
@@ -849,6 +855,7 @@ func StartClient(conn *websocket.Conn) (err error) {
 	}
 
 	c := &webClient{
+		addr:    addr,
 		id:      m.Id,
 		actions: unbounded.New[any](),
 		done:    make(chan struct{}),

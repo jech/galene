@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -105,6 +106,10 @@ func (client *Client) Kick(id string, user *string, message string) error {
 	err := client.Close()
 	group.DelClient(client)
 	return err
+}
+
+func (client *Client) Addr() net.Addr {
+	return nil
 }
 
 func (client *Client) Joined(group, kind string) error {
