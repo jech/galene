@@ -1853,6 +1853,39 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if err != nil {
 				return c.error(err)
 			}
+		case "identify":
+			if !member("op", c.permissions) {
+				return c.error(group.UserError("not authorised"))
+			}
+			d := g.GetClient(m.Dest)
+			if d == nil {
+				return c.error(
+					group.UserError("client not found"),
+				)
+			}
+			value := make(map[string]any)
+			value["id"] = d.Id()
+			if username := d.Username(); username != "" {
+				value["username"] = username
+			}
+			if addr := d.Addr(); addr != nil {
+				value["address"] = addr.String()
+			}
+			type warner interface {
+				Warn(bool, string) error
+			}
+			w, ok := d.(warner)
+			if ok {
+				w.Warn(false, "Your IP address has been " +
+					"communicated to user " +
+					c.Username() + ".")
+			}
+			c.write(clientMessage{
+				Type: "usermessage",
+				Kind: "userinfo",
+				Privileged: true,
+				Value: value,
+			})
 		case "kick":
 			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
