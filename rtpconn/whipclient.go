@@ -3,6 +3,7 @@ package rtpconn
 import (
 	"context"
 	"errors"
+	"net"
 	"sync"
 
 	"github.com/jech/galene/conn"
@@ -12,6 +13,7 @@ import (
 
 type WhipClient struct {
 	group    *group.Group
+	addr     net.Addr
 	id       string
 	token    string
 	username string
@@ -21,12 +23,16 @@ type WhipClient struct {
 	connection  *rtpUpConnection
 }
 
-func NewWhipClient(g *group.Group, id string, token string) *WhipClient {
-	return &WhipClient{group: g, id: id, token: token}
+func NewWhipClient(g *group.Group, id string, token string, addr net.Addr) *WhipClient {
+	return &WhipClient{group: g, id: id, token: token, addr: addr}
 }
 
 func (c *WhipClient) Group() *group.Group {
 	return c.group
+}
+
+func (c *WhipClient) Addr() net.Addr {
+	return c.addr
 }
 
 func (c *WhipClient) Id() string {
