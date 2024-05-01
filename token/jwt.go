@@ -126,6 +126,8 @@ func toStringArray(a interface{}) ([]string, bool) {
 	return b, true
 }
 
+// parseJWT tries to parse a string as a JWT.
+// It returns (nil, nil) if the string does not look like a JWT.
 func parseJWT(token string, keys []map[string]interface{}) (*JWT, error) {
 	t, err := jwt.Parse(
 		token,

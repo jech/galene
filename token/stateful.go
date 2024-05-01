@@ -57,20 +57,23 @@ func SetStatefulFilename(filename string) {
 	tokens.modTime = time.Time{}
 }
 
-func getStateful(token string) (*Stateful, error) {
+// Get fetches a stateful token.
+// It returns os.ErrNotExist if the token doesn't exist.
+func Get(token string) (*Stateful, error) {
 	tokens.mu.Lock()
 	defer tokens.mu.Unlock()
 	err := tokens.load()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
 		return nil, err
 	}
 	if tokens.tokens == nil {
-		return nil, nil
+		return nil, os.ErrNotExist
 	}
-	return tokens.tokens[token], nil
+	t := tokens.tokens[token]
+	if t == nil {
+		return nil, os.ErrNotExist
+	}
+	return t, nil
 }
 
 func (token *Stateful) Check(host, group string, username *string) (string, []string, error) {

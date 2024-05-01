@@ -2,7 +2,6 @@ package token
 
 import (
 	"errors"
-	"os"
 )
 
 var ErrUsernameRequired = errors.New("username required")
@@ -13,21 +12,15 @@ type Token interface {
 
 func Parse(token string, keys []map[string]interface{}) (Token, error) {
 	// both getStateful and parseJWT may return nil, which we
-	// shouldn't cast into an interface.  Be very careful.
-	s, err1 := getStateful(token)
-	if err1 == nil && s != nil {
-		return s, nil
+	// shouldn't cast into an interface before testing for nil.
+	jwt, err := parseJWT(token, keys)
+	if err != nil {
+		// parses correctly but doesn't validate
+		return nil, err
 	}
-
-	jwt, err2 := parseJWT(token, keys)
-	if err2 == nil && jwt != nil {
+	if jwt != nil {
 		return jwt, nil
 	}
 
-	if err1 != nil {
-		return nil, err1
-	} else if err2 != nil {
-		return nil, err2
-	}
-	return nil, os.ErrNotExist
+	return Get(token)
 }
