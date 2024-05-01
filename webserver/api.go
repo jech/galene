@@ -3,6 +3,7 @@ package webserver
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/stats"
+	"github.com/jech/galene/token"
 )
 
 func parseContentType(ctype string) string {
@@ -134,6 +136,9 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 		return
 	} else if kind == ".keys" && rest == "" {
 		keysHandler(w, r, g)
+		return
+	} else if kind == ".tokens" {
+		tokensHandler(w, r, g, rest)
 		return
 	} else if kind != "" {
 		if !checkAdmin(w, r) {
@@ -522,5 +527,174 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 	}
 
 	methodNotAllowed(w, "PUT", "DELETE")
+	return
+}
+
+func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
+	if pth == "" {
+		http.NotFound(w, r)
+		return
+	}
+	if !checkAdmin(w, r) {
+		return
+	}
+	if pth == "/" {
+		if r.Method == "HEAD" || r.Method == "GET" {
+			tokens, etag, err := token.List(g)
+			if err != nil {
+				httpError(w, err)
+				return
+			}
+			w.Header().Set("content-type",
+				"text/plain; charset=utf-8")
+			if etag != "" {
+				w.Header().Set("etag", etag)
+			}
+			if r.Method == "HEAD" {
+				return
+			}
+			for _, t := range tokens {
+				fmt.Fprintln(w, t.Token)
+			}
+			return
+		} else if r.Method == "POST" {
+			ctype := parseContentType(r.Header.Get("Content-Type"))
+			if !strings.EqualFold(ctype, "application/json") {
+				http.Error(w, "unsupported content type",
+					http.StatusUnsupportedMediaType)
+				return
+			}
+			d := json.NewDecoder(r.Body)
+			var newtoken token.Stateful
+			err := d.Decode(&newtoken)
+			if err != nil {
+				httpError(w, err)
+				return
+			}
+			if newtoken.Token != "" || newtoken.Group != "" {
+				http.Error(w, "overspecified token",
+					http.StatusBadRequest)
+				return
+			}
+			buf := make([]byte, 8)
+			rand.Read(buf)
+			newtoken.Token =
+				base64.RawURLEncoding.EncodeToString(buf)
+			newtoken.Group = g
+			t, err := token.Update(&newtoken, "")
+			if err != nil {
+				httpError(w, err)
+				return
+			}
+			w.Header().Set("content-type",
+				"text/plain; charset=utf-8")
+			w.Header().Set("location", t.Token)
+			w.WriteHeader(http.StatusCreated)
+			return
+		}
+		methodNotAllowed(w, "HEAD", "GET", "POST")
+		return
+	}
+
+	if pth[0] != '/' {
+		http.NotFound(w, r)
+		return
+	}
+	t := pth[1:]
+	if r.Method == "HEAD" || r.Method == "GET" {
+		tok, etag, err := token.Get(t)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		if tok.Group != g {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("content-type", "application/json")
+		w.Header().Set("etag", etag)
+		done := checkPreconditions(w, r, etag)
+		if done {
+			return
+		}
+		if r.Method == "HEAD" {
+			return
+		}
+		e := json.NewEncoder(w)
+		e.Encode(t)
+		return
+	} else if r.Method == "PUT" {
+		old, etag, err := token.Get(t)
+		if errors.Is(err, os.ErrNotExist) {
+			etag = ""
+			err = nil
+		} else if err != nil {
+			httpError(w, err)
+			return
+		}
+		if old.Group != g {
+			http.Error(w, "token exists in different group",
+				http.StatusConflict)
+			return
+		}
+
+		done := checkPreconditions(w, r, etag)
+		if done {
+			return
+		}
+
+		ctype := parseContentType(r.Header.Get("Content-Type"))
+		if !strings.EqualFold(ctype, "application/json") {
+			http.Error(w, "unsupported content type",
+				http.StatusUnsupportedMediaType)
+			return
+		}
+		d := json.NewDecoder(r.Body)
+		var newtoken token.Stateful
+		err = d.Decode(&newtoken)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		if newtoken.Group != g {
+			http.Error(w, "wrong group", http.StatusBadRequest)
+			return
+		}
+		_, err = token.Update(&newtoken, etag)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		if etag == "" {
+			w.WriteHeader(http.StatusCreated)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		return
+	} else if r.Method == "DELETE" {
+		old, etag, err := token.Get(t)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		if old.Group != g {
+			http.NotFound(w, r)
+			return
+		}
+
+		done := checkPreconditions(w, r, etag)
+		if done {
+			return
+		}
+
+		err = token.Delete(t, etag)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	methodNotAllowed(w, "HEAD", "GET", "PUT", "DELETE")
 	return
 }

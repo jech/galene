@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"encoding/json"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/jech/galene/group"
+	"github.com/jech/galene/token"
 )
 
 var setupOnce = sync.OnceFunc(func() {
@@ -47,7 +49,17 @@ func setupTest(dir, datadir string) error {
 	if err != nil {
 		return err
 	}
+
+	token.SetStatefulFilename(filepath.Join(datadir, "tokens.jsonl"))
 	return nil
+}
+
+func marshalToString(v any) string {
+	buf, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(buf)
 }
 
 func TestApi(t *testing.T) {
@@ -272,6 +284,74 @@ func TestApi(t *testing.T) {
 		t.Errorf("Keys: %v", len(desc.AuthKeys))
 	}
 
+	resp, err = do("POST", "/galene-api/0/.groups/test/.tokens/",
+		"application/json", "", "", `{"group":"bad"}`)
+	if err != nil || resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Create token (bad group): %v %v", err, resp.StatusCode)
+	}
+
+	resp, err = do("POST", "/galene-api/0/.groups/test/.tokens/",
+		"application/json", "", "", "{}")
+	if err != nil || resp.StatusCode != http.StatusCreated {
+		t.Errorf("Create token: %v %v", err, resp.StatusCode)
+	}
+
+	tokname, err := getString("/galene-api/0/.groups/test/.tokens/")
+	if err != nil {
+		t.Errorf("Get tokens: %v", err)
+	}
+	tokname = tokname[:len(tokname)-1]
+
+	tokens, etag, err := token.List("test")
+	if err != nil || len(tokens) != 1 || tokens[0].Token != tokname {
+		t.Errorf("token.List: %v %v", tokens, err)
+	}
+
+	tokenpath := "/galene-api/0/.groups/test/.tokens/" + tokname
+	resp, err = do("GET", tokenpath,
+		"", "", "", "")
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Errorf("Get token: %v %v", err, resp.StatusCode)
+	}
+
+	tok := tokens[0].Clone()
+	e := time.Now().Add(time.Hour)
+	tok.Expires = &e
+	resp, err = do("PUT", tokenpath,
+		"application/json", etag, "", marshalToString(tok))
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Update token: %v %v", err, resp.StatusCode)
+	}
+
+	tok.Group = "bad"
+	resp, err = do("PUT", tokenpath,
+		"application/json", "", "", marshalToString(tok))
+	if err != nil || resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Update token (bad group): %v %v", err, resp.StatusCode)
+	}
+
+	tokens, etag, err = token.List("test")
+	if err != nil || len(tokens) != 1 {
+		t.Errorf("Token list: %v %v", tokens, err)
+	}
+	if !tokens[0].Expires.Equal(e) {
+		t.Errorf("Got %v, expected %v", tokens[0].Expires, e)
+	}
+
+	resp, err = do("GET", tokenpath, "", "", "", "")
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Errorf("Get token: %v %v", err, resp.StatusCode)
+	}
+
+	resp, err = do("DELETE", tokenpath, "", "", "", "")
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Update token: %v %v", err, resp.StatusCode)
+	}
+	tokens, etag, err = token.List("test")
+	if err != nil || len(tokens) != 0 {
+		t.Errorf("Token list: %v %v", tokens, err)
+	}
+
 	resp, err = do("DELETE", "/galene-api/0/.groups/test/.fallback-users",
 		"", "", "", "")
 	if err != nil || resp.StatusCode != http.StatusNoContent {
@@ -347,4 +427,9 @@ func TestApiBadAuth(t *testing.T) {
 	do("PUT", "/galene-api/0/.groups/test/.users/not-jch")
 	do("PUT", "/galene-api/0/.groups/test/.users/jch/.password")
 	do("POST", "/galene-api/0/.groups/test/.users/jch/.password")
+	do("GET", "/galene-api/0/.groups/test/.tokens/")
+	do("POST", "/galene-api/0/.groups/test/.tokens/")
+	do("GET", "/galene-api/0/.groups/test/.tokens/token")
+	do("PUT", "/galene-api/0/.groups/test/.tokens/token")
+	do("DELETE", "/galene-api/0/.groups/test/.tokens/token")
 }

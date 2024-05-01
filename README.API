@@ -96,3 +96,20 @@ field of the on-disk format, while the POST method takes a string which
 will be hashed on the server.  Allowed methods are PUT, POST and DELETE.
 Accepted content-types are `application/json` for PUT and `text/plain` for
 POST.
+
+### List of stateful tokens
+
+    /galene-api/0/.groups/groupname/.users/username/.tokens/
+
+GET returns the list of stateful tokens, as plain text, one token per
+line.  POST creates a new token, and returns its name in the `Location`
+header.  Allowed methods are HEAD, GET and POST.
+
+### Stateful token
+
+    /galene-api/0/.groups/groupname/.users/username/.tokens/token
+
+The full contents of a single token, in JSON.  The exact format may change
+between versions, so a client should first GET a token, update one or more
+fields, then PUT the resulting token.  Allowed methods are HEAD, GET and
+PUT.
