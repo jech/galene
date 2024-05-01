@@ -234,6 +234,10 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 }
 
 func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
+	if pth == "" {
+		http.NotFound(w, r)
+		return
+	}
 	if pth == "/" {
 		if !checkAdmin(w, r) {
 			return
