@@ -1,37 +1,47 @@
-<table id="jslicense-labels1">
-    <tr>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>JavaScript License Information</title>
+  </head>
+  <body>
+    <table id="jslicense-labels1">
+      <tr>
         <td><a href="/mainpage.js">mainpage.js</a></td>
         <td><a href="http://www.jclark.com/xml/copying.txt">Expat</a></td>
         <td><a href="/mainpage.js">mainpage.js</a></td>
-    </tr>
-    <tr>
+      </tr>
+      <tr>
         <td><a href="/protocol.js">protocol.js</a></td>
         <td><a href="http://www.jclark.com/xml/copying.txt">Expat</a></td>
         <td><a href="/protocol.js">protocol.js</a></td>
-    </tr>
-    <tr>
+      </tr>
+      <tr>
         <td><a href="/external/toastify/toastify.js">toastify.js</a></td>
         <td><a href="http://www.jclark.com/xml/copying.txt">Expat</a></td>
         <td><a href="/external/toastify/toastify.js">toastify.js</a></td>
-    </tr>
-    <tr>
+      </tr>
+      <tr>
         <td><a href="/external/contextual/contextual.js">contextual.js</a></td>
         <td><a href="http://www.jclark.com/xml/copying.txt">Expat</a></td>
         <td><a href="/external/contextual/contextual.js">contextual.js</a></td>
-    </tr>
-    <tr>
+      </tr>
+      <tr>
         <td><a href="/galene.js">galene.js</a></td>
         <td><a href="http://www.jclark.com/xml/copying.txt">Expat</a></td>
         <td><a href="/galene.js">galene.js</a></td>
-    </tr>
-    <tr>
+      </tr>
+      <tr>
         <td><a href="/stats.js">stats.js</a></td>
         <td><a href="http://www.jclark.com/xml/copying.txt">Expat</a></td>
         <td><a href="/stats.js">stats.js</a></td>
-    </tr>
-    <tr>
+      </tr>
+      <tr>
         <td><a href="/change-password.js">change-password.js</a></td>
         <td><a href="http://www.jclark.com/xml/copying.txt">Expat</a></td>
         <td><a href="/change-password.js">change-password.js</a></td>
-    </tr>
-</table>
+      </tr>
+    </table>
+  </body>
+</html>
