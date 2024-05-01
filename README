@@ -50,6 +50,10 @@ There is a user list on the left.  Clicking on a user opens a menu with
 actions that can be applied to that user.  Clicking on ones own username
 opens a menu with actions that are global to the group.
 
+### Chat pane
+
+Double-clicking on a message opens a contextual menu.
+
 ### Text box
 
 Typing a string in the text box at the bottom of the chat pane sends

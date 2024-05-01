@@ -2952,6 +2952,19 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
     if(dest)
         container.classList.add('message-private');
 
+    if(peerId) {
+        container.dataset.peerId = peerId;
+        container.dataset.username = nick;
+        container.addEventListener('click', function(e) {
+            if(e.detail !== 2)
+                return;
+            let elt = e.currentTarget;
+            if(!elt || !(elt instanceof HTMLElement))
+                throw new Error("Couldn't find chat message div");
+            chatMessageMenu(elt);
+        });
+    }
+
     /** @type{HTMLElement} */
     let body;
     if(message instanceof HTMLElement) {
@@ -3025,6 +3038,34 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
     }
 
     return message;
+}
+
+/**
+ * @param {HTMLElement} elt
+ */
+function chatMessageMenu(elt) {
+    if(!(serverConnection && serverConnection.permissions &&
+         serverConnection.permissions.indexOf('op') >= 0))
+        return;
+
+    let peerId = elt.dataset.peerId;
+    if(!peerId)
+        return;
+    let username = elt.dataset.username;
+    let u = username ? ' ' + username : '';
+
+    let items = [];
+    items.push({label: 'Identify user' + u, onClick: () => {
+        serverConnection.userAction('identify', peerId);
+    }});
+    items.push({label: 'Kick out user' + u, onClick: () => {
+        serverConnection.userAction('kick', peerId);
+    }});
+
+    /** @ts-ignore */
+    new Contextual({
+        items: items,
+    });
 }
 
 /**
