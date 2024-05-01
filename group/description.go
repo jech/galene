@@ -441,14 +441,14 @@ func readDescription(name string, allowSubgroups bool) (*Description, error) {
 	if err != nil {
 		return nil, err
 	}
+	desc.FileName = fileName
+	desc.fileSize = fi.Size()
+	desc.modTime = fi.ModTime()
+
 	err = upgradeDescription(&desc)
 	if err != nil {
 		return nil, err
 	}
-
-	desc.FileName = fileName
-	desc.fileSize = fi.Size()
-	desc.modTime = fi.ModTime()
 
 	if isSubgroup {
 		if !desc.AutoSubgroups {
