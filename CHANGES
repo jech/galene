@@ -7,11 +7,15 @@ Galene 0.9 (unreleased)
   * Reworked the definition of administrator passwords in config.json.
     The old field "admin" is ignored, a new field "users" is required.
     This is an incompatible change.
-  * Implemented an administrative API over HTTP, described in the file
-    "README.API".  Set the field "writableGroups" in config.json to enable
-    it.
+  * Implemented an administrative API over HTTP.  Set the field
+    "writableGroups" in config.json to enable it.  The API is described in
+    the file "README.API", a JavaScript library is in management.js.
   * Implemented a form to allow users to change their password.  If the
     HTTP API is enabled, a link will appear in the side menu.
+  * Implemented a new command "/identify" (also availble in the users
+    menu) that discloses the IP address from which a user connected.
+  * Implemented a contextual menu that triggers on a double click on
+    a chat entry.
 
 14 April 2024: Galene 0.8.2
 
