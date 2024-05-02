@@ -35,43 +35,24 @@ document.getElementById('passwordform').onsubmit = async function(e) {
         return;
     }
 
-    let old1 = document.getElementById('old1').value;
-    let old2 = document.getElementById('old2').value;
-    if(old1 !== old2) {
+    let old = document.getElementById('old').value;
+    let new1 = document.getElementById('new1').value;
+    let new2 = document.getElementById('new2').value;
+    if(new1 !== new2) {
         displayError("Passwords don't match.");
         return;
     }
 
     try {
-        await doit(group, user, old1, document.getElementById('new').value);
-        document.getElementById('old1').value = '';
-        document.getElementById('old2').value = '';
-        document.getElementById('new').value = '';
+        await setPassword(group, user, new1, old);
+        document.getElementById('old').value = '';
+        document.getElementById('new1').value = '';
+        document.getElementById('new2').value = '';
         displayError(null);
         document.getElementById('message').textContent =
             'Password successfully changed.';
     } catch(e) {
         displayError(e.toString());
-    }
-}
-
-async function doit(group, user, old, pw) {
-    let creds = btoa(user + ":" + old);
-    let r = await fetch(`/galene-api/0/.groups/${group}/.users/${user}/.password`,
-                        {
-                            method: 'POST',
-                            body: pw,
-                            credentials: 'omit',
-                            headers: {
-                                'Authorization': `Basic ${creds}`
-                            }
-                        });
-    if(!r.ok) {
-        if(r.status === 401)
-            throw new Error('Permission denied');
-        else
-            throw new Error(`The server said: ${r.status} ${r.statusText}`);
-        return;
     }
 }
 
