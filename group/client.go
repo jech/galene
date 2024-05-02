@@ -28,7 +28,7 @@ type Password RawPassword
 func (p Password) Match(pw string) (bool, error) {
 	switch p.Type {
 	case "":
-		return false, errors.New("missing password")
+		return false, nil
 	case "plain":
 		if p.Key == nil {
 			return false, errors.New("missing key")

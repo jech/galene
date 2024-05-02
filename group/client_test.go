@@ -60,10 +60,10 @@ func TestBad(t *testing.T) {
 	if match, err := pw4.Match("bad"); err != nil || match {
 		t.Errorf("pw4 matches")
 	}
-	if match, err := pw5.Match(""); err == nil || match {
+	if match, err := pw5.Match(""); err != nil || match {
 		t.Errorf("pw5 matches")
 	}
-	if match, err := pw5.Match("bad"); err == nil || match {
+	if match, err := pw5.Match("bad"); err != nil || match {
 		t.Errorf("pw5 matches")
 	}
 	if match, err := pw6.Match("bad"); err == nil || match {
@@ -72,11 +72,16 @@ func TestBad(t *testing.T) {
 }
 
 func TestEmptyKey(t *testing.T) {
-	for _, tpe := range []string{"", "plain", "pbkdf2", "bcrypt", "bad"} {
+	for _, tpe := range []string{"plain", "pbkdf2", "bcrypt", "bad"} {
 		pw := Password{Type: tpe}
 		if match, err := pw.Match(""); err == nil || match {
 			t.Errorf("empty password of type %v didn't error", tpe)
 		}
+	}
+
+	pw := Password{}
+	if match, err := pw.Match(""); err != nil || match {
+		t.Errorf("empty password empty type matched")
 	}
 }
 
