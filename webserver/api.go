@@ -660,6 +660,10 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			http.Error(w, "wrong group", http.StatusBadRequest)
 			return
 		}
+		if newtoken.Token != t {
+			http.Error(w, "token mismatch", http.StatusBadRequest)
+			return
+		}
 		_, err = token.Update(&newtoken, etag)
 		if err != nil {
 			httpError(w, err)

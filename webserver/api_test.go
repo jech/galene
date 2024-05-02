@@ -323,6 +323,13 @@ func TestApi(t *testing.T) {
 		t.Errorf("Update token: %v %v", err, resp.StatusCode)
 	}
 
+	tok.Token = "badtoken"
+	resp, err = do("PUT", tokenpath,
+		"application/json", "", "", marshalToString(tok))
+	if err != nil || resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Update mismatched token: %v %v", err, resp.StatusCode)
+	}
+
 	tok.Group = "bad"
 	resp, err = do("PUT", tokenpath,
 		"application/json", "", "", marshalToString(tok))
