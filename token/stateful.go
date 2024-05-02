@@ -410,7 +410,7 @@ func (state *state) Expire() error {
 
 	modified := false
 	for k, t := range state.tokens {
-		if t.Expires.Before(cutoff) {
+		if t.Expires != nil && t.Expires.Before(cutoff) {
 			delete(state.tokens, k)
 			modified = true
 		}
