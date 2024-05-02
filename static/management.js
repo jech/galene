@@ -181,7 +181,7 @@ async function getGroup(group, etag) {
  * @param {Object} [values]
  */
 async function createGroup(group, values) {
-    return await createObject(`/galene-api/0/.groups/${group}/`, values);
+    return await createObject(`/galene-api/0/.groups/${group}`, values);
 }
 
 /**
@@ -191,7 +191,7 @@ async function createGroup(group, values) {
  * @param {string} [etag]
  */
 async function deleteGroup(group, etag) {
-    return await deleteObject(`/galene-api/0/.groups/${group}/`, etag);
+    return await deleteObject(`/galene-api/0/.groups/${group}`, etag);
 }
 
 /**
@@ -204,7 +204,7 @@ async function deleteGroup(group, etag) {
  * @param {string} [etag]
  */
 async function updateGroup(group, values, etag) {
-    return await updateObject(`/galene-api/0/.groups/${group}/`, values);
+    return await updateObject(`/galene-api/0/.groups/${group}`, values);
 }
 
 /**
@@ -239,7 +239,7 @@ async function getUser(group, user, etag) {
  * @param {Object} values
  */
 async function createUser(group, user, values) {
-    return await createObject(`/galene-api/0/.groups/${group}/.users/${user}/`,
+    return await createObject(`/galene-api/0/.groups/${group}/.users/${user}`,
                               values);
 }
 
@@ -265,7 +265,7 @@ async function deleteUser(group, user, etag) {
  * @param {string} [etag]
  */
 async function updateUser(group, user, values, etag) {
-    return await updateObject(`/galene-api/0/.groups/${group}/.users/${user}/`,
+    return await updateObject(`/galene-api/0/.groups/${group}/.users/${user}`,
                             values, etag);
 }
 
