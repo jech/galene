@@ -942,26 +942,12 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) (Permissions, err
 		}
 	}
 
-	for _, c := range desc.FallbackUsers {
-		if c.Password.Type == "wildcard" {
-			continue
-		}
-		ok, _ := c.Password.Match(creds.Password)
+	if desc.WildcardUser != nil {
+		ok, _ := desc.WildcardUser.Password.Match(creds.Password)
 		if ok {
-			return c.Permissions, nil
+			return desc.WildcardUser.Permissions, nil
 		}
 	}
-
-	for _, c := range desc.FallbackUsers {
-		if c.Password.Type != "wildcard" {
-			continue
-		}
-		ok, _ := c.Password.Match(creds.Password)
-		if ok {
-			return c.Permissions, nil
-		}
-	}
-
 	return Permissions{}, &NotAuthorisedError{}
 }
 

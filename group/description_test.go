@@ -66,9 +66,8 @@ var descJSON = `
         "james": {"password": "secret2", "permissions": "observe"},
         "peter": {"password": "secret4"}
     },
-    "fallback-users": [
+    "wildcard-user":
         {"permissions": "observe", "password": {"type":"wildcard"}}
-    ]
 }`
 
 func TestDescriptionJSON(t *testing.T) {
@@ -150,19 +149,15 @@ func TestUpgradeDescription(t *testing.T) {
 		}
 	}
 
-	if len(d1.FallbackUsers) != len(d2.FallbackUsers) {
-		t.Errorf("length not equal: %v != %v",
-			len(d1.FallbackUsers), len(d2.FallbackUsers))
-	}
-
-	for k, v1 := range d1.FallbackUsers {
-		v2 := d2.FallbackUsers[k]
-		if !reflect.DeepEqual(v1.Password, v2.Password) ||
-			!permissionsEqual(
-				v1.Permissions.Permissions(&d1),
-				v2.Permissions.Permissions(&d2),
-			) {
-			t.Errorf("%v not equal: %v != %v", k, v1, v2)
+	if d1.WildcardUser != nil || d2.WildcardUser != nil {
+		if !reflect.DeepEqual(
+			d1.WildcardUser.Password, d2.WildcardUser.Password,
+		) || !permissionsEqual(
+			d1.WildcardUser.Permissions.Permissions(&d1),
+			d2.WildcardUser.Permissions.Permissions(&d2),
+		) {
+			t.Errorf("WildcardUser not equal: %v != %v",
+				d1.WildcardUser, d2.WildcardUser)
 		}
 	}
 }

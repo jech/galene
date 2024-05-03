@@ -55,14 +55,6 @@ on-disk format but without any user definitions or cryptographic keys.
 Allowed methods are HEAD, GET, PUT and DELETE.  The only accepted
 content-type is `application/json`.
 
-### Fallback users
-
-    /galene-api/v0/.groups/groupname/.fallback-users
-
-Contains fallback user descriptions, in the same format as the
-`fallbackUsers` field of the on-disk format.  Allowed methods are PUT and
-DELETE.  The only accepted content-type is `application/json`.
-
 ### Authentication keys
 
     /galene-api/v0/.groups/groupname/.keys
@@ -96,6 +88,21 @@ field of the on-disk format, while the POST method takes a string which
 will be hashed on the server.  Allowed methods are PUT, POST and DELETE.
 Accepted content-types are `application/json` for PUT and `text/plain` for
 POST.
+
+### Wildcard user
+
+    /galene-api/v0/.groups/groupname/.wildcard-user
+
+Contains a dictionary defining the wildcard user, in the same format as
+the dictionary defining an ordinary user.  Allowed methods are HEAD, GET,
+PUT and DELETE.
+
+### Wildcard user password
+
+    /galene-api/v0/.groups/groupname/.wildcard-user/.password
+
+This is analogous to the password of an ordinary user.  Allowed methods
+are PUT, POST and DELETE.
 
 ### List of stateful tokens
 

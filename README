@@ -126,27 +126,32 @@ with the permission `present`:
 
     {
         "users":{
-            "jch":  {"password":"1234", "permissions": "op"}
+            "jch":  {"password": "1234", "permissions": "op"}
             "john": {"password": "secret", "permissions": "present"}
         }
     }
 
 If the group is to be publicly accessible, you may allow logins with any
-username using the `fallback-users` entry::
+username using the `wildcard-user` entry::
 
     {
         "users":{
             "jch": {"password":"1234", "permissions": "op"}
         },
-        "fallback-users": [
-            {"password": {"type": "wildcard"}, "permissions": "present"}
-        ],
+        "wildcard-user": {"password": "1234", "permissions": "present"},
         "public": true
     }
 
-The password `{"type": "wildcard"}` indicates that any password will be
-accepted.
+If you want to allow users to use any password, use a wildcard password:
 
+    {
+        "users":{
+            "jch": {"password":"1234", "permissions": "op"}
+        },
+        "wildcard-user":
+            {"password": {"type": "wildcard"}, "permissions": "present"},
+        "public": true
+    }
 
 ## Reference
 
@@ -158,9 +163,9 @@ nobody will be able to join the group.  The following fields are allowed:
  - `users`: is a dictionary that maps user names to dictionaries with
    entries `password` and `permissions`; `permissions` should be one of
    `op`, `present` or `passive`;
- - `fallback-users` is an array of dictionaries with entries `password`
-   and `permissions` that will be used for usernames with no matching
-   entry in the `users` dictionary;
+ - `wildcard-user` is a dictionaries with entries `password` and `permissions`
+   that will be used for usernames with no matching entry in the `users`
+   dictionary;
  - `authKeys`, `authServer` and `authPortal`: see *Authorisation* below;
  - `public`: if true, then the group is listed on the landing page;
  - `displayName`: a human-friendly version of the group name;

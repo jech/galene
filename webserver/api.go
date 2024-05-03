@@ -161,9 +161,6 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	if kind == ".users" {
 		usersHandler(w, r, g, rest)
 		return
-	} else if kind == ".fallback-users" && rest == "" {
-		fallbackUsersHandler(w, r, g)
-		return
 	} else if kind == ".keys" && rest == "" {
 		keysHandler(w, r, g)
 		return
@@ -422,38 +419,6 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 	}
 
 	methodNotAllowed(w, "PUT", "POST", "DELETE")
-	return
-}
-
-func fallbackUsersHandler(w http.ResponseWriter, r *http.Request, g string) {
-	if !checkAdmin(w, r) {
-		return
-	}
-
-	if r.Method == "PUT" {
-		var users []group.UserDescription
-		done := getJSON(w, r, &users)
-		if done {
-			return
-		}
-		err := group.SetFallbackUsers(g, users)
-		if err != nil {
-			httpError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return
-	} else if r.Method == "DELETE" {
-		err := group.SetFallbackUsers(g, nil)
-		if err != nil {
-			httpError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	methodNotAllowed(w, "PUT", "DELETE")
 	return
 }
 

@@ -192,8 +192,8 @@ type Description struct {
 	// Users allowed to login
 	Users map[string]UserDescription `json:"users,omitempty"`
 
-	// Credentials for users with arbitrary username
-	FallbackUsers []UserDescription `json:"fallback-users,omitempty"`
+	// Credentials for user with arbitrary username
+	WildcardUser *UserDescription `json:"wildcard-user,omitempty"`
 
 	// The (public) keys used for token authentication.
 	AuthKeys []map[string]interface{} `json:"authKeys,omitempty"`
@@ -298,7 +298,7 @@ func GetSanitisedDescription(name string) (*Description, string, error) {
 
 	desc := *d
 	desc.Users = nil
-	desc.FallbackUsers = nil
+	desc.WildcardUser = nil
 	desc.AuthKeys = nil
 	return &desc, makeETag(desc.fileSize, desc.modTime), nil
 }
@@ -335,7 +335,7 @@ func DeleteDescription(name, etag string) error {
 // UpdateDescription overwrites a description if it matches a given ETag.
 // In order to create a new group, pass an empty ETag.
 func UpdateDescription(name, etag string, desc *Description) error {
-	if desc.Users != nil || desc.FallbackUsers != nil || desc.AuthKeys != nil {
+	if desc.Users != nil || desc.WildcardUser != nil || desc.AuthKeys != nil {
 		return errors.New("description is not sanitised")
 	}
 
@@ -364,7 +364,7 @@ func UpdateDescription(name, etag string, desc *Description) error {
 	newdesc := *desc
 	if old != nil {
 		newdesc.Users = old.Users
-		newdesc.FallbackUsers = old.FallbackUsers
+		newdesc.WildcardUser = old.WildcardUser
 		newdesc.AuthKeys = old.AuthKeys
 	}
 
@@ -500,8 +500,13 @@ func upgradeDescription(desc *Description) error {
 		}
 		for _, u := range ps {
 			if u.Username == "" {
-				desc.FallbackUsers = append(desc.FallbackUsers,
-					upgradeUser(u, p))
+				if desc.WildcardUser != nil {
+					log.Printf("%v: duplicate wildcard user",
+						desc.FileName)
+					continue
+				}
+				u := upgradeUser(u, p)
+				desc.WildcardUser = &u
 				continue
 			}
 			_, found := desc.Users[u.Username]
@@ -559,7 +564,7 @@ func GetDescriptionNames() ([]string, error) {
 	return names, err
 }
 
-func SetFallbackUsers(group string, users []UserDescription) error {
+func SetWildcardUser(group string, user *UserDescription) error {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -567,7 +572,7 @@ func SetFallbackUsers(group string, users []UserDescription) error {
 	if err != nil {
 		return err
 	}
-	desc.FallbackUsers = users
+	desc.WildcardUser = user
 	return rewriteDescriptionFile(desc.FileName, desc)
 }
 

@@ -159,13 +159,6 @@ func TestApi(t *testing.T) {
 		t.Errorf("Get groups: %v %v", err, groups)
 	}
 
-	resp, err = do("PUT", "/galene-api/v0/.groups/test/.fallback-users",
-		"application/json", "", "",
-		`[{"password": "topsecret"}]`)
-	if err != nil || resp.StatusCode != http.StatusNoContent {
-		t.Errorf("Set fallback users: %v %v", err, resp.StatusCode)
-	}
-
 	resp, err = do("PUT", "/galene-api/v0/.groups/test/.keys",
 		"application/jwk-set+json", "", "",
 		`{"keys": [{
@@ -260,10 +253,6 @@ func TestApi(t *testing.T) {
 		t.Errorf("Users (after delete): %#v", desc.Users)
 	}
 
-	if len(desc.FallbackUsers) != 1 {
-		t.Errorf("Keys: %v", len(desc.AuthKeys))
-	}
-
 	if len(desc.AuthKeys) != 1 {
 		t.Errorf("Keys: %v", len(desc.AuthKeys))
 	}
@@ -342,12 +331,6 @@ func TestApi(t *testing.T) {
 	tokens, etag, err = token.List("test")
 	if err != nil || len(tokens) != 0 {
 		t.Errorf("Token list: %v %v", tokens, err)
-	}
-
-	resp, err = do("DELETE", "/galene-api/v0/.groups/test/.fallback-users",
-		"", "", "", "")
-	if err != nil || resp.StatusCode != http.StatusNoContent {
-		t.Errorf("Delete fallback users: %v %v", err, resp.StatusCode)
 	}
 
 	resp, err = do("DELETE", "/galene-api/v0/.groups/test/.keys",
