@@ -63,6 +63,50 @@ func checkPasswordAdmin(w http.ResponseWriter, r *http.Request, groupname, user 
 	return false
 }
 
+func sendJSON(w http.ResponseWriter, r *http.Request, v any) {
+	w.Header().Set("content-type", "application/json")
+	if r.Method == "HEAD" {
+		return
+	}
+	e := json.NewEncoder(w)
+	e.Encode(v)
+}
+
+func getText(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
+	ctype := parseContentType(r.Header.Get("Content-Type"))
+	if !strings.EqualFold(ctype, "text/plain") {
+		http.Error(w, "unsupported content type",
+			http.StatusUnsupportedMediaType)
+		return nil, true
+	}
+
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4096))
+	if err != nil {
+		httpError(w, err)
+		return nil, true
+	}
+
+	return body, false
+}
+
+func getJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	ctype := parseContentType(r.Header.Get("Content-Type"))
+	if !strings.EqualFold(ctype, "application/json") {
+		http.Error(w, "unsupported content type",
+			http.StatusUnsupportedMediaType)
+		return true
+	}
+
+	d := json.NewDecoder(r.Body)
+	err := d.Decode(v)
+	if err != nil {
+		httpError(w, err)
+		return true
+	}
+
+	return false
+}
+
 func apiHandler(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, "/galene-api/") {
 		http.NotFound(w, r)
@@ -78,15 +122,8 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 			methodNotAllowed(w, "HEAD", "GET")
 			return
 		}
-		w.Header().Set("content-type", "application/json")
 		w.Header().Set("cache-control", "no-cache")
-		if r.Method == "HEAD" {
-			return
-		}
-
-		ss := stats.GetGroups()
-		e := json.NewEncoder(w)
-		e.Encode(ss)
+		sendJSON(w, r, stats.GetGroups())
 		return
 	} else if first == "/v0" && kind == ".groups" {
 		apiGroupHandler(w, r, rest)
@@ -117,12 +154,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 			httpError(w, err)
 			return
 		}
-		w.Header().Set("content-type", "application/json")
-		if r.Method == "HEAD" {
-			return
-		}
-		e := json.NewEncoder(w)
-		e.Encode(groups)
+		sendJSON(w, r, groups)
 		return
 	}
 
@@ -164,13 +196,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 			return
 		}
 
-		w.Header().Set("content-type", "application/json")
-		if r.Method == "HEAD" {
-			return
-		}
-
-		e := json.NewEncoder(w)
-		e.Encode(desc)
+		sendJSON(w, r, desc)
 		return
 	} else if r.Method == "PUT" {
 		etag, err := group.GetDescriptionTag(g)
@@ -187,19 +213,9 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 			return
 		}
 
-		ctype := parseContentType(
-			r.Header.Get("Content-Type"),
-		)
-		if !strings.EqualFold(ctype, "application/json") {
-			http.Error(w, "unsupported content type",
-				http.StatusUnsupportedMediaType)
-			return
-		}
-		d := json.NewDecoder(r.Body)
 		var newdesc group.Description
-		err = d.Decode(&newdesc)
-		if err != nil {
-			httpError(w, err)
+		done = getJSON(w, r, &newdesc)
+		if done {
 			return
 		}
 		err = group.UpdateDescription(g, etag, &newdesc)
@@ -255,17 +271,12 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			httpError(w, err)
 			return
 		}
-		w.Header().Set("content-type", "application/json")
 		w.Header().Set("etag", etag)
 		done := checkPreconditions(w, r, etag)
 		if done {
 			return
 		}
-		if r.Method == "HEAD" {
-			return
-		}
-		e := json.NewEncoder(w)
-		e.Encode(users)
+		sendJSON(w, r, users)
 		return
 	}
 
@@ -292,17 +303,12 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			httpError(w, err)
 			return
 		}
-		w.Header().Set("content-type", "application/json")
 		w.Header().Set("etag", etag)
 		done := checkPreconditions(w, r, etag)
 		if done {
 			return
 		}
-		if r.Method == "HEAD" {
-			return
-		}
-		e := json.NewEncoder(w)
-		e.Encode(user)
+		sendJSON(w, r, user)
 		return
 	} else if r.Method == "PUT" {
 		etag, err := group.GetUserTag(g, username)
@@ -319,17 +325,9 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			return
 		}
 
-		ctype := parseContentType(r.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "application/json") {
-			http.Error(w, "unsupported content type",
-				http.StatusUnsupportedMediaType)
-			return
-		}
-		d := json.NewDecoder(r.Body)
 		var newdesc group.UserDescription
-		err = d.Decode(&newdesc)
-		if err != nil {
-			httpError(w, err)
+		done = getJSON(w, r, &newdesc)
+		if done {
 			return
 		}
 		err = group.UpdateUser(g, username, etag, &newdesc)
@@ -373,20 +371,12 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 	}
 
 	if r.Method == "PUT" {
-		ctype := parseContentType(r.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "application/json") {
-			http.Error(w, "unsupported content type",
-				http.StatusUnsupportedMediaType)
-			return
-		}
-		d := json.NewDecoder(r.Body)
 		var pw group.Password
-		err := d.Decode(&pw)
-		if err != nil {
-			httpError(w, err)
+		done := getJSON(w, r, &pw)
+		if done {
 			return
 		}
-		err = group.SetUserPassword(g, user, pw)
+		err := group.SetUserPassword(g, user, pw)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -394,20 +384,12 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	} else if r.Method == "POST" {
-		ctype := parseContentType(r.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "text/plain") {
-			http.Error(w, "unsupported content type",
-				http.StatusUnsupportedMediaType)
-			return
-		}
-
-		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4096))
-		if err != nil {
-			httpError(w, err)
+		body, done := getText(w, r)
+		if done {
 			return
 		}
 		salt := make([]byte, 8)
-		_, err = rand.Read(salt)
+		_, err := rand.Read(salt)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -449,20 +431,12 @@ func fallbackUsersHandler(w http.ResponseWriter, r *http.Request, g string) {
 	}
 
 	if r.Method == "PUT" {
-		ctype := parseContentType(r.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "application/json") {
-			http.Error(w, "unsupported content type",
-				http.StatusUnsupportedMediaType)
-			return
-		}
-		d := json.NewDecoder(r.Body)
 		var users []group.UserDescription
-		err := d.Decode(&users)
-		if err != nil {
-			httpError(w, err)
+		done := getJSON(w, r, &users)
+		if done {
 			return
 		}
-		err = group.SetFallbackUsers(g, users)
+		err := group.SetFallbackUsers(g, users)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -493,6 +467,7 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 	}
 
 	if r.Method == "PUT" {
+		// cannot use getJSON due to the weird content-type
 		ctype := parseContentType(r.Header.Get("Content-Type"))
 		if !strings.EqualFold(ctype, "application/jwk-set+json") {
 			http.Error(w, "unsupported content type",
@@ -546,28 +521,16 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			if etag != "" {
 				w.Header().Set("etag", etag)
 			}
-			if r.Method == "HEAD" {
-				return
-			}
 			toknames := make([]string, len(tokens))
 			for i, t := range tokens {
 				toknames[i] = t.Token
 			}
-			e := json.NewEncoder(w)
-			e.Encode(toknames)
+			sendJSON(w, r, toknames)
 			return
 		} else if r.Method == "POST" {
-			ctype := parseContentType(r.Header.Get("Content-Type"))
-			if !strings.EqualFold(ctype, "application/json") {
-				http.Error(w, "unsupported content type",
-					http.StatusUnsupportedMediaType)
-				return
-			}
-			d := json.NewDecoder(r.Body)
 			var newtoken token.Stateful
-			err := d.Decode(&newtoken)
-			if err != nil {
-				httpError(w, err)
+			done := getJSON(w, r, &newtoken)
+			if done {
 				return
 			}
 			if newtoken.Token != "" || newtoken.Group != "" {
@@ -608,17 +571,12 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("content-type", "application/json")
 		w.Header().Set("etag", etag)
 		done := checkPreconditions(w, r, etag)
 		if done {
 			return
 		}
-		if r.Method == "HEAD" {
-			return
-		}
-		e := json.NewEncoder(w)
-		e.Encode(t)
+		sendJSON(w, r, t)
 		return
 	} else if r.Method == "PUT" {
 		old, etag, err := token.Get(t)
@@ -640,17 +598,9 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			return
 		}
 
-		ctype := parseContentType(r.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "application/json") {
-			http.Error(w, "unsupported content type",
-				http.StatusUnsupportedMediaType)
-			return
-		}
-		d := json.NewDecoder(r.Body)
 		var newtoken token.Stateful
-		err = d.Decode(&newtoken)
-		if err != nil {
-			httpError(w, err)
+		done = getJSON(w, r, &newtoken)
+		if done {
 			return
 		}
 		if newtoken.Group != g {
