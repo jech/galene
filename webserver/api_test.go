@@ -3,7 +3,6 @@ package webserver
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"sync"
@@ -91,23 +90,6 @@ func TestApi(t *testing.T) {
 		return client.Do(req)
 	}
 
-	getString := func(path string) (string, error) {
-		resp, err := do("GET", path, "", "", "", "")
-		if err != nil {
-			return "", err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("Status is %v", resp.StatusCode)
-		}
-		ctype := parseContentType(resp.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "text/plain") {
-			return "", errors.New("Unexpected Content-Type")
-		}
-		b, err := io.ReadAll(resp.Body)
-		return string(b), err
-	}
-
 	getJSON := func(path string, value any) error {
 		resp, err := do("GET", path, "", "", "", "")
 		if err != nil {
@@ -119,14 +101,15 @@ func TestApi(t *testing.T) {
 		}
 		ctype := parseContentType(resp.Header.Get("Content-Type"))
 		if !strings.EqualFold(ctype, "application/json") {
-			return errors.New("Unexpected")
+			return errors.New("Unexpected content-type")
 		}
 		d := json.NewDecoder(resp.Body)
 		return d.Decode(value)
 	}
 
-	s, err := getString("/galene-api/v0/.groups/")
-	if err != nil || s != "" {
+	var groups []string
+	err = getJSON("/galene-api/v0/.groups/", &groups)
+	if err != nil || len(groups) != 0 {
 		t.Errorf("Get groups: %v", err)
 	}
 
@@ -171,9 +154,9 @@ func TestApi(t *testing.T) {
 		t.Errorf("Delete group (bad ETag): %v %v", err, resp.StatusCode)
 	}
 
-	s, err = getString("/galene-api/v0/.groups/")
-	if err != nil || s != "test\n" {
-		t.Errorf("Get groups: %v %#v", err, s)
+	err = getJSON("/galene-api/v0/.groups/", &groups)
+	if err != nil || len(groups) != 1 || groups[0] != "test" {
+		t.Errorf("Get groups: %v %v", err, groups)
 	}
 
 	resp, err = do("PUT", "/galene-api/v0/.groups/test/.fallback-users",
@@ -193,8 +176,8 @@ func TestApi(t *testing.T) {
 		t.Errorf("Set key: %v %v", err, resp.StatusCode)
 	}
 
-	s, err = getString("/galene-api/v0/.groups/test/.users/")
-	if err != nil || s != "" {
+	err = getJSON("/galene-api/v0/.groups/test/.users/", &groups)
+	if err != nil || len(groups) != 0 {
 		t.Errorf("Get users: %v", err)
 	}
 
@@ -213,9 +196,10 @@ func TestApi(t *testing.T) {
 		t.Errorf("Create user: %v %v", err, resp.StatusCode)
 	}
 
-	s, err = getString("/galene-api/v0/.groups/test/.users/")
-	if err != nil || s != "jch\n" {
-		t.Errorf("Get users: %v", err)
+	var users []string
+	err = getJSON("/galene-api/v0/.groups/test/.users/", &users)
+	if err != nil || len(users) != 1 || users[0] != "jch"  {
+		t.Errorf("Get users: %v %v", err, users)
 	}
 
 	resp, err = do("PUT", "/galene-api/v0/.groups/test/.users/jch",
@@ -296,11 +280,12 @@ func TestApi(t *testing.T) {
 		t.Errorf("Create token: %v %v", err, resp.StatusCode)
 	}
 
-	tokname, err := getString("/galene-api/v0/.groups/test/.tokens/")
-	if err != nil {
-		t.Errorf("Get tokens: %v", err)
+	var toknames []string
+	err = getJSON("/galene-api/v0/.groups/test/.tokens/", &toknames)
+	if err != nil || len(toknames) != 1 {
+		t.Errorf("Get tokens: %v %v", err, toknames)
 	}
-	tokname = tokname[:len(tokname)-1]
+	tokname := toknames[0]
 
 	tokens, etag, err := token.List("test")
 	if err != nil || len(tokens) != 1 || tokens[0].Token != tokname {

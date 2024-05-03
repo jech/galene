@@ -49,12 +49,11 @@ async function listObjects(url) {
     let r = await fetch(url);
     if(!r.ok)
         throw httpError(r);
-    let strings = (await r.text()).split('\n');
-    if(strings[strings.length - 1] === '') {
-        strings.pop();
-    }
-    return strings;
-}
+    let data = await r.json();
+    if(!(data instanceof Array))
+        throw new Error("Server didn't return array");
+    return data;
+ }
 
 /**
  * createObject makes a PUT request to url with JSON data.

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -118,13 +117,12 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 			httpError(w, err)
 			return
 		}
-		w.Header().Set("content-type", "text/plain; charset=utf-8")
+		w.Header().Set("content-type", "application/json")
 		if r.Method == "HEAD" {
 			return
 		}
-		for _, g := range groups {
-			fmt.Fprintln(w, g)
-		}
+		e := json.NewEncoder(w)
+		e.Encode(groups)
 		return
 	}
 
@@ -257,7 +255,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			httpError(w, err)
 			return
 		}
-		w.Header().Set("content-type", "text/plain; charset=utf-8")
+		w.Header().Set("content-type", "application/json")
 		w.Header().Set("etag", etag)
 		done := checkPreconditions(w, r, etag)
 		if done {
@@ -266,9 +264,8 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		if r.Method == "HEAD" {
 			return
 		}
-		for _, u := range users {
-			fmt.Fprintln(w, u)
-		}
+		e := json.NewEncoder(w)
+		e.Encode(users)
 		return
 	}
 
@@ -545,17 +542,19 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 				httpError(w, err)
 				return
 			}
-			w.Header().Set("content-type",
-				"text/plain; charset=utf-8")
+			w.Header().Set("content-type", "application/json")
 			if etag != "" {
 				w.Header().Set("etag", etag)
 			}
 			if r.Method == "HEAD" {
 				return
 			}
-			for _, t := range tokens {
-				fmt.Fprintln(w, t.Token)
+			toknames := make([]string, len(tokens))
+			for i, t := range tokens {
+				toknames[i] = t.Token
 			}
+			e := json.NewEncoder(w)
+			e.Encode(toknames)
 			return
 		} else if r.Method == "POST" {
 			ctype := parseContentType(r.Header.Get("Content-Type"))
@@ -586,8 +585,6 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 				httpError(w, err)
 				return
 			}
-			w.Header().Set("content-type",
-				"text/plain; charset=utf-8")
 			w.Header().Set("location", t.Token)
 			w.WriteHeader(http.StatusCreated)
 			return

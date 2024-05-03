@@ -43,8 +43,8 @@ allowed methods are HEAD and GET.
 
     /galene-api/v0/.groups/
 
-Returns a list of groups, as plain text, one per line.  The only allowed
-methods are HEAD and GET.
+Returns a list of groups, as a JSON array.  The only allowed methods are
+HEAD and GET.
 
 ### Group definition
 
@@ -75,8 +75,8 @@ accepted content-type is `application/jwk-set+json`.
 
     /galene-api/v0/.groups/groupname/.users/
 
-Returns a list of users, as plain text, one per line.  The only allowed
-methods are HEAD and GET.
+Returns a list of users, as a JSON array.  The only allowed methods are
+HEAD and GET.
 
 ### User definition
 
@@ -101,9 +101,9 @@ POST.
 
     /galene-api/v0/.groups/groupname/.users/username/.tokens/
 
-GET returns the list of stateful tokens, as plain text, one token per
-line.  POST creates a new token, and returns its name in the `Location`
-header.  Allowed methods are HEAD, GET and POST.
+GET returns the list of stateful tokens, as a JSON array.  POST creates
+a new token, and returns its name in the `Location` header.  Allowed
+methods are HEAD, GET and POST.
 
 ### Stateful token
 
