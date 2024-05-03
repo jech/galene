@@ -259,8 +259,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			return
 		}
 		if r.Method != "HEAD" && r.Method != "GET" {
-			http.Error(w, "method not allowed",
-				http.StatusMethodNotAllowed)
+			methodNotAllowed(w, "HEAD", "GET")
 			return
 		}
 		users, etag, err := group.GetUsers(g)
