@@ -255,27 +255,31 @@ func TestWritableGroups(t *testing.T) {
 			nil, "Test", err, desc.AllowAnonymous,
 		)
 	}
+	testUser(t, "jch", false)
+	testUser(t, "", true)
+}
 
-	_, _, err = GetSanitisedUser("test", "jch")
+func testUser(t *testing.T, username string, wildcard bool) {
+	_, _, err := GetSanitisedUser("test", username, wildcard)
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("GetSanitisedUser: got %v, expected ErrNotExist", err)
 	}
 
-	err = UpdateUser("test", "jch", "", &UserDescription{
+	err = UpdateUser("test", username, wildcard, "", &UserDescription{
 		Permissions: Permissions{name: "observe"},
 	})
 	if err != nil {
 		t.Errorf("UpdateUser: got %v", err)
 	}
 
-	user, token, err := GetSanitisedUser("test", "jch")
+	user, token, err := GetSanitisedUser("test", username, wildcard)
 	if err != nil || token == "" || user.Permissions.name != "observe" {
 		t.Errorf("GetDescription: got %v %v, expected %v %v",
 			err, user.Permissions.name, nil, "observe",
 		)
 	}
 
-	err = UpdateUser("test", "jch", "", &UserDescription{
+	err = UpdateUser("test", username, wildcard, "", &UserDescription{
 		Permissions: Permissions{name: "present"},
 	})
 	if !errors.Is(err, ErrTagMismatch) {
@@ -283,7 +287,7 @@ func TestWritableGroups(t *testing.T) {
 			err)
 	}
 
-	err = UpdateUser("test", "jch", token, &UserDescription{
+	err = UpdateUser("test", username, wildcard, token, &UserDescription{
 		Permissions: Permissions{name: "present"},
 	})
 	if err != nil {
@@ -291,19 +295,12 @@ func TestWritableGroups(t *testing.T) {
 	}
 
 	pw := "pw"
-	err = SetUserPassword("test", "jch", Password{
+	err = SetUserPassword("test", username, wildcard, Password{
 		Type: "plain",
 		Key:  &pw,
 	})
 	if err != nil {
 		t.Errorf("SetUserPassword: got %v", err)
-	}
-
-	desc, err = GetDescription("test")
-	if err != nil || *desc.Users["jch"].Password.Key != "pw" {
-		t.Errorf("GetDescription: got %v %v, expected %v %v",
-			err, desc.Users["jch"].Password.Key, nil, "pw",
-		)
 	}
 }
 

@@ -602,31 +602,49 @@ func GetUsers(group string) ([]string, string, error) {
 	return users, makeETag(desc.fileSize, desc.modTime), nil
 }
 
-func GetSanitisedUser(group, username string) (UserDescription, string, error) {
+func GetSanitisedUser(group, username string, wildcard bool) (UserDescription, string, error) {
+	if wildcard && username != "" {
+		return UserDescription{}, "",
+			errors.New("wildcard with username")
+	}
+
 	desc, err := GetDescription(group)
 	if err != nil {
 		return UserDescription{}, "", err
 	}
 
-	if desc.Users == nil {
-		return UserDescription{}, "", os.ErrNotExist
-	}
+	var u UserDescription
+	if wildcard {
+		if desc.WildcardUser == nil {
+			return UserDescription{}, "", os.ErrNotExist
+		}
+		u = *desc.WildcardUser
+	} else {
+		if desc.Users == nil {
+			return UserDescription{}, "", os.ErrNotExist
+		}
 
-	u, ok := desc.Users[username]
-	if !ok {
-		return UserDescription{}, "", os.ErrNotExist
+		ok := false
+		u, ok = desc.Users[username]
+		if !ok {
+			return UserDescription{}, "", os.ErrNotExist
+		}
 	}
 
 	u.Password = Password{}
 	return u, makeETag(desc.fileSize, desc.modTime), nil
 }
 
-func GetUserTag(group, username string) (string, error) {
-	_, etag, err := GetSanitisedUser(group, username)
+func GetUserTag(group, username string, wildcard bool) (string, error) {
+	_, etag, err := GetSanitisedUser(group, username, wildcard)
 	return etag, err
 }
 
-func DeleteUser(group, username, etag string) error {
+func DeleteUser(group, username string, wildcard bool, etag string) error {
+	if wildcard && username != "" {
+		return errors.New("wildcard with username")
+	}
+
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -634,13 +652,19 @@ func DeleteUser(group, username, etag string) error {
 	if err != nil {
 		return err
 	}
-	if desc.Users == nil {
-		return os.ErrNotExist
-	}
 
-	_, ok := desc.Users[username]
-	if !ok {
-		return os.ErrNotExist
+	if wildcard {
+		if desc.WildcardUser == nil {
+			return os.ErrNotExist
+		}
+	} else {
+		if desc.Users == nil {
+			return os.ErrNotExist
+		}
+		_, ok := desc.Users[username]
+		if !ok {
+			return os.ErrNotExist
+		}
 	}
 
 	oldetag := makeETag(desc.fileSize, desc.modTime)
@@ -648,14 +672,23 @@ func DeleteUser(group, username, etag string) error {
 		return ErrTagMismatch
 	}
 
-	delete(desc.Users, username)
+	if wildcard {
+		desc.WildcardUser = nil
+	} else {
+		delete(desc.Users, username)
+	}
+
 	return rewriteDescriptionFile(desc.FileName, desc)
 }
 
-func UpdateUser(group, username, etag string, user *UserDescription) error {
+func UpdateUser(group, username string, wildcard bool, etag string, user *UserDescription) error {
+	if wildcard && username != "" {
+		return errors.New("wildcard with username")
+	}
 	if user.Password.Type != "" || user.Password.Key != nil {
 		return errors.New("user description is not sanitised")
 	}
+
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -663,11 +696,21 @@ func UpdateUser(group, username, etag string, user *UserDescription) error {
 	if err != nil {
 		return err
 	}
-	if desc.Users == nil {
-		desc.Users = make(map[string]UserDescription)
+
+	var old UserDescription
+	var ok bool
+	if wildcard {
+		if desc.WildcardUser != nil {
+			ok = true
+			old = *desc.WildcardUser
+		}
+	} else {
+		if desc.Users == nil {
+			desc.Users = make(map[string]UserDescription)
+		}
+		old, ok = desc.Users[username]
 	}
 
-	old, ok := desc.Users[username]
 	var oldetag string
 	if ok {
 		oldetag = makeETag(desc.fileSize, desc.modTime)
@@ -681,11 +724,20 @@ func UpdateUser(group, username, etag string, user *UserDescription) error {
 
 	newuser := *user
 	newuser.Password = old.Password
-	desc.Users[username] = newuser
+
+	if wildcard {
+		desc.WildcardUser = &newuser
+	} else {
+		desc.Users[username] = newuser
+	}
 	return rewriteDescriptionFile(desc.FileName, desc)
 }
 
-func SetUserPassword(group, username string, pw Password) error {
+func SetUserPassword(group, username string, wildcard bool, pw Password) error {
+	if wildcard && username != "" {
+		return errors.New("wildcard with username")
+	}
+
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
@@ -697,12 +749,19 @@ func SetUserPassword(group, username string, pw Password) error {
 		return os.ErrNotExist
 	}
 
-	user, ok := desc.Users[username]
-	if !ok {
-		return os.ErrNotExist
-	}
+	if wildcard {
+		if desc.WildcardUser == nil {
+			return os.ErrNotExist
+		}
+		desc.WildcardUser.Password = pw
+	} else {
+		user, ok := desc.Users[username]
+		if !ok {
+			return os.ErrNotExist
+		}
 
-	user.Password = pw
-	desc.Users[username] = user
+		user.Password = pw
+		desc.Users[username] = user
+	}
 	return rewriteDescriptionFile(desc.FileName, desc)
 }

@@ -297,7 +297,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 	}
 
 	if r.Method == "HEAD" || r.Method == "GET" {
-		user, etag, err := group.GetSanitisedUser(g, user)
+		user, etag, err := group.GetSanitisedUser(g, user, false)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -310,7 +310,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		sendJSON(w, r, user)
 		return
 	} else if r.Method == "PUT" {
-		etag, err := group.GetUserTag(g, user)
+		etag, err := group.GetUserTag(g, user, false)
 		if errors.Is(err, os.ErrNotExist) {
 			etag = ""
 			err = nil
@@ -329,7 +329,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		if done {
 			return
 		}
-		err = group.UpdateUser(g, user, etag, &newdesc)
+		err = group.UpdateUser(g, user, false, etag, &newdesc)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -341,7 +341,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		}
 		return
 	} else if r.Method == "DELETE" {
-		etag, err := group.GetUserTag(g, user)
+		etag, err := group.GetUserTag(g, user, false)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -352,7 +352,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 			return
 		}
 
-		err = group.DeleteUser(g, user, etag)
+		err = group.DeleteUser(g, user, false, etag)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -375,7 +375,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		if done {
 			return
 		}
-		err := group.SetUserPassword(g, user, pw)
+		err := group.SetUserPassword(g, user, false, pw)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -403,7 +403,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 			Salt:       hex.EncodeToString(salt),
 			Iterations: iterations,
 		}
-		err = group.SetUserPassword(g, user, pw)
+		err = group.SetUserPassword(g, user, false, pw)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -411,7 +411,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	} else if r.Method == "DELETE" {
-		err := group.SetUserPassword(g, user, group.Password{})
+		err := group.SetUserPassword(g, user, false, group.Password{})
 		if err != nil {
 			httpError(w, err)
 			return
