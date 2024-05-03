@@ -71,7 +71,7 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	first, kind, rest := splitPath(r.URL.Path[len("/galene-api"):])
-	if first == "/0" && kind == ".stats" && rest == "" {
+	if first == "/v0" && kind == ".stats" && rest == "" {
 		if !checkAdmin(w, r) {
 			return
 		}
@@ -89,7 +89,7 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		e := json.NewEncoder(w)
 		e.Encode(ss)
 		return
-	} else if first == "/0" && kind == ".groups" {
+	} else if first == "/v0" && kind == ".groups" {
 		apiGroupHandler(w, r, rest)
 		return
 	}

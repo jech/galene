@@ -25,7 +25,7 @@ async function listStats() {
 
     let l;
     try {
-        let r = await fetch('/galene-api/0/.stats');
+        let r = await fetch('/galene-api/v0/.stats');
         if(!r.ok)
             throw new Error(`${r.status} ${r.statusText}`);
         l = await r.json();
