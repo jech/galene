@@ -277,24 +277,27 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	}
 
 	first2, kind2, rest2 := splitPath(pth)
-	if first2 != "" && kind2 == ".password" && rest2 == "" {
+	if first2 != "" && kind2 == "" {
+		userHandler(w, r, g, first2[1:])
+		return
+	} else if first2 != "" && kind2 == ".password" && rest2 == "" {
 		passwordHandler(w, r, g, first2[1:])
 		return
-	} else if kind2 != "" || first2 == "" {
-		if !checkAdmin(w, r) {
-			return
-		}
-		notFound(w)
+	}
+	if !checkAdmin(w, r) {
 		return
 	}
+	notFound(w)
+	return
+}
 
+func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 	if !checkAdmin(w, r) {
 		return
 	}
 
-	username := first2[1:]
 	if r.Method == "HEAD" || r.Method == "GET" {
-		user, etag, err := group.GetSanitisedUser(g, username)
+		user, etag, err := group.GetSanitisedUser(g, user)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -307,7 +310,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		sendJSON(w, r, user)
 		return
 	} else if r.Method == "PUT" {
-		etag, err := group.GetUserTag(g, username)
+		etag, err := group.GetUserTag(g, user)
 		if errors.Is(err, os.ErrNotExist) {
 			etag = ""
 			err = nil
@@ -326,7 +329,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		if done {
 			return
 		}
-		err = group.UpdateUser(g, username, etag, &newdesc)
+		err = group.UpdateUser(g, user, etag, &newdesc)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -338,7 +341,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		}
 		return
 	} else if r.Method == "DELETE" {
-		etag, err := group.GetUserTag(g, username)
+		etag, err := group.GetUserTag(g, user)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -349,7 +352,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			return
 		}
 
-		err = group.DeleteUser(g, username, etag)
+		err = group.DeleteUser(g, user, etag)
 		if err != nil {
 			httpError(w, err)
 			return
