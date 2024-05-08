@@ -1768,7 +1768,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				tok.IssuedBy = &user
 			}
 
-			now := time.Now()
+			now := time.Now().UTC()
 			tok.IssuedAt = &now
 
 			new, err := token.Update(tok, "")
