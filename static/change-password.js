@@ -44,7 +44,7 @@ document.getElementById('passwordform').onsubmit = async function(e) {
     }
 
     try {
-        await setPassword(group, user, new1, old);
+        await setPassword(group, user, false, new1, old);
         document.getElementById('old').value = '';
         document.getElementById('new1').value = '';
         document.getElementById('new2').value = '';

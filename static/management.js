@@ -217,16 +217,32 @@ async function listUsers(group) {
 }
 
 /**
+ * userURL returns the URL for a user entry
+ *
+ * @param {string} group
+ * @param {string} user
+ * @param {boolean} wildcard
+ */
+function userURL(group, user, wildcard) {
+    if(wildcard)
+        return `/galene-api/v0/.groups/${group}/.wildcard-user`;
+    else if(user === "")
+        return `/galene-api/v0/.groups/${group}/.empty-user`;
+    else
+        return `/galene-api/v0/.groups/${group}/.users/${user}`
+}
+
+/**
  * getUser returns a given user entry.
  *
  * @param {string} group
  * @param {string} user
+ * @param {boolean} wildcard
  * @param {string} [etag]
  * @returns {Promise<Object>}
  */
-async function getUser(group, user, etag) {
-    return await getObject(`/galene-api/v0/.groups/${group}/.users/${user}`,
-                           etag);
+async function getUser(group, user, wildcard, etag) {
+    return await getObject(userURL(group, user, wildcard), etag);
 }
 
 /**
@@ -235,11 +251,11 @@ async function getUser(group, user, etag) {
  *
  * @param {string} group
  * @param {string} user
+ * @param {boolean} wildcard
  * @param {Object} values
  */
-async function createUser(group, user, values) {
-    return await createObject(`/galene-api/v0/.groups/${group}/.users/${user}`,
-                              values);
+async function createUser(group, user, wildcard, values) {
+    return await createObject(userURL(group, user, wildcard), values);
 }
 
 /**
@@ -247,12 +263,11 @@ async function createUser(group, user, values) {
  *
  * @param {string} group
  * @param {string} user
+ * @param {boolean} wildcard
  * @param {string} [etag]
  */
-async function deleteUser(group, user, etag) {
-    return await deleteObject(
-        `/galene-api/v0/.groups/${group}/.users/${user}/`, etag,
-    );
+async function deleteUser(group, user, wildcard, etag) {
+    return await deleteObject(userURL(group, user, wildcard), etag);
 }
 
 /**
@@ -261,11 +276,11 @@ async function deleteUser(group, user, etag) {
  * @param {string} group
  * @param {string} user
  * @param {Object} values
+ * @param {boolean} wildcard
  * @param {string} [etag]
  */
-async function updateUser(group, user, values, etag) {
-    return await updateObject(`/galene-api/v0/.groups/${group}/.users/${user}`,
-                            values, etag);
+async function updateUser(group, user, wildcard, values, etag) {
+    return await updateObject(userURL(group, user, wildcard),  values, etag);
 }
 
 /**
@@ -275,10 +290,11 @@ async function updateUser(group, user, values, etag) {
  *
  * @param {string} group
  * @param {string} user
+ * @param {boolean} wildcard
  * @param {string} password
  * @param {string} [oldpassword]
  */
-async function setPassword(group, user, password, oldpassword) {
+async function setPassword(group, user, wildcard, password, oldpassword) {
     let options = {
         method: 'POST',
         headers: {
@@ -292,15 +308,13 @@ async function setPassword(group, user, password, oldpassword) {
             `Basic ${btoa(user + ':' + oldpassword)}`
     }
 
-    let r = await fetch(
-        `/galene-api/v0/.groups/${group}/.users/${user}/.password`,
-        options);
+    let r = await fetch(userURL(group, user, wildcard) + '/.password', options);
     if(!r.ok)
         throw httpError(r);
 }
 
 /**
- * listUsers lists the tokens for a given group.
+ * listTokens lists the tokens for a given group.
  *
  * @param {string} group
  * @returns {Promise<Array<string>>}
