@@ -2163,7 +2163,7 @@ function inviteMenu() {
     let d = /** @type {HTMLDialogElement} */
         (document.getElementById('invite-dialog'));
     if(!('HTMLDialogElement' in window) || !d.showModal) {
-        makeToken();
+        displayError("This browser doesn't support modal dialogs");
         return;
     }
     d.returnValue = '';
