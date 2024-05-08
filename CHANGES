@@ -16,6 +16,7 @@ Galene 0.9 (unreleased)
     menu) that discloses the IP address from which a user connected.
   * Implemented a contextual menu that triggers on a double click on
     a chat entry.
+  * Added a new command "/stopshare".
 
 14 April 2024: Galene 0.8.2
 

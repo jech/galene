@@ -1612,7 +1612,7 @@ function closeUpMedia(label) {
  */
 function findUpMedia(label) {
     for(let id in serverConnection.up) {
-        let c = serverConnection.up[id]
+        let c = serverConnection.up[id];
         if(c.label === label)
             return c;
     }
@@ -3382,6 +3382,12 @@ commands.replace = {
     }
 };
 
+commands.stopshare = {
+    description: 'stop screen share',
+    f: (c, r) => {
+        closeUpMedia('screenshare');
+    }
+}
 
 /**
  * parseCommand splits a string into two space-separated parts.  The first
