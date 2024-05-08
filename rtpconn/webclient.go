@@ -1612,6 +1612,9 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 		switch m.Kind {
 		case "clearchat":
+			if !member("op", c.permissions) {
+				return c.error(group.UserError("not authorised"))
+			}
 			g.ClearChatHistory()
 			m := clientMessage{
 				Type:       "usermessage",
