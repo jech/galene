@@ -550,21 +550,24 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	}
 	t := pth[1:]
 	if r.Method == "HEAD" || r.Method == "GET" {
-		tok, etag, err := token.Get(t)
+		old, etag, err := token.Get(t)
 		if err != nil {
 			httpError(w, err)
 			return
 		}
-		if tok.Group != g {
+		if old.Group != g {
 			http.NotFound(w, r)
 			return
 		}
+		tok := old.Clone()
+		tok.Token = ""
+		tok.Group = ""
 		w.Header().Set("etag", etag)
 		done := checkPreconditions(w, r, etag)
 		if done {
 			return
 		}
-		sendJSON(w, r, t)
+		sendJSON(w, r, tok)
 		return
 	} else if r.Method == "PUT" {
 		old, etag, err := token.Get(t)
@@ -591,14 +594,13 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		if done {
 			return
 		}
-		if newtoken.Group != g {
-			http.Error(w, "wrong group", http.StatusBadRequest)
+		if newtoken.Group != "" || newtoken.Token != "" {
+			http.Error(w, "overspecified token",
+				http.StatusBadRequest)
 			return
 		}
-		if newtoken.Token != t {
-			http.Error(w, "token mismatch", http.StatusBadRequest)
-			return
-		}
+		newtoken.Group = g
+		newtoken.Token = t
 		_, err = token.Update(&newtoken, etag)
 		if err != nil {
 			httpError(w, err)

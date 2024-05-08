@@ -300,13 +300,16 @@ func TestApi(t *testing.T) {
 	}
 
 	tokenpath := "/galene-api/v0/.groups/test/.tokens/" + tokname
-	resp, err = do("GET", tokenpath,
-		"", "", "", "")
-	if err != nil || resp.StatusCode != http.StatusOK {
+	var tok token.Stateful
+	err = getJSON(tokenpath, &tok)
+	if err != nil {
 		t.Errorf("Get token: %v %v", err, resp.StatusCode)
 	}
 
-	tok := tokens[0].Clone()
+	if tok.Token != "" || tok.Group != "" {
+		t.Errorf("Get token: %v %v", tok.Token, tok.Group)
+	}
+
 	e := time.Now().Add(time.Hour)
 	tok.Expires = &e
 	resp, err = do("PUT", tokenpath,
@@ -315,31 +318,42 @@ func TestApi(t *testing.T) {
 		t.Errorf("Update token: %v %v", err, resp.StatusCode)
 	}
 
-	tok.Token = "badtoken"
+	tok.Token = tokens[0].Token
 	resp, err = do("PUT", tokenpath,
 		"application/json", "", "", marshalToString(tok))
 	if err != nil || resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Update mismatched token: %v %v", err, resp.StatusCode)
+		t.Errorf("Update token with name: %v %v", err, resp.StatusCode)
 	}
 
-	tok.Group = "bad"
+	tok.Token = ""
+	tok.Group = "test"
 	resp, err = do("PUT", tokenpath,
 		"application/json", "", "", marshalToString(tok))
 	if err != nil || resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Update token (bad group): %v %v", err, resp.StatusCode)
+		t.Errorf("Update token with group: %v %v", err, resp.StatusCode)
 	}
 
-	tokens, etag, err = token.List("test")
-	if err != nil || len(tokens) != 1 {
-		t.Errorf("Token list: %v %v", tokens, err)
-	}
-	if !tokens[0].Expires.Equal(e) {
-		t.Errorf("Got %v, expected %v", tokens[0].Expires, e)
+	err = getJSON(tokenpath, &tok)
+	if err != nil || !tok.Expires.Equal(e) {
+		t.Errorf("Got %v, expected %v (%v)", tok.Expires, e, err)
 	}
 
-	resp, err = do("GET", tokenpath, "", "", "", "")
-	if err != nil || resp.StatusCode != http.StatusOK {
-		t.Errorf("Get token: %v %v", err, resp.StatusCode)
+	resp, err = do("PUT", "/galene-api/v0/.groups/test2",
+		"application/json", "", "*", "{}")
+	if err != nil || resp.StatusCode != http.StatusCreated {
+		t.Errorf("Create test2: %v %v", err, resp.StatusCode)
+	}
+
+	tokenpath2 := "/galene-api/v0/.groups/test2/.tokens/" + tokname
+	resp, err = do("GET", tokenpath2, "", "", "", "")
+	if err != nil || resp.StatusCode != http.StatusNotFound {
+		t.Errorf("Get token in bad group: %v %v", err, resp.StatusCode)
+	}
+
+	resp, err = do("PUT", tokenpath2,
+		"application/json", "", "", "{}")
+	if err != nil || resp.StatusCode != http.StatusConflict {
+		t.Errorf("Put token in bad group: %v %v", err, resp.StatusCode)
 	}
 
 	resp, err = do("DELETE", tokenpath, "", "", "", "")
