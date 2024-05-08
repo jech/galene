@@ -679,8 +679,9 @@ func UpdateUser(group, username, etag string, user *UserDescription) error {
 		return ErrTagMismatch
 	}
 
-	user.Password = old.Password
-	desc.Users[username] = *user
+	newuser := *user
+	newuser.Password = old.Password
+	desc.Users[username] = newuser
 	return rewriteDescriptionFile(desc.FileName, desc)
 }
 
