@@ -63,11 +63,11 @@ var descJSON = `
     "users": {
         "jch": {"password": "topsecret", "permissions": "op"},
         "john": {"password": "secret", "permissions": "present"},
-        "james": {"password": "secret2", "permissions": "observe"},
+        "james": {"password": "secret2", "permissions": "message"},
         "peter": {"password": "secret4"}
     },
     "wildcard-user":
-        {"permissions": "observe", "password": {"type":"wildcard"}}
+        {"permissions": "message", "password": {"type":"wildcard"}}
 }`
 
 func TestDescriptionJSON(t *testing.T) {
@@ -139,6 +139,10 @@ func TestUpgradeDescription(t *testing.T) {
 	}
 
 	for k, v1 := range d1.Users {
+		if k == "peter" {
+			// not representable in the old format
+			continue
+		}
 		v2 := d2.Users[k]
 		if !reflect.DeepEqual(v1.Password, v2.Password) ||
 			!permissionsEqual(

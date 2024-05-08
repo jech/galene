@@ -114,19 +114,19 @@ type credPerm struct {
 var goodClients = []credPerm{
 	{
 		ClientCredentials{Username: &jch, Password: "topsecret"},
-		[]string{"op", "present", "token"},
+		[]string{"op", "present", "message", "token"},
 	},
 	{
 		ClientCredentials{Username: &john, Password: "secret"},
-		[]string{"present"},
+		[]string{"present", "message"},
 	},
 	{
 		ClientCredentials{Username: &james, Password: "secret2"},
-		[]string{},
+		[]string{"message"},
 	},
 	{
 		ClientCredentials{Username: &paul, Password: "secret3"},
-		[]string{},
+		[]string{"message"},
 	},
 	{
 		ClientCredentials{Username: &peter, Password: "secret4"},
@@ -189,29 +189,29 @@ func TestExtraPermissions(t *testing.T) {
 		}
 	}
 
-	doit("jch", []string{"op", "token", "present"})
-	doit("john", []string{"present"})
+	doit("jch", []string{"op", "token", "present", "message"})
+	doit("john", []string{"present", "message"})
 	doit("james", []string{})
 
 	d.AllowRecording = true
 	d.UnrestrictedTokens = false
 
-	doit("jch", []string{"op", "record", "token", "present"})
-	doit("john", []string{"present"})
+	doit("jch", []string{"op", "record", "token", "present", "message"})
+	doit("john", []string{"present", "message"})
 	doit("james", []string{})
 
 	d.AllowRecording = false
 	d.UnrestrictedTokens = true
 
-	doit("jch", []string{"op", "token", "present"})
-	doit("john", []string{"token", "present"})
+	doit("jch", []string{"op", "token", "present", "message"})
+	doit("john", []string{"token", "present", "message"})
 	doit("james", []string{})
 
 	d.AllowRecording = true
 	d.UnrestrictedTokens = true
 
-	doit("jch", []string{"op", "record", "token", "present"})
-	doit("john", []string{"token", "present"})
+	doit("jch", []string{"op", "record", "token", "present", "message"})
+	doit("john", []string{"token", "present", "message"})
 	doit("james", []string{})
 }
 

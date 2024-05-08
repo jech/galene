@@ -162,7 +162,7 @@ nobody will be able to join the group.  The following fields are allowed:
 
  - `users`: is a dictionary that maps user names to dictionaries with
    entries `password` and `permissions`; `permissions` should be one of
-   `op`, `present` or `passive`;
+   `op`, `present`, `message` or `observe`.
  - `wildcard-user` is a dictionaries with entries `password` and `permissions`
    that will be used for usernames with no matching entry in the `users`
    dictionary;

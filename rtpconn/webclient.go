@@ -1349,6 +1349,10 @@ func setPermissions(g *group.Group, id string, perm string) error {
 		c.permissions = addnew("present", c.permissions)
 	case "unpresent":
 		c.permissions = remove("present", c.permissions)
+	case "shutup":
+		c.permissions = remove("message", c.permissions)
+	case "unshutup":
+		c.permissions = addnew("message", c.permissions)
 	default:
 		return group.UserError("unknown permission")
 	}
@@ -1568,6 +1572,10 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		g := c.group
 		if g == nil {
 			return c.error(group.UserError("join a group first"))
+		}
+
+		if !member("message", c.permissions) {
+			return c.error(group.UserError("not authorised"))
 		}
 
 		now := time.Now()
@@ -1855,7 +1863,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return c.error(group.UserError("join a group first"))
 		}
 		switch m.Kind {
-		case "op", "unop", "present", "unpresent":
+		case "op", "unop", "present", "unpresent", "shutup", "unshutup":
 			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}

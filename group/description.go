@@ -24,8 +24,9 @@ type Permissions struct {
 }
 
 var permissionsMap = map[string][]string{
-	"op":      []string{"op", "present", "token"},
-	"present": []string{"present"},
+	"op":      []string{"op", "present", "message", "token"},
+	"present": []string{"present", "message"},
+	"message": []string{"message"},
 	"observe": []string{},
 	"admin":   []string{"admin"},
 }
@@ -528,7 +529,7 @@ func upgradeDescription(desc *Description) error {
 		desc.Presenter = nil
 	}
 	if desc.Other != nil {
-		upgradeUsers(desc.Other, "observe")
+		upgradeUsers(desc.Other, "message")
 		desc.Other = nil
 	}
 

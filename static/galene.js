@@ -3288,10 +3288,13 @@ function makeToken(template) {
         v["not-before"] = template["not-before"];
     if('permissions' in template)
         v.permissions = template.permissions;
-    else if(serverConnection.permissions.indexOf('present') >= 0)
-        v.permissions = ['present'];
-    else
+    else {
         v.permissions = [];
+        if(serverConnection.permissions.indexOf('present') >= 0)
+            v.permissions.push('present');
+        if(serverConnection.permissions.indexOf('message') >= 0)
+            v.permissions.push('message');
+    }
     serverConnection.groupAction('maketoken', v);
 }
 
@@ -3516,6 +3519,20 @@ commands.present = {
 commands.unpresent = {
     parameters: 'user',
     description: 'revoke the right to present',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
+commands.shutup = {
+    parameters: 'user',
+    description: 'revoke the right to send chat messages',
+    predicate: operatorPredicate,
+    f: userCommand,
+};
+
+commands.unshutup = {
+    parameters: 'user',
+    description: 'give the right to send chat messages',
     predicate: operatorPredicate,
     f: userCommand,
 };
