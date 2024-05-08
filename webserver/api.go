@@ -39,7 +39,7 @@ func checkAdmin(w http.ResponseWriter, r *http.Request) bool {
 // checkPasswordAdmin checks whether the client authentifies as either an
 // administrator or the given user.  It is used to check whether the
 // client has the right to change user's password.
-func checkPasswordAdmin(w http.ResponseWriter, r *http.Request, groupname, user string) bool {
+func checkPasswordAdmin(w http.ResponseWriter, r *http.Request, groupname, user string, wildcard bool) bool {
 	username, password, ok := r.BasicAuth()
 	if ok {
 		ok, _ := adminMatch(username, password)
@@ -47,7 +47,7 @@ func checkPasswordAdmin(w http.ResponseWriter, r *http.Request, groupname, user 
 			return true
 		}
 	}
-	if ok && username == user {
+	if ok && !wildcard && username == user {
 		desc, err := group.GetDescription(groupname)
 		if err == nil && desc.Users != nil {
 			u, ok := desc.Users[user]
@@ -160,6 +160,12 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 
 	if kind == ".users" {
 		usersHandler(w, r, g, rest)
+		return
+	} else if kind == ".empty-user" {
+		specialUserHandler(w, r, g, rest, false)
+		return
+	} else if kind == ".wildcard-user" {
+		specialUserHandler(w, r, g, rest, true)
 		return
 	} else if kind == ".keys" && rest == "" {
 		keysHandler(w, r, g)
@@ -278,10 +284,10 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 
 	first2, kind2, rest2 := splitPath(pth)
 	if first2 != "" && kind2 == "" {
-		userHandler(w, r, g, first2[1:])
+		userHandler(w, r, g, first2[1:], false)
 		return
 	} else if first2 != "" && kind2 == ".password" && rest2 == "" {
-		passwordHandler(w, r, g, first2[1:])
+		passwordHandler(w, r, g, first2[1:], false)
 		return
 	}
 	if !checkAdmin(w, r) {
@@ -291,13 +297,28 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	return
 }
 
-func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
+func specialUserHandler(w http.ResponseWriter, r *http.Request, g, pth string, wildcard bool) {
+	if pth == "" {
+		userHandler(w, r, g, "", wildcard)
+		return
+	} else if pth == ".password" {
+		passwordHandler(w, r, g, "", wildcard)
+		return
+	}
+	if !checkAdmin(w, r) {
+		return
+	}
+	notFound(w)
+	return
+}
+
+func userHandler(w http.ResponseWriter, r *http.Request, g, user string, wildcard bool) {
 	if !checkAdmin(w, r) {
 		return
 	}
 
 	if r.Method == "HEAD" || r.Method == "GET" {
-		user, etag, err := group.GetSanitisedUser(g, user, false)
+		user, etag, err := group.GetSanitisedUser(g, user, wildcard)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -310,7 +331,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		sendJSON(w, r, user)
 		return
 	} else if r.Method == "PUT" {
-		etag, err := group.GetUserTag(g, user, false)
+		etag, err := group.GetUserTag(g, user, wildcard)
 		if errors.Is(err, os.ErrNotExist) {
 			etag = ""
 			err = nil
@@ -329,7 +350,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		if done {
 			return
 		}
-		err = group.UpdateUser(g, user, false, etag, &newdesc)
+		err = group.UpdateUser(g, user, wildcard, etag, &newdesc)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -341,7 +362,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		}
 		return
 	} else if r.Method == "DELETE" {
-		etag, err := group.GetUserTag(g, user, false)
+		etag, err := group.GetUserTag(g, user, wildcard)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -352,7 +373,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 			return
 		}
 
-		err = group.DeleteUser(g, user, false, etag)
+		err = group.DeleteUser(g, user, wildcard, etag)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -364,8 +385,8 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 	return
 }
 
-func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
-	if !checkPasswordAdmin(w, r, g, user) {
+func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string, wildcard bool) {
+	if !checkPasswordAdmin(w, r, g, user, wildcard) {
 		return
 	}
 
@@ -375,7 +396,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		if done {
 			return
 		}
-		err := group.SetUserPassword(g, user, false, pw)
+		err := group.SetUserPassword(g, user, wildcard, pw)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -403,7 +424,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 			Salt:       hex.EncodeToString(salt),
 			Iterations: iterations,
 		}
-		err = group.SetUserPassword(g, user, false, pw)
+		err = group.SetUserPassword(g, user, wildcard, pw)
 		if err != nil {
 			httpError(w, err)
 			return
@@ -411,7 +432,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	} else if r.Method == "DELETE" {
-		err := group.SetUserPassword(g, user, false, group.Password{})
+		err := group.SetUserPassword(g, user, wildcard, group.Password{})
 		if err != nil {
 			httpError(w, err)
 			return

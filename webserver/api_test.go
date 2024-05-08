@@ -253,6 +253,24 @@ func TestApi(t *testing.T) {
 		t.Errorf("Users (after delete): %#v", desc.Users)
 	}
 
+	resp, err = do("PUT", "/galene-api/v0/.groups/test/.wildcard-user",
+		"application/json", "", "*",
+		`{"permissions": "present"}`)
+	if err != nil || resp.StatusCode != http.StatusCreated {
+		t.Errorf("Create wildcard user: %v %v", err, resp.StatusCode)
+	}
+
+	err = getJSON("/galene-api/v0/.groups/test/.wildcard-user", &user)
+	if err != nil {
+		t.Errorf("Get wildcard user: %v", err)
+	}
+
+	resp, err = do("DELETE", "/galene-api/v0/.groups/test/.wildcard-user",
+		"", "", "", "")
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Delete wildcard user: %v %v", err, resp.StatusCode)
+	}
+
 	if len(desc.AuthKeys) != 1 {
 		t.Errorf("Keys: %v", len(desc.AuthKeys))
 	}

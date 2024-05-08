@@ -70,17 +70,23 @@ accepted content-type is `application/jwk-set+json`.
 Returns a list of users, as a JSON array.  The only allowed methods are
 HEAD and GET.
 
-### User definition
+### User definitions
 
     /galene-api/v0/.groups/groupname/.users/username
+    /galene-api/v0/.groups/groupname/.empty-user
+    /galene-api/v0/.groups/groupname/.wildcard-user
 
 Contains a "sanitised" user definition (without any passwords), a JSON
-object with a single field `permissions`.  Allowed methods are HEAD, GET,
-PUT and DELETE.  The only accepted content-type is `application/json`.
+object with a single field `permissions`.  The entries `.empty-user` and
+`.wildcard-user` are for the user with the empty username and the wildcard
+user respectively.  Allowed methods are HEAD, GET, PUT and DELETE.  The
+only accepted content-type is `application/json`.
 
 ### Passwords
 
     /galene-api/v0/.groups/groupname/.users/username/.password
+    /galene-api/v0/.groups/groupname/.empty-user/.password
+    /galene-api/v0/.groups/groupname/.wildcard-user/.password
 
 Contains the password of a given user.  The PUT method takes a full
 password definition, identical to what can appear in the `"password"`
