@@ -231,11 +231,12 @@ descriptions that are used with usernames that don't appear in `users`.
 Every user description is a dictionary with fields `password` and
 `permissions`.  The `password` field may be a literal password string, or
 a dictionary describing a hashed password or a wildcard.  The
-`permissions` field should be one of `op`, `present` or `passive`.  (An
-array of Galene's internal permissions is also allowed, but this is not
-recommended, since internal permissions may vary from version to version).
+`permissions` field should be one of `op`, `present`, `message` or
+`observe`.  (An array of Galene's internal permissions is also allowed,
+but this is not recommended, since internal permissions may vary from
+version to version).
 
-For fexample, the entry
+For example, the entry
 
     "users": {"jch": {"password": "1234", "permissions": "op"}}
     
