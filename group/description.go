@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jech/galene/token"
 )
 
 var ErrTagMismatch = errors.New("tag mismatch")
@@ -578,6 +580,13 @@ func SetWildcardUser(group string, user *UserDescription) error {
 }
 
 func SetKeys(group string, keys []map[string]any) error {
+	if keys != nil {
+		_, err := token.ParseKeys(keys)
+		if err != nil {
+			return err
+		}
+	}
+
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
