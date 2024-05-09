@@ -17,8 +17,8 @@ Galene 0.9 (unreleased)
   * Implemented a contextual menu that triggers on a double click on
     a chat entry.
   * Added a new command "/stopshare".
-  * Added a new permission "message" and new commands "shutup" and
-    "unshutup".
+  * Added a new permission "message" and new commands "shutup" and "unshutup".
+  * Fixed a bug that could allow an ordinary user to clear the chat.
 
 14 April 2024: Galene 0.8.2
 
