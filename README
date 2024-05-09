@@ -309,21 +309,18 @@ specify either an authorisation server or an authorisation portal.
             "kty": "oct",
             "alg": "HS256",
             "k": "MYz3IfCq4Yq-UmPdNqWEOdPl4C_m9imHHs9uveDUJGQ",
-            "kid": "20211030"
         }, {
             "kty": "EC",
             "alg": "ES256",
             "crv": "P-256",
             "x": "dElK9qBNyCpRXdvJsn4GdjrFzScSzpkz_I0JhKbYC88",
             "y": "pBhVb37haKvwEoleoW3qxnT4y5bK35_RTP7_RmFKR6Q",
-            "kid": "20211101"
         }]
         "authServer": "https://auth.example.org",
     }
 
-The `kid` field serves to distinguish among multiple keys, and must match
-the value provided by the authorisation server.  If the server doesn't
-provide a `kid`, the first key with a matching `alg` field will be used.
+If multiple keys are provided, then they will all be tried in turn (the
+kid field, if provided, is ignored).
 
 If an authorisation server is specified, then the default client, after it
 prompts for a password, will request a token from the authorisation server
