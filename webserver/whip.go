@@ -192,7 +192,9 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctype := r.Header.Get("content-type")
 	if !strings.EqualFold(ctype, "application/sdp") {
-		http.Error(w, "bad content type", http.StatusBadRequest)
+		w.Header().Set("Accept", "application/sdp")
+		http.Error(w, "bad content type",
+			http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -337,7 +339,9 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctype := r.Header.Get("content-type")
 	if !strings.EqualFold(ctype, "application/trickle-ice-sdpfrag") {
-		http.Error(w, "bad content type", http.StatusBadRequest)
+		w.Header().Set("Accept", "application/trickle-ice-sdpfrag")
+		http.Error(w, "bad content type",
+			http.StatusUnsupportedMediaType)
 		return
 	}
 

@@ -75,6 +75,7 @@ func sendJSON(w http.ResponseWriter, r *http.Request, v any) {
 func getText(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 	ctype := parseContentType(r.Header.Get("Content-Type"))
 	if !strings.EqualFold(ctype, "text/plain") {
+		w.Header().Set("Accept", "text/plain")
 		http.Error(w, "unsupported content type",
 			http.StatusUnsupportedMediaType)
 		return nil, true
@@ -92,6 +93,7 @@ func getText(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 func getJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	ctype := parseContentType(r.Header.Get("Content-Type"))
 	if !strings.EqualFold(ctype, "application/json") {
+		w.Header().Set("Accept", "application/json")
 		http.Error(w, "unsupported content type",
 			http.StatusUnsupportedMediaType)
 		return true
@@ -458,6 +460,7 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 		// cannot use getJSON due to the weird content-type
 		ctype := parseContentType(r.Header.Get("Content-Type"))
 		if !strings.EqualFold(ctype, "application/jwk-set+json") {
+			w.Header().Set("Accept", "application/jwk-set+json")
 			http.Error(w, "unsupported content type",
 				http.StatusUnsupportedMediaType)
 			return
