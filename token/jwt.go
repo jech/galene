@@ -96,10 +96,13 @@ func ParseKey(key map[string]any) (any, error) {
 	}
 }
 
-func ParseKeys(keys []map[string]any, kid string) ([]jwt.VerificationKey, error) {
+func ParseKeys(keys []map[string]any, alg, kid string) ([]jwt.VerificationKey, error) {
 	ks := make([]jwt.VerificationKey, 0, len(keys))
 	for _, ky := range keys {
-		// return all keys if kid is not specified
+		// return all keys if alg and kid are not specified
+		if alg != "" &&  ky["alg"] != alg {
+			continue
+		}
 		if kid != "" && ky["kid"] != kid {
 			continue
 		}
@@ -135,8 +138,12 @@ func parseJWT(token string, keys []map[string]any) (*JWT, error) {
 	t, err := jwt.Parse(
 		token,
 		func(t *jwt.Token) (any, error) {
+			alg, _ := t.Header["alg"].(string)
+			if alg == "" {
+				return nil, errors.New("alg not found")
+			}
 			kid, _ := t.Header["kid"].(string)
-			ks, err := ParseKeys(keys, kid)
+			ks, err := ParseKeys(keys, alg, kid)
 			if err != nil {
 				return nil, err
 			}

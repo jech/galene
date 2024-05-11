@@ -301,8 +301,9 @@ existing authentication and authorisation infrastructure, such as LDAP,
 OAuth2 or even Unix passwords.
 
 When an authorisation server is used, the group configuration file
-specifies one or more public keys in JWK format.  In addition, it may
-specify either an authorisation server or an authorisation portal.
+specifies one or more public keys in JWK format (with the restriction that
+the "alg" key must be specified).  In addition, it may specify either an
+authorisation server or an authorisation portal.
 
     {
         "authKeys": [{
