@@ -1426,8 +1426,6 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			var autherr *group.NotAuthorisedError
 			if errors.Is(err, os.ErrNotExist) {
 				s = "group does not exist"
-			} else if errors.Is(err, group.ErrAnonymousNotAuthorised) {
-				s = "please choose a username"
 			} else if errors.Is(err, token.ErrUsernameRequired) {
 				s = err.Error()
 				e = "need-username"

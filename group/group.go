@@ -40,9 +40,6 @@ func (err *NotAuthorisedError) Unwrap() error {
 	return err.err
 }
 
-var ErrAnonymousNotAuthorised = &NotAuthorisedError{
-	err: errors.New("anonymous users not authorised in this group"),
-}
 var ErrDuplicateUsername = &NotAuthorisedError{
 	errors.New("this username is taken"),
 }
