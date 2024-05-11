@@ -319,8 +319,9 @@ specify either an authorisation server or an authorisation portal.
         "authServer": "https://auth.example.org",
     }
 
-If multiple keys are provided, then they will all be tried in turn (the
-kid field, if provided, is ignored).
+If multiple keys are provided, then they will all be tried in turn, unless
+the token includes the "kid" header field, in which case only the
+specified key will be used.
 
 If an authorisation server is specified, then the default client, after it
 prompts for a password, will request a token from the authorisation server

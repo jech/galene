@@ -581,7 +581,7 @@ func SetWildcardUser(group string, user *UserDescription) error {
 
 func SetKeys(group string, keys []map[string]any) error {
 	if keys != nil {
-		_, err := token.ParseKeys(keys)
+		_, err := token.ParseKeys(keys, "")
 		if err != nil {
 			return err
 		}

@@ -96,14 +96,18 @@ func ParseKey(key map[string]any) (any, error) {
 	}
 }
 
-func ParseKeys(keys []map[string]any) ([]jwt.VerificationKey, error) {
-	ks := make([]jwt.VerificationKey, len(keys))
-	for i, ky := range keys {
+func ParseKeys(keys []map[string]any, kid string) ([]jwt.VerificationKey, error) {
+	ks := make([]jwt.VerificationKey, 0, len(keys))
+	for _, ky := range keys {
+		// return all keys if kid is not specified
+		if kid != "" && ky["kid"] != kid {
+			continue
+		}
 		k, err := ParseKey(ky)
 		if err != nil {
 			return nil, err
 		}
-		ks[i] = k
+		ks = append(ks, k)
 	}
 	return ks, nil
 }
@@ -130,10 +134,14 @@ func toStringArray(a interface{}) ([]string, bool) {
 func parseJWT(token string, keys []map[string]any) (*JWT, error) {
 	t, err := jwt.Parse(
 		token,
-		func(t *jwt.Token) (interface{}, error) {
-			ks, err := ParseKeys(keys)
+		func(t *jwt.Token) (any, error) {
+			kid, _ := t.Header["kid"].(string)
+			ks, err := ParseKeys(keys, kid)
 			if err != nil {
 				return nil, err
+			}
+			if len(ks) == 1 {
+				return ks[0], nil
 			}
 			return jwt.VerificationKeySet{Keys: ks}, nil
 		},
