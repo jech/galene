@@ -1,3 +1,7 @@
+26 May 2024: Galene 0.8.3
+
+  * Fixed a bug that could allow any user to clear the chat.
+
 14 April 2024: Galene 0.8.2
 
   * Fixed possible crashes in the VP8 and AV1 parsers.
