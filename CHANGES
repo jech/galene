@@ -1,4 +1,4 @@
-Galene 0.9 (unreleased)
+26 May 2024: Galene 0.9
 
   * Reworked the group definition format to be more modular.  There are
     some incompatible changes: multiple users with the same username but
