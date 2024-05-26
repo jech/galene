@@ -104,9 +104,9 @@ func main() {
 		}()
 	}
 
-	n, err := limit.Nofile(0xFFFF)
+	n, err := limit.Nofile()
 	if err != nil {
-		log.Printf("Couldn't set file descriptor limit: %v", err)
+		log.Printf("Couldn't get file descriptor limit: %v", err)
 	} else if n < 0xFFFF {
 		log.Printf("File descriptor limit is %v, please increase it!", n)
 	}
