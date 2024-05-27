@@ -64,7 +64,7 @@ func (p Password) Match(pw string) (bool, error) {
 			return false, errors.New("missing key")
 		}
 		err := bcrypt.CompareHashAndPassword([]byte(*p.Key), []byte(pw))
-		if err == bcrypt.ErrMismatchedHashAndPassword {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			return false, nil
 		}
 		return err == nil, err
