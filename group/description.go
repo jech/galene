@@ -567,18 +567,6 @@ func GetDescriptionNames() ([]string, error) {
 	return names, err
 }
 
-func SetWildcardUser(group string, user *UserDescription) error {
-	groups.mu.Lock()
-	defer groups.mu.Unlock()
-
-	desc, err := readDescription(group, false)
-	if err != nil {
-		return err
-	}
-	desc.WildcardUser = user
-	return rewriteDescriptionFile(desc.FileName, desc)
-}
-
 func SetKeys(group string, keys []map[string]any) error {
 	if keys != nil {
 		_, err := token.ParseKeys(keys, "", "")
