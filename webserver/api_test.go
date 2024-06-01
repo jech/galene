@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -191,7 +192,7 @@ func TestApi(t *testing.T) {
 
 	var users []string
 	err = getJSON("/galene-api/v0/.groups/test/.users/", &users)
-	if err != nil || len(users) != 1 || users[0] != "jch"  {
+	if err != nil || len(users) != 1 || users[0] != "jch" {
 		t.Errorf("Get users: %v %v", err, users)
 	}
 
@@ -265,10 +266,28 @@ func TestApi(t *testing.T) {
 		t.Errorf("Get wildcard user: %v", err)
 	}
 
+	desc, err = group.GetDescription("test")
+	if err != nil {
+		t.Errorf("GetDescription: %v", err)
+	}
+
+	if !reflect.DeepEqual(user, *desc.WildcardUser) {
+		t.Errorf("Got %v, expected %v", desc.WildcardUser, user)
+	}
+
 	resp, err = do("DELETE", "/galene-api/v0/.groups/test/.wildcard-user",
 		"", "", "", "")
 	if err != nil || resp.StatusCode != http.StatusNoContent {
 		t.Errorf("Delete wildcard user: %v %v", err, resp.StatusCode)
+	}
+
+	desc, err = group.GetDescription("test")
+	if err != nil {
+		t.Errorf("GetDescription: %v", err)
+	}
+
+	if desc.WildcardUser != nil {
+		t.Errorf("Got %v, expected nil", desc.WildcardUser)
 	}
 
 	if len(desc.AuthKeys) != 1 {
