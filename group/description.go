@@ -26,11 +26,11 @@ type Permissions struct {
 }
 
 var permissionsMap = map[string][]string{
-	"op":      []string{"op", "present", "message", "token"},
-	"present": []string{"present", "message"},
-	"message": []string{"message"},
-	"observe": []string{},
-	"admin":   []string{"admin"},
+	"op":      {"op", "present", "message", "token"},
+	"present": {"present", "message"},
+	"message": {"message"},
+	"observe": {},
+	"admin":   {"admin"},
 }
 
 func NewPermissions(name string) (Permissions, error) {
