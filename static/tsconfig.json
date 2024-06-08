@@ -15,6 +15,7 @@
     "files": [
         "protocol.js",
         "galene.js",
-        "management.js"
+        "management.js",
+        "example/example.js"
     ]
 }
