@@ -526,7 +526,6 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var addr net.Addr
-	println(r.RemoteAddr)
 	tcpaddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
 	if err != nil {
 		log.Printf("ResolveTCPAddr: %v", err)
