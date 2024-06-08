@@ -1424,9 +1424,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if err != nil {
 			var e, s string
 			var autherr *group.NotAuthorisedError
-			if errors.Is(err, os.ErrNotExist) {
-				s = "group does not exist"
-			} else if errors.Is(err, token.ErrUsernameRequired) {
+			if errors.Is(err, token.ErrUsernameRequired) {
 				s = err.Error()
 				e = "need-username"
 			} else if errors.Is(err, group.ErrDuplicateUsername) {
@@ -1436,6 +1434,8 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				s = "not authorised"
 				time.Sleep(200 * time.Millisecond)
 				log.Printf("Join group: %v", err)
+			} else if errors.Is(err, os.ErrNotExist) {
+				s = "group does not exist"
 			} else if _, ok := err.(group.UserError); ok {
 				s = err.Error()
 			} else {
