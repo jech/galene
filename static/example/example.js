@@ -24,8 +24,9 @@ async function start(url) {
         await serverConnect(status, token);
     } else if(status.authPortal) {
         window.location.href = groupStatus.authPortal
+        return;
     } else {
-        serverConnect(status, null);
+        await serverConnect(status, null);
     }
 }
 
@@ -204,6 +205,7 @@ async function showCamera(conn) {
     s.label = 'camera';
     s.setStream(ms);
     s.onclose = function(replace) {
+        s.stream.getTracks().forEach(t => t.stop());
         v.srcObject = null;
     }
 
