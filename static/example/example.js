@@ -1,4 +1,4 @@
-/* Galene client example.  Send-only for now. */
+/* Galene client example. */
 
 /**
  * The main function.
@@ -59,11 +59,7 @@ async function serverConnect(status, token) {
     };
     conn.onchat = onChat;
     conn.onusermessage = onUserMessage;
-    conn.ondownstream = function(s) {
-        // This should not happen, since we didn't ask to receive streams.
-        console.warn('Received unexpected stream from server');
-        s.abort();
-    }
+    conn.ondownstream = onDownStream;
     conn.onclose = function() {
         displayStatus('Disconnected');
     }
@@ -183,6 +179,8 @@ async function onJoined(kind, group, perms, status, data, error, message) {
     case 'change':
         displayStatus(`Connected as ${this.username} in group ${this.group}.`);
         enableShow(this, true);
+        // request videos from the server
+        this.request({'': ['audio', 'video']});
         break;
     default:
         displayError(`Unexpected state ${kind}.`);
@@ -192,21 +190,49 @@ async function onJoined(kind, group, perms, status, data, error, message) {
 }
 
 /**
+ * Create a video element.  We encode the stream's id in the element's id
+ * in order to avoid having a global hash table that maps ids to video
+ * elements.
+ *
+ * @parm {string} id
+ * @returns {HTMLVideoElement}
+ */
+function makeVideoElement(id) {
+    let v = document.createElement('video');
+    v.id = 'video-' + id;
+    let container = document.getElementById('videos');
+    container.appendChild(v);
+    return v;
+}
+
+/**
+ * Find the video element that shows a given id.
+ *
+ * @parm {string} id
+ * @returns {HTMLVideoElement}
+ */
+function getVideoElement(id) {
+    let v = document.getElementById('video-' + id);
+    return /** @type{HTMLVideoElement} */(v);
+}
+
+/**
  * Enable the camera and broadcast yourself to the group.
  *
  * @parm {ServerConnection} conn
  */
 async function showCamera(conn) {
-    let v = /** @type HTMLVideoElement */(document.getElementById('video'));
     let ms = await navigator.mediaDevices.getUserMedia({audio: true, video: true});
 
     /* Send the new stream to the server */
     let s = conn.newUpStream();
     s.label = 'camera';
     s.setStream(ms);
+    let v = makeVideoElement(s.localId);
     s.onclose = function(replace) {
         s.stream.getTracks().forEach(t => t.stop());
         v.srcObject = null;
+        v.parentNode.removeChild(v);
     }
 
     function addTrack(t) {
@@ -246,6 +272,29 @@ async function hide(conn, s) {
 }
 
 /**
+ * Called when the server pushes a stream.
+ *
+ * @this {ServerConnection}
+ * @parm {Stream} c
+ */
+function onDownStream(s) {
+    s.onclose = function(replace) {
+        let v = getVideoElement(s.localId);
+        v.srcObject = null;
+        v.parentNode.removeChild(v);
+    }
+    s.ondowntrack = function(track, transceiver, stream) {
+        let v = getVideoElement(s.localId);
+        if(v.srcObject !== stream)
+            v.srcObject = stream;
+    }
+
+    let v = makeVideoElement(s.localId);
+    v.srcObject = s.stream;
+    v.play();
+}
+
+/**
  * Display an error message.
  *
  * @parm {string} message
@@ -254,4 +303,12 @@ function displayError(message) {
     document.getElementById('error').textContent = message;
 }
 
-start("/group/public/").catch(e => displayError(e));
+document.getElementById('start').onclick = async function(e) {
+    let button = /** @type{HTMLButtonElement} */(this);
+    button.hidden = true;
+    try {
+        await start("/group/public/");
+    } catch(e) {
+        displayError(e);
+    };
+}
