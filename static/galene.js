@@ -4051,7 +4051,8 @@ async function start() {
     setTitle(groupStatus.displayName || capitalise(group));
 
     addFilters();
-    setMediaChoices(false).then(e => reflectSettings());
+    await setMediaChoices(false);
+    reflectSettings();
 
     if(parms.has('token'))
         token = parms.get('token');
