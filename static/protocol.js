@@ -140,9 +140,21 @@ function ServerConnection() {
      * userdata is a convenient place to attach data to a ServerConnection.
      * It is not used by the library.
      *
-     * @type{Object<unknown,unknown>}
+     * @type {Object<unknown,unknown>}
      */
     this.userdata = {};
+    /**
+     * The time at which we last received a message from the server.
+     *
+     * @type {number}
+     */
+    this.lastServerMessage = null;
+    /**
+     * The interval handler which checks for liveness.
+     *
+     * @type {number}
+     */
+    this.pingHandler = null;
 
     /* Callbacks */
 
@@ -308,6 +320,20 @@ ServerConnection.prototype.connect = function(url) {
 
     sc.socket = new WebSocket(url);
 
+    this.pingHandler = setInterval(e => {
+        if(!sc.lastServerMessage) {
+            sc.error(new Error('Timeout'));
+            return;
+        }
+        let d = new Date().valueOf() - sc.lastServerMessage;
+        if(d > 65000) {
+            sc.error(new Error('Timeout'));
+            return;
+        }
+        if(sc.version && d >= 15000)
+            sc.send({type: 'ping'});
+    }, 10000);
+
     this.socket.onerror = function(e) {
         if(sc.onerror)
             sc.onerror.call(sc, new Error('Socket error: ' + e));
@@ -343,6 +369,10 @@ ServerConnection.prototype.connect = function(url) {
             sc.onjoined.call(sc, 'leave', sc.group, [], {}, {}, '', '');
         sc.group = null;
         sc.username = null;
+        if(sc.pingHandler) {
+            clearInterval(sc.pingHandler);
+            sc.pingHandler = null;
+        }
         if(sc.onclose)
             sc.onclose.call(sc, e.code, e.reason);
     };
@@ -358,6 +388,7 @@ ServerConnection.prototype.connect = function(url) {
             sc.error(new Error("Server didn't send handshake"));
             return;
         }
+        sc.lastServerMessage = new Date().valueOf();
         switch(m.type) {
         case 'handshake': {
             if((m.version instanceof Array) && m.version.includes('2')) {
