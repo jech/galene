@@ -435,7 +435,7 @@ function gotDownStream(c) {
         console.error(e);
         displayError(e);
     };
-    c.ondowntrack = function(track, transceiver, label, stream) {
+    c.ondowntrack = function(track, transceiver, stream) {
         setMedia(c);
     };
     c.onnegotiationcompleted = function() {
