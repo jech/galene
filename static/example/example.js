@@ -21,12 +21,12 @@ async function start(url) {
 
     // connect to the server
     if(token) {
-        await serverConnect(status, token);
+        serverConnect(status, token);
     } else if(status.authPortal) {
         window.location.href = groupStatus.authPortal
         return;
     } else {
-        await serverConnect(status, null);
+        serverConnect(status, null);
     }
 }
 
@@ -46,7 +46,7 @@ function displayStatus(status) {
  * @parm {Object} status
  * @parm {string} token
  */
-async function serverConnect(status, token) {
+function serverConnect(status, token) {
     // create the connection to the server
     let conn = new ServerConnection();
     conn.onconnected = async function() {
@@ -66,7 +66,7 @@ async function serverConnect(status, token) {
     conn.onjoined = onJoined;
 
     // connect and wait for the onconnected callback
-    await conn.connect(status.endpoint);
+    conn.connect(status.endpoint);
 }
 
 /**

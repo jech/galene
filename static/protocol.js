@@ -153,6 +153,13 @@ function ServerConnection() {
      */
     this.onconnected = null;
     /**
+     * onerror is called whenever a fatal error occurs.  The stream will
+     * then be closed, and onclose called normally.
+     *
+     * @type{(this: ServerConnection, error: unknown) => void}
+     */
+    this.onerror = null;
+    /**
      * onclose is called when the connection is closed
      *
      * @type{(this: ServerConnection, code: number, reason: string) => void}
@@ -264,6 +271,19 @@ ServerConnection.prototype.close = function() {
 };
 
 /**
+ * error forcibly closes a server connection and invokes the onerror
+ * callback.  The onclose callback will be invoked when the connection
+ * is effectively closed.
+ *
+ * @param {any} e
+ */
+ServerConnection.prototype.error = function(e) {
+    if(this.onerror)
+        this.onerror.call(this, e);
+    this.close();
+};
+
+/**
   * send sends a message to the server.
   * @param {message} m - the message to send.
   */
@@ -279,191 +299,200 @@ ServerConnection.prototype.send = function(m) {
  * connect connects to the server.
  *
  * @param {string} url - The URL to connect to.
- * @returns {Promise<ServerConnection>}
  * @function
  */
-ServerConnection.prototype.connect = async function(url) {
+ServerConnection.prototype.connect = function(url) {
     let sc = this;
-    if(sc.socket) {
-        sc.socket.close(1000, 'Reconnecting');
-        sc.socket = null;
-    }
+    if(sc.socket)
+        throw new Error("Attempting to connect stale connection");
 
     sc.socket = new WebSocket(url);
 
-    return await new Promise((resolve, reject) => {
-        this.socket.onerror = function(e) {
-            reject(e);
-        };
-        this.socket.onopen = function(e) {
+    this.socket.onerror = function(e) {
+        if(sc.onerror)
+            sc.onerror.call(sc, new Error('Socket error: ' + e));
+    };
+    this.socket.onopen = function(e) {
+        try {
             sc.send({
                 type: 'handshake',
                 version: ['2'],
                 id: sc.id,
             });
+        } catch(e) {
+            sc.error(e);
+            return;
+        }
+    };
+    this.socket.onclose = function(e) {
+        sc.permissions = [];
+        for(let id in sc.up) {
+            let c = sc.up[id];
+            c.close();
+        }
+        for(let id in sc.down) {
+            let c = sc.down[id];
+            c.close();
+        }
+        for(let id in sc.users) {
+            delete(sc.users[id]);
+            if(sc.onuser)
+                sc.onuser.call(sc, id, 'delete');
+        }
+        if(sc.group && sc.onjoined)
+            sc.onjoined.call(sc, 'leave', sc.group, [], {}, {}, '', '');
+        sc.group = null;
+        sc.username = null;
+        if(sc.onclose)
+            sc.onclose.call(sc, e.code, e.reason);
+    };
+    this.socket.onmessage = function(e) {
+        let m;
+        try {
+            m = JSON.parse(e.data);
+        } catch(e) {
+            sc.error(e);
+            return;
+        }
+        if(m.type !== 'handshake' && !sc.version) {
+            sc.error(new Error("Server didn't send handshake"));
+            return;
+        }
+        switch(m.type) {
+        case 'handshake': {
+            if((m.version instanceof Array) && m.version.includes('2')) {
+                sc.version = '2';
+            } else {
+                sc.version = null;
+                sc.error(new Error(`Unknown protocol version ${m.version}`));
+                return;
+            }
             if(sc.onconnected)
                 sc.onconnected.call(sc);
-            resolve(sc);
-        };
-        this.socket.onclose = function(e) {
-            sc.permissions = [];
-            for(let id in sc.up) {
-                let c = sc.up[id];
-                c.close();
-            }
-            for(let id in sc.down) {
-                let c = sc.down[id];
-                c.close();
-            }
-            for(let id in sc.users) {
-                delete(sc.users[id]);
-                if(sc.onuser)
-                    sc.onuser.call(sc, id, 'delete');
-            }
-            if(sc.group && sc.onjoined)
-                sc.onjoined.call(sc, 'leave', sc.group, [], {}, {}, '', '');
-            sc.group = null;
-            sc.username = null;
-            if(sc.onclose)
-                sc.onclose.call(sc, e.code, e.reason);
-            reject(new Error('websocket close ' + e.code + ' ' + e.reason));
-        };
-        this.socket.onmessage = function(e) {
-            let m = JSON.parse(e.data);
-            switch(m.type) {
-            case 'handshake': {
-                if((m.version instanceof Array) && m.version.includes('2')) {
-                    sc.version = '2';
-                } else {
-                    sc.version = null;
-                    console.error(`Unknown protocol version ${m.version}`);
-                    throw new Error(`Unknown protocol version ${m.version}`);
+            break;
+        }
+        case 'offer':
+            sc.gotOffer(m.id, m.label, m.source, m.username,
+                        m.sdp, m.replace);
+            break;
+        case 'answer':
+            sc.gotAnswer(m.id, m.sdp);
+            break;
+        case 'renegotiate':
+            sc.gotRenegotiate(m.id);
+            break;
+        case 'close':
+            sc.gotClose(m.id);
+            break;
+        case 'abort':
+            sc.gotAbort(m.id);
+            break;
+        case 'ice':
+            sc.gotRemoteIce(m.id, m.candidate);
+            break;
+        case 'joined':
+            if(m.kind === 'leave' || m.kind === 'fail') {
+                for(let id in sc.users) {
+                    delete(sc.users[id]);
+                    if(sc.onuser)
+                        sc.onuser.call(sc, id, 'delete');
                 }
-                break;
-            }
-            case 'offer':
-                sc.gotOffer(m.id, m.label, m.source, m.username,
-                            m.sdp, m.replace);
-                break;
-            case 'answer':
-                sc.gotAnswer(m.id, m.sdp);
-                break;
-            case 'renegotiate':
-                sc.gotRenegotiate(m.id);
-                break;
-            case 'close':
-                sc.gotClose(m.id);
-                break;
-            case 'abort':
-                sc.gotAbort(m.id);
-                break;
-            case 'ice':
-                sc.gotRemoteIce(m.id, m.candidate);
-                break;
-            case 'joined':
-                if(m.kind === 'leave' || m.kind === 'fail') {
-                    for(let id in sc.users) {
-                        delete(sc.users[id]);
-                        if(sc.onuser)
-                            sc.onuser.call(sc, id, 'delete');
-                    }
-                    sc.username = null;
-                    sc.permissions = [];
-                    sc.rtcConfiguration = null;
-                } else if(m.kind === 'join' || m.kind == 'change') {
-                    if(m.kind === 'join' && sc.group) {
-                        throw new Error('Joined multiple groups');
-                    } else if(m.kind === 'change' && m.group != sc.group) {
-                        console.warn('join(change) for inconsistent group');
-                        break;
-                    }
-                    sc.group = m.group;
-                    sc.username = m.username;
-                    sc.permissions = m.permissions || [];
-                    sc.rtcConfiguration = m.rtcConfiguration || null;
+                sc.username = null;
+                sc.permissions = [];
+                sc.rtcConfiguration = null;
+            } else if(m.kind === 'join' || m.kind == 'change') {
+                if(m.kind === 'join' && sc.group) {
+                    throw new Error('Joined multiple groups');
+                } else if(m.kind === 'change' && m.group != sc.group) {
+                    console.warn('join(change) for inconsistent group');
+                    break;
                 }
-                if(sc.onjoined)
-                    sc.onjoined.call(sc, m.kind, m.group,
-                                     m.permissions || [],
-                                     m.status, m.data,
-                                     m.error || null, m.value || null);
+                sc.group = m.group;
+                sc.username = m.username;
+                sc.permissions = m.permissions || [];
+                sc.rtcConfiguration = m.rtcConfiguration || null;
+            }
+            if(sc.onjoined)
+                sc.onjoined.call(sc, m.kind, m.group,
+                                 m.permissions || [],
+                                 m.status, m.data,
+                                 m.error || null, m.value || null);
+            break;
+        case 'user':
+            switch(m.kind) {
+            case 'add':
+                if(m.id in sc.users)
+                    console.warn(`Duplicate user ${m.id} ${m.username}`);
+                sc.users[m.id] = {
+                    username: m.username,
+                    permissions: m.permissions || [],
+                    data: m.data || {},
+                    streams: {},
+                };
                 break;
-            case 'user':
-                switch(m.kind) {
-                case 'add':
-                    if(m.id in sc.users)
-                        console.warn(`Duplicate user ${m.id} ${m.username}`);
+            case 'change':
+                if(!(m.id in sc.users)) {
+                    console.warn(`Unknown user ${m.id} ${m.username}`);
                     sc.users[m.id] = {
                         username: m.username,
                         permissions: m.permissions || [],
                         data: m.data || {},
                         streams: {},
                     };
-                    break;
-                case 'change':
-                    if(!(m.id in sc.users)) {
-                        console.warn(`Unknown user ${m.id} ${m.username}`);
-                        sc.users[m.id] = {
-                            username: m.username,
-                            permissions: m.permissions || [],
-                            data: m.data || {},
-                            streams: {},
-                        };
-                    } else {
-                        sc.users[m.id].username = m.username;
-                        sc.users[m.id].permissions = m.permissions || [];
-                        sc.users[m.id].data = m.data || {};
-                    }
-                    break;
-                case 'delete':
-                    if(!(m.id in sc.users))
-                        console.warn(`Unknown user ${m.id} ${m.username}`);
-                    for(let t in sc.transferredFiles) {
-                        let f = sc.transferredFiles[t];
-                        if(f.userid === m.id)
-                            f.fail('user has gone away');
-                    }
-                    delete(sc.users[m.id]);
-                    break;
-                default:
-                    console.warn(`Unknown user action ${m.kind}`);
-                    return;
+                } else {
+                    sc.users[m.id].username = m.username;
+                    sc.users[m.id].permissions = m.permissions || [];
+                    sc.users[m.id].data = m.data || {};
                 }
-                if(sc.onuser)
-                    sc.onuser.call(sc, m.id, m.kind);
                 break;
-            case 'chat':
-            case 'chathistory':
-                if(sc.onchat)
-                    sc.onchat.call(
-                        sc, m.source, m.dest, m.username, parseTime(m.time),
-                        m.privileged, m.type === 'chathistory', m.kind,
-                        '' + m.value,
-                    );
-                break;
-            case 'usermessage':
-                if(m.kind === 'filetransfer')
-                    sc.fileTransfer(m.source, m.username, m.value);
-                else if(sc.onusermessage)
-                    sc.onusermessage.call(
-                        sc, m.source, m.dest, m.username, parseTime(m.time),
-                        m.privileged, m.kind, m.error, m.value,
-                    );
-                break;
-            case 'ping':
-                sc.send({
-                    type: 'pong',
-                });
-                break;
-            case 'pong':
-                /* nothing */
+            case 'delete':
+                if(!(m.id in sc.users))
+                    console.warn(`Unknown user ${m.id} ${m.username}`);
+                for(let t in sc.transferredFiles) {
+                    let f = sc.transferredFiles[t];
+                    if(f.userid === m.id)
+                        f.fail('user has gone away');
+                }
+                delete(sc.users[m.id]);
                 break;
             default:
-                console.warn('Unexpected server message', m.type);
+                console.warn(`Unknown user action ${m.kind}`);
                 return;
             }
-        };
-    });
+            if(sc.onuser)
+                sc.onuser.call(sc, m.id, m.kind);
+            break;
+        case 'chat':
+        case 'chathistory':
+            if(sc.onchat)
+                sc.onchat.call(
+                    sc, m.source, m.dest, m.username, parseTime(m.time),
+                    m.privileged, m.type === 'chathistory', m.kind,
+                    '' + m.value,
+                );
+            break;
+        case 'usermessage':
+            if(m.kind === 'filetransfer')
+                sc.fileTransfer(m.source, m.username, m.value);
+            else if(sc.onusermessage)
+                sc.onusermessage.call(
+                    sc, m.source, m.dest, m.username, parseTime(m.time),
+                    m.privileged, m.kind, m.error, m.value,
+                );
+            break;
+        case 'ping':
+            sc.send({
+                type: 'pong',
+            });
+            break;
+        case 'pong':
+            /* nothing */
+            break;
+        default:
+            console.warn('Unexpected server message', m.type);
+            return;
+        }
+    };
 };
 
 /**

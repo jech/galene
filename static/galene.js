@@ -420,6 +420,10 @@ function gotClose(code, reason) {
     if(code != 1000) {
         console.warn('Socket close', code, reason);
     }
+    let form = document.getElementById('userform');
+    if(!(form instanceof HTMLFormElement))
+        throw new Error('Bad type for userform');
+    form.active = true;
 }
 
 /**
@@ -433,7 +437,7 @@ function gotDownStream(c) {
     };
     c.onerror = function(e) {
         console.error(e);
-        displayError(e);
+        displayError(e.toString());
     };
     c.ondowntrack = function(track, transceiver, stream) {
         setMedia(c);
@@ -3903,12 +3907,12 @@ function displayMessage(message) {
     return displayError(message, "info");
 }
 
-let connecting = false;
-
 document.getElementById('userform').onsubmit = async function(e) {
     e.preventDefault();
-    if(connecting)
-        return;
+
+    let form = this;
+    if(!(form instanceof HTMLFormElement))
+        throw new Error('Bad type for userform');
 
     setVisibility('passwordform', true);
 
@@ -3921,12 +3925,8 @@ document.getElementById('userform').onsubmit = async function(e) {
     getInputElement('presentoff').checked = true;
 
     // Connect to the server, gotConnected will join.
-    connecting = true;
-    try {
-        await serverConnect();
-    } finally {
-        connecting = false;
-    }
+    form.active = false;
+    serverConnect();
 };
 
 document.getElementById('disconnectbutton').onclick = function(e) {
@@ -3997,6 +3997,10 @@ async function serverConnect() {
         serverConnection.close();
     serverConnection = new ServerConnection();
     serverConnection.onconnected = gotConnected;
+    serverConnection.onerror = function(e) {
+        console.error(e);
+        displayError(e.toString());
+    };
     serverConnection.onpeerconnection = onPeerConnection;
     serverConnection.onclose = gotClose;
     serverConnection.ondownstream = gotDownStream;
