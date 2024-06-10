@@ -1,3 +1,13 @@
+Galene 0.9.1 (unreleased)
+
+  * Added an example client with minimal functionality under static/example.
+  * Fixed a race condition that would cause the client to run with
+    undefined settings if the initial connection was extremely quick.
+  * Implemented client-side timeouts (we already had one on the server side).
+  * Reduced the server-side timeout.
+  * Don't attempt to set the file descriptor limit, since recent versions
+    of the Go runtime do it automatically.
+
 26 May 2024: Galene 0.9
 
   * Reworked the group definition format to be more modular.  There are
