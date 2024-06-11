@@ -35,8 +35,8 @@ let pwAuth = false;
 /** @type {string} */
 let token = null;
 
-/** @type {boolean} */
-let connectingAgain = false;
+/** @type {string} */
+let probingState = null;
 
 /**
  * @typedef {Object} settings
@@ -317,8 +317,6 @@ function setConnected(connected) {
     } else {
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
-        if(!connectingAgain)
-            displayError('Disconnected', 'error');
         hideVideo();
         window.onresize = null;
     }
@@ -329,9 +327,7 @@ function setConnected(connected) {
  */
 async function gotConnected() {
     setConnected(true);
-    let again = connectingAgain;
-    connectingAgain = false;
-    await join(again);
+    await join();
 }
 
 /**
@@ -352,10 +348,7 @@ function setChangePassword(username) {
     }
 }
 
-/**
- * @param {boolean} again
- */
-async function join(again) {
+async function join() {
     let username = getInputElement('username').value.trim();
     let credentials;
     if(token) {
@@ -364,11 +357,30 @@ async function join(again) {
             type: 'token',
             token: token,
         };
-        if(!again)
-            // the first time around, we need to join with no username in
-            // order to give the server a chance to reply with 'need-username'.
+        switch(probingState) {
+        case null:
+            // when logging in with a token, we need to give the user
+            // a chance to interact with the page in order to enable
+            // autoplay.  Probe the group first in order to determine if
+            // we need a username.  We should really extend the protocol
+            // to have a simpler protocol for probing.
+            probingState = 'probing';
             username = null;
+            break;
+        case 'need-username':
+        case 'success':
+            probingState = null;
+            break
+        default:
+            console.warn(`Unexpected probing state ${probingState}`);
+            probingState = null;
+            break;
+        }
     } else {
+        if(probingState !== null) {
+            console.warn(`Unexpected probing state ${probingState}`);
+            probingState = null;
+        }
         let pw = getInputElement('password').value;
         getInputElement('password').value = '';
         if(!groupStatus.authServer) {
@@ -420,9 +432,9 @@ function gotClose(code, reason) {
     if(code != 1000) {
         console.warn('Socket close', code, reason);
     }
-    let form = document.getElementById('userform');
+    let form = document.getElementById('loginform');
     if(!(form instanceof HTMLFormElement))
-        throw new Error('Bad type for userform');
+        throw new Error('Bad type for loginform');
     form.active = true;
 }
 
@@ -2471,14 +2483,13 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
 
     switch(kind) {
     case 'fail':
-        if(error === 'need-username' || error === 'duplicate-username') {
+        if(probingState === 'probing' && error === 'need-username') {
+            probingState = 'need-username';
             setVisibility('passwordform', false);
-            connectingAgain = true;
         } else {
             token = null;
-        }
-        if(error !== 'need-username')
             displayError('The server said: ' + message);
+        }
         this.close();
         setButtonsVisibility();
         return;
@@ -2489,13 +2500,21 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
         return;
     case 'leave':
         this.close();
-        token = null;
         setButtonsVisibility();
         setChangePassword(null);
         return;
     case 'join':
     case 'change':
-        token = null;
+        if(probingState === 'probing') {
+            probingState = 'success';
+            setVisibility('userform', false);
+            setVisibility('passwordform', false);
+            this.close();
+            setButtonsVisibility();
+            return;
+        } else {
+            token = null;
+        }
         // don't discard endPoint and friends
         for(let key in status)
             groupStatus[key] = status[key];
@@ -2514,8 +2533,6 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
         this.close();
         return;
     }
-
-    token = null;
 
     let input = /** @type{HTMLTextAreaElement} */
         (document.getElementById('input'));
@@ -3907,12 +3924,12 @@ function displayMessage(message) {
     return displayError(message, "info");
 }
 
-document.getElementById('userform').onsubmit = async function(e) {
+document.getElementById('loginform').onsubmit = async function(e) {
     e.preventDefault();
 
     let form = this;
     if(!(form instanceof HTMLFormElement))
-        throw new Error('Bad type for userform');
+        throw new Error('Bad type for loginform');
 
     setVisibility('passwordform', true);
 

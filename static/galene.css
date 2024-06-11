@@ -715,17 +715,17 @@ h1 {
     font-weight: bold;
 }
 
-.userform {
+.login {
     display: inline
 }
 
-.userform label {
+.loginform label {
     min-width: 3em;
     display: inline-block;
     padding-top: 10px;
 }
 
-.userform input[type="text"], .userform input[type="password"] {
+.loginform input[type="text"], .loginform input[type="password"] {
     width: 100%;
 }
 
