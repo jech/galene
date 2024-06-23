@@ -6,6 +6,8 @@ The frontend is written in JavaScript and is split into two files:
     server;
   - `galene.js` contains the user interface.
 
+A simpler example client can be found in the directory `static/example`.
+
 A new frontend may either implement Galène's client-server protocol from
 scratch, or it may use the functionality of `protocol.js`.  This document
 documents the latter approach.
@@ -25,7 +27,17 @@ by the client (your frontend), streams going down are created by the server.
 
 ## Connecting to the server
 
-First, create a `ServerConnection` and set up all the callbacks:
+First, fetch the `.status` JSON at the group URL:
+
+```javascript
+let r = await fetch(url + ".status");
+if(!r.ok) {
+    throw new Error(`${r.status} ${r.statusText}`);
+}
+let status = await r.json();
+```
+
+Create a `ServerConnection` and set up all the callbacks:
 
 ```javascript
 let sc = new ServerConnection()
@@ -57,7 +69,7 @@ see the section below about streams.
 You may now connect to the server:
 
 ```javascript
-serverConnection.connect(`wss://${location.host}/ws`);
+serverConnection.connect(status.endpoint);
 ```
 
 You typically join a group in the `onconnected` callback:
