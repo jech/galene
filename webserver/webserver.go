@@ -39,7 +39,7 @@ func Serve(address string, dataDir string) error {
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r,
-				"/recordings/", http.StatusPermanentRedirect)
+				"recordings/", http.StatusPermanentRedirect)
 		})
 	http.HandleFunc("/recordings/", recordingsHandler)
 	http.HandleFunc("/ws", wsHandler)
@@ -358,7 +358,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path != "/group/"+name+"/" {
-		http.Redirect(w, r, "/group/"+name+"/",
+		http.Redirect(w, r, "group/"+name+"/",
 			http.StatusPermanentRedirect)
 		return
 	}
@@ -669,7 +669,7 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 			httpError(w, err)
 			return
 		}
-		http.Redirect(w, r, "/recordings/"+group+"/",
+		http.Redirect(w, r, "recordings/"+group+"/",
 			http.StatusSeeOther)
 		return
 	default:

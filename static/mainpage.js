@@ -29,7 +29,7 @@ document.getElementById('groupform').onsubmit = async function(e) {
     let group = groupinput.value.trim();
     if(group === '')
         return;
-    let url = '/group/' + group + '/';
+    let url = 'group/' + group + '/';
     let statusUrl = url + '.status.json';
 
     try {
@@ -84,7 +84,7 @@ async function listPublicGroups() {
 
     let l;
     try {
-        let r = await fetch('/public-groups.json');
+        let r = await fetch('public-groups.json');
         if(!r.ok)
             throw new Error(`${r.status} ${r.statusText}`);
         l = await r.json();

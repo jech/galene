@@ -159,7 +159,7 @@ async function updateObject(url, values, etag) {
  * @returns {Promise<Array<string>>}
  */
 async function listGroups() {
-    return await listObjects('/galene-api/v0/.groups/');
+    return await listObjects('galene-api/v0/.groups/');
 }
 
 /**
@@ -170,7 +170,7 @@ async function listGroups() {
  * @returns {Promise<Object>}
  */
 async function getGroup(group, etag) {
-    return await getObject(`/galene-api/v0/.groups/${group}`, etag);
+    return await getObject(`galene-api/v0/.groups/${group}`, etag);
 }
 
 /**
@@ -180,7 +180,7 @@ async function getGroup(group, etag) {
  * @param {Object} [values]
  */
 async function createGroup(group, values) {
-    return await createObject(`/galene-api/v0/.groups/${group}`, values);
+    return await createObject(`galene-api/v0/.groups/${group}`, values);
 }
 
 /**
@@ -190,7 +190,7 @@ async function createGroup(group, values) {
  * @param {string} [etag]
  */
 async function deleteGroup(group, etag) {
-    return await deleteObject(`/galene-api/v0/.groups/${group}`, etag);
+    return await deleteObject(`galene-api/v0/.groups/${group}`, etag);
 }
 
 /**
@@ -203,7 +203,7 @@ async function deleteGroup(group, etag) {
  * @param {string} [etag]
  */
 async function updateGroup(group, values, etag) {
-    return await updateObject(`/galene-api/v0/.groups/${group}`, values);
+    return await updateObject(`galene-api/v0/.groups/${group}`, values);
 }
 
 /**
@@ -213,7 +213,7 @@ async function updateGroup(group, values, etag) {
  * @returns {Promise<Array<string>>}
  */
 async function listUsers(group) {
-    return await listObjects(`/galene-api/v0/.groups/${group}/.users/`);
+    return await listObjects(`galene-api/v0/.groups/${group}/.users/`);
 }
 
 /**
@@ -225,11 +225,11 @@ async function listUsers(group) {
  */
 function userURL(group, user, wildcard) {
     if(wildcard)
-        return `/galene-api/v0/.groups/${group}/.wildcard-user`;
+        return `galene-api/v0/.groups/${group}/.wildcard-user`;
     else if(user === "")
-        return `/galene-api/v0/.groups/${group}/.empty-user`;
+        return `galene-api/v0/.groups/${group}/.empty-user`;
     else
-        return `/galene-api/v0/.groups/${group}/.users/${user}`
+        return `galene-api/v0/.groups/${group}/.users/${user}`
 }
 
 /**
@@ -308,7 +308,7 @@ async function setPassword(group, user, wildcard, password, oldpassword) {
             `Basic ${btoa(user + ':' + oldpassword)}`
     }
 
-    let r = await fetch(userURL(group, user, wildcard) + '/.password', options);
+    let r = await fetch(userURL(group, user, wildcard) + '.password', options);
     if(!r.ok)
         throw httpError(r);
 }
@@ -320,7 +320,7 @@ async function setPassword(group, user, wildcard, password, oldpassword) {
  * @returns {Promise<Array<string>>}
  */
 async function listTokens(group) {
-    return await listObjects(`/galene-api/v0/.groups/${group}/.tokens/`);
+    return await listObjects(`galene-api/v0/.groups/${group}/.tokens/`);
 }
 
 /**
@@ -332,7 +332,7 @@ async function listTokens(group) {
  * @returns {Promise<Object>}
  */
 async function getToken(group, token, etag) {
-    return await getObject(`/galene-api/v0/.groups/${group}/.tokens/${token}`,
+    return await getObject(`galene-api/v0/.groups/${group}/.tokens/${token}`,
                            etag);
 }
 
@@ -353,7 +353,7 @@ async function createToken(group, template) {
     }
 
     let r = await fetch(
-        `/galene-api/v0/.groups/${group}/.tokens/`,
+        `galene-api/v0/.groups/${group}/.tokens/`,
         options);
     if(!r.ok)
         throw httpError(r);
@@ -373,6 +373,6 @@ async function updateToken(group, token, etag) {
     if(!token.token)
         throw new Error("Unnamed token");
     return await updateObject(
-        `/galene-api/v0/.groups/${group}/.tokens/${token.token}`,
+        `galene-api/v0/.groups/${group}/.tokens/${token.token}`,
         token, etag);
 }

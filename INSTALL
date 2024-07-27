@@ -180,6 +180,20 @@ establish direct UDP flows with Galene and direct TCP connections to
 Galene's TURN server; see the section on "Configuring your firewall"
 above.
 
+**Path in proxyURL:**
+If your `proxyURL` places Galène after a path like `/x/y/z`,then  you
+need to change a few `<base href="/">` references in the file copied to
+the `-static` location, making sure to end in a slash `/`.  You could
+script this as follows:
+
+    find static/ -name \*.html -exec \
+        sed -i -e 's+<base href="[^"]*">+<base href="/x/y/z">+' \
+	-e 's+<base href="\([^"]*[^/"]\)">+<base href="\1/">+' {} \;
+
+Note that the path `/x/y/z` is inserted in this expression; the second
+expression assures that the URL ends in a slash.  The script can be run
+repeatedly, each time setting a new path location.
+
 
 # Connectivity issues and ICE Servers
 

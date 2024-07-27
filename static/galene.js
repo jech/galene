@@ -4043,7 +4043,7 @@ async function serverConnect() {
 
 async function start() {
     try {
-        let r = await fetch(".status")
+        let r = await fetch(document.location.pathname + ".status")
         if(!r.ok)
             throw new Error(`${r.status} ${r.statusText}`);
         groupStatus = await r.json()

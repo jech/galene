@@ -307,7 +307,7 @@ document.getElementById('start').onclick = async function(e) {
     let button = /** @type{HTMLButtonElement} */(this);
     button.hidden = true;
     try {
-        await start("/group/public/");
+        await start("group/public/");
     } catch(e) {
         displayError(e);
     };
