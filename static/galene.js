@@ -2962,6 +2962,11 @@ let lastMessage = {};
  * @param {string|HTMLElement} message
  */
 function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, message) {
+    if(kind === 'caption') {
+        displayCaption(message);
+        return;
+    }
+
     let row = document.createElement('div');
     row.classList.add('message-row');
     let container = document.createElement('div');
@@ -3063,7 +3068,7 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         box.scrollTop = box.scrollHeight - box.clientHeight;
     }
 
-    return message;
+    return;
 }
 
 /**
@@ -3106,6 +3111,38 @@ function chatMessageMenu(elt) {
     new Contextual({
         items: items,
     });
+}
+
+/**
+ * @param {string|HTMLElement} message
+ */
+function setCaption(message) {
+    let container = document.getElementById('captions-container');
+    let captions = document.getElementById('captions');
+    if(!message) {
+        captions.replaceChildren();
+        container.classList.add('invisible');
+    } else {
+        if(message instanceof HTMLElement)
+            captions.replaceChildren(message);
+        else
+            captions.textContent = message;
+        container.classList.remove('invisible');
+    }
+}
+
+let captionsTimer = null;
+
+/**
+ * @param {string|HTMLElement} message
+ */
+function displayCaption(message) {
+    if(captionsTimer != null) {
+        clearTimeout(captionsTimer);
+        captionsTimer = null;
+    }
+    setCaption(message);
+    captionsTimer = setTimeout(() => setCaption(null), 3000);
 }
 
 /**

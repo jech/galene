@@ -1328,6 +1328,26 @@ header .collapse:hover {
 
 }
 
+#captions-container {
+    position: absolute;
+    bottom: 40px;
+    width: 100%;
+    pointer-events: none;
+    z-index: 1390;
+    alpha: 0;
+}
+
+#captions {
+    margin: auto;
+    padding: 0 0.4rem 0 0.4rem;
+    width: max-content;
+    font-size: 1.2rem;
+    text-align: center;
+    pointer-events: none;
+    background-color: rgba(255,255,255,.7);
+    color: #000;
+}
+
 :root{
     --contextualMenuBg: #eee;
     --contextualMenuShadow: 1px 1px 1px #444; */
