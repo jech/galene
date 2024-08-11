@@ -1197,7 +1197,8 @@ func handleAction(c *webClient, a any) error {
 			for _, m := range h {
 				err := c.write(clientMessage{
 					Type:     "chathistory",
-					Source:   m.Id,
+					Id:       m.Id,
+					Source:   m.Source,
 					Username: m.User,
 					Time:     m.Time.Format(time.RFC3339),
 					Value:    m.Value,
@@ -1575,17 +1576,25 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return c.error(group.UserError("not authorised"))
 		}
 
-		now := time.Now()
+		id := m.Id
+		if m.Type == "chat" && m.Dest == "" && id == "" {
+			buf := make([]byte, 8)
+			crand.Read(buf)
+			id = base64.RawURLEncoding.EncodeToString(buf)
+		}
 
+		now := time.Now()
 		if m.Type == "chat" {
 			if m.Dest == "" {
 				g.AddToChatHistory(
-					m.Source, m.Username, now, m.Kind, m.Value,
+					id, m.Source, m.Username,
+					now, m.Kind, m.Value,
 				)
 			}
 		}
 		mm := clientMessage{
 			Type:       m.Type,
+			Id:         id,
 			Source:     m.Source,
 			Dest:       m.Dest,
 			Username:   m.Username,
@@ -1891,15 +1900,15 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			w, ok := d.(warner)
 			if ok {
-				w.Warn(false, "Your IP address has been " +
-					"communicated to user " +
-					c.Username() + ".")
+				w.Warn(false, "Your IP address has been "+
+					"communicated to user "+
+					c.Username()+".")
 			}
 			c.write(clientMessage{
-				Type: "usermessage",
-				Kind: "userinfo",
+				Type:       "usermessage",
+				Kind:       "userinfo",
 				Privileged: true,
-				Value: value,
+				Value:      value,
 			})
 		case "kick":
 			if !member("op", c.permissions) {

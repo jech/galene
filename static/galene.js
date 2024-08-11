@@ -2958,7 +2958,7 @@ let lastMessage = {};
  * @param {string} kind
  * @param {string|HTMLElement} message
  */
-function addToChatbox(peerId, dest, nick, time, privileged, history, kind, message) {
+function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, message) {
     let row = document.createElement('div');
     row.classList.add('message-row');
     let container = document.createElement('div');
@@ -2973,6 +2973,8 @@ function addToChatbox(peerId, dest, nick, time, privileged, history, kind, messa
     if(dest)
         container.classList.add('message-private');
 
+    if(id)
+        container.dataset.id = id;
     if(peerId) {
         container.dataset.peerId = peerId;
         container.dataset.username = nick;
@@ -3093,7 +3095,7 @@ function chatMessageMenu(elt) {
  * @param {string|HTMLElement} message
  */
 function localMessage(message) {
-    return addToChatbox(null, null, null, new Date(), false, false, '', message);
+    return addToChatbox(null, null, null, null, new Date(), false, false, '', message);
 }
 
 function clearChat() {
@@ -3473,7 +3475,7 @@ commands.msg = {
         if(!id)
             throw new Error(`Unknown user ${p[0]}`);
         serverConnection.chat('', id, p[1]);
-        addToChatbox(serverConnection.id, id, serverConnection.username,
+        addToChatbox(serverConnection.id, null, id, serverConnection.username,
                      new Date(), false, false, '', p[1]);
     }
 };

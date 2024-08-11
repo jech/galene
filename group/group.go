@@ -74,11 +74,12 @@ func (err ProtocolError) Error() string {
 }
 
 type ChatHistoryEntry struct {
-	Id    string
-	User  *string
-	Time  time.Time
-	Kind  string
-	Value interface{}
+	Id     string
+	Source string
+	User   *string
+	Time   time.Time
+	Kind   string
+	Value  interface{}
 }
 
 const (
@@ -804,7 +805,7 @@ func (g *Group) ClearChatHistory() {
 	g.history = nil
 }
 
-func (g *Group) AddToChatHistory(id string, user *string, time time.Time, kind string, value interface{}) {
+func (g *Group) AddToChatHistory(id, source string, user *string, time time.Time, kind string, value interface{}) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -813,7 +814,7 @@ func (g *Group) AddToChatHistory(id string, user *string, time time.Time, kind s
 		g.history = g.history[:len(g.history)-1]
 	}
 	g.history = append(g.history,
-		ChatHistoryEntry{Id: id, User: user, Time: time, Kind: kind, Value: value},
+		ChatHistoryEntry{Id: id, Source: source, User: user, Time: time, Kind: kind, Value: value},
 	)
 }
 

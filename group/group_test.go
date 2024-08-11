@@ -54,7 +54,7 @@ func TestChatHistory(t *testing.T) {
 	}
 	user := "user"
 	for i := 0; i < 2*maxChatHistory; i++ {
-		g.AddToChatHistory("id", &user, time.Now(), "",
+		g.AddToChatHistory("id", "source", &user, time.Now(), "",
 			fmt.Sprintf("%v", i),
 		)
 	}
