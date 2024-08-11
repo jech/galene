@@ -1871,6 +1871,11 @@ ServerConnection.prototype.sendFile = function(id, file) {
         return;
     }
 
+    if(f.state === 'closed') {
+        // the client cancelled the transfer
+        return;
+    }
+
     sc.transferredFiles[f.fullid()] = f;
     sc.userMessage('filetransfer', id, {
         type: 'invite',
