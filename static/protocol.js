@@ -1703,7 +1703,7 @@ function TransferredFile(sc, userid, id, up, username, name, mimetype, size) {
  * dictionary.
  */
 TransferredFile.prototype.fullid = function() {
-    return this.userid + (this.up ? '+' : '-') + this.id;
+    return this.userid + '-' + this.id;
 };
 
 /**
@@ -1711,11 +1711,10 @@ TransferredFile.prototype.fullid = function() {
  *
  * @param {string} userid
  * @param {string} fileid
- * @param {boolean} up
  * @returns {TransferredFile}
  */
-ServerConnection.prototype.getTransferredFile = function(userid, fileid, up) {
-    return this.transferredFiles[userid + (up ? '+' : '-') + fileid];
+ServerConnection.prototype.getTransferredFile = function(userid, fileid) {
+    return this.transferredFiles[userid + '-' + fileid];
 };
 
 /**
@@ -2182,37 +2181,35 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
             return;
         }
 
-        if(f.fullid() in sc.transferredFiles) {
-            console.error('Duplicate id for file transfer');
-            f.cancel("duplicate id (this shouldn't happen)");
+        let fid = f.fullid();
+        if(fid in sc.transferredFiles) {
+            if(id === sc.id) {
+                f.cancel('cannot send file to self');
+            } else {
+                console.error('Duplicate id for file transfer');
+                f.cancel("duplicate id (this shouldn't happen)");
+            }
             return;
         }
-        sc.transferredFiles[f.fullid()] = f;
+        sc.transferredFiles[fid] = f;
         break;
     }
-    case 'offer': {
-        let f = sc.getTransferredFile(id, message.id, true);
-        if(!f) {
-            console.error('Unexpected offer for file transfer');
-            return;
-        }
-        f.answer(message.sdp).catch(e => f.cancel(e));
-        break;
-    }
+    case 'offer':
     case 'answer': {
-        let f = sc.getTransferredFile(id, message.id, false);
+        let f = sc.getTransferredFile(id, message.id);
         if(!f) {
-            console.error('Unexpected answer for file transfer');
+            console.error(`Unexpected ${message.type} for file transfer`);
             return;
         }
-        f.receiveFile(message.sdp).catch(e => f.cancel(e));
+        if(message.type === 'offer')
+            f.answer(message.sdp).catch(e => f.cancel(e));
+        else
+            f.receiveFile(message.sdp).catch(e => f.cancel(e));
         break;
     }
-    case 'downice':
-    case 'upice': {
-        let f = sc.getTransferredFile(
-            id, message.id, message.type === 'downice',
-        );
+    case 'ice':
+        {
+        let f = sc.getTransferredFile(id, message.id);
         if(!f || !f.pc) {
             console.warn(`Unexpected ${message.type} for file transfer`);
             return;
@@ -2223,9 +2220,8 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
             f.candidates.push(message.candidate);
         break;
     }
-    case 'cancel':
-    case 'reject': {
-        let f = sc.getTransferredFile(id, message.id, message.type === 'reject');
+    case 'cancel': {
+        let f = sc.getTransferredFile(id, message.id);
         if(!f) {
             console.error(`Unexpected ${message.type} for file transfer`);
             return;
@@ -2233,6 +2229,15 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
         f.event('cancelled', message.value || null);
         f.close();
         break;
+    }
+    case 'upice':
+    case 'downice':
+    case 'abort': {
+        let f = sc.getTransferredFile(id, message.id);
+        if(f)
+            f.cancel(`Obsolete file transfer message ${message.type};` +
+                     ' please upgrade your client');
+        return;
     }
     default:
         console.error(`Unknown filetransfer message ${message.type}`);
