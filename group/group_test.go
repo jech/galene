@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
-	"sort"
 )
 
 func TestGroup(t *testing.T) {
@@ -54,7 +54,10 @@ func TestChatHistory(t *testing.T) {
 	}
 	user := "user"
 	for i := 0; i < 2*maxChatHistory; i++ {
-		g.AddToChatHistory("id", "source", &user, time.Now(), "",
+		g.AddToChatHistory(
+			fmt.Sprintf("id-%v", i),
+			fmt.Sprintf("source-%v", i%4),
+			&user, time.Now(), "",
 			fmt.Sprintf("%v", i),
 		)
 	}
@@ -63,10 +66,33 @@ func TestChatHistory(t *testing.T) {
 		t.Errorf("Expected %v, got %v", maxChatHistory, len(g.history))
 	}
 	for i, s := range h {
-		e := fmt.Sprintf("%v", i+maxChatHistory)
-		if s.Value.(string) != e {
-			t.Errorf("Expected %v, got %v", e, s)
+		j := i + maxChatHistory
+		if s.Id != fmt.Sprintf("id-%v", j) {
+			t.Errorf("Expected %v, got %v", j, s.Id)
 		}
+		if s.Source != fmt.Sprintf("source-%v", j%4) {
+			t.Errorf("Expected %v, got %v", j%4, s.Id)
+		}
+		if s.Value.(string) != fmt.Sprintf("%v", j) {
+			t.Errorf("Expected %v, got %v", j, s.Value)
+		}
+	}
+
+	l := len(h)
+	j := maxChatHistory + 4
+	g.ClearChatHistory(
+		fmt.Sprintf("id-%v", j), fmt.Sprintf("source-%v", j%4),
+	)
+	if lh := len(g.GetChatHistory()); lh != l-1 {
+		t.Errorf("Expected %v, got %v", l-1, lh)
+	}
+	g.ClearChatHistory("", fmt.Sprintf("source-%v", j%4))
+	if lh := len(g.GetChatHistory()); lh != l*3/4 {
+		t.Errorf("Expected %v, got %v", l*3/4, lh)
+	}
+	g.ClearChatHistory("", "");
+	if lh := len(g.GetChatHistory()); lh != 0 {
+		t.Errorf("Expected 0, got %v", lh)
 	}
 }
 

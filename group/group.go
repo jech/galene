@@ -799,10 +799,42 @@ func (g *Group) WallOps(message string) {
 
 const maxChatHistory = 50
 
-func (g *Group) ClearChatHistory() {
+// deleteFunc is just like slices.DeleteFunc.
+// Remove this once we require Go 1.21.
+func deleteFunc[S ~[]E, E any](s S, f func(E) bool) S {
+	i := 0
+	for i = range s {
+		if f(s[i]) {
+			break
+		}
+	}
+	if i >= len(s) {
+		return s
+	}
+
+	for j := i + 1; j < len(s); j++ {
+		if v := s[j]; !f(v) {
+			s[i] = v
+			i++
+		}
+	}
+	var zero E
+	for j := i; j < len(s); j++ {
+		s[j] = zero
+	}
+	return s[:i]
+}
+
+func (g *Group) ClearChatHistory(id string, userId string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.history = nil
+	if id == "" && userId == "" {
+		g.history = nil
+		return
+	}
+	g.history = deleteFunc(g.history, func(e ChatHistoryEntry) bool {
+		return e.Source == userId && (id == "" || e.Id == id)
+	})
 }
 
 func (g *Group) AddToChatHistory(id, source string, user *string, time time.Time, kind string, value interface{}) {

@@ -2781,13 +2781,16 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         let by = username ? ' by ' + username : '';
         displayWarning(`You have been muted${by}`);
         break;
-    case 'clearchat':
+    case 'clearchat': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
         }
-        clearChat();
+        let id = message && message.id;
+        let userId = message && message.userId;
+        clearChat(id, userId);
         break;
+    }
     case 'token':
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
@@ -3071,17 +3074,31 @@ function chatMessageMenu(elt) {
          serverConnection.permissions.indexOf('op') >= 0))
         return;
 
+    let messageId = elt.dataset.id;
     let peerId = elt.dataset.peerId;
     if(!peerId)
         return;
     let username = elt.dataset.username;
-    let u = username ? ' ' + username : '';
+    let u = username || 'user';
 
     let items = [];
-    items.push({label: 'Identify user' + u, onClick: () => {
+    if(messageId)
+        items.push({label: 'Delete message', onClick: () => {
+            serverConnection.groupAction('clearchat', {
+                id: messageId,
+                userId: peerId,
+            });
+        }});
+    items.push({label: `Delete all from ${u}`,
+                onClick: () => {
+                    serverConnection.groupAction('clearchat', {
+                        userId: peerId,
+                    });
+                }});
+    items.push({label: `Identify ${u}`, onClick: () => {
         serverConnection.userAction('identify', peerId);
     }});
-    items.push({label: 'Kick out user' + u, onClick: () => {
+    items.push({label: `Kick out ${u}`, onClick: () => {
         serverConnection.userAction('kick', peerId);
     }});
 
@@ -3098,9 +3115,31 @@ function localMessage(message) {
     return addToChatbox(null, null, null, null, new Date(), false, false, '', message);
 }
 
-function clearChat() {
+/**
+ * @param {string} [id]
+ * @param {string} [userId]
+ */
+function clearChat(id, userId) {
     lastMessage = {};
-    document.getElementById('box').textContent = '';
+
+    let box = document.getElementById('box');
+    if(!id && !userId) {
+        box.textContent = '';
+        return;
+    }
+
+    let elts = box.children;
+    for(let i = 0; i < elts.length; i++) {
+        let row = elts.item(i);
+        if(!(row instanceof HTMLDivElement))
+            continue;
+        let div = row.firstChild;
+        console.log(div);
+        if(!(div instanceof HTMLDivElement))
+            continue;
+        if((!id || div.dataset.id === id) && div.dataset.peerId === userId)
+            box.removeChild(row);
+    }
 }
 
 /**

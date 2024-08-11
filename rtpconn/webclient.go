@@ -1636,10 +1636,27 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
-			g.ClearChatHistory()
+			var id, userId string
+			if m.Value != nil {
+				value, ok := m.Value.(map[string]any)
+				if !ok {
+					return c.error(group.UserError(
+						"bad value in clearchat",
+					))
+				}
+				id, _ = value["id"].(string)
+				userId, _ = value["userId"].(string)
+				if userId == "" && id != "" {
+					return c.error(group.UserError(
+						"bad value in clearchat",
+					))
+				}
+			}
+			g.ClearChatHistory(id, userId)
 			m := clientMessage{
 				Type:       "usermessage",
 				Kind:       "clearchat",
+				Value:       m.Value,
 				Privileged: true,
 			}
 			err := broadcast(g.GetClients(nil), m)
