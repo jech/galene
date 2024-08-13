@@ -18,16 +18,20 @@ import (
 	"github.com/jech/galene/token"
 )
 
-var setupOnce = sync.OnceFunc(func() {
-	Insecure = true
-	err := Serve("localhost:1234", "")
-	if err != nil {
-		panic("could not start server")
-	}
-})
+var setupOnce sync.Once
+
+func setup() {
+	setupOnce.Do(func() {
+		Insecure = true
+		err := Serve("localhost:1234", "")
+		if err != nil {
+			panic("could not start server")
+		}
+	})
+}
 
 func setupTest(dir, datadir string) error {
-	setupOnce()
+	setup()
 
 	group.Directory = dir
 	group.DataDirectory = datadir
