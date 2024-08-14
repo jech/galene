@@ -124,25 +124,6 @@ func TestParseSplit(t *testing.T) {
 	}
 }
 
-func TestParseContentType(t *testing.T) {
-	a := []struct{ a, b string }{
-		{"", ""},
-		{"text/plain", "text/plain"},
-		{"text/plain;charset=utf-8", "text/plain"},
-		{"text/plain; charset=utf-8", "text/plain"},
-		{"text/plain ; charset=utf-8", "text/plain"},
-	}
-
-	for _, ab := range a {
-		b := parseContentType(ab.a)
-		if b != ab.b {
-			t.Errorf("Content type %v, got %v, expected %v",
-				ab.a, b, ab.b,
-			)
-		}
-	}
-}
-
 func TestParseBearerToken(t *testing.T) {
 	a := []struct{ a, b string }{
 		{"", ""},

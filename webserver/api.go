@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"strings"
@@ -18,10 +19,6 @@ import (
 	"github.com/jech/galene/stats"
 	"github.com/jech/galene/token"
 )
-
-func parseContentType(ctype string) string {
-	return strings.Trim(strings.Split(ctype, ";")[0], " ")
-}
 
 // checkAdmin checks whether the client authentifies as an administrator
 func checkAdmin(w http.ResponseWriter, r *http.Request) bool {
@@ -73,8 +70,8 @@ func sendJSON(w http.ResponseWriter, r *http.Request, v any) {
 }
 
 func getText(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
-	ctype := parseContentType(r.Header.Get("Content-Type"))
-	if !strings.EqualFold(ctype, "text/plain") {
+	ctype, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || !strings.EqualFold(ctype, "text/plain") {
 		w.Header().Set("Accept", "text/plain")
 		http.Error(w, "unsupported content type",
 			http.StatusUnsupportedMediaType)
@@ -91,8 +88,8 @@ func getText(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 }
 
 func getJSON(w http.ResponseWriter, r *http.Request, v any) bool {
-	ctype := parseContentType(r.Header.Get("Content-Type"))
-	if !strings.EqualFold(ctype, "application/json") {
+	ctype, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || !strings.EqualFold(ctype, "application/json") {
 		w.Header().Set("Accept", "application/json")
 		http.Error(w, "unsupported content type",
 			http.StatusUnsupportedMediaType)
@@ -100,7 +97,7 @@ func getJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	}
 
 	d := json.NewDecoder(r.Body)
-	err := d.Decode(v)
+	err = d.Decode(v)
 	if err != nil {
 		httpError(w, err)
 		return true
@@ -458,8 +455,10 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 
 	if r.Method == "PUT" {
 		// cannot use getJSON due to the weird content-type
-		ctype := parseContentType(r.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "application/jwk-set+json") {
+		ctype, _, err :=
+			mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil ||
+			!strings.EqualFold(ctype, "application/jwk-set+json") {
 			w.Header().Set("Accept", "application/jwk-set+json")
 			http.Error(w, "unsupported content type",
 				http.StatusUnsupportedMediaType)
@@ -467,7 +466,7 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 		}
 		d := json.NewDecoder(r.Body)
 		var keys jwkset
-		err := d.Decode(&keys)
+		err = d.Decode(&keys)
 		if err != nil {
 			httpError(w, err)
 			return

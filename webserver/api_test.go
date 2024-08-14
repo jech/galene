@@ -3,6 +3,7 @@ package webserver
 import (
 	"errors"
 	"fmt"
+	"mime"
 	"os"
 	"reflect"
 	"strings"
@@ -104,8 +105,9 @@ func TestApi(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("Status is %v", resp.StatusCode)
 		}
-		ctype := parseContentType(resp.Header.Get("Content-Type"))
-		if !strings.EqualFold(ctype, "application/json") {
+		ctype, _, err :=
+			mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil || !strings.EqualFold(ctype, "application/json") {
 			return errors.New("Unexpected content-type")
 		}
 		d := json.NewDecoder(resp.Body)
