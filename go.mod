@@ -2,6 +2,8 @@ module github.com/jech/galene
 
 go 1.19
 
+replace golang.org/x/crypto v0.25.0 => golang.org/x/crypto v0.24.0
+
 require (
 	github.com/at-wat/ebml-go v0.17.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
