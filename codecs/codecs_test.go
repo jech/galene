@@ -1,6 +1,7 @@
 package codecs
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/pion/rtp"
@@ -147,7 +148,7 @@ var emptyVP8 = []byte{
 }
 
 func TestPacketFlagsVP8(t *testing.T) {
-	buf := append([]byte{}, vp8...)
+	buf := bytes.Clone(vp8)
 	flags, err := PacketFlags("video/vp8", buf)
 	if flags.Seqno != 42 || !flags.Start || flags.Pid != 57 ||
 		flags.Sid != 0 || flags.Tid != 0 ||
@@ -160,7 +161,7 @@ func TestPacketFlagsVP8(t *testing.T) {
 }
 
 func TestEmptyPacketFlagsVP8(t *testing.T) {
-	buf := append([]byte{}, emptyVP8...)
+	buf := bytes.Clone(emptyVP8)
 	flags, err := PacketFlags("video/vp8", buf)
 	if flags.Seqno != 42 || flags.Start ||
 		flags.Sid != 0 || flags.Tid != 0 ||
@@ -174,7 +175,7 @@ func TestEmptyPacketFlagsVP8(t *testing.T) {
 
 func TestRewriteVP8(t *testing.T) {
 	for i := uint16(0); i < 0x7fff; i++ {
-		buf := append([]byte{}, vp8...)
+		buf := bytes.Clone(vp8)
 		err := RewritePacket("video/vp8", buf, true, i, i)
 		if err != nil {
 			t.Errorf("rewrite: %v", err)
@@ -192,7 +193,7 @@ func TestRewriteVP8(t *testing.T) {
 
 func TestRewriteEmptyVP8(t *testing.T) {
 	for i := uint16(0); i < 0x7fff; i++ {
-		buf := append([]byte{}, emptyVP8...)
+		buf := bytes.Clone(emptyVP8)
 		err := RewritePacket("video/vp8", buf, true, i, i)
 		if err != nil {
 			t.Errorf("rewrite: %v", err)
@@ -217,7 +218,7 @@ var vp9 = []byte{
 }
 
 func TestPacketFlagsVP9(t *testing.T) {
-	buf := append([]byte{}, vp9...)
+	buf := bytes.Clone(vp9)
 	flags, err := PacketFlags("video/vp9", buf)
 	if flags.Seqno != 42 || !flags.Start || flags.Pid != 0 ||
 		flags.Sid != 0 || flags.Tid != 0 ||
@@ -231,7 +232,7 @@ func TestPacketFlagsVP9(t *testing.T) {
 
 func TestRewriteVP9(t *testing.T) {
 	for i := uint16(0); i < 0x7fff; i++ {
-		buf := append([]byte{}, vp9...)
+		buf := bytes.Clone(vp9)
 		err := RewritePacket("video/vp9", buf, true, i, i)
 		if err != nil {
 			t.Errorf("rewrite: %v", err)
