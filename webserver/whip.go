@@ -1,6 +1,7 @@
 package webserver
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
@@ -345,23 +346,25 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, sdpLimit))
+	err = parseSDPFrag(
+		http.MaxBytesReader(w, r.Body, sdpLimit),
+		c.GotICECandidate,
+	)
 	if err != nil {
-		httpError(w, err)
+		log.Printf("WHIP trickle ICE: %v", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
 
-	if len(body) < 2 {
-		http.Error(w, "SDP truncated", http.StatusBadRequest)
-		return
-	}
-
-	// RFC 8840
-	lines := bytes.Split(body, []byte{'\n'})
+// RFC 8840
+func parseSDPFrag(r io.Reader, f func(webrtc.ICECandidateInit) error) error {
+	scanner := bufio.NewScanner(r)
 	mLineIndex := -1
 	var mid, ufrag []byte
-	for _, l := range lines {
-		l = bytes.TrimRight(l, " \r")
+	for scanner.Scan() {
+		l := scanner.Bytes()
 		if bytes.HasPrefix(l, []byte("a=ice-ufrag:")) {
 			ufrag = l[len("a=ice-ufrag:"):]
 		} else if bytes.HasPrefix(l, []byte("m=")) {
@@ -385,12 +388,11 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 				s := string(ufrag)
 				init.UsernameFragment = &s
 			}
-			err := c.GotICECandidate(init)
+			err := f(init)
 			if err != nil {
 				log.Printf("WHIP candidate: %v", err)
 			}
 		}
 	}
-	w.WriteHeader(http.StatusNoContent)
-	return
+	return nil
 }
