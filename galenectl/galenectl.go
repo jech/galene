@@ -70,6 +70,10 @@ var commands = map[string]command{
 		command:     deleteUserCmd,
 		description: "delete a user",
 	},
+	"update-user": {
+		command:     updateUserCmd,
+		description: "change a user's permissions",
+	},
 }
 
 func main() {
@@ -569,6 +573,49 @@ func createUserCmd(cmdname string, args []string) {
 
 	dict := map[string]any{"permissions": perms}
 	err = putJSON(url, dict, false)
+	if err != nil {
+		log.Fatalf("Create user: %v", err)
+	}
+}
+
+func updateUserCmd(cmdname string, args []string) {
+	var groupname string
+	var permissions string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...] username\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.StringVar(&permissions, "permissions", "", "permissions")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if permissions == "" {
+		log.Fatalf("Nothing to do!")
+	}
+	perms, err := parsePermissions(permissions)
+	if err != nil {
+		log.Fatalf("Parse permissions: %v", err)
+	}
+
+	url, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", groupname,
+		".users", cmd.Args()[0],
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = updateJSON(url, func(m map[string]any) map[string]any {
+		m["permissions"] = perms
+		return m
+	})
+
 	if err != nil {
 		log.Fatalf("Create user: %v", err)
 	}
