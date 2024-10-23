@@ -53,6 +53,14 @@ var commands = map[string]command{
 		command:     deletePasswordCmd,
 		description: "delete a user's password",
 	},
+	"create-group": {
+		command:     createGroupCmd,
+		description: "create a group",
+	},
+	"delete-group": {
+		command:     deleteGroupCmd,
+		description: "delete a group",
+	},
 }
 
 func main() {
@@ -449,5 +457,57 @@ func deletePasswordCmd(cmdname string, args []string) {
 	err = deleteValue(url)
 	if err != nil {
 		log.Fatalf("Delete password: %v", err)
+	}
+}
+
+func createGroupCmd(cmdname string, args []string) {
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...] group\n",
+		os.Args[0], cmdname,
+	)
+	cmd.Parse(args)
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	url, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", cmd.Args()[0],
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = putJSON(url, map[string]any{}, false)
+	if err != nil {
+		log.Fatalf("Create group: %v", err)
+	}
+}
+
+func deleteGroupCmd(cmdname string, args []string) {
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...] group\n",
+		os.Args[0], cmdname,
+	)
+	cmd.Parse(args)
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	url, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", cmd.Args()[0],
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = deleteValue(url)
+	if err != nil {
+		log.Fatalf("Delete group: %v", err)
 	}
 }
