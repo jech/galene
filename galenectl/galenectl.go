@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -248,4 +249,105 @@ func hashPasswordCmd(cmdname string, args []string) {
 			log.Fatalf("Encode: %v", err)
 		}
 	}
+}
+
+func setAuthorization(req *http.Request) {
+	if adminToken != "" {
+		req.Header.Set("Authorization", "Bearer "+adminToken)
+	} else if adminUsername != "" {
+		req.SetBasicAuth(adminUsername, adminPassword)
+	}
+}
+
+func putJSON(url string, value any, overwrite bool) error {
+	j, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("PUT", url, bytes.NewReader(j))
+	if err != nil {
+		return err
+	}
+	setAuthorization(req)
+
+	req.Header.Set("Content-Type", "application/json")
+	if !overwrite {
+		req.Header.Set("If-None-Match", "*")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+	}
+	return nil
+}
+
+func updateJSON[T any](url string, update func(T) T) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	setAuthorization(req)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+	}
+	etag := resp.Header.Get("ETag")
+	if etag == "" {
+		return errors.New("missing ETag")
+	}
+
+	decoder := json.NewDecoder(req.Body)
+	var old T
+	err = decoder.Decode(&old)
+	if err != nil {
+		return err
+	}
+
+	value := update(old)
+
+	j, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	req2, err := http.NewRequest("PUT", url, bytes.NewReader(j))
+	setAuthorization(req2)
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("If-Match", etag)
+
+	resp2, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode >= 300 {
+		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+	}
+	return nil
+}
+
+func deleteValue(url string) error {
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+	setAuthorization(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+	}
+	return nil
 }
