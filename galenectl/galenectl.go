@@ -3,13 +3,16 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 
 	"golang.org/x/crypto/bcrypt"
@@ -17,6 +20,18 @@ import (
 
 	"github.com/jech/galene/group"
 )
+
+type configuration struct {
+	Server        string `json:"server"`
+	AdminUsername string `json:"admin-username"`
+	AdminPassword string `json:"admin-password"`
+	AdminToken    string `json:"admin-token"`
+}
+
+var insecure bool
+var serverURL, adminUsername, adminPassword, adminToken string
+
+var client http.Client
 
 type command struct {
 	command     func(string, []string)
@@ -31,6 +46,15 @@ var commands = map[string]command{
 }
 
 func main() {
+	configdir, err := os.UserConfigDir()
+	if err != nil {
+		log.Fatalf("UserConfigDir: %v", err)
+	}
+	configFile := filepath.Join(
+		filepath.Join(configdir, "galene"),
+		"galenectl.json",
+	)
+
 	flag.Usage = func() {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
@@ -55,11 +79,50 @@ func main() {
 			os.Args[0],
 		)
 	}
+	flag.StringVar(&serverURL, "server", "",
+		"server `url`")
+	flag.BoolVar(&insecure, "insecure", false,
+		"don't check server certificates")
+	flag.StringVar(&configFile, "config", configFile,
+		"configuration `file`")
+	flag.StringVar(&adminUsername, "admin-username", "",
+		"administrator `username`")
+	flag.StringVar(&adminPassword, "admin-password", "",
+		"administrator `password`")
+	flag.StringVar(&adminToken, "admin-token",
+		"", "administrator `token`")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	config, err := readConfig(configFile)
+	if err != nil {
+		log.Fatalf("Failed to read configuration file: %v", err)
+	}
+	if serverURL == "" {
+		serverURL = config.Server
+	}
+	if serverURL == "" {
+		serverURL = "https://localhost:8443"
+	}
+
+	if adminUsername == "" {
+		adminUsername = config.AdminUsername
+	}
+	if adminPassword == "" {
+		adminPassword = config.AdminPassword
+	}
+	if adminToken == "" {
+		adminToken = config.AdminToken
+	}
+
+	if insecure {
+		t := http.DefaultTransport.(*http.Transport).Clone()
+		t.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		client.Transport = t
 	}
 
 	cmdname := flag.Args()[0]
@@ -69,6 +132,25 @@ func main() {
 		os.Exit(1)
 	}
 	command.command(cmdname, flag.Args()[1:])
+}
+
+func readConfig(filename string) (configuration, error) {
+	var config configuration
+	f, err := os.Open(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return config, nil
+		}
+		return config, err
+	}
+	defer f.Close()
+	decoder := json.NewDecoder(f)
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&config)
+	if err != nil {
+		return config, err
+	}
+	return config, nil
 }
 
 func makePassword(pw string, algorithm string, iterations, length, saltlen, cost int) (group.Password, error) {
