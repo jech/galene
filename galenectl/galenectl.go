@@ -119,6 +119,13 @@ func makePassword(pw string, algorithm string, iterations, length, saltlen, cost
 	}
 }
 
+func setUsage(cmd *flag.FlagSet, cmdname string, format string, args ...any) {
+	cmd.Usage = func() {
+		fmt.Fprintf(cmd.Output(), format, args...)
+		cmd.PrintDefaults()
+	}
+}
+
 func hashPasswordCmd(cmdname string, args []string) {
 	var algorithm string
 	var iterations int
@@ -127,13 +134,10 @@ func hashPasswordCmd(cmdname string, args []string) {
 	var saltlen int
 
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
-	cmd.Usage = func() {
-		fmt.Fprintf(cmd.Output(),
-			"%v [option...] %v password [option...] password...\n",
-			os.Args[0], cmdname,
-		)
-		cmd.PrintDefaults()
-	}
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...] password...\n",
+		os.Args[0], cmdname,
+	)
 	cmd.StringVar(&algorithm, "hash", "pbkdf2",
 		"hashing `algorithm`")
 	cmd.IntVar(&iterations, "iterations", 4096,
