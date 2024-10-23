@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -43,6 +44,14 @@ var commands = map[string]command{
 	"hash-password": {
 		command:     hashPasswordCmd,
 		description: "generate a hashed password",
+	},
+	"set-password": {
+		command:     setPasswordCmd,
+		description: "set a user's password",
+	},
+	"delete-password": {
+		command:     deletePasswordCmd,
+		description: "delete a user's password",
 	},
 }
 
@@ -350,4 +359,95 @@ func deleteValue(url string) error {
 		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
 	}
 	return nil
+}
+
+func setPasswordCmd(cmdname string, args []string) {
+	var groupname string
+	var algorithm string
+	var iterations int
+	var cost int
+	var length int
+	var saltlen int
+
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...] username password\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.StringVar(&algorithm, "hash", "pbkdf2",
+		"hashing `algorithm`")
+	cmd.IntVar(&iterations, "iterations", 4096,
+		"`number` of iterations (pbkdf2)")
+	cmd.IntVar(&cost, "cost", bcrypt.DefaultCost,
+		"`cost` (bcrypt)")
+	cmd.IntVar(&length, "key", 32, "key `length` (pbkdf2)")
+	cmd.IntVar(&saltlen, "salt", 8, "salt `length` (pbkdf2)")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" {
+		fmt.Fprintf(cmd.Output(), "option \"-group\" is mandatory")
+		os.Exit(1)
+	}
+
+	pw, err := makePassword(
+		cmd.Args()[1],
+		algorithm, iterations, length, saltlen, cost,
+	)
+	if err != nil {
+		log.Fatalf("Make password: %v", err)
+	}
+
+	url, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", groupname,
+		".users", cmd.Args()[0], ".password",
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = putJSON(url, pw, true)
+	if err != nil {
+		log.Fatalf("Set password: %v", err)
+	}
+}
+
+func deletePasswordCmd(cmdname string, args []string) {
+	var groupname string
+
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...] username\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" {
+		fmt.Fprintf(cmd.Output(), "option \"-group\" is mandatory")
+		os.Exit(1)
+	}
+
+	url, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", groupname,
+		".users", cmd.Args()[0], ".password",
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = deleteValue(url)
+	if err != nil {
+		log.Fatalf("Delete password: %v", err)
+	}
 }
