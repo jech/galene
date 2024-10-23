@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
@@ -60,6 +61,14 @@ var commands = map[string]command{
 	"delete-group": {
 		command:     deleteGroupCmd,
 		description: "delete a group",
+	},
+	"create-user": {
+		command:     createUserCmd,
+		description: "create a user",
+	},
+	"delete-user": {
+		command:     deleteUserCmd,
+		description: "delete a user",
 	},
 }
 
@@ -509,5 +518,91 @@ func deleteGroupCmd(cmdname string, args []string) {
 	err = deleteValue(url)
 	if err != nil {
 		log.Fatalf("Delete group: %v", err)
+	}
+}
+
+func parsePermissions(p string) (any, error) {
+	p = strings.TrimSpace(p)
+	if len(p) == 0 {
+		return nil, errors.New("empty permissions")
+	}
+	if p[0] == '[' {
+		var a []any
+		err := json.Unmarshal([]byte(p), &a)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	}
+	return p, nil
+}
+
+func createUserCmd(cmdname string, args []string) {
+	var groupname string
+	var permissions string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...] username\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group")
+	cmd.StringVar(&permissions, "permissions", "present", "permissions")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	perms, err := parsePermissions(permissions)
+	if err != nil {
+		log.Fatalf("Parse permissions: %v", err)
+	}
+
+	url, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", groupname,
+		".users", cmd.Args()[0],
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	dict := map[string]any{"permissions": perms}
+	err = putJSON(url, dict, false)
+	if err != nil {
+		log.Fatalf("Create user: %v", err)
+	}
+}
+
+func deleteUserCmd(cmdname string, args []string) {
+	var groupname string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname, "%v [option...] %v [option...] username\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" {
+		fmt.Fprintf(cmd.Output(), "option \"-group\" is mandatory")
+		os.Exit(1)
+	}
+
+	url, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", groupname,
+		".users", cmd.Args()[0],
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = deleteValue(url)
+	if err != nil {
+		log.Fatalf("Delete user: %v", err)
 	}
 }
