@@ -556,11 +556,13 @@ func GetDescriptionNames() ([]string, error) {
 			if base[0] == '.' {
 				return nil
 			}
-			if strings.HasSuffix(base, ".json") {
-				names = append(names, strings.TrimSuffix(
-					base, ".json",
-				))
+			p, err := filepath.Rel(Directory, path)
+			if err != nil || !strings.HasSuffix(p, ".json") {
+				return nil
 			}
+			names = append(names, strings.TrimSuffix(
+				p, ".json",
+			))
 			return nil
 		},
 	)
