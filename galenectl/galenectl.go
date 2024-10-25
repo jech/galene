@@ -79,6 +79,14 @@ var commands = map[string]command{
 		command:     listGroupsCmd,
 		description: "list groups",
 	},
+	"create-token": {
+		command:     createTokenCmd,
+		description: "create token",
+	},
+	"delete-token": {
+		command:     deleteTokenCmd,
+		description: "delete token",
+	},
 }
 
 func main() {
@@ -345,6 +353,31 @@ func putJSON(url string, value any, overwrite bool) error {
 		return errors.New(resp.Status)
 	}
 	return nil
+}
+
+func postJSON(url string, value any) (string, error) {
+	j, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewReader(j))
+	if err != nil {
+		return "", err
+	}
+	setAuthorization(req)
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return "", errors.New(resp.Status)
+	}
+	location := resp.Header.Get("location")
+	return location, nil
 }
 
 func updateJSON[T any](url string, update func(T) T) error {
@@ -618,7 +651,7 @@ func deleteGroupCmd(cmdname string, args []string) {
 	}
 }
 
-func parsePermissions(p string) (any, error) {
+func parsePermissions(p string, expand bool) (any, error) {
 	p = strings.TrimSpace(p)
 	if len(p) == 0 {
 		return nil, errors.New("empty permissions")
@@ -631,7 +664,14 @@ func parsePermissions(p string) (any, error) {
 		}
 		return a, nil
 	}
-	return p, nil
+	if !expand {
+		return p, nil
+	}
+	pp, err := group.NewPermissions(p)
+	if err != nil {
+		return nil, err
+	}
+	return pp.Permissions(nil), nil
 }
 
 func createUserCmd(cmdname string, args []string) {
@@ -667,7 +707,7 @@ func createUserCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	perms, err := parsePermissions(permissions)
+	perms, err := parsePermissions(permissions, false)
 	if err != nil {
 		log.Fatalf("Parse permissions: %v", err)
 	}
@@ -715,7 +755,7 @@ func updateUserCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	perms, err := parsePermissions(permissions)
+	perms, err := parsePermissions(permissions, false)
 	if err != nil {
 		log.Fatalf("Parse permissions: %v", err)
 	}
@@ -819,5 +859,85 @@ func listGroupsCmd(cmdname string, args []string) {
 	}
 	for _, g := range groups {
 		fmt.Println(g)
+	}
+}
+
+func createTokenCmd(cmdname string, args []string) {
+	var groupname, username, permissions string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.StringVar(&username, "user", "", "encode user `name` in token")
+	cmd.StringVar(&permissions, "permissions", "present", "permissions")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Option \"-group\" is required\n")
+		os.Exit(1)
+	}
+
+	perms, err := parsePermissions(permissions, true)
+	if err != nil {
+		log.Fatalf("Parse permissions: %v", err)
+	}
+	t := make(map[string]any)
+	t["permissions"] = perms
+	if username != "" {
+		t["username"] = username
+	}
+
+	u, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups/", groupname, ".tokens/",
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	location, err := postJSON(u, t)
+	if err != nil {
+		log.Fatalf("Create token: %v", err)
+	}
+	println(location)
+}
+
+func deleteTokenCmd(cmdname string, args []string) {
+	var groupname, token string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.StringVar(&token, "token", "", "`token` to delete")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" || token == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Options \"-group\" and \"-token\" are required\n")
+		os.Exit(1)
+	}
+
+	u, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups/", groupname,
+		".tokens", token,
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+	err = deleteValue(u)
+	if err != nil {
+		log.Fatalf("Delete token: %v", err)
 	}
 }
