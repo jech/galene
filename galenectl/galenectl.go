@@ -251,8 +251,8 @@ func hashPasswordCmd(cmdname string, args []string) {
 		"%v [option...] %v [option...] password...\n",
 		os.Args[0], cmdname,
 	)
-	cmd.StringVar(&algorithm, "hash", "pbkdf2",
-		"hashing `algorithm`")
+	cmd.StringVar(&algorithm, "type", "pbkdf2",
+		"password `type`")
 	cmd.IntVar(&iterations, "iterations", 4096,
 		"`number` of iterations (pbkdf2)")
 	cmd.IntVar(&cost, "cost", bcrypt.DefaultCost,
@@ -396,8 +396,8 @@ func setPasswordCmd(cmdname string, args []string) {
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
-	cmd.StringVar(&algorithm, "hash", "pbkdf2",
-		"hashing `algorithm`")
+	cmd.StringVar(&algorithm, "type", "pbkdf2",
+		"password `type`")
 	cmd.IntVar(&iterations, "iterations", 4096,
 		"`number` of iterations (pbkdf2)")
 	cmd.IntVar(&cost, "cost", bcrypt.DefaultCost,
