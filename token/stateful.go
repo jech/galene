@@ -20,7 +20,7 @@ type Stateful struct {
 	Group       string     `json:"group"`
 	Username    *string    `json:"username,omitempty"`
 	Permissions []string   `json:"permissions"`
-	Expires     *time.Time `json:"expires"`
+	Expires     *time.Time `json:"expires,omitempty"`
 	NotBefore   *time.Time `json:"not-before,omitempty"`
 	IssuedAt    *time.Time `json:"issuedAt,omitempty"`
 	IssuedBy    *string    `json:"issuedBy,omitempty"`
