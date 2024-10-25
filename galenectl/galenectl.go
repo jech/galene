@@ -911,7 +911,7 @@ func createTokenCmd(cmdname string, args []string) {
 	if err != nil {
 		log.Fatalf("Create token: %v", err)
 	}
-	println(location)
+	fmt.Println(location)
 }
 
 func revokeTokenCmd(cmdname string, args []string) {
