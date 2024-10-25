@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
@@ -890,6 +891,7 @@ func createTokenCmd(cmdname string, args []string) {
 	}
 	t := make(map[string]any)
 	t["permissions"] = perms
+	t["expires"] = time.Now().Add(24 * time.Hour)
 	if username != "" {
 		t["username"] = username
 	}
