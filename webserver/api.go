@@ -300,7 +300,7 @@ func specialUserHandler(w http.ResponseWriter, r *http.Request, g, pth string, w
 	if pth == "" {
 		userHandler(w, r, g, "", wildcard)
 		return
-	} else if pth == ".password" {
+	} else if pth == "/.password" {
 		passwordHandler(w, r, g, "", wildcard)
 		return
 	}
