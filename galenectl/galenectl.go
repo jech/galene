@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/term"
 
 	"github.com/jech/galene/group"
 )
@@ -240,14 +241,15 @@ func setUsage(cmd *flag.FlagSet, cmdname string, format string, args ...any) {
 }
 
 func hashPasswordCmd(cmdname string, args []string) {
-	var algorithm string
+	var password, algorithm string
 	var iterations, cost, length, saltlen int
 
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
-		"%v [option...] %v [option...] password...\n",
+		"%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
+	cmd.StringVar(&password, "password", "", "new `password`")
 	cmd.StringVar(&algorithm, "type", "pbkdf2",
 		"password `type`")
 	cmd.IntVar(&iterations, "iterations", 4096,
@@ -258,23 +260,31 @@ func hashPasswordCmd(cmdname string, args []string) {
 	cmd.IntVar(&saltlen, "salt", 8, "salt `length` (pbkdf2)")
 	cmd.Parse(args)
 
-	if cmd.NArg() == 0 {
+	if cmd.NArg() != 0 {
 		cmd.Usage()
 		os.Exit(1)
 	}
 
-	for _, pw := range cmd.Args() {
-		p, err := makePassword(
-			pw, algorithm, iterations, length, saltlen, cost,
-		)
+	if algorithm != "wildcard" && password == "" {
+		fmt.Fprint(os.Stdin, "New password: ")
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Println()
 		if err != nil {
-			log.Fatalf("Make password: %v", err)
+			log.Fatalf("ReadPassword: %v", err)
 		}
-		e := json.NewEncoder(os.Stdout)
-		err = e.Encode(p)
-		if err != nil {
-			log.Fatalf("Encode: %v", err)
-		}
+		password = string(pw)
+	}
+
+	p, err := makePassword(
+		password, algorithm, iterations, length, saltlen, cost,
+	)
+	if err != nil {
+		log.Fatalf("Make password: %v", err)
+	}
+	e := json.NewEncoder(os.Stdout)
+	err = e.Encode(p)
+	if err != nil {
+		log.Fatalf("Encode: %v", err)
 	}
 }
 
@@ -382,17 +392,18 @@ func deleteValue(url string) error {
 func setPasswordCmd(cmdname string, args []string) {
 	var groupname, username string
 	var wildcard bool
-	var algorithm string
+	var password, algorithm string
 	var iterations, cost, length, saltlen int
 
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
-		"%v [option...] %v [option...] password\n",
+		"%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
 	cmd.StringVar(&username, "user", "", "user `name`")
 	cmd.BoolVar(&wildcard, "wildcard", false, "set wildcard user's password")
+	cmd.StringVar(&password, "password", "", "new `password`")
 	cmd.StringVar(&algorithm, "type", "pbkdf2",
 		"password `type`")
 	cmd.IntVar(&iterations, "iterations", 4096,
@@ -403,7 +414,7 @@ func setPasswordCmd(cmdname string, args []string) {
 	cmd.IntVar(&saltlen, "salt", 8, "salt `length` (pbkdf2)")
 	cmd.Parse(args)
 
-	if cmd.NArg() != 1 {
+	if cmd.NArg() != 0 {
 		cmd.Usage()
 		os.Exit(1)
 	}
@@ -421,9 +432,18 @@ func setPasswordCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
+	if algorithm != "wildcard" && password == "" {
+		fmt.Fprint(os.Stdin, "New password: ")
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Println()
+		if err != nil {
+			log.Fatalf("ReadPassword: %v", err)
+		}
+		password = string(pw)
+	}
+
 	pw, err := makePassword(
-		cmd.Args()[0],
-		algorithm, iterations, length, saltlen, cost,
+		password, algorithm, iterations, length, saltlen, cost,
 	)
 	if err != nil {
 		log.Fatalf("Make password: %v", err)
