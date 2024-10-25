@@ -256,8 +256,8 @@ allows any username with any password.
 ### Hashed passwords
 
 If you don't wish to store cleartext passwords on the server, you may
-generate hashed passwords with the `galene-password-generator` utility.  A
-user entry with a hashed password looks like this:
+generate hashed passwords with the `galenectl` utility.  A user entry with
+a hashed password looks like this:
 
     "users": {
         "jch": {
