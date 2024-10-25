@@ -75,6 +75,10 @@ var commands = map[string]command{
 		command:     updateUserCmd,
 		description: "change a user's permissions",
 	},
+	"list-groups": {
+		command:     listGroupsCmd,
+		description: "list groups",
+	},
 }
 
 func main() {
@@ -294,6 +298,26 @@ func setAuthorization(req *http.Request) {
 	} else if adminUsername != "" {
 		req.SetBasicAuth(adminUsername, adminPassword)
 	}
+}
+
+func getJSON(url string, value any) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	setAuthorization(req)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	return decoder.Decode(value)
 }
 
 func putJSON(url string, value any, overwrite bool) error {
@@ -772,5 +796,28 @@ func deleteUserCmd(cmdname string, args []string) {
 	err = deleteValue(u)
 	if err != nil {
 		log.Fatalf("Delete user: %v", err)
+	}
+}
+
+func listGroupsCmd(cmdname string, args []string) {
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v\n",
+		os.Args[0], cmdname,
+	)
+	cmd.Parse(args)
+
+	u, err := url.JoinPath(serverURL, "/galene-api/v0/.groups/")
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	var groups []string
+	err = getJSON(u, &groups)
+	if err != nil {
+		log.Fatalf("Get groups: %v", err)
+	}
+	for _, g := range groups {
+		fmt.Println(g)
 	}
 }
