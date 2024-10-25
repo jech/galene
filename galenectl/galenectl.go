@@ -82,11 +82,15 @@ var commands = map[string]command{
 	},
 	"create-token": {
 		command:     createTokenCmd,
-		description: "create token",
+		description: "request a token",
+	},
+	"revoke-token": {
+		command:     revokeTokenCmd,
+		description: "revoke a token",
 	},
 	"delete-token": {
 		command:     deleteTokenCmd,
-		description: "delete token",
+		description: "delete a token",
 	},
 }
 
@@ -908,6 +912,44 @@ func createTokenCmd(cmdname string, args []string) {
 		log.Fatalf("Create token: %v", err)
 	}
 	println(location)
+}
+
+func revokeTokenCmd(cmdname string, args []string) {
+	var groupname, token string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.StringVar(&token, "token", "", "`token` to delete")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" || token == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Options \"-group\" and \"-token\" are required\n")
+		os.Exit(1)
+	}
+
+	u, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups/", groupname,
+		".tokens", token,
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = updateJSON(u, func(v map[string]any) map[string]any {
+		v["expires"] = time.Now().Add(-time.Minute)
+		return v
+	})
+	if err != nil {
+		log.Fatalf("Update token: %v", err)
+	}
 }
 
 func deleteTokenCmd(cmdname string, args []string) {
