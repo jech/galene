@@ -12,7 +12,7 @@ import (
 
 	"github.com/pion/rtcp"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 
 	"github.com/jech/galene/codecs"
 	"github.com/jech/galene/conn"
@@ -652,7 +652,7 @@ func newUpConn(c group.Client, id string, label string, offer string) (*rtpUpCon
 	for _, m := range o.MediaDescriptions {
 		_, err = pc.AddTransceiverFromKind(
 			webrtc.NewRTPCodecType(m.MediaName.Media),
-			webrtc.RtpTransceiverInit{
+			webrtc.RTPTransceiverInit{
 				Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			},
 		)
