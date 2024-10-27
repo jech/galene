@@ -1,17 +1,6 @@
 # Installation instructions
 
-## Quick installation
-
-    CGO_ENABLED=0 go build -ldflags='-s -w'
-    mkdir groups
-    echo '{"presenter": [{}]}' > groups/test.json
-    ./galene &
-
-Then connect to `https://localhost:8443` and choose "test".
-
-## Full installation instructions
-
-### Build the `galene` binary
+## Build the `galene` binary
 
 Do:
 
@@ -23,7 +12,7 @@ On Windows, do
     go build -ldflags="-s -w"
 
 
-### Set up a group
+## Set up a group
 
 Set up a group called *test* by creating a file `groups/test.json`:
 
@@ -40,7 +29,7 @@ You may use the following definition:
 See the README file for more details about defining groups.
 
 
-### Test locally
+## Test locally
 
     ./galene &
     
@@ -49,7 +38,7 @@ to the group that you have just set up in two distinct browser windows,
 then press *Ready* in one of the two; you should see a video in the other.
 
 
-### Configure your server's firewall
+## Configure your server's firewall
 
 If your server has a global IPv4 address and there is no firewall, there
 is nothing to do.
@@ -72,7 +61,7 @@ Galène's command line, where `203.0.113.1` is your NAT's external (global)
 IPv4 address.
 
 
-### Cross-compile for your server
+## Cross-compile for your server
 
 This step is only required if your server runs a different OS or has
 a different CPU than your build machine.
@@ -98,7 +87,7 @@ For a 32-bit MIPS board with no hardware floating point (WNDR3800, etc.):
     CGO_ENABLED=0 GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags='-s -w'
 
 
-### Deploy to your server
+## Deploy to your server
 
 Set up a user *galene* on your server, then do:
 

@@ -4,7 +4,21 @@ moderate server resources.  It is described at <https://galene.org>.
 
 # Installation
 
-See the file INSTALL in this directory for installation instructions.
+Quick start:
+
+    git clone https://github.com/jech/galene
+    cd galene
+    CGO_ENABLED=0 go build -ldflags='-s -w'
+    mkdir groups
+    echo '{"users": {"bob": {"password":"secret", "permissions":"op"}}}' > \
+        groups/example.json
+    ./galene &
+
+Point your browser at <https:/localhost:8443/group/example/>, ignore the
+unknown certificate warning, and log in with username "bob" and password
+"secret".
+
+See the file INSTALL in this directory for full installation instructions.
 
 
 # Usage
