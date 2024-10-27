@@ -4,7 +4,7 @@ package conn
 import (
 	"errors"
 
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 var ErrConnectionClosed = errors.New("connection is closed")

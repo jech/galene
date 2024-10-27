@@ -8,7 +8,7 @@ import (
 
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/group"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 type WhipClient struct {

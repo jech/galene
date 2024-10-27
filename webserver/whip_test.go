@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 )
 
 func TestParseSDPFrag(t *testing.T) {

@@ -17,7 +17,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
