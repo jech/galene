@@ -15,7 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -115,7 +115,9 @@ func main() {
 		for name := range commands {
 			names = append(names, name)
 		}
-		slices.Sort(names)
+		sort.Slice(names, func(i, j int) bool {
+			return names[i] < names[j]
+		})
 		for _, name := range names {
 			fmt.Fprintf(
 				flag.CommandLine.Output(),
