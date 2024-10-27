@@ -687,7 +687,7 @@ func createUserCmd(cmdname string, args []string) {
 	var permissions string
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
-		"%v [option...] %v [option...] username\n",
+		"%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group")
