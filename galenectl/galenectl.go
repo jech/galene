@@ -716,6 +716,9 @@ func listUsersCmd(cmdname string, args []string) {
 	if err != nil {
 		log.Fatalf("Get users: %v", err)
 	}
+	sort.Slice(users, func(i, j int) bool {
+		return users[i] < users[j]
+	})
 	for _, user := range users {
 		fmt.Println(user)
 	}
@@ -904,6 +907,9 @@ func listGroupsCmd(cmdname string, args []string) {
 	if err != nil {
 		log.Fatalf("Get groups: %v", err)
 	}
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i] < groups[j]
+	})
 	for _, g := range groups {
 		fmt.Println(g)
 	}
