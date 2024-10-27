@@ -1,3 +1,14 @@
+Galene 0.95.0 (unreleased)
+
+  * Galene now requires Go 1.20.
+  * Added "galenectl" utility and removed "galene-password-generator".
+    This is an incompatible change.
+  * Fixed a number of bugs in the management protocol.
+  * Reworked the peer-to-peer file transfer protocol.  This is an
+    incompatible change.
+  * Added an id to every chat message, and made it possible to remove
+    a single chat message.
+
 15 July 2024: Galene 0.9.1
 
   * Added an example client with minimal functionality under static/example.
