@@ -64,6 +64,10 @@ var commands = map[string]command{
 		command:     deleteGroupCmd,
 		description: "delete a group",
 	},
+	"list-users": {
+		command:     listUsersCmd,
+		description: "list users",
+	},
 	"create-user": {
 		command:     createUserCmd,
 		description: "create a user",
@@ -679,6 +683,42 @@ func parsePermissions(p string, expand bool) (any, error) {
 		return nil, err
 	}
 	return pp.Permissions(nil), nil
+}
+
+func listUsersCmd(cmdname string, args []string) {
+	var groupname string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Option \"-group\" is required\n")
+		os.Exit(1)
+	}
+
+	u, err := url.JoinPath(serverURL, "/galene-api/v0/.groups/", groupname,
+		".users/")
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+	var users []string
+	err = getJSON(u, &users)
+	if err != nil {
+		log.Fatalf("Get users: %v", err)
+	}
+	for _, user := range users {
+		fmt.Println(user)
+	}
 }
 
 func createUserCmd(cmdname string, args []string) {
