@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 
 	"github.com/jech/galene/codecs"
 	"github.com/jech/galene/packetcache"

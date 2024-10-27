@@ -15,10 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pion/ice/v2"
+	"github.com/pion/ice/v4"
 	"github.com/pion/interceptor"
-	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 
 	"github.com/jech/galene/token"
 )
@@ -383,12 +382,11 @@ func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 	if UDPMin > 0 && UDPMax > 0 {
 		s.SetEphemeralUDPPortRange(UDPMin, UDPMax)
 	}
-	m.RegisterHeaderExtension(
-		webrtc.RTPHeaderExtensionCapability{sdp.SDESMidURI},
-		webrtc.RTPCodecTypeVideo)
-	m.RegisterHeaderExtension(
-		webrtc.RTPHeaderExtensionCapability{sdp.SDESRTPStreamIDURI},
-		webrtc.RTPCodecTypeVideo)
+
+	err := webrtc.ConfigureSimulcastExtensionHeaders(&m)
+	if err != nil {
+		return nil, err
+	}
 
 	ir := interceptor.Registry{}
 

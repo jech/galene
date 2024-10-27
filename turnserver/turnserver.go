@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/pion/turn/v2"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/turn/v4"
+	"github.com/pion/webrtc/v4"
 )
 
 var username string
