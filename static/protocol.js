@@ -1917,7 +1917,7 @@ TransferredFile.prototype.receive = async function() {
     };
     pc.onicecandidate = function(e) {
         f.sc.userMessage('filetransfer', f.userid, {
-            type: 'downice',
+            type: 'ice',
             id: f.id,
             candidate: e.candidate,
         });
@@ -1973,7 +1973,7 @@ TransferredFile.prototype.answer = async function(sdp) {
     f.candidates = [];
     pc.onicecandidate = function(e) {
         f.sc.userMessage('filetransfer', f.userid, {
-            type: 'upice',
+            type: 'ice',
             id: f.id,
             candidate: e.candidate,
         });
