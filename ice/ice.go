@@ -167,7 +167,7 @@ func RelayTest(timeout time.Duration) (time.Duration, error) {
 		return 0, err
 	}
 	defer pc1.Close()
-	pc2, err := webrtc.NewPeerConnection(*conf)
+	pc2, err := api.NewPeerConnection(*conf)
 	if err != nil {
 		return 0, err
 	}
