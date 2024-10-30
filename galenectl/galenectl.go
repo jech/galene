@@ -687,12 +687,14 @@ func parsePermissions(p string, expand bool) (any, error) {
 
 func listUsersCmd(cmdname string, args []string) {
 	var groupname string
+	var long bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
 		"%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.BoolVar(&long, "l", false, "display permissions")
 	cmd.Parse(args)
 
 	if cmd.NArg() != 0 {
@@ -720,7 +722,22 @@ func listUsersCmd(cmdname string, args []string) {
 		return users[i] < users[j]
 	})
 	for _, user := range users {
-		fmt.Println(user)
+		if !long {
+			fmt.Println(user)
+		} else {
+			uu, err := url.JoinPath(u, user)
+			if err != nil {
+				fmt.Printf("%-12s (ERROR=%v)\n", user, err)
+				continue
+			}
+			var d group.UserDescription
+			err = getJSON(uu, &d)
+			if err != nil {
+				fmt.Printf("%-12s (ERROR=%v)\n", user, err)
+				continue
+			}
+			fmt.Printf("%-12s %v\n", user, d.Permissions)
+		}
 	}
 }
 
