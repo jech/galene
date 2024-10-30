@@ -91,7 +91,7 @@ func (p Permissions) String() string {
 		return p.name
 	}
 	v, err := json.Marshal(p)
-	if err == nil {
+	if err != nil {
 		return fmt.Sprintf("(ERROR=%v)", err)
 	}
 	return string(v)
