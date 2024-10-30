@@ -83,6 +83,20 @@ func (p Permissions) Permissions(desc *Description) []string {
 	return perms
 }
 
+func (p Permissions) String() string {
+	if p.name != "" {
+		if p.permissions != nil {
+			return fmt.Sprintf("(ERROR=overconstrained %v)", p.name)
+		}
+		return p.name
+	}
+	v, err := json.Marshal(p)
+	if err == nil {
+		return fmt.Sprintf("(ERROR=%v)", err)
+	}
+	return string(v)
+}
+
 func (p *Permissions) UnmarshalJSON(b []byte) error {
 	var a []string
 	err := json.Unmarshal(b, &a)
@@ -119,7 +133,7 @@ type UserDescription struct {
 	Permissions Permissions `json:"permissions"`
 }
 
-// Custom MarshalJSON in order to omit ompty fields
+// Custom MarshalJSON in order to omit empty fields
 func (u UserDescription) MarshalJSON() ([]byte, error) {
 	uu := make(map[string]any, 2)
 	if u.Password.Type != "" {
