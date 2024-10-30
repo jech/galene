@@ -319,24 +319,27 @@ func setAuthorization(req *http.Request) {
 	}
 }
 
-func getJSON(url string, value any) error {
+func getJSON[T any](url string, value T) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	setAuthorization(req)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
+
+	etag := resp.Header.Get("ETag")
+
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+		return etag, fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
 	}
 
 	decoder := json.NewDecoder(resp.Body)
-	return decoder.Decode(value)
+	return etag, decoder.Decode(value)
 }
 
 func putJSON(url string, value any, overwrite bool) error {
@@ -392,30 +395,13 @@ func postJSON(url string, value any) (string, error) {
 }
 
 func updateJSON[T any](url string, update func(T) T) error {
-	req, err := http.NewRequest("GET", url, nil)
+	var old T
+	etag, err := getJSON(url, &old)
 	if err != nil {
 		return err
 	}
-	setAuthorization(req)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
-	}
-	etag := resp.Header.Get("ETag")
 	if etag == "" {
 		return errors.New("missing ETag")
-	}
-
-	decoder := json.NewDecoder(req.Body)
-	var old T
-	err = decoder.Decode(&old)
-	if err != nil {
-		return err
 	}
 
 	value := update(old)
@@ -424,17 +410,17 @@ func updateJSON[T any](url string, update func(T) T) error {
 	if err != nil {
 		return err
 	}
-	req2, err := http.NewRequest("PUT", url, bytes.NewReader(j))
-	setAuthorization(req2)
-	req2.Header.Set("Content-Type", "application/json")
-	req2.Header.Set("If-Match", etag)
+	req, err := http.NewRequest("PUT", url, bytes.NewReader(j))
+	setAuthorization(req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("If-Match", etag)
 
-	resp2, err := client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
-	defer resp2.Body.Close()
-	if resp2.StatusCode >= 300 {
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
 		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
 	}
 	return nil
@@ -714,7 +700,7 @@ func listUsersCmd(cmdname string, args []string) {
 		log.Fatalf("Build URL: %v", err)
 	}
 	var users []string
-	err = getJSON(u, &users)
+	_, err = getJSON(u, &users)
 	if err != nil {
 		log.Fatalf("Get users: %v", err)
 	}
@@ -731,7 +717,7 @@ func listUsersCmd(cmdname string, args []string) {
 				continue
 			}
 			var d group.UserDescription
-			err = getJSON(uu, &d)
+			_, err = getJSON(uu, &d)
 			if err != nil {
 				fmt.Printf("%-12s (ERROR=%v)\n", user, err)
 				continue
@@ -920,7 +906,7 @@ func listGroupsCmd(cmdname string, args []string) {
 	}
 
 	var groups []string
-	err = getJSON(u, &groups)
+	_, err = getJSON(u, &groups)
 	if err != nil {
 		log.Fatalf("Get groups: %v", err)
 	}
