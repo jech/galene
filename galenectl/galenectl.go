@@ -692,7 +692,7 @@ func listUsersCmd(cmdname string, args []string) {
 		"%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
-	cmd.StringVar(&groupname, "group", "", "group")
+	cmd.StringVar(&groupname, "group", "", "group `name`")
 	cmd.Parse(args)
 
 	if cmd.NArg() != 0 {
@@ -733,7 +733,7 @@ func createUserCmd(cmdname string, args []string) {
 		"%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
-	cmd.StringVar(&groupname, "group", "", "group")
+	cmd.StringVar(&groupname, "group", "", "group `name`")
 	cmd.StringVar(&username, "user", "", "user `name`")
 	cmd.BoolVar(&wildcard, "wildcard", false, "create the wildcard user")
 	cmd.StringVar(&permissions, "permissions", "present", "permissions")
