@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -366,6 +367,7 @@ func putJSON(url string, value any, overwrite bool) error {
 	if resp.StatusCode >= 300 {
 		return errors.New(resp.Status)
 	}
+	io.Copy(io.Discard, resp.Body)
 	return nil
 }
 
@@ -391,6 +393,7 @@ func postJSON(url string, value any) (string, error) {
 		return "", errors.New(resp.Status)
 	}
 	location := resp.Header.Get("location")
+	io.Copy(io.Discard, resp.Body)
 	return location, nil
 }
 
@@ -423,6 +426,7 @@ func updateJSON[T any](url string, update func(T) T) error {
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
 	}
+	io.Copy(io.Discard, resp.Body)
 	return nil
 }
 
@@ -440,6 +444,7 @@ func deleteValue(url string) error {
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
 	}
+	io.Copy(io.Discard, resp.Body)
 	return nil
 }
 
