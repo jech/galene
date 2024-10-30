@@ -25,6 +25,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/jech/galene/group"
+	"github.com/jech/galene/token"
 )
 
 type configuration struct {
@@ -57,6 +58,10 @@ var commands = map[string]command{
 		command:     deletePasswordCmd,
 		description: "delete a user's password",
 	},
+	"list-groups": {
+		command:     listGroupsCmd,
+		description: "list groups",
+	},
 	"create-group": {
 		command:     createGroupCmd,
 		description: "create a group",
@@ -81,9 +86,9 @@ var commands = map[string]command{
 		command:     updateUserCmd,
 		description: "change a user's permissions",
 	},
-	"list-groups": {
-		command:     listGroupsCmd,
-		description: "list groups",
+	"list-tokens": {
+		command:     listTokensCmd,
+		description: "list tokens",
 	},
 	"create-token": {
 		command:     createTokenCmd,
@@ -920,6 +925,90 @@ func listGroupsCmd(cmdname string, args []string) {
 	})
 	for _, g := range groups {
 		fmt.Println(g)
+	}
+}
+
+func listTokensCmd(cmdname string, args []string) {
+	var groupname string
+	var long bool
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.BoolVar(&long, "l", false, "display token fields")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Option \"-group\" is required\n")
+		os.Exit(1)
+	}
+
+	u, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups/", groupname, ".tokens/",
+	)
+
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	var tokens []string
+	_, err = getJSON(u, &tokens)
+	if err != nil {
+		log.Fatalf("Get tokens: %v", err)
+	}
+	sort.Slice(tokens, func(i, j int) bool {
+		return tokens[i] < tokens[j]
+	})
+	now := time.Now()
+	for _, t := range tokens {
+		if !long {
+			fmt.Println(t)
+		} else {
+			uu, err := url.JoinPath(u, t)
+			if err != nil {
+				fmt.Printf("%-12s (ERROR=%v)\n", t, err)
+				continue
+			}
+			var tt token.Stateful
+			_, err = getJSON(uu, &tt)
+			if err != nil {
+				fmt.Printf("%-12s (ERROR=%v)\n", t, err)
+				continue
+			}
+			var username string
+			if tt.Username != nil {
+				username = *tt.Username
+			}
+			var exp string
+			if tt.Expires == nil {
+				exp = "(no expiration date)"
+			} else if tt.Expires.Before(now) {
+				exp = "(expired)"
+			} else {
+				exp = tt.Expires.Format(time.DateTime)
+			}
+			var perms []byte
+			for _, p := range tt.Permissions {
+				if len(p) > 0 {
+					perms = append(perms, p[0])
+				} else {
+					perms = append(perms, '?')
+				}
+			}
+			sort.Slice(perms, func(i, j int) bool {
+				return perms[i] < perms[j]
+			})
+			fmt.Printf("%-11s %-12s %-4s %-20s\n", t,
+				username, perms, exp,
+			)
+		}
 	}
 }
 
