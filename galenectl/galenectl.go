@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -704,22 +705,31 @@ func formatPermissions(permissions group.Permissions) string {
 	return formatRawPermissions(permissions.Permissions(nil))
 }
 
+func match(patterns []string, value string) (bool, error) {
+	for _, p := range patterns {
+		found, err := path.Match(p, value)
+		if err != nil {
+			return false, err
+		}
+		if found {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func listUsersCmd(cmdname string, args []string) {
 	var groupname string
 	var long bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
-		"%v [option...] %v [option...]\n",
+		"%v [option...] %v [option...] [pattern...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
 	cmd.BoolVar(&long, "l", false, "display permissions")
 	cmd.Parse(args)
-
-	if cmd.NArg() != 0 {
-		cmd.Usage()
-		os.Exit(1)
-	}
+	patterns := cmd.Args()
 
 	if groupname == "" {
 		fmt.Fprintf(cmd.Output(),
@@ -741,6 +751,15 @@ func listUsersCmd(cmdname string, args []string) {
 		return users[i] < users[j]
 	})
 	for _, user := range users {
+		if len(patterns) > 0 {
+			found, err := match(patterns, user)
+			if err != nil {
+				log.Fatalf("Match: %v", err)
+			}
+			if !found {
+				continue
+			}
+		}
 		if !long {
 			fmt.Println(user)
 		} else {
@@ -930,10 +949,11 @@ func deleteUserCmd(cmdname string, args []string) {
 func listGroupsCmd(cmdname string, args []string) {
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
-		"%v [option...] %v\n",
+		"%v [option...] %v [pattern...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.Parse(args)
+	patterns := cmd.Args()
 
 	u, err := url.JoinPath(serverURL, "/galene-api/v0/.groups/")
 	if err != nil {
@@ -949,6 +969,15 @@ func listGroupsCmd(cmdname string, args []string) {
 		return groups[i] < groups[j]
 	})
 	for _, g := range groups {
+		if len(patterns) > 0 {
+			found, err := match(patterns, g)
+			if err != nil {
+				log.Fatalf("Match: %v", err)
+			}
+			if !found {
+				continue
+			}
+		}
 		fmt.Println(g)
 	}
 }
