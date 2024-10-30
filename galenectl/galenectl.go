@@ -681,6 +681,29 @@ func parsePermissions(p string, expand bool) (any, error) {
 	return pp.Permissions(nil), nil
 }
 
+func formatRawPermissions(permissions []string) string {
+	var perms []byte
+	for _, p := range permissions {
+		if len(p) > 0 {
+			perms = append(perms, p[0])
+		} else {
+			perms = append(perms, '?')
+		}
+	}
+	sort.Slice(perms, func(i, j int) bool {
+		return perms[i] < perms[j]
+	})
+	return fmt.Sprintf("[%s]", perms)
+}
+
+func formatPermissions(permissions group.Permissions) string {
+	s := permissions.String()
+	if len(s) > 0 && s[0] != '[' {
+		return s
+	}
+	return formatRawPermissions(permissions.Permissions(nil))
+}
+
 func listUsersCmd(cmdname string, args []string) {
 	var groupname string
 	var long bool
@@ -732,7 +755,9 @@ func listUsersCmd(cmdname string, args []string) {
 				fmt.Printf("%-12s (ERROR=%v)\n", user, err)
 				continue
 			}
-			fmt.Printf("%-12s %v\n", user, d.Permissions)
+			fmt.Printf("%-12s %v\n",
+				user, formatPermissions(d.Permissions),
+			)
 		}
 	}
 }
