@@ -1812,7 +1812,7 @@ TransferredFile.prototype.cancel = function(data) {
         return;
     if(f.state !== '' && f.state !== 'done' && f.state !== 'cancelled') {
         let m = {
-            type: f.up ? 'cancel' : 'reject',
+            type: 'cancel',
             id: f.id,
         };
         if(data)
@@ -2232,6 +2232,7 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
     }
     case 'upice':
     case 'downice':
+    case 'reject':
     case 'abort': {
         let f = sc.getTransferredFile(id, message.id);
         if(f)
