@@ -386,6 +386,152 @@ Currently defined kinds include `clearchat` (not to be confused with the
 `clearchat` user message), `lock`, `unlock`, `record`, `unrecord`,
 `subgroups` and `setdata`.
 
+
+# Peer-to-peer file transfer protocol
+
+The default client implements a file transfer protocol.  The file transfer
+is peer-to-peer: the server is used as a trusted rendez-vous point and for
+the exchange of cryptographic keys, and all data transfer is done directly
+between the peers over a WebRTC datachannel.
+
+Control information for the file transfer is transferred in messages of
+type `usermessage` and kind `filetransfer`.  The `value` field of the
+message contains a dictionary whose meaning is identified by the embedded
+`type` field:
+
+```javascript
+{
+    type: 'usermessage',
+    kind: 'filetransfer',
+    ...
+    value: {
+        type: type,
+        ...
+    }
+}
+```
+
+The peer that wishes to transfer a file (the sender) starts by sending
+a message of type `invite`:
+
+```javascript
+{
+    type: 'usermessage',
+    kind: 'filetransfer',
+    ...
+    value: {
+        type: 'invite',
+        version: ["1"],
+        id: id,
+        name: name,
+        size: size,
+        mimetype: mimetype
+    }
+}
+```
+
+The field `version` contains an array of the versions of the file-transfer
+protocol supported by the sender, in decreasing order of preference; this
+document specifies version `"1"`.  The field `id` identifies the file
+transfer session; it must be repeated in all further messages pertaining
+to this particular file transfer.  The fields `name`, `size` and
+`mimetype` contain the filename, the size in bytes and the MIME type of
+the file being transferred respectively.
+
+The receiving peer (the receiver) may either reject the file transfer or
+accept it.  If it rejects the file transfer, it sends a message of type
+`cancel` (see below).  If it decides to accept the file transfer, it sets
+up a peer connection with a single reliable data channel labelled `file`,
+and sends a message of type `offer`:
+
+```javascript
+{
+    type: 'usermessage',
+    kind: 'filetransfer',
+    ...
+    value: {
+        type: 'offer',
+        version: [1],
+        id: id,
+        sdp: sdp
+     }
+}
+```
+
+The field `version` contains a one-element array indicating the version of
+the protocol that the receiver wishes to use; this must be one of the
+versions proposed in the corresponding `invite` message.  The field `id`
+is copied from the `invite` message.  The field `sdp` contains the offer
+in SDP format (the `sdp` field of a JSEP session description).
+
+The sender sends the corresponding answer:
+
+```javascript
+{
+    type: 'usermessage',
+    kind: 'filetransfer',
+    ...
+    value: {
+        type: 'answer',
+        id: id,
+        sdp: sdp
+     }
+}
+```
+There is no `version` field, since the version has already been negotiated
+and is known for the rest of the file transfer session.  The field `sdp`
+contains the answer in SDP format.
+
+Either peer may send messages of type `ice` in order to perform trickle
+ICE:
+
+```javascript
+{
+    type: 'usermessage',
+    kind: 'filetransfer',
+    ...
+    value: {
+        type: 'ice',
+        id: id,
+        candidate: candidate
+     }
+}
+```
+
+Once the data channel is established, the sender sends the file in chunks
+of at most 16384 bytes, one chunk per data channel message.
+
+When the sender has sent the whole file, it must not tear down the peer
+connection, as that would flush the data in transit (contained in the
+buffers of the WebRTC implementation and in the network).  Instead, it
+must perform an explicit shutdown handshake with the receiver.
+
+This handshake proceeds as follows.  When the receiver has received the
+amount of data declared in the `invite` message, it sends a single text
+message containing the string `done` over the peer connection.  When the
+sender has received this acknowledgement, it tears down its side of the
+peer connection.  When the receiver receives an indication that the peer
+connection has been shut down, it tears down its side of the peer
+connection, and the file transfer is complete.
+
+At any point during the file transfer, either peer may send a message of
+type `cancel` in order to cancel the file transfer.  The peer that
+receives the `cancel` message immediately tears down the peer connection
+(there is no need to reply to the `cancel` message).
+
+```javascript
+{
+    type: 'usermessage',
+    kind: 'filetransfer',
+    ...
+    value: {
+        type: 'cancel',
+        id: id,
+        message: message,
+    }
+}
+```
+
 # Authorisation protocol
 
 In addition to username/password authentication, Galene supports
