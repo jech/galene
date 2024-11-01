@@ -1,13 +1,16 @@
 Galene is a videoconferencing server that is easy to deploy and requires
 moderate server resources.  It is described at <https://galene.org>.
 
-
 # Installation
 
 Quick start:
 
     git clone https://github.com/jech/galene
     cd galene
+
+    git submodule init
+    git submodule update
+
     CGO_ENABLED=0 go build -ldflags='-s -w'
     mkdir groups
     echo '{"users": {"bob": {"password":"secret", "permissions":"op"}}}' > \
