@@ -1612,6 +1612,16 @@ function TransferredFile(sc, userid, id, up, username, name, mimetype, size) {
      */
     this.id = id;
     /**
+     * The negotiated file-transfer protocol version.
+     *
+     * This is the version of the file-transfer protocol, and is not
+     * necessarily equal to the version of the Galene protocol used by the
+     * server connection.
+     *
+     * @type {string}
+     */
+    this.version = null;
+    /**
      * True if this is an upload.
      *
      * @type {boolean}
@@ -1797,6 +1807,26 @@ TransferredFile.prototype.event = function(state, data) {
         f.onevent.call(f, state, data);
 }
 
+/**
+ * Send a cancel message for a file transfer.
+ *
+ * Don't call this, call TransferredFile.cancel instead.
+ *
+ * @param {ServerConnection} sc
+ * @param {string} userid
+ * @param {string} id
+ * @param {string|Error} [message]
+ */
+function sendFileCancel(sc, userid, id, message) {
+    let m = {
+        type: 'cancel',
+        id: id,
+    };
+    if(message)
+        m.message = message.toString();
+    sc.userMessage('filetransfer', userid, m);
+}
+
 
 /**
  * Cancel a file transfer.
@@ -1804,23 +1834,16 @@ TransferredFile.prototype.event = function(state, data) {
  * Depending on the state, this will either forcibly close the connection,
  * send a handshake, or do nothing.  It will set the state to cancelled.
  *
- * @param {string|Error} [data]
+ * @param {string|Error} [message]
  */
-TransferredFile.prototype.cancel = function(data) {
+TransferredFile.prototype.cancel = function(message) {
     let f = this;
     if(f.state === 'closed')
         return;
-    if(f.state !== '' && f.state !== 'done' && f.state !== 'cancelled') {
-        let m = {
-            type: 'cancel',
-            id: f.id,
-        };
-        if(data)
-            m.message = data.toString();
-        f.sc.userMessage('filetransfer', f.userid, m);
-    }
+    if(f.state !== '' && f.state !== 'done' && f.state !== 'cancelled')
+        sendFileCancel(f.sc, f.userid, f.id, message);
     if(f.state !== 'done' && f.state !== 'cancelled')
-        f.event('cancelled', data);
+        f.event('cancelled', message);
     f.close();
 }
 
@@ -1878,6 +1901,7 @@ ServerConnection.prototype.sendFile = function(id, file) {
     sc.transferredFiles[f.fullid()] = f;
     sc.userMessage('filetransfer', id, {
         type: 'invite',
+        version: ["1"],
         id: fileid,
         name: f.name,
         size: f.size,
@@ -1944,6 +1968,7 @@ TransferredFile.prototype.receive = async function() {
     await pc.setLocalDescription(offer);
     f.sc.userMessage('filetransfer', f.userid, {
         type: 'offer',
+        version: [f.version],
         id: f.id,
         sdp: pc.localDescription.sdp,
     });
@@ -2163,10 +2188,21 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
     let sc = this;
     switch(message.type) {
     case 'invite': {
+        /** @type {string} */
+        let version;
+        if((message.version instanceof Array) && message.version.includes('1')) {
+            version = '1';
+        } else {
+            sendFileCancel(sc, id, message.id,
+                       `Unknown protocol version ${message.version}; ` +
+                       'perhaps you need to upgrade your client ?');
+            return;
+        }
         let f = new TransferredFile(
             sc, id, message.id, false, username,
             message.name, message.mimetype, message.size,
         );
+        f.version = version;
         f.state = 'inviting';
 
         try {
@@ -2194,17 +2230,30 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
         sc.transferredFiles[fid] = f;
         break;
     }
-    case 'offer':
+    case 'offer': {
+        let f = sc.getTransferredFile(id, message.id);
+        if(!f) {
+            console.error(`Unexpected ${message.type} for file transfer`);
+            return;
+        }
+        if((message.version instanceof Array) && message.version.includes('1')) {
+            f.version = '1';
+        } else {
+            f.cancel(`Unknown protocol version ${message.version}; ` +
+                     'perhaps you need to upgrade your client ?'
+                    );
+            return;
+        }
+        f.answer(message.sdp).catch(e => f.cancel(e));
+        break;
+    }
     case 'answer': {
         let f = sc.getTransferredFile(id, message.id);
         if(!f) {
             console.error(`Unexpected ${message.type} for file transfer`);
             return;
         }
-        if(message.type === 'offer')
-            f.answer(message.sdp).catch(e => f.cancel(e));
-        else
-            f.receiveFile(message.sdp).catch(e => f.cancel(e));
+        f.receiveFile(message.sdp).catch(e => f.cancel(e));
         break;
     }
     case 'ice':
@@ -2226,7 +2275,7 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
             console.error(`Unexpected ${message.type} for file transfer`);
             return;
         }
-        f.event('cancelled', message.value || null);
+        f.event('cancelled', message.message || null);
         f.close();
         break;
     }
