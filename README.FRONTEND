@@ -194,4 +194,90 @@ Some statistics about streams are made available by calling the
 include the data rate for streams in the up direction, and the average
 audio energy (the square of the volume) for streams in the down direction.
 
---- Juliusz Chroboczek <https://www.irif.fr/~jch/>
+
+# Peer-to-peer file transfer
+
+Galene's client allows users to transfer files during a meeting.  The
+protocol is peer-to-peer: the clients exchange network parameters and
+cryptographic keys through the server (over messages of type
+`usermessage`), but all file transfer is performed directly between the
+peers.
+
+An in-progress file transfer is represented by a JavaScript object of
+class `TransferredFile`.  This object implements a finite state automaton
+whose current state is encoded as a string in the field `state`.  It obeys
+the following state transitions:
+
+```
+(empty string) ⟶ inviting ⟶ connecting ⟶ connected ⟶ done ⟶ closed
+
+(any state) ⟶ cancelled ⟶ closed
+```
+
+
+## Downloading files
+
+A client that wishes to participate in the file transfer protocol must set
+up the `onfiletransfer` callback of the `ServerConnection` object.
+
+```javascript
+    serverConnection.onfiletransfer = function(transfer) {
+        ...
+    };
+```
+
+This callback will be called whenever a file transfer is initiated, either
+by the remote or by the local peer.  The callback receives a single value
+of class `TransferredFile`.  It should start by setting up the `onevent`
+callback, which is called whenever the state of the transfer changes and
+whenever data is received:
+
+```javascript
+    transfer.onevent = func(state, data) {
+        ...
+    };
+```
+
+The direction of the file transfer is indicated by the value of the
+boolean `this.up`, which is false in the case of a donwload.
+
+The callback may immediately reject the file transfer by either throwing
+an exception or by calling `transfer.cancel` and returning.  If the file
+transfer is not immediately rejected, the callback should set up an
+`onevent` callback on the `TransferredFile` object:
+
+```javascript
+    transfer.onevent = func(state, data) {
+        ...
+    };
+```
+
+It must then arrange for either `transfer.receive` or `transfer.cancel` to
+be called, for example from an `onclick` callback.
+
+The `onevent` callback will then be repeatedly called, which can be used
+e.g. to present a progress bar to the user.  Eventually, the `onevent`
+callback will be called with `state` equal to either `cancelled` or
+`done`; in the latter case, the transferred data is passed as a `Blob` in
+the `data` parameter of the callback.
+
+
+## Uploading files
+
+A file upload is initiated by calling the `sendFile` method of the class
+`ServerConnection`.
+
+```javascript
+serverConnection.sendFile(userid, file);
+```
+
+The `userid` parameter is the id of the remote peer.  The `file` parameter
+is an object of kind `File`, typically obtained from an `HTMLInputElement`
+with type `file`.
+
+The `onfiletransfer` callback is then called (with `this.up` set to true),
+and the transfer proceeds analogously to a file download, except that no
+data is passed to the `onevent` callback at the end of the transfer.
+
+
+— Juliusz Chroboczek <https://www.irif.fr/~jch/>
