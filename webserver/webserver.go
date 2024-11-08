@@ -124,6 +124,10 @@ func httpError(w http.ResponseWriter, err error) {
 		notFound(w)
 		return
 	}
+	if errors.Is(err, group.ErrUnknownPermission) {
+		http.Error(w, "unknown permission", http.StatusBadRequest)
+		return
+	}
 	var autherr *group.NotAuthorisedError
 	if errors.As(err, &autherr) {
 		log.Printf("HTTP server error: %v", err)

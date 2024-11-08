@@ -17,6 +17,7 @@ import (
 
 var ErrTagMismatch = errors.New("tag mismatch")
 var ErrDescriptionsNotWritable = &NotAuthorisedError{}
+var ErrUnknownPermission = errors.New("unknown permission")
 
 type Permissions struct {
 	// non-empty for a named permissions set
@@ -37,7 +38,7 @@ var permissionsMap = map[string][]string{
 func NewPermissions(name string) (Permissions, error) {
 	_, ok := permissionsMap[name]
 	if !ok {
-		return Permissions{}, errors.New("unknown permission")
+		return Permissions{}, ErrUnknownPermission
 	}
 	return Permissions{
 		name: name,
@@ -112,7 +113,7 @@ func (p *Permissions) UnmarshalJSON(b []byte) error {
 	if err == nil {
 		_, ok := permissionsMap[s]
 		if !ok {
-			return errors.New("Unknown permission " + s)
+			return ErrUnknownPermission
 		}
 		*p = Permissions{
 			name: s,
