@@ -90,7 +90,7 @@ func TestChatHistory(t *testing.T) {
 	if lh := len(g.GetChatHistory()); lh != l*3/4 {
 		t.Errorf("Expected %v, got %v", l*3/4, lh)
 	}
-	g.ClearChatHistory("", "");
+	g.ClearChatHistory("", "")
 	if lh := len(g.GetChatHistory()); lh != 0 {
 		t.Errorf("Expected 0, got %v", lh)
 	}
@@ -125,6 +125,8 @@ var john = "john"
 var james = "james"
 var paul = "paul"
 var peter = "peter"
+var admin = "admin"
+var stt = "speech-to-text"
 
 var badClients = []ClientCredentials{
 	{Username: &jch, Password: "foo"},
@@ -137,10 +139,27 @@ type credPerm struct {
 	p []string
 }
 
+var desc2JSON = `
+{
+    "max-history-age": 10,
+    "auto-subgroups": true,
+    "users": {
+        "jch": {"password": "topsecret", "permissions": "op"},
+        "john": {"password": "secret", "permissions": "present"},
+        "james": {"password": "secret2", "permissions": "message"},
+        "peter": {"password": "secret4"},
+        "admin": {"password": "admin", "permissions": "admin"},
+        "speech-to-text": {"password": {"type": "wildcard"},
+                           "permissions": "caption"}
+    },
+    "wildcard-user":
+        {"permissions": "message", "password": {"type":"wildcard"}}
+}`
+
 var goodClients = []credPerm{
 	{
 		ClientCredentials{Username: &jch, Password: "topsecret"},
-		[]string{"op", "present", "message", "token"},
+		[]string{"op", "present", "message", "caption", "token"},
 	},
 	{
 		ClientCredentials{Username: &john, Password: "secret"},
@@ -158,11 +177,19 @@ var goodClients = []credPerm{
 		ClientCredentials{Username: &peter, Password: "secret4"},
 		[]string{},
 	},
+	{
+		ClientCredentials{Username: &admin, Password: "admin"},
+		[]string{"admin"},
+	},
+	{
+		ClientCredentials{Username: &stt},
+		[]string{"caption"},
+	},
 }
 
 func TestPermissions(t *testing.T) {
 	var g Group
-	err := json.Unmarshal([]byte(descJSON), &g.description)
+	err := json.Unmarshal([]byte(desc2JSON), &g.description)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -209,41 +236,46 @@ func TestExtraPermissions(t *testing.T) {
 	}
 
 	doit := func(u string, p []string) {
+		t.Helper()
 		pu := d.Users[u].Permissions.Permissions(&d)
 		if !permissionsEqual(pu, p) {
 			t.Errorf("%v: expected %v, got %v", u, p, pu)
 		}
 	}
 
-	doit("jch", []string{"op", "token", "present", "message"})
+	doit("jch", []string{"op", "token", "present", "message", "caption"})
 	doit("john", []string{"present", "message"})
 	doit("james", []string{})
 
 	d.AllowRecording = true
 	d.UnrestrictedTokens = false
 
-	doit("jch", []string{"op", "record", "token", "present", "message"})
+	doit("jch", []string{
+		"op", "record", "token", "present", "message", "caption",
+	})
 	doit("john", []string{"present", "message"})
 	doit("james", []string{})
 
 	d.AllowRecording = false
 	d.UnrestrictedTokens = true
 
-	doit("jch", []string{"op", "token", "present", "message"})
+	doit("jch", []string{"op", "token", "present", "message", "caption"})
 	doit("john", []string{"token", "present", "message"})
 	doit("james", []string{})
 
 	d.AllowRecording = true
 	d.UnrestrictedTokens = true
 
-	doit("jch", []string{"op", "record", "token", "present", "message"})
+	doit("jch", []string{
+		"op", "record", "token", "present", "message", "caption",
+	})
 	doit("john", []string{"token", "present", "message"})
 	doit("james", []string{})
 }
 
 func TestUsernameTaken(t *testing.T) {
 	var g Group
-	err := json.Unmarshal([]byte(descJSON), &g.description)
+	err := json.Unmarshal([]byte(desc2JSON), &g.description)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}

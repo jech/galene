@@ -310,7 +310,7 @@ A chat message may be sent using a `chat` message.
 ```javascript
 {
     type: 'chat',
-    kind: '' or 'me',
+    kind: null or 'me' or 'caption',
     source: source-id,
     username: username,
     dest: dest-id,
@@ -320,6 +320,13 @@ A chat message may be sent using a `chat` message.
     value: message
 }
 ```
+
+The field `kind` can have one of the following values:
+
+  - `null` or the empty string, a normal chat message;
+  - `'me'`, an IRC-style first-person message;
+  - `'caption'`, a caption or subtitle (this requires the sender to have
+    the `caption` permission).
 
 If `dest` is empty, the message is a broadcast message, destined to all of
 the clients in the group.  If `source` is empty, then the message was

@@ -1572,7 +1572,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			return c.error(group.UserError("join a group first"))
 		}
 
-		if !member("message", c.permissions) {
+		required := "message"
+		if m.Type == "chat" && m.Kind == "caption" {
+			required = "caption"
+		}
+		if !member(required, c.permissions) {
 			return c.error(group.UserError("not authorised"))
 		}
 

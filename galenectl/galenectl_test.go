@@ -42,7 +42,7 @@ func TestMakePassword(t *testing.T) {
 
 func TestFormatPermissions(t *testing.T) {
 	tests := []struct{ j, v, p string }{
-		{`"op"`, "op", "[mopt]"},
+		{`"op"`, "op", "[cmopt]"},
 		{`"present"`, "present", "[mp]"},
 		{`"observe"`, "observe", "[]"},
 		{`"admin"`, "admin", "[a]"},
