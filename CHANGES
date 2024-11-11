@@ -9,6 +9,8 @@ Galene 0.95.0 (unreleased)
     incompatible change.
   * Added an id to every chat message, and made it possible to remove
     a single chat message.
+  * Fixed a race condition that prevented operators from joining an
+    AutoKick group.
 
 15 July 2024: Galene 0.9.1
 

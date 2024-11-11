@@ -693,7 +693,17 @@ func autoLockKick(g *Group) {
 	}
 
 	if g.description.Autokick {
-		go kickall(g, "there are no operators in this group")
+		// we cannot call kickall, since it requires the group to
+		// be unlocked.  And calling it asynchronously might
+		// spuriously kick out an operator.
+		go func(clients []Client) {
+			for _, c := range clients {
+				c.Kick(
+					"", nil,
+					"there are no operators in this group",
+				)
+			}
+		}(g.getClientsUnlocked(nil))
 	}
 }
 
