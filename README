@@ -10,7 +10,7 @@ Quick start:
     cd galene
     CGO_ENABLED=0 go build -ldflags='-s -w'
     mkdir groups
-    echo '{"users": {"bob": {"password":"secret", "permissions":"op"}}}' > \
+    echo '{"users": {"bob": {"password":"1234", "permissions":"op"}}}' > \
         groups/example.json
     ./galene &
 
@@ -88,21 +88,37 @@ file may look as follows:
         "canonicalHost": "galene.example.org"
     }
 
+or, better, with a hashed password:
+
+    {
+        "users": {
+            "root": {
+                "password":{"type":"bcrypt","key":"$2a$10$bTWW..."},
+                "permissions": "admin"
+            }
+        },
+        "canonicalHost": "galene.example.org"
+    }
+
 The fields are as follows:
 
-- `users` defines the users allowed to administer the server, and has the
-  same syntax as user definitions in groups (see below), except that the
-  only meaningful permission is `"admin"`;
-- `writableGroups`: if true, then the API can modify group description
-  files; by default, group files are treated as read-only;
-- `publicServer`: if true, then cross-origin access to the server is
-  allowed.  This is safe if the server is on the public Internet, but not
-  necessarily so if it is on a private network.
-- `proxyURL`: if running behind a reverse proxy, this specifies the
-  root URL that will be visible outside the proxy.
-- `canonicalHost`: the canonical name of the host running the server; this
-  will cause clients to be redirected if they use a different hostname to
-  access the server.
+ - `users` defines the users allowed to administer the server, and has the
+   same syntax as user definitions in groups (see below), except that the
+   only meaningful permission is `"admin"`;
+
+ - `writableGroups`: if true, then the API can modify group description
+   files; by default, group files are treated as read-only;
+
+ - `publicServer`: if true, then cross-origin access to the server is
+   allowed.  This is safe if the server is on the public Internet, but not
+   necessarily so if it is on a private network.
+
+ - `proxyURL`: if running behind a reverse proxy, this specifies the root
+   URL that will be visible outside the proxy.
+
+ - `canonicalHost`: the canonical name of the host running the server;
+   this will cause clients to be redirected if they use a different
+   hostname to access the server.
 
 
 # Group definitions
@@ -175,49 +191,81 @@ specify at least one user definition (`op`, `presenter`, or `other`),
 nobody will be able to join the group.  The following fields are allowed:
 
  - `users`: is a dictionary that maps user names to dictionaries with
-   entries `password` and `permissions`; `permissions` should be one of
-   `op`, `present`, `message` or `observe`.
+   entries `password` and `permissions`; see below for a description of
+   possible permissions;
+
  - `wildcard-user` is a dictionaries with entries `password` and `permissions`
    that will be used for usernames with no matching entry in the `users`
    dictionary;
+
  - `authKeys`, `authServer` and `authPortal`: see *Authorisation* below;
+
  - `public`: if true, then the group is listed on the landing page;
+
  - `displayName`: a human-friendly version of the group name;
+
  - `description`: a human-readable description of the group; this is
    displayed on the landing page for public groups;
+
  - `contact`: a human-readable contact for this group, such as an e-mail
-   address;
- - `comment`: a human-readable string;
+   address, ignored by the server;
+
+ - `comment`: a human-readable string, ignored by the server;
+
  - `max-clients`: the maximum number of clients that may join the group at
    a time;
+
  - `max-history-age`: the time, in seconds, during which chat history is
    kept (default 14400, i.e. 4 hours);
+
  - `not-before` and `expires`: the times (in ISO 8601 or RFC 3339 format)
    between which joining the group is allowed;
+
  - `allow-recording`: if true, then recording is allowed in this group;
+
  - `unrestricted-tokens`: if true, then ordinary users (without the "op"
    privilege) are allowed to create tokens;
+
  - `allow-anonymous`: if true, then users may connect with an empty username;
+
  - `auto-subgroups`: if true, then subgroups of the form `group/subgroup`
    are automatically created when first accessed;
+
  - `autolock`: if true, the group will start locked and become locked
    whenever there are no clients with operator privileges;
+
  - `autokick`: if true, all clients will be kicked out whenever there are
    no clients with operator privileges; this is not recommended, prefer
    the `autolock` option instead;
+
  - `redirect`: if set, then attempts to join the group will be redirected
    to the given URL; most other fields are ignored in this case;
+
  - `codecs`: this is a list of codecs allowed in this group.  The default
    is `["vp8", "opus"]`.
+
+The value of the `permissions` entry in a user definition can either be an
+array of individual permissions, as carried by the protocol, or one of
+the following strings:
+
+ - `op`, a group operator with all rights except administering the group;
+ - `present`, an ordinary user with the right to publish audio and video
+   streams and send chat messages;
+ - `message`, a user with the right to send chat messages;
+ - `observe`, a user that receives media streams and chat messages, but
+   is not allowed to send them;
+ - `caption`, a user with the right to display captions (only);
+ - `admin`, a user with the right to administer the group (only).
    
 Supported video codecs include:
 
  - `"vp8"` (compatible with all supported browsers);
- - `"vp9"` (better video quality, but incompatible with Safari);
+ - `"vp9"` (better video quality, but incompatible with Safari; buggy in
+   Firefox);
  - `"av1"` (even better video quality, only supported by some browsers,
    recording is not supported, SVC is not supported);
- - `"h264"` (incompatible with Debian and with some Android devices, SVC
-   is not supported).
+ - `"h264"` (incompatible with Debian and with some older Android devices,
+ - SVC  is not supported).
 
 Supported audio codecs include `"opus"`, `"g722"`, `"pcmu"` and `"pcma"`.
 Only Opus can be recorded to disk.  There is no good reason to use
