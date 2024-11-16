@@ -1071,7 +1071,9 @@ function Filter(stream, definition) {
     this.userdata = {}
     /** @type {MediaStream} */
     this.captureStream = this.canvas.captureStream(0);
+}
 
+Filter.prototype.start = function() {
     /** @ts-ignore */
     if(!this.captureStream.getTracks()[0].requestFrame) {
         console.warn('captureFrame not supported, using fixed framerate');
@@ -1087,7 +1089,7 @@ function Filter(stream, definition) {
         if(t.kind != 'video')
             this.outputStream.addTrack(t);
     });
-    this.video.srcObject = stream;
+    this.video.srcObject = this.inputStream;
     this.video.muted = true;
     this.video.play();
     if(this.definition.init)
@@ -1169,6 +1171,7 @@ function setFilter(c) {
         return;
 
     let filter = new Filter(c.stream, c.userdata.filterDefinition);
+    filter.start();
     c.setStream(filter.outputStream);
     c.userdata.filter = filter;
 }
