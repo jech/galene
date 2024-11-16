@@ -1025,9 +1025,9 @@ function cancelReconsiderParameters() {
 /**
  * @typedef {Object} filterDefinition
  * @property {string} [description]
- * @property {(this: Filter) => void} [init]
- * @property {(this: Filter) => void} [cleanup]
- * @property {(this: Filter, src: HTMLVideoElement, ctx: CanvasRenderingContext2D) => boolean} draw
+ * @property {(this: Filter) => Promise<void>} [init]
+ * @property {(this: Filter) => Promise<void>} [cleanup]
+ * @property {(this: Filter, src: HTMLVideoElement, ctx: RenderingContext) => Promise<boolean>} draw
  */
 
 /**
@@ -1067,9 +1067,11 @@ function Filter(stream, definition) {
     this.userdata = {}
     /** @type {MediaStream} */
     this.captureStream = this.canvas.captureStream(0);
+    /** @type {boolean} */
+    this.busy = false;
 }
 
-Filter.prototype.start = function() {
+Filter.prototype.start = async function() {
     /** @ts-ignore */
     if(!this.captureStream.getTracks()[0].requestFrame) {
         console.warn('captureFrame not supported, using fixed framerate');
@@ -1089,11 +1091,11 @@ Filter.prototype.start = function() {
     this.video.muted = true;
     this.video.play();
     if(this.definition.init)
-        this.definition.init.call(this);
+        await this.definition.init.call(this);
     this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
 }
 
-Filter.prototype.draw = function() {
+Filter.prototype.draw = async function() {
     if(this.video.videoWidth === 0 && this.video.videoHeight === 0) {
         // video not started yet
         return;
@@ -1115,28 +1117,39 @@ Filter.prototype.draw = function() {
         }
     }
 
-    let ok = false;
-    try {
-        ok = this.definition.draw.call(this, this.video, this.context);
-    } catch(e) {
-        console.error(e);
-    }
-    if(ok && !this.fixedFramerate) {
-        /** @ts-ignore */
-        this.captureStream.getTracks()[0].requestFrame();
+    if(this.busy) {
+        // drop frame
+        return;
     }
 
-    this.count++;
+    try {
+        this.busy = true;
+        let ok = false;
+        try {
+            ok = await this.definition.draw.call(
+                this, this.video, this.context,
+            );
+        } catch(e) {
+            console.error(e);
+        }
+        if(ok && !this.fixedFramerate) {
+            /** @ts-ignore */
+            this.captureStream.getTracks()[0].requestFrame();
+        }
+        this.count++;
+    } finally {
+        this.busy = false;
+    }
 };
 
-Filter.prototype.stop = function() {
+Filter.prototype.stop = async function() {
     if(!this.timer)
         return;
     this.captureStream.getTracks()[0].stop();
     clearInterval(this.timer);
     this.timer = null;
     if(this.definition.cleanup)
-        this.definition.cleanup.call(this);
+        await this.definition.cleanup.call(this);
 };
 
 /**
@@ -1144,7 +1157,7 @@ Filter.prototype.stop = function() {
  *
  * @param {Stream} c
  */
-function removeFilter(c) {
+async function removeFilter(c) {
     let old = c.userdata.filter;
     if(!old)
         return;
@@ -1153,7 +1166,7 @@ function removeFilter(c) {
         throw new Error('userdata.filter is not a filter');
 
     c.setStream(old.inputStream);
-    old.stop();
+    await old.stop();
     c.userdata.filter = null;
 }
 
@@ -1162,14 +1175,14 @@ function removeFilter(c) {
  *
  * @param {Stream} c
  */
-function setFilter(c) {
-    removeFilter(c);
+async function setFilter(c) {
+    await removeFilter(c);
 
     if(!c.userdata.filterDefinition)
         return;
 
     let filter = new Filter(c.stream, c.userdata.filterDefinition);
-    filter.start();
+    await filter.start();
     c.setStream(filter.outputStream);
     c.userdata.filter = filter;
 }
@@ -1180,7 +1193,7 @@ function setFilter(c) {
 let filters = {
     'mirror-h': {
         description: "Horizontal mirror",
-        draw: function(src, ctx) {
+        draw: async function(src, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
             if(ctx.canvas.width !== src.videoWidth ||
@@ -1196,7 +1209,7 @@ let filters = {
     },
     'mirror-v': {
         description: "Vertical mirror",
-        draw: function(src, ctx) {
+        draw: async function(src, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
             if(ctx.canvas.width !== src.videoWidth ||
@@ -1259,20 +1272,20 @@ function doSimulcast() {
  * @param {MediaStream} stream
  */
 
-function setUpStream(c, stream) {
+async function setUpStream(c, stream) {
     if(c.stream != null)
         throw new Error("Setting nonempty stream");
 
     c.setStream(stream);
 
     try {
-        setFilter(c);
+        await setFilter(c);
     } catch(e) {
         displayWarning("Couldn't set filter: " + e);
     }
 
-    c.onclose = replace => {
-        removeFilter(c);
+    c.onclose = async replace => {
+        await removeFilter(c);
         if(!replace) {
             stopStream(c.stream);
             if(c.userdata.onclose)
@@ -1394,7 +1407,7 @@ function setUpStream(c, stream) {
  * @returns {Promise<Stream>}
  */
 async function replaceUpStream(c) {
-    removeFilter(c);
+    await removeFilter(c);
     let cn = newUpStream(c.localId);
     cn.label = c.label;
     if(c.userdata.filterDefinition)
@@ -1403,7 +1416,7 @@ async function replaceUpStream(c) {
         cn.userdata.onclose = c.userdata.onclose;
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
-    setUpStream(cn, c.stream);
+    await setUpStream(cn, c.stream);
     await setMedia(cn,
                    cn.label == 'camera' && getSettings().mirrorView,
                    cn.label == 'video' && media);
@@ -1471,7 +1484,7 @@ async function addLocalMedia(localId) {
     let old = serverConnection.findByLocalId(localId);
     if(old) {
         // make sure that the camera is released before we try to reopen it
-        removeFilter(old);
+        await removeFilter(old);
         stopStream(old.stream);
     }
 
@@ -1507,7 +1520,7 @@ async function addLocalMedia(localId) {
             displayWarning(`Unknown filter ${settings.filter}`);
     }
 
-    setUpStream(c, stream);
+    await setUpStream(c, stream);
     await setMedia(c, settings.mirrorView);
     setButtonsVisibility();
 }
@@ -1546,7 +1559,7 @@ async function addShareMedia() {
 
     let c = newUpStream();
     c.label = 'screenshare';
-    setUpStream(c, stream);
+    await setUpStream(c, stream);
     await setMedia(c);
     setButtonsVisibility();
 }
