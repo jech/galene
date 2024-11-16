@@ -190,7 +190,7 @@ func makeCachable(w http.ResponseWriter, p string, fi os.FileInfo, cachable bool
 	}
 
 	cc := normalCacheControl
-	if strings.HasPrefix(p, "/external/") {
+	if strings.HasPrefix(p, "/third-party/") {
 		cc = veryCachableCacheControl
 	}
 
