@@ -1025,11 +1025,9 @@ function cancelReconsiderParameters() {
 /**
  * @typedef {Object} filterDefinition
  * @property {string} [description]
- * @property {string} [contextType]
- * @property {Object} [contextAttributes]
- * @property {(this: Filter, ctx: RenderingContext) => void} [init]
+ * @property {(this: Filter) => void} [init]
  * @property {(this: Filter) => void} [cleanup]
- * @property {(this: Filter, src: CanvasImageSource, width: number, height: number, ctx: RenderingContext) => boolean} f
+ * @property {(this: Filter, src: HTMLVideoElement, ctx: CanvasRenderingContext2D) => boolean} draw
  */
 
 /**
@@ -1054,9 +1052,7 @@ function Filter(stream, definition) {
     /** @type {HTMLCanvasElement} */
     this.canvas = document.createElement('canvas');
     /** @type {any} */
-    this.context = this.canvas.getContext(
-        definition.contextType || '2d',
-        definition.contextAttributes || null);
+    this.context = this.canvas.getContext('2d', {alpha: false});
     /** @type {MediaStream} */
     this.captureStream = null;
     /** @type {MediaStream} */
@@ -1093,11 +1089,16 @@ Filter.prototype.start = function() {
     this.video.muted = true;
     this.video.play();
     if(this.definition.init)
-        this.definition.init.call(this, this.context);
+        this.definition.init.call(this);
     this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
 }
 
 Filter.prototype.draw = function() {
+    if(this.video.videoWidth === 0 && this.video.videoHeight === 0) {
+        // video not started yet
+        return;
+    }
+
     // check framerate every 30 frames
     if((this.count % 30) === 0) {
         let frameRate = 0;
@@ -1116,10 +1117,7 @@ Filter.prototype.draw = function() {
 
     let ok = false;
     try {
-        ok = this.definition.f.call(this, this.video,
-                                    this.video.videoWidth,
-                                    this.video.videoHeight,
-                                    this.context);
+        ok = this.definition.draw.call(this, this.video, this.context);
     } catch(e) {
         console.error(e);
     }
@@ -1182,30 +1180,32 @@ function setFilter(c) {
 let filters = {
     'mirror-h': {
         description: "Horizontal mirror",
-        f: function(src, width, height, ctx) {
+        draw: function(src, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
-            if(ctx.canvas.width !== width || ctx.canvas.height !== height) {
-                ctx.canvas.width = width;
-                ctx.canvas.height = height;
+            if(ctx.canvas.width !== src.videoWidth ||
+               ctx.canvas.height !== src.videoHeight) {
+                ctx.canvas.width = src.videoWidth;
+                ctx.canvas.height = src.videoHeight;
             }
             ctx.scale(-1, 1);
-            ctx.drawImage(src, -width, 0);
+            ctx.drawImage(src, -src.videoWidth, 0);
             ctx.resetTransform();
             return true;
         },
     },
     'mirror-v': {
         description: "Vertical mirror",
-        f: function(src, width, height, ctx) {
+        draw: function(src, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
-            if(ctx.canvas.width !== width || ctx.canvas.height !== height) {
-                ctx.canvas.width = width;
-                ctx.canvas.height = height;
+            if(ctx.canvas.width !== src.videoWidth ||
+               ctx.canvas.height !== src.videoHeight) {
+                ctx.canvas.width = src.videoWidth;
+                ctx.canvas.height = src.videoHeight;
             }
             ctx.scale(1, -1);
-            ctx.drawImage(src, 0, -height);
+            ctx.drawImage(src, 0, -src.videoHeight);
             ctx.resetTransform();
             return true;
         },
