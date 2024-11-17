@@ -15,6 +15,7 @@
     "files": [
         "protocol.js",
         "galene.js",
+        "background-blur-worker.js",
         "management.js",
         "example/example.js"
     ]
