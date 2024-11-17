@@ -88,13 +88,17 @@ func Serve(address string, dataDir string) error {
 	return nil
 }
 
-func cspHeader(w http.ResponseWriter, connect string) {
-	c := "connect-src ws: wss: 'self';"
+func cspHeader(w http.ResponseWriter, connect string, unsafeEval bool) {
+	c := "connect-src ws: wss: 'self'; "
 	if connect != "" {
-		c = "connect-src " + connect + " ws: wss: 'self';"
+		c = "connect-src " + connect + " ws: wss: 'self'; "
+	}
+	s := "script-src 'self'; "
+	if unsafeEval {
+		s = "script-src 'unsafe-eval' 'self'; "
 	}
 	w.Header().Add("Content-Security-Policy",
-		c+" img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
+		c+s+"img-src data: 'self'; media-src blob: 'self'; default-src 'self'")
 
 	// Make browser stop sending referrer information
 	w.Header().Add("Referrer-Policy", "no-referrer")
@@ -207,7 +211,7 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cspHeader(w, "")
+	cspHeader(w, "", r.URL.Path == "/blur-background-worker.js")
 	p := r.URL.Path
 	// this ensures any leading .. are removed by path.Clean below
 	if !strings.HasPrefix(p, "/") {
@@ -373,7 +377,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := g.Status(false, nil)
-	cspHeader(w, status.AuthServer)
+	cspHeader(w, status.AuthServer, false)
 	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
 }
 

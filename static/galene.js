@@ -1027,7 +1027,7 @@ function cancelReconsiderParameters() {
  * @property {string} [description]
  * @property {(this: Filter) => Promise<void>} [init]
  * @property {(this: Filter) => Promise<void>} [cleanup]
- * @property {(this: Filter, src: HTMLVideoElement, ctx: RenderingContext) => Promise<boolean>} draw
+ * @property {(this: Filter, src: HTMLVideoElement, ctx: CanvasRenderingContext2D) => Promise<boolean>} draw
  */
 
 /**
@@ -1052,7 +1052,7 @@ function Filter(stream, definition) {
     /** @type {HTMLCanvasElement} */
     this.canvas = document.createElement('canvas');
     /** @type {any} */
-    this.context = this.canvas.getContext('2d', {alpha: false});
+    this.context = this.canvas.getContext('2d');
     /** @type {MediaStream} */
     this.captureStream = null;
     /** @type {MediaStream} */
@@ -1220,6 +1220,67 @@ let filters = {
             ctx.scale(1, -1);
             ctx.drawImage(src, 0, -src.videoHeight);
             ctx.resetTransform();
+            return true;
+        },
+    },
+    'background-blur': {
+        description: 'Background blur',
+        init: async function(ctx) {
+            if(!(this instanceof Filter))
+                throw new Error('Bad type for this');
+            if(this.userdata.worker)
+                throw new Error("Worker already running (this shouldn't happen)")
+            this.userdata.worker = new Worker('/background-blur-worker.js');
+        },
+        cleanup: async function() {
+            if(this.userdata.worker.onmessage) {
+                this.userdata.worker.onmessage(null);
+            }
+            this.userdata.worker.terminate();
+            this.userdata.worker = null;
+        },
+        draw: async function(src, ctx) {
+            let bitmap = await createImageBitmap(src);
+            let p = new Promise((resolve, reject) => {
+                this.userdata.worker.onmessage = e => {
+                    if(e && e.data) {
+                        if(e.data instanceof Error)
+                            reject(e.data);
+                        else
+                            resolve(e.data);
+                    } else {
+                        resolve(null);
+                    }
+                };
+            });
+            this.userdata.worker.postMessage({
+                bitmap: bitmap,
+                timestamp: performance.now(),
+            }, [bitmap]);
+            let result = await p;
+
+            if(!result)
+                return false;
+
+            let mask = result.mask;
+            bitmap = result.bitmap;
+
+            if(ctx.canvas.width !== src.videoWidth ||
+               ctx.canvas.height !== src.videoHeight) {
+                ctx.canvas.width = src.videoWidth;
+                ctx.canvas.height = src.videoHeight;
+            }
+
+            ctx.globalCompositeOperation = 'copy';
+            ctx.filter = `blur(${src.videoWidth / 256}px)`;
+            ctx.drawImage(mask, 0, 0);
+            ctx.globalCompositeOperation = 'source-in';
+            ctx.filter = `blur(${src.videoWidth / 48}px)`;
+            ctx.drawImage(result.bitmap, 0, 0);
+            ctx.globalCompositeOperation = 'destination-atop';
+            ctx.filter = 'none';
+            ctx.drawImage(result.bitmap, 0, 0);
+            ctx.globalCompositeOperation = 'source-over';
             return true;
         },
     },
