@@ -3984,9 +3984,6 @@ function displayError(message, level) {
         close: true,
         position: position,
         gravity: gravity,
-        style: {
-            background: background,
-        },
         className: level,
     }).showToast();
 }
