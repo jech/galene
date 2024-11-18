@@ -3959,18 +3959,15 @@ document.getElementById('resizer').addEventListener('mousedown', chatResizer, fa
 function displayError(message, level) {
     if(!level)
         level = "error";
-    var background = 'linear-gradient(to right, #e20a0a, #df2d2d)';
     var position = 'center';
     var gravity = 'top';
 
     switch(level) {
     case "info":
-        background = 'linear-gradient(to right, #529518, #96c93d)';
         position = 'right';
         gravity = 'bottom';
         break;
     case "warning":
-        background = "linear-gradient(to right, #bdc511, #c2cf01)";
         break;
     case "kicked":
         level = "error";
@@ -3984,9 +3981,6 @@ function displayError(message, level) {
         close: true,
         position: position,
         gravity: gravity,
-        style: {
-            background: background,
-        },
         className: level,
     }).showToast();
 }

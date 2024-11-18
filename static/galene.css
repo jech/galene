@@ -1375,3 +1375,26 @@ header .collapse:hover {
 #invite-dialog {
     background-color: #eee;
 }
+
+/* Style for the toastify  messages shall be within a css file */
+.toastify.error {
+    background: linear-gradient(to right, #e20a0a, #df2d2d);
+    color: #fff;
+}
+.toastify.error .toast-close {
+    color: #fff;
+}
+.toastify.warning {
+    background: linear-gradient(to right, #bdc511, #c2cf01);
+    color: #000;
+}
+.toastify.warning .toast-close {
+    color: #000;
+}
+.toastify.info {
+    background: linear-gradient(to right, #529518, #96c93d);
+    color: #000;
+}
+.toastify.info .toast-close {
+    color: #000;
+}
