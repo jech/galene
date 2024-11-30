@@ -252,14 +252,19 @@ func CodecPayloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, erro
 	}
 }
 
-func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
-	fb := []webrtc.RTCPFeedback{
-		{"goog-remb", ""},
-		{"nack", ""},
-		{"nack", "pli"},
-		{"ccm", "fir"},
-	}
+// VideoRTCPFeedback are the RTCP feedback types that we expect for video
+// tracks.
+var VideoRTCPFeedback = []webrtc.RTCPFeedback{
+	{"goog-remb", ""},
+	{"nack", ""},
+	{"nack", "pli"},
+	{"ccm", "fir"},
+}
 
+// AudioRTCPFeedback is like VideoRTCPFeedback but for audio tracks.
+var AudioRTCPFeedback = []webrtc.RTCPFeedback(nil)
+
+func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 	var codecs []webrtc.RTPCodecCapability
 
 	switch name {
@@ -268,7 +273,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"video/VP8", 90000, 0,
 				"",
-				fb,
+				VideoRTCPFeedback,
 			},
 		}
 	case "vp9":
@@ -276,12 +281,12 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"video/VP9", 90000, 0,
 				"profile-id=0",
-				fb,
+				VideoRTCPFeedback,
 			},
 			{
 				"video/VP9", 90000, 0,
 				"profile-id=2",
-				fb,
+				VideoRTCPFeedback,
 			},
 		}
 	case "av1":
@@ -289,7 +294,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"video/AV1", 90000, 0,
 				"",
-				fb,
+				VideoRTCPFeedback,
 			},
 		}
 	case "h264":
@@ -297,7 +302,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"video/H264", 90000, 0,
 				"level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
-				fb,
+				VideoRTCPFeedback,
 			},
 		}
 	case "opus":
@@ -305,7 +310,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"audio/opus", 48000, 2,
 				"minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1",
-				nil,
+				AudioRTCPFeedback,
 			},
 		}
 	case "g722":
@@ -313,7 +318,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"audio/G722", 8000, 1,
 				"",
-				nil,
+				AudioRTCPFeedback,
 			},
 		}
 	case "pcmu":
@@ -321,7 +326,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"audio/PCMU", 8000, 1,
 				"",
-				nil,
+				AudioRTCPFeedback,
 			},
 		}
 	case "pcma":
@@ -329,7 +334,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 			{
 				"audio/PCMU", 8000, 1,
 				"",
-				nil,
+				AudioRTCPFeedback,
 			},
 		}
 	default:
