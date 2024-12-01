@@ -2198,12 +2198,22 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
                        'perhaps you need to upgrade your client ?');
             return;
         }
+
         let f = new TransferredFile(
             sc, id, message.id, false, username,
             message.name, message.mimetype, message.size,
         );
         f.version = version;
         f.state = 'inviting';
+
+        let fid = f.fullid();
+        if(fid in sc.transferredFiles) {
+            sendFileCancel(sc, id, message.id,
+                           'Duplicate file transfer id; ' +
+                           'perhaps you have tried to send a file to yourself?');
+            return;
+        }
+
 
         try {
             if(sc.onfiletransfer)
@@ -2217,16 +2227,6 @@ ServerConnection.prototype.fileTransfer = function(id, username, message) {
             return;
         }
 
-        let fid = f.fullid();
-        if(fid in sc.transferredFiles) {
-            if(id === sc.id) {
-                f.cancel('cannot send file to self');
-            } else {
-                console.error('Duplicate id for file transfer');
-                f.cancel("duplicate id (this shouldn't happen)");
-            }
-            return;
-        }
         sc.transferredFiles[fid] = f;
         break;
     }
