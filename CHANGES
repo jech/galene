@@ -11,6 +11,10 @@ Galene 0.95.0 (unreleased)
     a single chat message.
   * Fixed a race condition that prevented operators from joining an
     AutoKick group.
+  * Fixed a bug that could cause us to signal our ability to do RTCP
+    feedback incorrectly.
+  * Fixed a bug that would trigger JavaScript errors when a user attempted
+    to send a file to themself.
 
 15 July 2024: Galene 0.9.1
 
