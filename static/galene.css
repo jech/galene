@@ -467,8 +467,8 @@ textarea.form-reply {
 }
 
 .collapse-video {
-    left: inherit;
-    right: 30px;
+    left: 30px;
+    right: inherit;
 }
 
 .video-controls, .top-video-controls {

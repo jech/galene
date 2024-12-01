@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -381,8 +382,16 @@ func addDownTrackUnlocked(conn *rtpDownConnection, remoteTrack *rtpUpTrack) erro
 		msid = "dummy"
 	}
 
+	// replace the RTCP feedback types with the ones we understand
+	remoteCodec := remoteTrack.Codec()
+	if strings.HasPrefix(strings.ToLower(remoteCodec.MimeType), "video/") {
+		remoteCodec.RTCPFeedback = group.VideoRTCPFeedback
+	} else {
+		remoteCodec.RTCPFeedback = group.AudioRTCPFeedback
+	}
+
 	local, err := webrtc.NewTrackLocalStaticRTP(
-		remoteTrack.Codec(), id, msid,
+		remoteCodec, id, msid,
 	)
 	if err != nil {
 		return err
@@ -1660,7 +1669,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			m := clientMessage{
 				Type:       "usermessage",
 				Kind:       "clearchat",
-				Value:       m.Value,
+				Value:      m.Value,
 				Privileged: true,
 			}
 			err := broadcast(g.GetClients(nil), m)
