@@ -1744,8 +1744,10 @@ TransferredFile.prototype.close = function() {
         f.dc.onerror = null;
         f.dc.onmessage = null;
     }
-    if(f.pc)
+    if(f.pc) {
+        f.pc.onicecandidate = null;
         f.pc.close();
+    }
     f.dc = null;
     f.pc = null;
     f.data = [];
