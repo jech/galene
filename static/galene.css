@@ -1360,13 +1360,6 @@ header .collapse:hover {
 
     --contextualOverflowIcon: #999;
     --contextualSeperator: #999;
-
-    --toast-warn-bg: linear-gradient(to right, #bdc511, #c2cf01);
-    --toast-warn-col: #000;
-    --toast-info-bg: linear-gradient(to right, #529518, #96c93d);
-    --toast-info-col: #000;
-    --toast-error-bg: linear-gradient(to right, #f22a0a, #ff4d3d);
-    --toast-error-col: #000;
 }
 
 .contextualMenu{
@@ -1383,30 +1376,25 @@ header .collapse:hover {
     background-color: #eee;
 }
 
-/* Style for the oastify messages shall be within a css file */
+/* Style for the toastify  messages shall be within a css file */
 .toastify.error {
     background: linear-gradient(to right, #e20a0a, #df2d2d);
-    color: var(--toast-error-col);
+    color: #fff;
 }
-
 .toastify.error .toast-close {
-    color: var(--toast-error-col);
+    color: #fff;
 }
-
 .toastify.warning {
-    background: var(--toast-warn-bg);
-    color: var(-toast.warn-col);
+    background: linear-gradient(to right, #bdc511, #c2cf01);
+    color: #000;
 }
-
 .toastify.warning .toast-close {
-    color:  var(--toast-warn-col);
+    color: #000;
 }
-
 .toastify.info {
-    background: var(--toast-info-bg);
-    color: var(--toast-info-col);
+    background: linear-gradient(to right, #529518, #96c93d);
+    color: #000;
 }
-
 .toastify.info .toast-close {
-    color: var(--toast-info-col);
+    color: #000;
 }
