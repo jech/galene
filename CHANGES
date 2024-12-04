@@ -1,4 +1,4 @@
-Galene 0.95.0 (unreleased)
+4 December 2024: Galene 0.95
 
   * Galene now requires Go 1.20.
   * Added "galenectl" utility and removed "galene-password-generator".
