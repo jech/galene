@@ -326,7 +326,7 @@ func setAuthorization(req *http.Request) {
 	}
 }
 
-func getJSON[T any](url string, value T) (string, error) {
+func getJSON(url string, value any) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
