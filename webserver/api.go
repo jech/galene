@@ -500,6 +500,12 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	if !checkAdmin(w, r) {
 		return
 	}
+	// check that the group exists
+	_, err := group.GetDescription(g)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
 	if pth == "/" {
 		if r.Method == "HEAD" || r.Method == "GET" {
 			tokens, etag, err := token.List(g)
