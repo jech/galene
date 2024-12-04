@@ -326,6 +326,18 @@ func setAuthorization(req *http.Request) {
 	}
 }
 
+type httpError struct {
+	statusCode int
+	status     string
+}
+
+func (e httpError) Error() string {
+	if e.status != "" {
+		return fmt.Sprintf("HTTP error: %v", e.status)
+	}
+	return fmt.Sprintf("HTTP error: %v", e.statusCode)
+}
+
 func getJSON(url string, value any) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -342,7 +354,7 @@ func getJSON(url string, value any) (string, error) {
 	etag := resp.Header.Get("ETag")
 
 	if resp.StatusCode >= 300 {
-		return etag, fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+		return etag, httpError{resp.StatusCode, resp.Status}
 	}
 
 	decoder := json.NewDecoder(resp.Body)
@@ -371,7 +383,7 @@ func putJSON(url string, value any, overwrite bool) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return errors.New(resp.Status)
+		return httpError{resp.StatusCode, resp.Status}
 	}
 	io.Copy(io.Discard, resp.Body)
 	return nil
@@ -396,7 +408,7 @@ func postJSON(url string, value any) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return "", errors.New(resp.Status)
+		return "", httpError{resp.StatusCode, resp.Status}
 	}
 	location := resp.Header.Get("location")
 	io.Copy(io.Discard, resp.Body)
@@ -430,7 +442,7 @@ func updateJSON[T any](url string, update func(T) T) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+		return httpError{resp.StatusCode, resp.Status}
 	}
 	io.Copy(io.Discard, resp.Body)
 	return nil
@@ -448,7 +460,7 @@ func deleteValue(url string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("%v %v", resp.StatusCode, resp.Status)
+		return httpError{resp.StatusCode, resp.Status}
 	}
 	io.Copy(io.Discard, resp.Body)
 	return nil
