@@ -1226,6 +1226,16 @@ let filters = {
     },
     'background-blur': {
         description: 'Background blur',
+        predicate: async function() {
+            let r = await fetch('/third-party/tasks-vision/vision_bundle.mjs', {
+                method: 'HEAD',
+            });
+            if(!r.ok && r.status !== 404)
+                console.warn(
+                    `Fetch vision_bundle.mjs: ${r.status} ${r.statusText}`,
+                );
+            return r.ok;
+        },
         init: async function(ctx) {
             if(!(this instanceof Filter))
                 throw new Error('Bad type for this');
