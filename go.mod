@@ -14,9 +14,9 @@ require (
 	github.com/pion/sdp/v3 v3.0.9
 	github.com/pion/turn/v2 v2.1.6
 	github.com/pion/webrtc/v3 v3.3.4
-	golang.org/x/crypto v0.29.0
-	golang.org/x/sys v0.27.0
-	golang.org/x/term v0.26.0
+	golang.org/x/crypto v0.31.0
+	golang.org/x/sys v0.28.0
+	golang.org/x/term v0.27.0
 )
 
 require (
@@ -35,6 +35,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
-	golang.org/x/net v0.30.0 // indirect
+	golang.org/x/net v0.32.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
