@@ -1025,6 +1025,7 @@ function cancelReconsiderParameters() {
 /**
  * @typedef {Object} filterDefinition
  * @property {string} [description]
+ * @property {(this: filterDefinition) => Promise<boolean>} [predicate]
  * @property {(this: Filter) => Promise<void>} [init]
  * @property {(this: Filter) => Promise<void>} [cleanup]
  * @property {(this: Filter, src: HTMLVideoElement, ctx: CanvasRenderingContext2D) => Promise<boolean>} draw
@@ -1286,9 +1287,13 @@ let filters = {
     },
 };
 
-function addFilters() {
+async function addFilters() {
     for(let name in filters) {
         let f = filters[name];
+        if(f.predicate) {
+            if(!(await f.predicate.call(f)))
+                continue;
+        }
         let d = f.description || name;
         addSelectOption(getSelectElement('filterselect'), d, name);
     }
@@ -4220,7 +4225,7 @@ async function start() {
         window.history.replaceState(null, '', window.location.pathname);
     setTitle(groupStatus.displayName || capitalise(group));
 
-    addFilters();
+    await addFilters();
     await setMediaChoices(false);
     reflectSettings();
 

@@ -12,7 +12,7 @@ async function loadImageSegmenter() {
     imageSegmenter =
         await module.ImageSegmenter.createFromOptions(vision, {
             baseOptions: {
-                modelAssetPath: '/third-party/tasks-vision/selfie_segmenter.tflite',
+                modelAssetPath: '/third-party/tasks-vision/models/selfie_segmenter.tflite',
             },
             outputCategoryMask: true,
             outputConfidenceMasks: false,
