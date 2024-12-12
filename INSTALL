@@ -29,6 +29,27 @@ You may use the following definition:
 See the README file for more details about defining groups.
 
 
+## Optional: install libraries for background blur
+
+Galene's client uses Google's MediaPipe library to implement background
+blur.  This library is optional, and if it is absent, Galene will
+disable the menu entries for background blur.
+
+Optionally install Google's MediaPipe library:
+```
+mkdir mediapipe
+npm pack @mediapipe/tasks-vision
+tar xzf mediapipe-tasks-vision-*.tgz
+rm -f ../static/third-party/tasks-vision
+mv package ../static/third-party/tasks-vision
+cd ../static/third-party/tasks-vision
+mkdir models
+cd models
+wget wget https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite
+cd ../../../../
+```
+
+
 ## Test locally
 
     ./galene &
