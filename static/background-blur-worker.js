@@ -23,16 +23,20 @@ async function loadImageSegmenter() {
 loadImageSegmenter();
 
 onmessage = e => {
+    let bitmap = e.data.bitmap;
+    if(!(bitmap instanceof ImageBitmap)) {
+        postMessage(new Error('Bad type for worker data'));
+        return;
+    }
+
     if(!imageSegmenter) {
         // not ready yet
+        bitmap.close();
         postMessage(null);
         return;
     }
 
     try {
-        let bitmap = e.data.bitmap;
-        if(!(bitmap instanceof ImageBitmap))
-            throw new Error('Bad type for worker data');
         let width = bitmap.width;
         let height = bitmap.height;
         imageSegmenter.segmentForVideo(
@@ -52,6 +56,7 @@ onmessage = e => {
             },
         );
     } catch(e) {
+        bitmap.close();
         postMessage(e);
     }
 };

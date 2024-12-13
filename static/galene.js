@@ -1252,46 +1252,52 @@ let filters = {
         },
         draw: async function(src, ctx) {
             let bitmap = await createImageBitmap(src);
-            let p = new Promise((resolve, reject) => {
-                this.userdata.worker.onmessage = e => {
-                    if(e && e.data) {
-                        if(e.data instanceof Error)
-                            reject(e.data);
-                        else
-                            resolve(e.data);
-                    } else {
-                        resolve(null);
-                    }
-                };
-            });
-            this.userdata.worker.postMessage({
-                bitmap: bitmap,
-                timestamp: performance.now(),
-            }, [bitmap]);
-            let result = await p;
+            try {
+                let p = new Promise((resolve, reject) => {
+                    this.userdata.worker.onmessage = e => {
+                        if(e && e.data) {
+                            if(e.data instanceof Error)
+                                reject(e.data);
+                            else
+                                resolve(e.data);
+                        } else {
+                            resolve(null);
+                        }
+                    };
+                });
+                this.userdata.worker.postMessage({
+                    bitmap: bitmap,
+                    timestamp: performance.now(),
+                }, [bitmap]);
+                let result = await p;
 
-            if(!result)
-                return false;
+                if(!result)
+                    return false;
 
-            let mask = result.mask;
-            bitmap = result.bitmap;
+                let mask = result.mask;
+                bitmap = result.bitmap;
 
-            if(ctx.canvas.width !== src.videoWidth ||
-               ctx.canvas.height !== src.videoHeight) {
-                ctx.canvas.width = src.videoWidth;
-                ctx.canvas.height = src.videoHeight;
+                if(ctx.canvas.width !== src.videoWidth ||
+                   ctx.canvas.height !== src.videoHeight) {
+                    ctx.canvas.width = src.videoWidth;
+                    ctx.canvas.height = src.videoHeight;
+                }
+
+                ctx.globalCompositeOperation = 'copy';
+                ctx.filter = `blur(${src.videoWidth / 256}px)`;
+                ctx.drawImage(mask, 0, 0);
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.filter = `blur(${src.videoWidth / 48}px)`;
+                ctx.drawImage(result.bitmap, 0, 0);
+                ctx.globalCompositeOperation = 'destination-atop';
+                ctx.filter = 'none';
+                ctx.drawImage(result.bitmap, 0, 0);
+                ctx.globalCompositeOperation = 'source-over';
+
+                mask.close();
+            } finally {
+                bitmap.close();
             }
-
-            ctx.globalCompositeOperation = 'copy';
-            ctx.filter = `blur(${src.videoWidth / 256}px)`;
-            ctx.drawImage(mask, 0, 0);
-            ctx.globalCompositeOperation = 'source-in';
-            ctx.filter = `blur(${src.videoWidth / 48}px)`;
-            ctx.drawImage(result.bitmap, 0, 0);
-            ctx.globalCompositeOperation = 'destination-atop';
-            ctx.filter = 'none';
-            ctx.drawImage(result.bitmap, 0, 0);
-            ctx.globalCompositeOperation = 'source-over';
             return true;
         },
     },
