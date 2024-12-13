@@ -47,6 +47,7 @@ onmessage = e => {
                 let id = new ImageData(width, height);
                 for(let i = 0; i < mask.length; i++)
                     id.data[4 * i + 3] = mask[i];
+                result.close();
                 createImageBitmap(id).then(ib => {
                     postMessage({
                         bitmap: bitmap,
