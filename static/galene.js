@@ -4054,8 +4054,8 @@ document.getElementById('resizer').addEventListener('mousedown', chatResizer, fa
 function displayError(message, level) {
     if(!level)
         level = "error";
-    var position = 'center';
-    var gravity = 'top';
+    let position = 'center';
+    let gravity = 'top';
 
     switch(level) {
     case "info":
