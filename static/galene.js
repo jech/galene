@@ -1283,12 +1283,21 @@ let filters = {
                     ctx.canvas.height = src.videoHeight;
                 }
 
+                // set the alpha mask, background is opaque
                 ctx.globalCompositeOperation = 'copy';
-                ctx.filter = `blur(${src.videoWidth / 256}px)`;
+                ctx.filter = 'none';
                 ctx.drawImage(mask, 0, 0);
+
+                // rather than blurring the original image, we first mask
+                // the background then blur, this avoids a halo effect
                 ctx.globalCompositeOperation = 'source-in';
-                ctx.filter = `blur(${src.videoWidth / 48}px)`;
+                ctx.filter = 'none';
                 ctx.drawImage(result.bitmap, 0, 0);
+                ctx.globalCompositeOperation = 'copy';
+                ctx.filter = `blur(${src.videoWidth / 48}px)`;
+                ctx.drawImage(ctx.canvas, 0, 0);
+
+                // now draw the foreground
                 ctx.globalCompositeOperation = 'destination-atop';
                 ctx.filter = 'none';
                 ctx.drawImage(result.bitmap, 0, 0);
