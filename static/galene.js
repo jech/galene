@@ -1189,6 +1189,30 @@ async function setFilter(c) {
 }
 
 /**
+ * Sends a message to a worker, then waits for a reply.
+ *
+ * @param {Worker} worker
+ * @param {any} message
+ * @param {any[]} [transfer]
+ */
+async function workerSendReceive(worker, message, transfer) {
+    let p = new Promise((resolve, reject) => {
+        worker.onmessage = e => {
+            if(e && e.data) {
+                if(e.data instanceof Error)
+                    reject(e.data);
+                else
+                    resolve(e.data);
+            } else {
+                resolve(null);
+            }
+        };
+    });
+    worker.postMessage(message, transfer);
+    return await p
+}
+
+/**
  * @type {Object.<string,filterDefinition>}
  */
 let filters = {
@@ -1242,6 +1266,9 @@ let filters = {
             if(this.userdata.worker)
                 throw new Error("Worker already running (this shouldn't happen)")
             this.userdata.worker = new Worker('/background-blur-worker.js');
+            await workerSendReceive(this.userdata.worker, {
+                model: '/third-party/tasks-vision/models/selfie_segmenter.tflite',
+            });
         },
         cleanup: async function() {
             if(this.userdata.worker.onmessage) {
@@ -1253,23 +1280,10 @@ let filters = {
         draw: async function(src, ctx) {
             let bitmap = await createImageBitmap(src);
             try {
-                let p = new Promise((resolve, reject) => {
-                    this.userdata.worker.onmessage = e => {
-                        if(e && e.data) {
-                            if(e.data instanceof Error)
-                                reject(e.data);
-                            else
-                                resolve(e.data);
-                        } else {
-                            resolve(null);
-                        }
-                    };
-                });
-                this.userdata.worker.postMessage({
+                let result = await workerSendReceive(this.userdata.worker, {
                     bitmap: bitmap,
                     timestamp: performance.now(),
                 }, [bitmap]);
-                let result = await p;
 
                 if(!result)
                     return false;
