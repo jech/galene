@@ -1369,12 +1369,7 @@ async function setUpStream(c, stream) {
 
     c.setStream(stream);
 
-    try {
-        await setFilter(c);
-    } catch(e) {
-        displayWarning("Couldn't set filter: " + e);
-    }
-
+    // set up the handler early, in case setFilter fails.
     c.onclose = async replace => {
         await removeFilter(c);
         if(!replace) {
@@ -1384,6 +1379,8 @@ async function setUpStream(c, stream) {
             delMedia(c.localId);
         }
     }
+
+    await setFilter(c);
 
     /**
      * @param {MediaStreamTrack} t
@@ -1507,10 +1504,20 @@ async function replaceUpStream(c) {
         cn.userdata.onclose = c.userdata.onclose;
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
-    await setUpStream(cn, c.stream);
+    try {
+        await setUpStream(cn, c.stream);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        cn.close();
+        c.close();
+        return null;
+    }
+
     await setMedia(cn,
                    cn.label == 'camera' && getSettings().mirrorView,
                    cn.label == 'video' && media);
+
     return cn;
 }
 
@@ -1611,8 +1618,14 @@ async function addLocalMedia(localId) {
             displayWarning(`Unknown filter ${settings.filter}`);
     }
 
-    await setUpStream(c, stream);
-    await setMedia(c, settings.mirrorView);
+    try {
+        await setUpStream(c, stream);
+        await setMedia(c, settings.mirrorView);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        c.close();
+    }
     setButtonsVisibility();
 }
 
