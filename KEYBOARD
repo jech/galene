@@ -1,0 +1,39 @@
+# Use of the keyboard with Galene
+
+People wich are not able to use a mouse need to have other possibilities.
+
+Some user will use the keyboard in order to navigate to the galene Web
+Interface and will use the Tab Key to select the wanted element and
+other key as arrow up, down, space.
+
+User with visual impairement, may use a screenreader.
+
+For keyboard user we can use the following keys:
+
+- 'u' goto user list 
+- 'c' go to  the chat input box
+- 'r' raise, unraise hand
+- 'm' mute, unmute
+
+
+- Esc close contextual menu, close the setting, close the chat box,
+close the user list
+
+
+For the screenreader user, it is difficult to provide shortcuts, most
+keys or keys combination are reserved from the OS the screenreader and
+the browser.
+
+In order to offer a faster way for selecting the wanted element, we use
+thw header navigation (h1, h2. h3).
+
+- The key 1 will got to the main Title of the page.
+- The key 2 will allow to select one of the area user list, chat box or media area.
+- The key 3 allow to navigate from message to message.
+- The Tab and Esc key work as for the normal keyboard user
+
+Screenreader shall announce the error and warning textes issued by galene,
+this is also implemented.
+
+
+

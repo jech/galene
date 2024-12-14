@@ -1,3 +1,15 @@
+
+button {
+    background: none;
+    border: 0;
+}
+.screenreader {
+    width: 0px;
+    height: 0px;
+    overflow: hidden;
+    margin: 0;
+}
+
 .nav-fixed .topnav {
     z-index: 1039;
 }
@@ -109,7 +121,7 @@
     display: none;
 }
 
-.sidenav .user-logout a {
+.sidenav .user-logout button {
     font-size: 1em;
     padding: 7px 0 0;
     color: #e4157e;
@@ -117,7 +129,7 @@
     line-height: .7;
 }
 
-.sidenav .user-logout a:hover {
+.sidenav .user-logout button:hover {
     color: #ab0659;
 }
 
@@ -269,12 +281,12 @@
 }
 
 .full-width {
-    width: calc(100vw - 200px);
+    /*width: calc(100vw - 200px);*/
     height: calc(var(--vh, 1vh) * 100 - 56px);
 }
 
 .full-width-active {
-    width: 100vw;
+/*    width: 100vw;*/
 }
 
 .container {
@@ -312,7 +324,6 @@
     resize: none;
     overflow: hidden;
     padding: 5px;
-    outline: none;
     border: none;
     text-indent: 5px;
     box-shadow: none;
@@ -440,6 +451,13 @@ textarea.form-reply {
     white-space: pre-wrap;
 }
 
+.message button {
+    margin: 1em;
+    padding: .4em .8em;
+    border-radius: .7em;
+    background: #a1ceff;
+}
+
 .video-container {
     height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;
@@ -467,7 +485,7 @@ textarea.form-reply {
 }
 
 .collapse-video {
-    left: 30px;
+    left: calc(-100vw);
     right: inherit;
 }
 
@@ -518,6 +536,7 @@ textarea.form-reply {
     background: linear-gradient(180deg, rgb(0 0 0 / 20%) 0%, rgb(0 0 0 / 50%) 0%, rgb(0 0 0 / 70%) 100%);
 }
 
+.peer:focus-within > .video-controls, .peer:focus-within > .top-video-controls,
 .peer:hover > .video-controls, .peer:hover > .top-video-controls {
     opacity: 1;
 }
@@ -527,6 +546,10 @@ textarea.form-reply {
     transition: opacity .7s ease-out;
     opacity: 1;
     cursor: pointer;
+}
+
+.peer button i {
+    color: #eaeaea;
 }
 
 .video-controls span:last-child, .top-video-controls span:last-child {
@@ -583,6 +606,7 @@ textarea.form-reply {
     transition: opacity .5s ease-out;
 }
 
+.video-controls .volume:focus-within,
 .video-controls .volume:hover {
     --ov: 1;
     --dv: inline;
@@ -663,7 +687,7 @@ textarea.form-reply {
 }
 
 .nav-cancel, .muted, .nav-cancel label, .muted label {
-    color: #d03e3e
+    color: #d03e3e;
 }
 
 .nav-cancel:hover, .muted:hover, .nav-cancel label:hover, .muted label:hover {
@@ -675,7 +699,7 @@ textarea.form-reply {
     font-size: 25px;
 }
 
-.nav-more {
+#openside .nav-more {
     padding-top: 5px;
     margin-left: 0;
 }
@@ -786,21 +810,25 @@ h1 {
 }
 
 #filterselect {
+    width: 8em;
     text-align-last: center;
     margin-right: 0.4em;
 }
 
 #sendselect {
+    width: 8em;
     text-align-last: center;
     margin-right: 0.4em;
 }
 
 #simulcastselect {
+    width: 8em;
     text-align-last: center;
     margin-right: 0.4em;
 }
 
 #requestselect {
+    width: 8em;
     text-align-last: center;
 }
 
@@ -862,14 +890,6 @@ h1 {
     border: none;
     resize: none;
     overflow-y: hidden;
-}
-
-#input:focus {
-    outline: none;
-}
-
-#inputbutton:focus {
-    outline: none;
 }
 
 #resizer {
@@ -955,7 +975,7 @@ h1 {
     overflow-y: hidden;
 }
 
-.sidenav a {
+.sidenav button {
     padding: 10px 20px;
     text-decoration: none;
     font-size: 30px;
@@ -965,7 +985,11 @@ h1 {
     line-height: 1.0;
 }
 
-.sidenav a:hover {
+.sidenav button:hover {
+    color: #c2a4e0;
+}
+
+.sidenav button:hover {
     color: #c2a4e0;
 }
 
@@ -1111,9 +1135,22 @@ header .collapse:hover {
 }
 
 /* Shrinking the sidebar from 200px to 0px */
+#sidebarnav {
+    display: none;
+    width: 250px;
+}
+
+#sidebarnav[open=true] {
+    display: block;
+}
+
 #left-sidebar.active {
-    min-width: 0;
-    max-width: 0;
+    display: none;
+}
+        
+#left-sidebar:not(.active) {
+    display: block;
+    width:200px;
 }
 
 #left-sidebar .sidebar-header strong {
@@ -1148,17 +1185,23 @@ header .collapse:hover {
     cursor: pointer;
     overflow: hidden;
     white-space: pre;
+    display: block;
+    width: 100%;
+    text-align: left;
 }
 
-#left-sidebar.active #users > div {
+#left-sidebar.active #users > button {
     padding: 10px 5px !important;
 }
 
-#users > div:hover {
+#users > button:hover {
     background-color: #f2f2f2;
 }
+#users > button:focus, #users > button:focus-visible {
+   outline-offset: -2px;
+}
 
-#users > div::before {
+#users > button::before {
     content: "\f111";
     font-family: 'Font Awesome 6 Free';
     color: #20b91e;
@@ -1166,11 +1209,11 @@ header .collapse:hover {
     font-weight: 900;
 }
 
-#users > div.user-status-raisehand::before {
+#users > button.user-status-raisehand::before {
     content: "\f256";
 }
 
-#users > div::after {
+#users > button::after {
     font-family: 'Font Awesome 6 Free';
     color: #808080;
     margin-left: 5px;
@@ -1178,11 +1221,11 @@ header .collapse:hover {
     float: right;
 }
 
-#users > div.user-status-microphone::after {
+#users > button.user-status-microphone::after {
     content: "\f130";
 }
 
-#users > div.user-status-camera::after {
+#users > button.user-status-camera::after {
     content: "\f030";
 }
 
@@ -1231,6 +1274,10 @@ header .collapse:hover {
         display: none;
     }
 
+    .video-on #chat {
+        display: none;
+    }
+
     .video-container {
         position: fixed;
         height: calc(var(--vh, 1vh) * 100 - 56px);
@@ -1261,7 +1308,7 @@ header .collapse:hover {
         flex: 100%;
         width: 100vw;
         /* chat is always visible here */
-        display: block !important;
+        display: block /*!important*/;
     }
 
     .coln-right {
@@ -1273,6 +1320,7 @@ header .collapse:hover {
         width: 100vw;
     }
 
+/*
     #left-sidebar.active {
         min-width: 200px;
         max-width: 200px;
@@ -1282,10 +1330,11 @@ header .collapse:hover {
         min-width: 0;
         max-width: 0;
     }
-
+*/
     /* Reappearing the sidebar on toggle button click */
     #left-sidebar {
         margin-left: 0; 
+        z-index: 1;
     }
 
     #left-sidebar .sidebar-header strong {
@@ -1368,6 +1417,12 @@ header .collapse:hover {
     margin-right: 10px;
 }
 
+.contextualMenu button {
+    outline-offset: 3px;
+    display: inline-block;
+    width: calc(100% - 2em);
+}
+
 #invite-dialog {
     background-color: #eee;
 }
@@ -1394,3 +1449,28 @@ header .collapse:hover {
 .toastify.info .toast-close {
     color: #000;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* wrong preset for some browser! */
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+
+video::-webkit-media-controls-panel {
+  display: none !important;
+}
+
+video::-webkit-media-controls {
+  display: none !important;
+}
+

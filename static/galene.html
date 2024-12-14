@@ -13,71 +13,75 @@
     <link rel="stylesheet" type="text/css" href="/third-party/fontawesome/css/regular.min.css"/>
     <link rel="stylesheet" type="text/css" href="/third-party/toastify/toastify.css"/>
     <link rel="stylesheet" type="text/css" href="/third-party/contextual/contextual.css"/>
+    <script src="/key.js" ></script>
   </head>
 
   <body>
-    <div id="main" class="app">
+    <div id="srSpeak" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+    <main id="main" class="app">
       <div class="row full-height">
-        <nav id="left-sidebar">
+        <nav id="left-sidebar" class="active">
           <div class="users-header">
             <div class="galene-header">Galène</div>
           </div>
-          <div class="header-sep"></div>
+          <h2 class="screenreader">User list</h2>
+          <div rollr="region" class="header-sep"></div>
           <div id="users"></div>
         </nav>
         <div class="container">
           <header>
             <nav class="topnav navbar navbar-expand navbar-light fixed-top">
               <div id="header">
-                <div class="collapse" title="Collapse left panel" id="sidebarCollapse">
+                <button class="collapse" title="Collapse left panel" id="sidebarCollapse" aria-label="Collapse left panel">
                   <i class="fas fa-align-left" aria-hidden="true"></i>
-                </div>
+                </button>
                 <h1 id="title" class="header-title">Galène</h1>
               </div>
 
               <ul class="nav-menu">
                 <li>
-                  <button id="presentbutton" class="invisible btn btn-success">
+                  <button id="presentbutton" class="invisible btn btn-success" aria-label=" Enable">
                     <i class="fas fa-play" aria-hidden="true"></i><span class="nav-text"> Enable</span>
                   </button>
                 </li>
                 <li>
-                  <button id="unpresentbutton" class="invisible btn btn-cancel">
+                  <button id="unpresentbutton" class="invisible btn btn-cancel" aria-label=" Disable">
                     <i class="fas fa-stop" aria-hidden="true"></i><span class="nav-text"> Disable</span>
                   </button>
                 </li>
                 <li>
-                  <div id="mutebutton" class="nav-link nav-button">
+                  <button id="mutebutton" class="nav-link nav-button" aria-label="Mute">
                     <span><i class="fas fa-microphone-slash" aria-hidden="true"></i></span>
                     <label>Mute</label>
-                  </div>
+                  </button>
                 </li>
                 <li>
-                  <div id="sharebutton" class="invisible nav-link nav-button">
+                  <button id="sharebutton" class="invisible nav-link nav-button" aria-label="Share Screen">
                     <span><i class="fas fa-share-square" aria-hidden="true"></i></span>
                     <label>Share Screen</label>
-                  </div>
+                  </button>
                 </li>
                 <li>
-                  <div class="nav-button nav-link nav-more" id="openside">
+                  <button class="nav-button nav-link nav-more" id="openside" title="Open settings" aria-label="Open settings">
                     <span><i class="fas fa-ellipsis-v" aria-hidden="true"></i></span>
-                  </div>
+                  </button>
                 </li>
               </ul>
             </nav>
           </header>
-          <div class="row full-width" id="mainrow">
-            <div class="coln-left" id="left">
-              <div id="chat">
+          <div class="row full-width video-on" id="mainrow">
+            <div class="coln-left invisible" id="left" >
+              <div role="region" id="chat">
+                <h2 class="screenreader">Chat box</h2>
                 <div id="chatbox">
-                  <div class="close-chat" id="close-chat"  title="Hide chat">
+                  <button class="close-chat" id="close-chat"  title="Hide chat" aria-label="Hide chat">
                     <span class="close-icon"></span>
-                  </div>
-                  <div id="box"></div>
+                  </button>
+                  <div id="box" tabindex="0" aria-label="Chat Area"></div>
                   <div class="reply">
                     <form id="inputform">
-                      <textarea id="input" class="form-reply"></textarea>
-                      <input id="inputbutton" type="submit" value="&#10148;" class="btn btn-default"/>
+                      <textarea id="input" class="form-reply" aria-label="Enter message"></textarea>
+                      <input id="inputbutton" type="submit" value="&#10148;" class="btn btn-default" aria-label="Send message"/>
                     </form>
                   </div>
                 </div>
@@ -85,16 +89,16 @@
             </div>
             <div id="resizer"></div>
             <div class="coln-right" id="right">
-              <span class="show-video blink invisible" id="show-video">
+              <button class="show-video blink invisible" id="show-video" aria-label="Show video">
                 <i class="fas fa-exchange-alt" aria-hidden="true"></i>
-              </span>
-              <div class="chat-btn show-chat invisible" id="show-chat">
+              </button>
+              <button class="chat-btn show-chat" id="show-chat" aria-label="Show chat">
                 <i class="far fa-comment-alt icon-chat" title="Show chat"></i>
-              </div>
-              <div class="chat-btn collapse-video invisible" id="collapse-video">
+              </button>
+              <button class="chat-btn collapse-video invisible" id="collapse-video" aria-label="Hide video and show chat">
                 <i class="far fa-comment-alt icon-chat" title="Hide video and show chat"></i>
-              </div>
-              <div class="video-container invisible" id="video-container">
+              </button>
+              <div class="video-container invisible" id="video-container"><h2 class="screenreader">Video area</h2>
                 <div id="expand-video" class="expand-video">
                   <div id="peers"></div>
                 </div>
@@ -142,12 +146,12 @@
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
-    <div id="sidebarnav" class="sidenav">
+    <div id="sidebarnav" class="sidenav" aria-hidden="true">
       <div class="sidenav-header">
         <h2>Settings</h2>
-        <a class="closebtn" id="clodeside"><i class="fas fa-times" aria-hidden="true"></i></a>
+        <button class="closebtn" id="clodeside" title="Close settings" aria-label="Close settings"><i class="fas fa-times"></i>
       </div>
       <div class="sidenav-content" id="optionsdiv">
         <div id="profile" class="profile invisible">
@@ -161,10 +165,10 @@
               <span id="chpwspan" class="invisible"><a id="change-password">Change password</a></span>
             </div>
             <div class="user-logout">
-              <a id="disconnectbutton">
+              <button id="disconnectbutton">
                 <span class="logout-icon"><i class="fas fa-sign-out-alt"></i></span>
                 <span class="logout-text">Logout</span>
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -260,31 +264,35 @@
     <div id="videocontrols-template" class="invisible">
       <div class="video-controls vc-overlay">
         <div class="controls-button controls-left">
-          <span class="video-play" title="Play video">
+          <button class="video-play" title="Play video" aria-label="Play video">
             <i class="fas fa-play"></i>
-          </span>
+          </button>
           <span class="volume" title="Volume">
-            <i class="fas fa-volume-up volume-mute" aria-hidden="true"></i>
-            <input class="volume-slider" type="range" max="100" value="100" min="0" step="5" >
+            <i class="fas fa-volume-up volume-mute"  tabindex="0" role='button'></i>
+            <input class="volume-slider" type="range" max="100" value="100" min="0" step="5" aria-label="Volume slider">
           </span>
         </div>
         <div class="controls-button controls-right">
-          <span class="pip" title="Picture In Picture">
+          <button class="pip" title="Picture In Picture" aria-label="Picture In Picture">
             <i class="far fa-clone" aria-hidden="true"></i>
-          </span>
-          <span class="fullscreen" title="Fullscreen">
+          </button>
+          <button class="fullscreen" title="Fullscreen" aria-label="Fullscreen">
             <i class="fas fa-expand" aria-hidden="true"></i>
-          </span>
+          </button>
         </div>
       </div>
     </div>
     <div id="topvideocontrols-template" class="invisible">
       <div class="top-video-controls">
         <div class="controls-button controls-right">
-          <span class="close-icon video-stop" title="Stop video">
-          </span>
+          <button class="close-icon video-stop" title="Stop video" aria-label="Stop video">
+          </button>
         </div>
       </div>
+    </div>
+    <div class="sr-help invisible"> <!-- help for translation -->
+      <span class='voff'>Muted</span>
+      <span class='von'>On</span>
     </div>
 
     <dialog id="invite-dialog">
