@@ -4279,7 +4279,7 @@ async function start() {
         window.history.replaceState(null, '', window.location.pathname);
     setTitle(groupStatus.displayName || capitalise(group));
 
-    await addFilters();
+    addFilters();
     await setMediaChoices(false);
     reflectSettings();
 
