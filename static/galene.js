@@ -1761,6 +1761,8 @@ function closeUpMedia(label) {
  * @returns {Stream}
  */
 function findUpMedia(label) {
+    if(!serverConnection)
+        return null;
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
         if(c.label === label)
