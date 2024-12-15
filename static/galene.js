@@ -1251,14 +1251,24 @@ let filters = {
     'background-blur': {
         description: 'Background blur',
         predicate: async function() {
+            if(isSafari()) {
+                console.warn(
+                    'Background blur does not work on Safari, disabled.'
+                );
+                return false;
+
+            }
             let r = await fetch('/third-party/tasks-vision/vision_bundle.mjs', {
                 method: 'HEAD',
             });
-            if(!r.ok && r.status !== 404)
-                console.warn(
-                    `Fetch vision_bundle.mjs: ${r.status} ${r.statusText}`,
-                );
-            return r.ok;
+            if(!r.ok) {
+                if(r.status !== 404)
+                    console.warn(
+                        `Fetch vision_bundle.mjs: ${r.status} ${r.statusText}`,
+                    );
+                return false;
+            }
+            return true;
         },
         init: async function(ctx) {
             if(!(this instanceof Filter))
