@@ -1189,6 +1189,30 @@ async function setFilter(c) {
 }
 
 /**
+ * Sends a message to a worker, then waits for a reply.
+ *
+ * @param {Worker} worker
+ * @param {any} message
+ * @param {any[]} [transfer]
+ */
+async function workerSendReceive(worker, message, transfer) {
+    let p = new Promise((resolve, reject) => {
+        worker.onmessage = e => {
+            if(e && e.data) {
+                if(e.data instanceof Error)
+                    reject(e.data);
+                else
+                    resolve(e.data);
+            } else {
+                resolve(null);
+            }
+        };
+    });
+    worker.postMessage(message, transfer);
+    return await p
+}
+
+/**
  * @type {Object.<string,filterDefinition>}
  */
 let filters = {
@@ -1227,14 +1251,24 @@ let filters = {
     'background-blur': {
         description: 'Background blur',
         predicate: async function() {
+            if(isSafari()) {
+                console.warn(
+                    'Background blur does not work on Safari, disabled.'
+                );
+                return false;
+
+            }
             let r = await fetch('/third-party/tasks-vision/vision_bundle.mjs', {
                 method: 'HEAD',
             });
-            if(!r.ok && r.status !== 404)
-                console.warn(
-                    `Fetch vision_bundle.mjs: ${r.status} ${r.statusText}`,
-                );
-            return r.ok;
+            if(!r.ok) {
+                if(r.status !== 404)
+                    console.warn(
+                        `Fetch vision_bundle.mjs: ${r.status} ${r.statusText}`,
+                    );
+                return false;
+            }
+            return true;
         },
         init: async function(ctx) {
             if(!(this instanceof Filter))
@@ -1242,6 +1276,9 @@ let filters = {
             if(this.userdata.worker)
                 throw new Error("Worker already running (this shouldn't happen)")
             this.userdata.worker = new Worker('/background-blur-worker.js');
+            await workerSendReceive(this.userdata.worker, {
+                model: '/third-party/tasks-vision/models/selfie_segmenter.tflite',
+            });
         },
         cleanup: async function() {
             if(this.userdata.worker.onmessage) {
@@ -1253,23 +1290,10 @@ let filters = {
         draw: async function(src, ctx) {
             let bitmap = await createImageBitmap(src);
             try {
-                let p = new Promise((resolve, reject) => {
-                    this.userdata.worker.onmessage = e => {
-                        if(e && e.data) {
-                            if(e.data instanceof Error)
-                                reject(e.data);
-                            else
-                                resolve(e.data);
-                        } else {
-                            resolve(null);
-                        }
-                    };
-                });
-                this.userdata.worker.postMessage({
+                let result = await workerSendReceive(this.userdata.worker, {
                     bitmap: bitmap,
                     timestamp: performance.now(),
                 }, [bitmap]);
-                let result = await p;
 
                 if(!result)
                     return false;
@@ -1369,12 +1393,7 @@ async function setUpStream(c, stream) {
 
     c.setStream(stream);
 
-    try {
-        await setFilter(c);
-    } catch(e) {
-        displayWarning("Couldn't set filter: " + e);
-    }
-
+    // set up the handler early, in case setFilter fails.
     c.onclose = async replace => {
         await removeFilter(c);
         if(!replace) {
@@ -1384,6 +1403,8 @@ async function setUpStream(c, stream) {
             delMedia(c.localId);
         }
     }
+
+    await setFilter(c);
 
     /**
      * @param {MediaStreamTrack} t
@@ -1507,10 +1528,20 @@ async function replaceUpStream(c) {
         cn.userdata.onclose = c.userdata.onclose;
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
-    await setUpStream(cn, c.stream);
+    try {
+        await setUpStream(cn, c.stream);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        cn.close();
+        c.close();
+        return null;
+    }
+
     await setMedia(cn,
                    cn.label == 'camera' && getSettings().mirrorView,
                    cn.label == 'video' && media);
+
     return cn;
 }
 
@@ -1611,8 +1642,14 @@ async function addLocalMedia(localId) {
             displayWarning(`Unknown filter ${settings.filter}`);
     }
 
-    await setUpStream(c, stream);
-    await setMedia(c, settings.mirrorView);
+    try {
+        await setUpStream(c, stream);
+        await setMedia(c, settings.mirrorView);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        c.close();
+    }
     setButtonsVisibility();
 }
 
@@ -1734,6 +1771,8 @@ function closeUpMedia(label) {
  * @returns {Stream}
  */
 function findUpMedia(label) {
+    if(!serverConnection)
+        return null;
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
         if(c.label === label)
@@ -4263,7 +4302,7 @@ async function start() {
         window.history.replaceState(null, '', window.location.pathname);
     setTitle(groupStatus.displayName || capitalise(group));
 
-    await addFilters();
+    addFilters();
     await setMediaChoices(false);
     reflectSettings();
 

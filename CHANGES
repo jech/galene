@@ -1,3 +1,9 @@
+Galene 0.96 (unreleased):
+
+  * Implemented asynchronous filters.
+  * Implemented background blur.
+  * More fixes to RTCP feedback signalling (thanks to Sean DuBois).
+
 4 December 2024: Galene 0.95
 
   * Galene now requires Go 1.20.

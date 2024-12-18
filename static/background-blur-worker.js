@@ -1,18 +1,36 @@
+// Copyright (c) 2024 by Juliusz Chroboczek.
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 'use strict';
 
 let imageSegmenter;
 
-async function loadImageSegmenter() {
+async function loadImageSegmenter(model) {
     let module = await import('/third-party/tasks-vision/vision_bundle.mjs');
-
     let vision = await module.FilesetResolver.forVisionTasks(
         "/third-party/tasks-vision/wasm"
     );
 
-    imageSegmenter =
-        await module.ImageSegmenter.createFromOptions(vision, {
+    return await module.ImageSegmenter.createFromOptions(vision, {
             baseOptions: {
-                modelAssetPath: '/third-party/tasks-vision/models/selfie_segmenter.tflite',
+                modelAssetPath: model,
             },
             outputCategoryMask: true,
             outputConfidenceMasks: false,
@@ -20,19 +38,24 @@ async function loadImageSegmenter() {
         });
 }
 
-loadImageSegmenter();
-
-onmessage = e => {
-    let bitmap = e.data.bitmap;
-    if(!(bitmap instanceof ImageBitmap)) {
-        postMessage(new Error('Bad type for worker data'));
+onmessage = async e => {
+    let data = e.data;
+    if(imageSegmenter == null) {
+        try {
+            imageSegmenter = await loadImageSegmenter(data.model);
+            if(imageSegmenter == null)
+                throw new Error("loadImageSegmenter returned null");
+        } catch(e) {
+            postMessage(e);
+            return;
+        }
+        postMessage(null);
         return;
     }
 
-    if(!imageSegmenter) {
-        // not ready yet
-        bitmap.close();
-        postMessage(null);
+    let bitmap = e.data.bitmap;
+    if(!(bitmap instanceof ImageBitmap)) {
+        postMessage(new Error('Bad type for worker data'));
         return;
     }
 
