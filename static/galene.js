@@ -2455,7 +2455,7 @@ function userMenu(elt) {
  */
 function addUser(id, userinfo) {
     let div = document.getElementById('users');
-    let user = document.createElement('div');
+    let user = document.createElement('button');
     user.id = 'user-' + id;
     user.classList.add("user-p");
     setUserStatus(id, user, userinfo);
