@@ -2078,13 +2078,9 @@ function setVolumeButton(muted, button, slider) {
     if(!muted) {
         button.classList.remove("fa-volume-mute");
         button.classList.add("fa-volume-up");
-        let von = document.querySelector('.sr-help .von').textContent;
-        button.setAttribute("aria-label", von);
     } else {
         button.classList.remove("fa-volume-up");
         button.classList.add("fa-volume-mute");
-        let voff = document.querySelector('.sr-help .voff').textContent;
-        button.setAttribute("aria-label",voff);
     }
 
     if(!(slider instanceof HTMLInputElement))
@@ -2459,7 +2455,6 @@ function userMenu(elt) {
  */
 function addUser(id, userinfo) {
     let div = document.getElementById('users');
-    //let user = document.createElement('div');
     let user = document.createElement('button');
     user.id = 'user-' + id;
     user.classList.add("user-p");
@@ -3170,8 +3165,7 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         }
 
         if(doHeader) {
-//            let header = document.createElement('p');
-            let header = document.createElement('h3');
+            let header = document.createElement('p');
             let user = document.createElement('span');
             let u = dest && serverConnection.users[dest];
             let name = (u && u.username);
@@ -4176,16 +4170,11 @@ document.getElementById('disconnectbutton').onclick = function(e) {
 };
 
 function openNav() {
-    document.getElementById("sidebarnav").setAttribute("open",'true');
-    document.getElementById("sidebarnav").removeAttribute('aria-hidden');
-    document.querySelector('#sidebarnav .closebtn').focus();
+    document.getElementById("sidebarnav").style.width = "250px";
 }
 
 function closeNav() {
-    document.getElementById("sidebarnav").removeAttribute('open');    
-    document.getElementById("sidebarnav").setAttribute("aria-hidden",'true');
-    document.querySelector('#openside').focus();
-
+    document.getElementById("sidebarnav").style.width = "0";
 }
 
 document.getElementById('sidebarCollapse').onclick = function(e) {
@@ -4194,9 +4183,9 @@ document.getElementById('sidebarCollapse').onclick = function(e) {
 };
 
 document.getElementById('openside').onclick = function(e) {
-      //e.preventDefault();
-      let open = document.getElementById("sidebarnav").getAttribute('open');
-      if ( open ) {
+      e.preventDefault();
+      let sidewidth = document.getElementById("sidebarnav").style.width;
+      if (sidewidth !== "0px" && sidewidth !== "") {
           closeNav();
           return;
       } else {
@@ -4215,7 +4204,6 @@ document.getElementById('collapse-video').onclick = function(e) {
     setVisibility('collapse-video', false);
     setVisibility('show-video', true);
     hideVideo(true);
-    document.getElementById('mainrow').classList.remove('video-on');
 };
 
 document.getElementById('show-video').onclick = function(e) {
@@ -4223,7 +4211,6 @@ document.getElementById('show-video').onclick = function(e) {
     setVisibility('video-container', true);
     setVisibility('collapse-video', true);
     setVisibility('show-video', false);
-    document.getElementById('mainrow').classList.add('video-on');
 };
 
 document.getElementById('close-chat').onclick = function(e) {
