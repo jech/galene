@@ -1189,6 +1189,30 @@ async function setFilter(c) {
 }
 
 /**
+ * Sends a message to a worker, then waits for a reply.
+ *
+ * @param {Worker} worker
+ * @param {any} message
+ * @param {any[]} [transfer]
+ */
+async function workerSendReceive(worker, message, transfer) {
+    let p = new Promise((resolve, reject) => {
+        worker.onmessage = e => {
+            if(e && e.data) {
+                if(e.data instanceof Error)
+                    reject(e.data);
+                else
+                    resolve(e.data);
+            } else {
+                resolve(null);
+            }
+        };
+    });
+    worker.postMessage(message, transfer);
+    return await p
+}
+
+/**
  * @type {Object.<string,filterDefinition>}
  */
 let filters = {
@@ -1227,14 +1251,24 @@ let filters = {
     'background-blur': {
         description: 'Background blur',
         predicate: async function() {
+            if(isSafari()) {
+                console.warn(
+                    'Background blur does not work on Safari, disabled.'
+                );
+                return false;
+
+            }
             let r = await fetch('/third-party/tasks-vision/vision_bundle.mjs', {
                 method: 'HEAD',
             });
-            if(!r.ok && r.status !== 404)
-                console.warn(
-                    `Fetch vision_bundle.mjs: ${r.status} ${r.statusText}`,
-                );
-            return r.ok;
+            if(!r.ok) {
+                if(r.status !== 404)
+                    console.warn(
+                        `Fetch vision_bundle.mjs: ${r.status} ${r.statusText}`,
+                    );
+                return false;
+            }
+            return true;
         },
         init: async function(ctx) {
             if(!(this instanceof Filter))
@@ -1242,6 +1276,9 @@ let filters = {
             if(this.userdata.worker)
                 throw new Error("Worker already running (this shouldn't happen)")
             this.userdata.worker = new Worker('/background-blur-worker.js');
+            await workerSendReceive(this.userdata.worker, {
+                model: '/third-party/tasks-vision/models/selfie_segmenter.tflite',
+            });
         },
         cleanup: async function() {
             if(this.userdata.worker.onmessage) {
@@ -1253,23 +1290,10 @@ let filters = {
         draw: async function(src, ctx) {
             let bitmap = await createImageBitmap(src);
             try {
-                let p = new Promise((resolve, reject) => {
-                    this.userdata.worker.onmessage = e => {
-                        if(e && e.data) {
-                            if(e.data instanceof Error)
-                                reject(e.data);
-                            else
-                                resolve(e.data);
-                        } else {
-                            resolve(null);
-                        }
-                    };
-                });
-                this.userdata.worker.postMessage({
+                let result = await workerSendReceive(this.userdata.worker, {
                     bitmap: bitmap,
                     timestamp: performance.now(),
                 }, [bitmap]);
-                let result = await p;
 
                 if(!result)
                     return false;
@@ -1369,12 +1393,7 @@ async function setUpStream(c, stream) {
 
     c.setStream(stream);
 
-    try {
-        await setFilter(c);
-    } catch(e) {
-        displayWarning("Couldn't set filter: " + e);
-    }
-
+    // set up the handler early, in case setFilter fails.
     c.onclose = async replace => {
         await removeFilter(c);
         if(!replace) {
@@ -1384,6 +1403,8 @@ async function setUpStream(c, stream) {
             delMedia(c.localId);
         }
     }
+
+    await setFilter(c);
 
     /**
      * @param {MediaStreamTrack} t
@@ -1507,10 +1528,20 @@ async function replaceUpStream(c) {
         cn.userdata.onclose = c.userdata.onclose;
     let media = /** @type{HTMLVideoElement} */
         (document.getElementById('media-' + c.localId));
-    await setUpStream(cn, c.stream);
+    try {
+        await setUpStream(cn, c.stream);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        cn.close();
+        c.close();
+        return null;
+    }
+
     await setMedia(cn,
                    cn.label == 'camera' && getSettings().mirrorView,
                    cn.label == 'video' && media);
+
     return cn;
 }
 
@@ -1611,8 +1642,14 @@ async function addLocalMedia(localId) {
             displayWarning(`Unknown filter ${settings.filter}`);
     }
 
-    await setUpStream(c, stream);
-    await setMedia(c, settings.mirrorView);
+    try {
+        await setUpStream(c, stream);
+        await setMedia(c, settings.mirrorView);
+    } catch(e) {
+        console.error(e);
+        displayError(e);
+        c.close();
+    }
     setButtonsVisibility();
 }
 
@@ -1734,6 +1771,8 @@ function closeUpMedia(label) {
  * @returns {Stream}
  */
 function findUpMedia(label) {
+    if(!serverConnection)
+        return null;
     for(let id in serverConnection.up) {
         let c = serverConnection.up[id];
         if(c.label === label)
@@ -2039,13 +2078,9 @@ function setVolumeButton(muted, button, slider) {
     if(!muted) {
         button.classList.remove("fa-volume-mute");
         button.classList.add("fa-volume-up");
-        let von = document.querySelector('.sr-help .von').textContent;
-        button.setAttribute("aria-label", von);
     } else {
         button.classList.remove("fa-volume-up");
         button.classList.add("fa-volume-mute");
-        let voff = document.querySelector('.sr-help .voff').textContent;
-        button.setAttribute("aria-label",voff);
     }
 
     if(!(slider instanceof HTMLInputElement))
@@ -2420,7 +2455,6 @@ function userMenu(elt) {
  */
 function addUser(id, userinfo) {
     let div = document.getElementById('users');
-    //let user = document.createElement('div');
     let user = document.createElement('button');
     user.id = 'user-' + id;
     user.classList.add("user-p");
@@ -3131,8 +3165,7 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         }
 
         if(doHeader) {
-//            let header = document.createElement('p');
-            let header = document.createElement('h3');
+            let header = document.createElement('p');
             let user = document.createElement('span');
             let u = dest && serverConnection.users[dest];
             let name = (u && u.username);
@@ -4137,16 +4170,11 @@ document.getElementById('disconnectbutton').onclick = function(e) {
 };
 
 function openNav() {
-    document.getElementById("sidebarnav").setAttribute("open",'true');
-    document.getElementById("sidebarnav").removeAttribute('aria-hidden');
-    document.querySelector('#sidebarnav .closebtn').focus();
+    document.getElementById("sidebarnav").style.width = "250px";
 }
 
 function closeNav() {
-    document.getElementById("sidebarnav").removeAttribute('open');    
-    document.getElementById("sidebarnav").setAttribute("aria-hidden",'true');
-    document.querySelector('#openside').focus();
-
+    document.getElementById("sidebarnav").style.width = "0";
 }
 
 document.getElementById('sidebarCollapse').onclick = function(e) {
@@ -4155,9 +4183,9 @@ document.getElementById('sidebarCollapse').onclick = function(e) {
 };
 
 document.getElementById('openside').onclick = function(e) {
-      //e.preventDefault();
-      let open = document.getElementById("sidebarnav").getAttribute('open');
-      if ( open ) {
+      e.preventDefault();
+      let sidewidth = document.getElementById("sidebarnav").style.width;
+      if (sidewidth !== "0px" && sidewidth !== "") {
           closeNav();
           return;
       } else {
@@ -4176,7 +4204,6 @@ document.getElementById('collapse-video').onclick = function(e) {
     setVisibility('collapse-video', false);
     setVisibility('show-video', true);
     hideVideo(true);
-    document.getElementById('mainrow').classList.remove('video-on');
 };
 
 document.getElementById('show-video').onclick = function(e) {
@@ -4184,7 +4211,6 @@ document.getElementById('show-video').onclick = function(e) {
     setVisibility('video-container', true);
     setVisibility('collapse-video', true);
     setVisibility('show-video', false);
-    document.getElementById('mainrow').classList.add('video-on');
 };
 
 document.getElementById('close-chat').onclick = function(e) {
@@ -4263,7 +4289,7 @@ async function start() {
         window.history.replaceState(null, '', window.location.pathname);
     setTitle(groupStatus.displayName || capitalise(group));
 
-    await addFilters();
+    addFilters();
     await setMediaChoices(false);
     reflectSettings();
 
