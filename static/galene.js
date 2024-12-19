@@ -2221,6 +2221,13 @@ function setMediaStatus(c) {
     } else {
         media.classList.add('media-failed');
     }
+
+    if(!c.up && status === 'failed') {
+        let from = c.username ?
+            `from user ${c.username}` :
+            'from anonymous user';
+        displayWarning(`Cannot receive media ${from}, still trying...`);
+    }
 }
 
 
