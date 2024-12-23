@@ -286,9 +286,9 @@ even Unix passwords).
 
 When password authorisation is used, authorised usernames and password are
 defined directly in the group configuration file, in the `users` and
-`fallback-users` entries.  The `users` entry is a dictionary that maps
-user names to user descriptions; the `fallback-users` is a list of user
-descriptions that are used with usernames that don't appear in `users`.
+`wildcard-user` entries.  The `users` entry is a dictionary that maps user
+names to user descriptions; the `wildcard-user` is a user description
+that is used with usernames that don't appear in `users`.
 
 Every user description is a dictionary with fields `password` and
 `permissions`.  The `password` field may be a literal password string, or
@@ -304,13 +304,12 @@ For example, the entry
     
 specifies that user "jch" may login as operator with password "1234", while
 
-    "fallback-users": [{"password": "1234", "permissions": "present"}]
+    "wildcard-user": {"password": "1234", "permissions": "present"}
     
 allows any username with password *1234*.  Finally,
 
-    "fallback-users": [
+    "wallback-user":
         {"password": {"type": "wildcard"}, "permissions": "present"}
-    ]
     
 allows any username with any password.
 
