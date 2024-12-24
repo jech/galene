@@ -3319,16 +3319,19 @@ function clearChat(id, userId) {
     }
 
     let elts = box.children;
-    for(let i = 0; i < elts.length; i++) {
+    let i = 0;
+    while(i < elts.length) {
         let row = elts.item(i);
-        if(!(row instanceof HTMLDivElement))
-            continue;
-        let div = row.firstChild;
-        console.log(div);
-        if(!(div instanceof HTMLDivElement))
-            continue;
-        if((!id || div.dataset.id === id) && div.dataset.peerId === userId)
-            box.removeChild(row);
+        if(row instanceof HTMLDivElement) {
+            let div = row.firstChild;
+            if(div instanceof HTMLDivElement)
+                if((!id || div.dataset.id === id) &&
+                   div.dataset.peerId === userId) {
+                    box.removeChild(row);
+                    continue;
+                }
+        }
+        i++;
     }
 }
 
