@@ -1,3 +1,9 @@
+button {
+    background: none;
+    border: 0;
+    color: inherit;
+}
+
 .nav-fixed .topnav {
     z-index: 1039;
 }
@@ -109,7 +115,7 @@
     display: none;
 }
 
-.sidenav .user-logout a {
+.sidenav .user-logout button {
     font-size: 1em;
     padding: 7px 0 0;
     color: #e4157e;
@@ -955,7 +961,7 @@ h1 {
     overflow-y: hidden;
 }
 
-.sidenav a {
+.sidenav button {
     padding: 10px 20px;
     text-decoration: none;
     font-size: 30px;
@@ -965,7 +971,7 @@ h1 {
     line-height: 1.0;
 }
 
-.sidenav a:hover {
+.sidenav button:hover {
     color: #c2a4e0;
 }
 
@@ -1148,6 +1154,8 @@ header .collapse:hover {
     cursor: pointer;
     overflow: hidden;
     white-space: pre;
+    width: 100%;
+    text-align: left;
 }
 
 #left-sidebar.active #users > div {
@@ -1158,7 +1166,7 @@ header .collapse:hover {
     background-color: #f2f2f2;
 }
 
-#users > div::before {
+#users > button::before {
     content: "\f111";
     font-family: 'Font Awesome 6 Free';
     color: #20b91e;
@@ -1166,11 +1174,11 @@ header .collapse:hover {
     font-weight: 900;
 }
 
-#users > div.user-status-raisehand::before {
+#users > button.user-status-raisehand::before {
     content: "\f256";
 }
 
-#users > div::after {
+#users > button::after {
     font-family: 'Font Awesome 6 Free';
     color: #808080;
     margin-left: 5px;
@@ -1178,11 +1186,11 @@ header .collapse:hover {
     float: right;
 }
 
-#users > div.user-status-microphone::after {
+#users > button.user-status-microphone::after {
     content: "\f130";
 }
 
-#users > div.user-status-camera::after {
+#users > button.user-status-camera::after {
     content: "\f030";
 }
 
@@ -1300,7 +1308,7 @@ header .collapse:hover {
         display: block;
     }
 
-    .sidenav a {padding: 10px 10px;}
+    .sidenav button {padding: 10px 10px;}
 
     .sidenav-header h2 {
         line-height: 36px;
