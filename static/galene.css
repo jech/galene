@@ -123,7 +123,7 @@ button {
     line-height: .7;
 }
 
-.sidenav .user-logout a:hover {
+.sidenav .user-logout button:hover {
     color: #ab0659;
 }
 
@@ -318,7 +318,6 @@ button {
     resize: none;
     overflow: hidden;
     padding: 5px;
-    outline: none;
     border: none;
     text-indent: 5px;
     box-shadow: none;
@@ -473,7 +472,7 @@ textarea.form-reply {
 }
 
 .collapse-video {
-    left: 30px;
+    left: calc(-100vw);
     right: inherit;
 }
 
@@ -870,14 +869,6 @@ h1 {
     overflow-y: hidden;
 }
 
-#input:focus {
-    outline: none;
-}
-
-#inputbutton:focus {
-    outline: none;
-}
-
 #resizer {
     width: 4px;
     margin-left: -4px;
@@ -951,7 +942,7 @@ h1 {
     position: fixed;
     -webkit-transition: all .2s ease-out;
     transition: all .2s ease-out;
-    width: 0px;
+    width: 250px;
     /* on top of everything */
     z-index: 2999;
     top: 0;
@@ -959,6 +950,10 @@ h1 {
     height: calc(var(--vh, 1vh) * 100);
     overflow-x: hidden;
     overflow-y: hidden;
+
+}
+.sidenav.invisible {
+    display: none;
 }
 
 .sidenav button {
@@ -1118,8 +1113,12 @@ header .collapse:hover {
 
 /* Shrinking the sidebar from 200px to 0px */
 #left-sidebar.active {
-    min-width: 0;
-    max-width: 0;
+    display: none;
+}
+        
+#left-sidebar:not(.active) {
+    display: block;
+    width:200px;
 }
 
 #left-sidebar .sidebar-header strong {
@@ -1154,16 +1153,20 @@ header .collapse:hover {
     cursor: pointer;
     overflow: hidden;
     white-space: pre;
+    display: block;
     width: 100%;
     text-align: left;
 }
 
-#left-sidebar.active #users > div {
+#left-sidebar.active #users > button {
     padding: 10px 5px !important;
 }
 
-#users > div:hover {
+#users > button:hover {
     background-color: #f2f2f2;
+}
+#users > button:focus, #users > button:focus-visible {
+   outline-offset: -2px;
 }
 
 #users > button::before {
