@@ -10,7 +10,7 @@ require (
 	github.com/jech/samplebuilder v0.0.0-20221109182433-6cbba09fc1c9
 	github.com/pion/ice/v2 v2.3.37
 	github.com/pion/rtcp v1.2.15
-	github.com/pion/rtp v1.8.9
+	github.com/pion/rtp v1.8.10
 	github.com/pion/sdp/v3 v3.0.9
 	github.com/pion/turn/v2 v2.1.6
 	github.com/pion/webrtc/v3 v3.3.5
@@ -36,6 +36,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
-	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
