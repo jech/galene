@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/pion/ice/v2"
+	"github.com/pion/interceptor"
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
 
@@ -364,6 +365,7 @@ func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 	if !UseMDNS {
 		s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
 	}
+
 	m := webrtc.MediaEngine{}
 
 	for _, codec := range codecs {
@@ -388,9 +390,12 @@ func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 		webrtc.RTPHeaderExtensionCapability{sdp.SDESRTPStreamIDURI},
 		webrtc.RTPCodecTypeVideo)
 
+	ir := interceptor.Registry{}
+
 	return webrtc.NewAPI(
 		webrtc.WithSettingEngine(s),
 		webrtc.WithMediaEngine(&m),
+		webrtc.WithInterceptorRegistry(&ir),
 	), nil
 }
 
