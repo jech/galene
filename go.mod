@@ -9,6 +9,7 @@ require (
 	github.com/jech/cert v0.0.0-20240301122532-f491cf43a77d
 	github.com/jech/samplebuilder v0.0.0-20221109182433-6cbba09fc1c9
 	github.com/pion/ice/v2 v2.3.37
+	github.com/pion/interceptor v0.1.37
 	github.com/pion/rtcp v1.2.15
 	github.com/pion/rtp v1.8.10
 	github.com/pion/sdp/v3 v3.0.9
@@ -24,7 +25,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/pion/datachannel v1.5.10 // indirect
 	github.com/pion/dtls/v2 v2.2.12 // indirect
-	github.com/pion/interceptor v0.1.37 // indirect
 	github.com/pion/logging v0.2.2 // indirect
 	github.com/pion/mdns v0.0.12 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
