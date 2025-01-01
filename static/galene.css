@@ -1372,6 +1372,38 @@ header .collapse:hover {
     background-color: #eee;
 }
 
+#invite-dialog {
+    border: solid 2px #610a86;
+}
+
+#invite-dialog button {
+    background-color: #3355ff;
+    color: white;
+    border-radius: .5em;
+    padding: .5em;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    margin-right: 2em;
+    display: inline-block;
+    width: 7em;
+}
+
+#invite-dialog button:hover {
+   background-color: #0022ff;
+}
+
+#invite-dialog input {
+    margin-top: 1em;
+    width: 12em;
+    padding: .2em
+}
+
+#invite-dialog label {
+    margin-top: 1em;
+    display: inline-block;
+    width:12em;
+}
+
 /* Style for the toastify  messages shall be within a css file */
 .toastify.error {
     background: linear-gradient(to right, #e20a0a, #df2d2d);
