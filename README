@@ -308,7 +308,7 @@ specifies that user "jch" may login as operator with password "1234", while
     
 allows any username with password *1234*.  Finally,
 
-    "wallback-user":
+    "wildcard-user":
         {"password": {"type": "wildcard"}, "permissions": "present"}
     
 allows any username with any password.
