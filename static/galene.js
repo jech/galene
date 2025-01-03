@@ -621,8 +621,12 @@ getInputElement('hqaudiobox').onchange = function(e) {
 document.getElementById('mutebutton').onclick = function(e) {
     e.preventDefault();
     let localMute = getSettings().localMute;
-    localMute = !localMute;
-    setLocalMute(localMute, true);
+    if (localMute && !findUpMedia('camera')) {
+        displayMessage('Please use Enable to enable your camera or microphone.');
+    } else {
+        localMute = !localMute;
+        setLocalMute(localMute, true);
+    }
 };
 
 document.getElementById('sharebutton').onclick = function(e) {
