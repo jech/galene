@@ -7,6 +7,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/pion/webrtc/v3"
 )
 
 func TestGroup(t *testing.T) {
@@ -346,5 +348,35 @@ func TestValidGroupName(t *testing.T) {
 			t.Errorf("Valid %v: got %v, expected %v",
 				test.name, r, test.result)
 		}
+	}
+}
+
+func TestPayloadTypeDistinct(t *testing.T) {
+	names := []string{
+		"vp8", "vp9", "av1", "h264",
+		"opus", "g722", "pcmu", "pcma",
+	}
+
+	m := make(map[webrtc.PayloadType]string)
+
+	for _, n := range names {
+		codec, err := codecsFromName(n)
+		if err != nil {
+			t.Errorf("%v: %v", n, err)
+			continue
+		}
+		pt, err := CodecPayloadType(codec[0].RTPCodecCapability)
+		if err != nil {
+			t.Errorf("%v: %v", codec, err)
+			continue
+		}
+		if other, ok := m[pt]; ok {
+			t.Errorf(
+				"Duplicate ptype %v: %v and %v",
+				pt, n, other,
+			)
+			continue
+		}
+		m[pt] = n
 	}
 }
