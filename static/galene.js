@@ -20,26 +20,52 @@
 
 'use strict';
 
-/** @type {string} */
+/**
+ * The name of the group that we join.
+ *
+ * @type {string}
+ */
 let group;
 
-/** @type {ServerConnection} */
+/**
+ * The connection to the server.
+ *
+ * @type {ServerConnection}
+ */
 let serverConnection;
 
-/** @type {Object} */
+/**
+ * The group status.  This is set twice, once over HTTP in the start
+ * function in order to obtain the WebSocket address, and a second time
+ * after joining.
+ *
+ * @type {Object}
+ */
 let groupStatus = {};
 
-/** @type {boolean} */
+/**
+ * True if we need to request a password.
+ *
+ * type {boolean}
+ */
 let pwAuth = false;
 
-/** @type {string} */
+/**
+ * The token we use to login.  This is erased as soon as possible.
+ *
+ * @type {string}
+ */
 let token = null;
 
-/** @type {string} */
+/**
+ * The state of the login automaton.
+ *
+ * @type {"probing" | "need-username" | "success"}
+ */
 let probingState = null;
 
 /**
- * @typedef {Object} settings
+ * @typedef {Object} settings - the type of stored settings
  * @property {boolean} [localMute]
  * @property {string} [video]
  * @property {string} [audio]
@@ -57,10 +83,18 @@ let probingState = null;
  * @property {boolean} [forceRelay]
  */
 
-/** @type{settings} */
+/**
+ * fallbackSettings is used to store settings if session storage is not
+ * available.
+ *
+ * @type{settings}
+ */
 let fallbackSettings = null;
 
 /**
+ * Overwrite settings with the parameter.  This uses session storage if
+ * available, and the global variable fallbackSettings otherwise.
+ *
  * @param {settings} settings
  */
 function storeSettings(settings) {
@@ -74,7 +108,8 @@ function storeSettings(settings) {
 }
 
 /**
- * This always returns a dictionary.
+ * Return the current value of stored settings.  This always returns
+ * a dictionary, even when there are no stored settings.
  *
  * @returns {settings}
  */
@@ -92,6 +127,8 @@ function getSettings() {
 }
 
 /**
+ * Update stored settings with the key/value pairs stored in the parameter.
+ *
  * @param {settings} settings
  */
 function updateSettings(settings) {
@@ -102,6 +139,8 @@ function updateSettings(settings) {
 }
 
 /**
+ * Update a single key/value pair in the stored settings.
+ *
  * @param {string} key
  * @param {any} value
  */
@@ -112,6 +151,8 @@ function updateSetting(key, value) {
 }
 
 /**
+ * Remove a single key/value pair from the stored settings.
+ *
  * @param {string} key
  */
 function delSetting(key) {
@@ -123,6 +164,8 @@ function delSetting(key) {
 }
 
 /**
+ * getElementById, then assert that the result is an HTMLSelectElement.
+ *
  * @param {string} id
  */
 function getSelectElement(id) {
@@ -133,6 +176,8 @@ function getSelectElement(id) {
 }
 
 /**
+ * getElementById, then assert that the result is an HTMLInputElement.
+ *
  * @param {string} id
  */
 function getInputElement(id) {
@@ -143,6 +188,8 @@ function getInputElement(id) {
 }
 
 /**
+ * getElementById, then assert that the result is an HTMLButtonElement.
+ *
  * @param {string} id
  */
 function getButtonElement(id) {
@@ -152,6 +199,9 @@ function getButtonElement(id) {
     return elt;
 }
 
+/**
+ * Ensure that the UI reflects the stored settings.
+ */
 function reflectSettings() {
     let settings = getSettings();
     let store = false;
@@ -251,13 +301,18 @@ function reflectSettings() {
         storeSettings(settings);
 }
 
+/**
+ * Returns true if we should use the mobile layout.  This should be kept
+ * in sync with the CSS.
+ */
 function isMobileLayout() {
-    if (window.matchMedia('only screen and (max-width: 1024px)').matches)
-        return true;
-    return false;
+    return !!window.matchMedia('only screen and (max-width: 1024px)').matches
 }
 
 /**
+ * Conditionally hide the video pane.  If force is true, hide it even if
+ * there are videos.
+ *
  * @param {boolean} [force]
  */
 function hideVideo(force) {
@@ -268,6 +323,9 @@ function hideVideo(force) {
     scheduleReconsiderDownRate();
 }
 
+/**
+ * Show the video pane.
+ */
 function showVideo() {
     let hasmedia = document.getElementById('peers').childElementCount > 0;
     if(isMobileLayout()) {
@@ -278,22 +336,35 @@ function showVideo() {
     scheduleReconsiderDownRate();
 }
 
+/**
+ * Returns true if we are running on Safari.
+ */
 function isSafari() {
     let ua = navigator.userAgent.toLowerCase();
     return ua.indexOf('safari') >= 0 && ua.indexOf('chrome') < 0;
 }
 
+/**
+ * Returns true if we are running on Firefox.
+ */
 function isFirefox() {
     let ua = navigator.userAgent.toLowerCase();
     return ua.indexOf('firefox') >= 0;
 }
 
-/** @type {MediaStream} */
+/**
+ * Under Safari, we request access to the camera at startup in order to
+ * enable autoplay.  The camera stream is stored in safariStream.
+ *
+ * @type {MediaStream}
+ */
 let safariStream = null;
 
 /**
-  * @param{boolean} connected
-  */
+ * setConnected is called whenever we connect or disconnect to the server.
+ *
+ * @param{boolean} connected
+ */
 function setConnected(connected) {
     let userbox = document.getElementById('profile');
     let connectionbox = document.getElementById('login-container');
@@ -323,6 +394,8 @@ function setConnected(connected) {
 }
 
 /**
+ * Called when we connect to the server.
+ *
  * @this {ServerConnection}
  */
 async function gotConnected() {
@@ -331,6 +404,8 @@ async function gotConnected() {
 }
 
 /**
+ * Sets the href field of the "change password" link.
+ *
  * @param {string} username
  */
 function setChangePassword(username) {
@@ -348,6 +423,9 @@ function setChangePassword(username) {
     }
 }
 
+/**
+ * Join a group.
+ */
 async function join() {
     let username = getInputElement('username').value.trim();
     let credentials;
@@ -516,6 +594,9 @@ function setVisibility(id, visible) {
         elt.classList.add('invisible');
 }
 
+/**
+ * Shows and hides various UI elements depending on the protocol state.
+ */
 function setButtonsVisibility() {
     let connected = serverConnection && serverConnection.socket;
     let permissions = serverConnection.permissions;
@@ -549,6 +630,8 @@ function setButtonsVisibility() {
 }
 
 /**
+ * Sets the local mute state.  If reflect is true, updates the stored settings.
+ *
  * @param {boolean} mute
  * @param {boolean} [reflect]
  */
@@ -649,7 +732,11 @@ getSelectElement('filterselect').onchange = async function(e) {
     }
 };
 
-/** @returns {number} */
+/**
+ * Returns the desired max video throughput depending on the settings.
+ *
+ * @returns {number}
+ */
 function getMaxVideoThroughput() {
     let v = getSettings().send;
     switch(v) {
@@ -682,6 +769,8 @@ getSelectElement('simulcastselect').onchange = async function(e) {
 };
 
 /**
+ * Maps the state of the receive UI element to a protocol request.
+ *
  * @param {string} what
  * @returns {Object<string,Array<string>>}
  */
@@ -709,6 +798,8 @@ function mapRequest(what) {
 }
 
 /**
+ * Like mapRequest, but for a single label.
+ *
  * @param {string} what
  * @param {string} label
  * @returns {Array<string>}
@@ -836,6 +927,8 @@ function gotDownStats(stats) {
 }
 
 /**
+ * Add an option to an HTMLSelectElement.
+ *
  * @param {HTMLSelectElement} select
  * @param {string} label
  * @param {string} [value]
@@ -864,6 +957,8 @@ function addSelectOption(select, label, value) {
 }
 
 /**
+ * Returns true if an HTMLSelectElement has an option with a given value.
+ *
  * @param {HTMLSelectElement} select
  * @param {string} value
  */
@@ -900,13 +995,20 @@ function selectOptionDefault(select) {
     return '';
 }
 
-/* media names might not be available before we call getDisplayMedia.  So
-   we call this twice, the second time to update the menu with user-readable
-   labels. */
-/** @type {boolean} */
+/**
+  * True if we already went through setMediaChoices twice.
+  *
+  * @type {boolean}
+  */
 let mediaChoicesDone = false;
 
 /**
+ * Populate the media choices menu.
+ *
+ * Since media names might not be available before we call
+ * getDisplayMedia, we call this function twice, the second time in order
+ * to update the menu with user-readable labels.
+ *
  * @param{boolean} done
  */
 async function setMediaChoices(done) {
