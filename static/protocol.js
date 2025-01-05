@@ -1573,6 +1573,9 @@ Stream.prototype.setStatsInterval = function(ms) {
     }, ms);
 };
 
+/**
+ * @typedef {"" | "inviting" | "connecting" | "connected" | "done" | "cancelled" | "closed"} TransferredFileState
+ */
 
 /**
  * A file in the process of being transferred.
@@ -1703,7 +1706,7 @@ function TransferredFile(sc, userid, id, up, username, name, mimetype, size) {
      * in order to display a progress bar.  Call this.cancel in order
      * to cancel the transfer.
      *
-     * @type {(this: TransferredFile, type: string, [data]: string) => void}
+     * @type {(this: TransferredFile, state: TransferredFileState, [data]: string) => void}
      */
     this.onevent = null;
 }
@@ -1799,7 +1802,7 @@ TransferredFile.prototype.getBufferedData = function() {
  * This calls the callback even if the state didn't change, which is
  * useful if the client needs to display a progress bar.
  *
- * @param {string} state
+ * @param {TransferredFileState} state
  * @param {any} [data]
  */
 TransferredFile.prototype.event = function(state, data) {
