@@ -332,7 +332,7 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 	case "pcma":
 		codecs = []webrtc.RTPCodecCapability{
 			{
-				"audio/PCMU", 8000, 1,
+				"audio/PCMA", 8000, 1,
 				"",
 				AudioRTCPFeedback,
 			},
