@@ -1,3 +1,8 @@
+Galene 0.96.1 (unreleased)
+
+  * Disable the unmute button before presenting.  Thanks to Sacha Chua.
+  * Fix PCMA audio (don't ask).
+
 1 January 2025: Galene 0.96
 
   * Implemented asynchronous filters.
