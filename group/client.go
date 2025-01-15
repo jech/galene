@@ -3,6 +3,7 @@ package group
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,15 @@ type RawPassword struct {
 
 type Password RawPassword
 
+// constantTimeCompare compares a and b in time proportional to the length of a.
+func constantTimeCompare(a, b string) bool {
+	as := []byte(a)
+	bs := make([]byte, len(as))
+	copy(bs, a)
+	equal := subtle.ConstantTimeCompare(as, bs) == 1
+	return len(a) == len(b) && equal
+}
+
 func (p Password) Match(pw string) (bool, error) {
 	switch p.Type {
 	case "":
@@ -33,7 +43,7 @@ func (p Password) Match(pw string) (bool, error) {
 		if p.Key == nil {
 			return false, errors.New("missing key")
 		}
-		return *p.Key == pw, nil
+		return constantTimeCompare(pw, *p.Key), nil
 	case "wildcard":
 		return true, nil
 	case "pbkdf2":
