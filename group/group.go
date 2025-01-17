@@ -1018,8 +1018,22 @@ func (g *Group) userExists(username string) bool {
 	return found
 }
 
+//validUsername returns true if a string is a valid username.
+// On the one hand, we want to allow usernames such as "jch@work"
+// or "Alice c/o Bob".  On the other hand, not restricting
+// usernames might lead to security vulnaribilities.
+// For now, we just do the minimal validation that avoids path traversal.
+func validUsername(username string) bool {
+	return validGroupName(username)
+}
+
 // called locked
 func (g *Group) getPermission(creds ClientCredentials) (string, []string, error) {
+	if creds.Username != nil && !validUsername(*creds.Username) {
+		return "", nil, &NotAuthorisedError{
+			errors.New("invalid username"),
+		}
+	}
 	desc := g.description
 	var username string
 	var perms []string
