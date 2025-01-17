@@ -338,6 +338,7 @@ func TestValidGroupName(t *testing.T) {
 		{"foo/..", false},
 		{"foo/./bar", false},
 		{"foo/../bar", false},
+		{"foo\\bar", false},
 		{"foo", true},
 		{"foo/bar", true},
 	}

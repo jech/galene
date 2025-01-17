@@ -420,9 +420,13 @@ func Add(name string, desc *Description) (*Group, error) {
 }
 
 func validGroupName(name string) bool {
-	if filepath.Separator != '/' &&
-		strings.ContainsRune(name, filepath.Separator) {
+	if strings.ContainsRune(name, '\\') {
 		return false
+	}
+	if s := filepath.Separator; s != '/' && s != '\\' {
+		if strings.ContainsRune(name, s) {
+			return false
+		}
 	}
 
 	s := path.Clean("/" + name)
