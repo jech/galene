@@ -2,6 +2,15 @@ Galene 0.96.1 (unreleased)
 
   * Disable the unmute button before presenting.  Thanks to Sacha Chua.
   * Fix PCMA audio (don't ask).
+  * Update fontawesome to version 6.7.2.
+  * Ensure cleartext passwords are veryfied in constant time.
+  * Avoid path traversal in disk writer.
+  * Forbid backslashes in group names on all systesm (we used to only
+    forbid them on Windows).  This is an incompatible change.
+  * Minor restrictions on usernames: forbid usernames starting with
+    a slash, forbid usernames containing the string "/.", and forbid
+    backslashes.  This is an incompatible change.
+  * Remove "data:" from allowed image sources in CSP header.
 
 1 January 2025: Galene 0.96
 
