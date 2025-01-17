@@ -94,7 +94,7 @@ func cspHeader(w http.ResponseWriter, connect string) {
 		c = "connect-src " + connect + " ws: wss: 'self'; "
 	}
 	w.Header().Add("Content-Security-Policy",
-		c+"img-src data: 'self'; media-src blob: 'self'; script-src 'unsafe-eval' 'self'; default-src 'self'")
+		c+"img-src 'self'; media-src blob: 'self'; script-src 'unsafe-eval' 'self'; default-src 'self'")
 
 	// Make browser stop sending referrer information
 	w.Header().Add("Referrer-Policy", "no-referrer")
