@@ -1,10 +1,16 @@
 package group
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"log"
 	"reflect"
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 var key1 = ""
@@ -109,29 +115,43 @@ func TestJSON(t *testing.T) {
 	}
 }
 
-func BenchmarkPlain(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		match, err := pw2.Match("bad")
-		if err != nil || match {
-			b.Errorf("pw2 matched")
-		}
-	}
-}
-
 func BenchmarkPBKDF2(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		match, err := pw3.Match("bad")
-		if err != nil || match {
-			b.Errorf("pw3 matched")
-		}
+	for iters := 1024; iters <= 1024*1024; iters *= 2 {
+		b.Run(fmt.Sprintf("%d", iters), func(b *testing.B) {
+			pw := []byte("Password1234")
+			salt := make([]byte, 8)
+			for i := range salt {
+				salt[i] = byte(i)
+			}
+			key := pbkdf2.Key(pw, salt, iters, 32, sha256.New)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				k := pbkdf2.Key(pw, salt, iters, 32, sha256.New)
+				if bytes.Compare(key, k) != 0 {
+					b.Errorf("Key compare: mismatch")
+				}
+			}
+		})
 	}
 }
 
 func BenchmarkBCrypt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		match, err := pw4.Match("bad")
-		if err != nil || match {
-			b.Errorf("pw3 matched")
-		}
+	for cost := 4; cost <= 15; cost++ {
+		b.Run(fmt.Sprintf("%d", cost), func(b *testing.B) {
+			pw := []byte("Password1234")
+			key, err := bcrypt.GenerateFromPassword(pw, cost)
+			if err != nil {
+				b.Fatalf("GenerateFromPassword: %v", err)
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				err := bcrypt.CompareHashAndPassword(key, pw)
+				if err != nil {
+					b.Errorf(
+						"CompareHashAndPassword: %v", err,
+					)
+				}
+			}
+		})
 	}
 }
