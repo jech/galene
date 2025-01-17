@@ -243,6 +243,17 @@ func (conn *diskConn) Close() error {
 	return nil
 }
 
+var replacer = strings.NewReplacer(
+	"/", "-slash-",
+	"\\", "-backslash-",
+)
+
+// sanitise sanitises a string so it can be safely used in a filename
+// It does not need to be injective, since we check for filename collisions.
+func sanitise(s string) string {
+	return replacer.Replace(s)
+}
+
 func openDiskFile(directory, username, extension string) (*os.File, error) {
 	filenameFormat := "2006-01-02T15:04:05.000"
 	if runtime.GOOS == "windows" {
@@ -251,7 +262,7 @@ func openDiskFile(directory, username, extension string) (*os.File, error) {
 
 	filename := time.Now().Format(filenameFormat)
 	if username != "" {
-		filename = filename + "-" + username
+		filename = filename + "-" + sanitise(username)
 	}
 	for counter := 0; counter < 100; counter++ {
 		var fn string

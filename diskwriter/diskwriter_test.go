@@ -7,6 +7,22 @@ import (
 	"github.com/jech/galene/rtptime"
 )
 
+func TestSanitise(t *testing.T) {
+	tests := []struct{ a, b string }{
+		{"Alas", "Alas"},
+		{", poor Horatio", ", poor Horatio"},
+		{"I/knew\\him/well", "I-slash-knew-backslash-him-slash-well"},
+	}
+
+	for _, tt := range tests {
+		c := sanitise(tt.a)
+		if c != tt.b {
+			t.Errorf("sanitise(%v): got %v, expected %v",
+				tt.a, c, tt.b)
+		}
+	}
+}
+
 func TestAdjustOriginLocalNow(t *testing.T) {
 	now := time.Now()
 
