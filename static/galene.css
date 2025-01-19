@@ -679,6 +679,15 @@ textarea.form-reply {
     margin-left: 0;
 }
 
+.nav-more svg {
+    height: 26px;
+    fill: #dbd9d9;
+}
+
+.nav-more:hover svg {
+    fill: #c2a4e0;
+}
+
 .header-title {
     float: left;
     margin: 0;
