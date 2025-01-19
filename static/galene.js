@@ -1341,13 +1341,6 @@ let filters = {
     'background-blur': {
         description: 'Background blur',
         predicate: async function() {
-            if(isSafari()) {
-                console.warn(
-                    'Background blur does not work on Safari, disabled.'
-                );
-                return false;
-
-            }
             let r = await fetch('/third-party/tasks-vision/vision_bundle.mjs', {
                 method: 'HEAD',
             });
@@ -1399,21 +1392,48 @@ let filters = {
 
                 // set the alpha mask, background is opaque
                 ctx.globalCompositeOperation = 'copy';
-                ctx.filter = 'none';
                 ctx.drawImage(mask, 0, 0);
 
                 // rather than blurring the original image, we first mask
                 // the background then blur, this avoids a halo effect
                 ctx.globalCompositeOperation = 'source-in';
-                ctx.filter = 'none';
                 ctx.drawImage(result.bitmap, 0, 0);
-                ctx.globalCompositeOperation = 'copy';
-                ctx.filter = `blur(${src.videoWidth / 48}px)`;
-                ctx.drawImage(ctx.canvas, 0, 0);
+		if('filter' in ctx) {
+                    ctx.globalCompositeOperation = 'copy';
+                    ctx.filter = `blur(${src.videoWidth / 48}px)`;
+                    ctx.drawImage(ctx.canvas, 0, 0);
+                    ctx.filter = 'none';
+		} else {
+		    // Safari bug 198416, context.filter is not supported.
+		    let scale = 24;
+		    let swidth = src.videoWidth / scale;
+		    let sheight = src.videoHeight / scale;
+		    if(!('canvas' in this.userdata))
+			this.userdata.canvas = document.createElement('canvas');
+		    let c2 = this.userdata.canvas;
+		    if(c2.width != swidth)
+			c2.width = swidth;
+		    if(c2.height != sheight)
+			c2.height = sheight;
+		    let ctx2 = c2.getContext('2d');
+		    // scale down the background
+		    ctx2.globalCompositeOperation = 'copy';
+		    ctx2.drawImage(ctx.canvas,
+				   0, 0, src.videoWidth, src.videoHeight,
+				   0, 0, swidth, sheight,
+				  );
+		    // scale back up, composite atop the original background
+		    ctx.globalCompositeOperation = 'source-atop';
+		    ctx.drawImage(ctx2.canvas,
+				  0, 0,
+				  src.videoWidth / scale,
+				  src.videoHeight / scale,
+				  0, 0, src.videoWidth, src.videoHeight,
+				 );
+		}
 
-                // now draw the foreground
+		// now draw the foreground
                 ctx.globalCompositeOperation = 'destination-atop';
-                ctx.filter = 'none';
                 ctx.drawImage(result.bitmap, 0, 0);
                 ctx.globalCompositeOperation = 'source-over';
 
