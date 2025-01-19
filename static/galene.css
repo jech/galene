@@ -1086,14 +1086,18 @@ legend {
 
 header .collapse {
     cursor: pointer;
-    font-size: 20px;
-    color: #dbd9d9;
     margin-right: 20px;
     margin-left: 5px;
+    width: 18px;
+    height: 22px;
 }
 
-header .collapse:hover {
-    color: #c2a4e0;
+header .collapse svg {
+    fill: #dbd9d9;
+}
+
+header .collapse:hover svg {
+    fill: #c2a4e0;
 }
 
 .galene-header {
