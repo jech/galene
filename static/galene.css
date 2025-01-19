@@ -128,7 +128,6 @@
     -webkit-box-align: center;
     align-items: center;
     -webkit-box-pack: justify;
-    justify-content: space-between;
     background: #610a86;
 }
 .navbar {
@@ -690,7 +689,7 @@ textarea.form-reply {
 }
 
 #title {
-    text-align: center;
+    flex-grow: 1;
 }
 
 h1 {
@@ -1086,8 +1085,6 @@ legend {
 }
 
 header .collapse {
-    float: left;
-    text-align: center;
     cursor: pointer;
     font-size: 20px;
     color: #dbd9d9;
