@@ -9,6 +9,7 @@ import (
 	"errors"
 	"hash"
 	"net"
+	"runtime"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
@@ -25,6 +26,10 @@ type RawPassword struct {
 }
 
 type Password RawPassword
+
+// limit the number of concurrent hashing operations.  This avoids running
+// out of memory when doing too many BCrypt hashes at the same time.
+var hashSemaphore = make(chan struct{}, runtime.GOMAXPROCS(-1))
 
 // constantTimeCompare compares a and b in time proportional to the length of a.
 func constantTimeCompare(a, b string) bool {
@@ -65,6 +70,10 @@ func (p Password) Match(pw string) (bool, error) {
 		default:
 			return false, errors.New("unknown hash type")
 		}
+		hashSemaphore <- struct{}{}
+		defer func() {
+			<-hashSemaphore
+		}()
 		theirKey := pbkdf2.Key(
 			[]byte(pw), salt, p.Iterations, len(key), h,
 		)
@@ -73,6 +82,10 @@ func (p Password) Match(pw string) (bool, error) {
 		if p.Key == nil {
 			return false, errors.New("missing key")
 		}
+		hashSemaphore <- struct{}{}
+		defer func() {
+			<-hashSemaphore
+		}()
 		err := bcrypt.CompareHashAndPassword([]byte(*p.Key), []byte(pw))
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			return false, nil
