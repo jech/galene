@@ -2,9 +2,7 @@ package webserver
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/stats"
@@ -407,21 +405,16 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string, wil
 		if done {
 			return
 		}
-		salt := make([]byte, 8)
-		_, err := rand.Read(salt)
+		key, err := bcrypt.GenerateFromPassword(body, 8)
 		if err != nil {
 			httpError(w, err)
 			return
 		}
-		iterations := 4096
-		key := pbkdf2.Key(body, salt, iterations, 32, sha256.New)
-		encoded := hex.EncodeToString(key)
+
+		k := string(key)
 		pw := group.Password{
-			Type:       "pbkdf2",
-			Hash:       "sha-256",
-			Key:        &encoded,
-			Salt:       hex.EncodeToString(salt),
-			Iterations: iterations,
+			Type: "bcrypt",
+			Key:  &k,
 		}
 		err = group.SetUserPassword(g, user, wildcard, pw)
 		if err != nil {

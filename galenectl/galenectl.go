@@ -280,12 +280,11 @@ func hashPasswordCmd(cmdname string, args []string) {
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&password, "password", "", "new `password`")
-	cmd.StringVar(&algorithm, "type", "pbkdf2",
+	cmd.StringVar(&algorithm, "type", "bcrypt",
 		"password `type`")
 	cmd.IntVar(&iterations, "iterations", 4096,
 		"`number` of iterations (pbkdf2)")
-	cmd.IntVar(&cost, "cost", bcrypt.DefaultCost,
-		"`cost` (bcrypt)")
+	cmd.IntVar(&cost, "cost", 8, "`cost` (bcrypt)")
 	cmd.IntVar(&length, "key", 32, "key `length` (pbkdf2)")
 	cmd.IntVar(&saltlen, "salt", 8, "salt `length` (pbkdf2)")
 	cmd.Parse(args)

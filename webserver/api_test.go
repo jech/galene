@@ -241,7 +241,7 @@ func TestApi(t *testing.T) {
 		t.Errorf("Users: %#v", desc.Users)
 	}
 
-	if desc.Users["jch"].Password.Type != "pbkdf2" {
+	if desc.Users["jch"].Password.Type != "bcrypt" {
 		t.Errorf("Password.Type: %v", desc.Users["jch"].Password.Type)
 	}
 
