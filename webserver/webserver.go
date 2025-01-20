@@ -57,6 +57,7 @@ func Serve(address string, dataDir string) error {
 			filepath.Join(dataDir, "key.pem"),
 		)
 		s.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				return certificate.Get()
 			},
