@@ -480,11 +480,11 @@ func setPasswordCmd(cmdname string, args []string) {
 	cmd.StringVar(&username, "user", "", "user `name`")
 	cmd.BoolVar(&wildcard, "wildcard", false, "set wildcard user's password")
 	cmd.StringVar(&password, "password", "", "new `password`")
-	cmd.StringVar(&algorithm, "type", "pbkdf2",
+	cmd.StringVar(&algorithm, "type", "bcrypt",
 		"password `type`")
 	cmd.IntVar(&iterations, "iterations", 4096,
 		"`number` of iterations (pbkdf2)")
-	cmd.IntVar(&cost, "cost", bcrypt.DefaultCost,
+	cmd.IntVar(&cost, "cost", 8,
 		"`cost` (bcrypt)")
 	cmd.IntVar(&length, "key", 32, "key `length` (pbkdf2)")
 	cmd.IntVar(&saltlen, "salt", 8, "salt `length` (pbkdf2)")
