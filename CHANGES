@@ -3,6 +3,7 @@
   * Fix a bug, introduced in 0.96.1, that could cause plaintext passwords
     to be erroneously accepted even when incorrect.
   * Implement background blur on Safari.
+  * Set the minimum TLS version to 1.2.
   * Change the default hashing algorithm to bcrypt.  We use a cost of 8 in
     order to keep hashing times under 25ms, even though 10 is currently
     the recommended minimum.
