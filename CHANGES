@@ -1,3 +1,15 @@
+21 January 2025: Galene 0.96.2
+
+  * Fix a bug, introduced in 0.96.1, that could cause plaintext passwords
+    to be erroneously accepted even when incorrect.
+  * Implement background blur on Safari.
+  * Change the default hashing algorithm to bcrypt.  We use a cost of 8 in
+    order to keep hashing times under 25ms, even though 10 is currently
+    the recommended minimum.
+  * Limit the number of concurrent password hashing operations to the
+    number of CPUs.  This avoids using excessive memory when many users
+    log in at the same time.
+
 18 January 2025: Galene 0.96.1
 
   * Avoid path traversal in disk writer.
