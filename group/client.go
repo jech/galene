@@ -35,7 +35,7 @@ var hashSemaphore = make(chan struct{}, runtime.GOMAXPROCS(-1))
 func constantTimeCompare(a, b string) bool {
 	as := []byte(a)
 	bs := make([]byte, len(as))
-	copy(bs, a)
+	copy(bs, b)
 	equal := subtle.ConstantTimeCompare(as, bs) == 1
 	return len(a) == len(b) && equal
 }

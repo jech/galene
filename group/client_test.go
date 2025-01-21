@@ -58,7 +58,10 @@ func TestGood(t *testing.T) {
 
 func TestBad(t *testing.T) {
 	if match, err := pw2.Match("bad"); err != nil || match {
-		t.Errorf("pw2 matches")
+		t.Errorf("pw2 matches bad")
+	}
+	if match, err := pw2.Match("bad1"); err != nil || match {
+		t.Errorf("pw2 matches bad1")
 	}
 	if match, err := pw3.Match("bad"); err != nil || match {
 		t.Errorf("pw3 matches")
