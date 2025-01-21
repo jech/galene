@@ -13,10 +13,11 @@ import (
 
 func TestConstantTimeCompare(t *testing.T) {
 	tests := []struct {
-		a, b        string
+		a, b string
 	}{
 		{"", ""},
 		{"a", "a"},
+		{"a", "b"},
 		{"foo", "foo"},
 		{"foo", "bar"},
 		{"foo", "foo1"},
