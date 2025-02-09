@@ -1029,11 +1029,6 @@ func validUsername(username string) bool {
 
 // called locked
 func (g *Group) getPermission(creds ClientCredentials) (string, []string, error) {
-	if creds.Username != nil && !validUsername(*creds.Username) {
-		return "", nil, &NotAuthorisedError{
-			errors.New("invalid username"),
-		}
-	}
 	desc := g.description
 	var username string
 	var perms []string
@@ -1068,6 +1063,12 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 		perms = ps.Permissions(desc)
 	} else {
 		return "", nil, errors.New("neither username nor token provided")
+	}
+
+	if !validUsername(username) {
+		return "", nil, &NotAuthorisedError{
+			errors.New("invalid username"),
+		}
 	}
 
 	return username, perms, nil
