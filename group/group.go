@@ -1024,7 +1024,7 @@ func (g *Group) userExists(username string) bool {
 // usernames might lead to security vulnaribilities.
 // For now, we just do the minimal validation that avoids path traversal.
 func validUsername(username string) bool {
-	return validGroupName(username)
+	return username == "" || validGroupName(username)
 }
 
 // called locked
