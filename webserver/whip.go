@@ -346,12 +346,26 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, _, candidates, err := parseSDPFrag(
+	ufrag, pwd, candidates, err := parseSDPFrag(
 		http.MaxBytesReader(w, r.Body, sdpLimit),
 	)
 	if err != nil {
 		log.Printf("WHIP trickle ICE: %v", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	u, p, err := c.UFragPwd()
+	if err != nil {
+		log.Printf("WHIP UfragPwd: %v", err)
+		http.Error(w, "internal server error",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+	if u != ufrag || p != pwd {
+		http.Error(w, "ICE restarts are not supported yet",
+			http.StatusUnprocessableEntity,
+		)
 		return
 	}
 	for _, init := range candidates {

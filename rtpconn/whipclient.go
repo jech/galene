@@ -165,6 +165,28 @@ func (c *WhipClient) GotOffer(ctx context.Context, offer []byte) ([]byte, error)
 	return c.gotOffer(ctx, offer)
 }
 
+func (c *WhipClient) UFragPwd() (string, string, error) {
+	c.mu.Lock()
+	conn := c.connection
+	c.mu.Unlock()
+	if conn == nil {
+		return "", "", errors.New("no connection in WHIP client")
+	}
+
+	rs := conn.pc.GetReceivers()
+	if len(rs) < 1 {
+		return "", "", errors.New("no receivers in PeerConnection")
+	}
+
+	parms, err := rs[0].Transport().ICETransport().GetRemoteParameters()
+	if err != nil {
+		return "", "", err
+	}
+
+	return parms.UsernameFragment, parms.Password, nil
+
+}
+
 // called locked
 func (c *WhipClient) gotOffer(ctx context.Context, offer []byte) ([]byte, error) {
 	conn := c.connection
