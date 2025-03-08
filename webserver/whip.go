@@ -346,27 +346,36 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = parseSDPFrag(
+	_, _, candidates, err := parseSDPFrag(
 		http.MaxBytesReader(w, r.Body, sdpLimit),
-		c.GotICECandidate,
 	)
 	if err != nil {
 		log.Printf("WHIP trickle ICE: %v", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	for _, init := range candidates {
+		err := c.GotICECandidate(init)
+		if err != nil {
+			log.Printf("WHIP candidate: %v", err)
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // RFC 8840
-func parseSDPFrag(r io.Reader, f func(webrtc.ICECandidateInit) error) error {
+func parseSDPFrag(r io.Reader) (string, string, []webrtc.ICECandidateInit, error) {
 	scanner := bufio.NewScanner(r)
 	mLineIndex := -1
-	var mid, ufrag []byte
+	var mid, ufrag, pwd []byte
+	var candidates []webrtc.ICECandidateInit
 	for scanner.Scan() {
 		l := scanner.Bytes()
 		if bytes.HasPrefix(l, []byte("a=ice-ufrag:")) {
 			ufrag = l[len("a=ice-ufrag:"):]
+		} else if bytes.HasPrefix(l, []byte("a=ice-pwd:")) {
+			pwd = l[len("a=ice-pwd:"):]
 		} else if bytes.HasPrefix(l, []byte("m=")) {
 			mLineIndex++
 			mid = nil
@@ -388,11 +397,8 @@ func parseSDPFrag(r io.Reader, f func(webrtc.ICECandidateInit) error) error {
 				s := string(ufrag)
 				init.UsernameFragment = &s
 			}
-			err := f(init)
-			if err != nil {
-				log.Printf("WHIP candidate: %v", err)
-			}
+			candidates = append(candidates, init)
 		}
 	}
-	return nil
+	return string(ufrag), string(pwd), candidates, nil
 }
