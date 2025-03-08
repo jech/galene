@@ -243,6 +243,8 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c.SetETag("\"" + newId() + "\"")
+
 	answer, err := c.NewConnection(r.Context(), body)
 	if err != nil {
 		group.DelClient(c)
@@ -253,9 +255,10 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Location", path.Join(r.URL.Path, obfuscated))
 	w.Header().Set("Access-Control-Expose-Headers",
-		"Location, Content-Type, Link")
+		"Location, Content-Type, Link, ETag")
 	whipICEServers(w)
 	w.Header().Set("Content-Type", "application/sdp")
+	w.Header().Set("ETag", c.ETag())
 	w.WriteHeader(http.StatusCreated)
 	w.Write(answer)
 
@@ -322,12 +325,16 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 			"OPTIONS, DELETE, PATCH",
 		)
 		w.Header().Set("Access-Control-Allow-Headers",
-			"Authorization, Content-Type",
+			"Authorization, Content-Type, If-Match, If-None-Match",
 		)
 		return
 	}
 
 	if r.Method == "DELETE" {
+		done := checkPreconditions(w, r, c.ETag())
+		if done {
+			return
+		}
 		c.Close()
 		return
 	}
@@ -336,6 +343,11 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, "OPTIONS", "DELETE", "PATCH")
 		return
 
+	}
+
+	done := checkPreconditions(w, r, c.ETag())
+	if done {
+		return
 	}
 
 	ctype := r.Header.Get("content-type")

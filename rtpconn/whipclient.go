@@ -21,6 +21,7 @@ type WhipClient struct {
 	mu          sync.Mutex
 	permissions []string
 	connection  *rtpUpConnection
+	etag        string
 }
 
 func NewWhipClient(g *group.Group, id string, token string, addr net.Addr) *WhipClient {
@@ -65,6 +66,18 @@ func (c *WhipClient) SetPermissions(perms []string) {
 
 func (c *WhipClient) Data() map[string]interface{} {
 	return nil
+}
+
+func (c *WhipClient) ETag() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.etag
+}
+
+func (c *WhipClient) SetETag(etag string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.etag = etag
 }
 
 func (c *WhipClient) PushConn(g *group.Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error {
