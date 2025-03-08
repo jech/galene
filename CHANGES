@@ -1,3 +1,10 @@
+Galene 0.96.3 (unreleased)
+
+  * Change username validation to validate the effectively used username,
+    which is not necessarily the same as the one typed by the user.
+    Thanks to K900.
+  * Allow empty usernames again, they were mistakenly disallowed in 0.96.1.
+
 21 January 2025: Galene 0.96.2
 
   * Fix a bug, introduced in 0.96.1, that could cause plaintext passwords
