@@ -1,8 +1,6 @@
 package webserver
 
 import (
-	"bufio"
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	crand "crypto/rand"
@@ -22,6 +20,7 @@ import (
 	"github.com/jech/galene/group"
 	"github.com/jech/galene/ice"
 	"github.com/jech/galene/rtpconn"
+	"github.com/jech/galene/sdpfrag"
 )
 
 var idSecret []byte
@@ -358,9 +357,15 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ufrag, pwd, candidates, err := parseSDPFrag(
-		http.MaxBytesReader(w, r.Body, sdpLimit),
-	)
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, sdpLimit))
+	if err != nil {
+		http.Error(w, "internal server error",
+			http.StatusInternalServerError)
+		return
+	}
+
+	var frag sdpfrag.SDPFrag
+	err = frag.Unmarshal(data)
 	if err != nil {
 		log.Printf("WHIP trickle ICE: %v", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -374,57 +379,18 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	if u != ufrag || p != pwd {
+	uu, pp := frag.UFragPwd()
+	if uu != u || pp != p {
 		http.Error(w, "ICE restarts are not supported yet",
 			http.StatusUnprocessableEntity,
 		)
 		return
 	}
-	for _, init := range candidates {
+	for _, init := range frag.AllCandidates() {
 		err := c.GotICECandidate(init)
 		if err != nil {
 			log.Printf("WHIP candidate: %v", err)
 		}
 	}
-
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// RFC 8840
-func parseSDPFrag(r io.Reader) (string, string, []webrtc.ICECandidateInit, error) {
-	scanner := bufio.NewScanner(r)
-	mLineIndex := -1
-	var mid, ufrag, pwd []byte
-	var candidates []webrtc.ICECandidateInit
-	for scanner.Scan() {
-		l := scanner.Bytes()
-		if bytes.HasPrefix(l, []byte("a=ice-ufrag:")) {
-			ufrag = l[len("a=ice-ufrag:"):]
-		} else if bytes.HasPrefix(l, []byte("a=ice-pwd:")) {
-			pwd = l[len("a=ice-pwd:"):]
-		} else if bytes.HasPrefix(l, []byte("m=")) {
-			mLineIndex++
-			mid = nil
-		} else if bytes.HasPrefix(l, []byte("a=mid:")) {
-			mid = l[len("a=mid:"):]
-		} else if bytes.HasPrefix(l, []byte("a=candidate:")) {
-			init := webrtc.ICECandidateInit{
-				Candidate: string(l[2:]),
-			}
-			if len(mid) > 0 {
-				s := string(mid)
-				init.SDPMid = &s
-			}
-			if mLineIndex >= 0 {
-				i := uint16(mLineIndex)
-				init.SDPMLineIndex = &i
-			}
-			if len(ufrag) > 0 {
-				s := string(ufrag)
-				init.UsernameFragment = &s
-			}
-			candidates = append(candidates, init)
-		}
-	}
-	return string(ufrag), string(pwd), candidates, nil
 }
