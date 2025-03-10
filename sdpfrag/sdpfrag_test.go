@@ -300,3 +300,29 @@ func TestPatchSDP(t *testing.T) {
 		testPatchSDP(t, sdpOffer, sdpfragRestart, "HWmk", 0)
 	})
 }
+
+func TestFromSDP(t *testing.T) {
+	frag := `m=audio 9 UDP/TLS/RTP/SAVPF 111 63 9 0 8 13 110 126
+a=ice-ufrag:qiKa
+a=ice-pwd:bcfs93hb/+ZLuUE2K50HVbkr
+a=mid:0
+m=video 9 UDP/TLS/RTP/SAVPF 96 97 103 104 107 108 109 114 115 116 117 118 39 40 45 46 98 99 100 101 119 120 121
+a=ice-ufrag:qiKa
+a=ice-pwd:bcfs93hb/+ZLuUE2K50HVbkr
+a=mid:1
+`
+	var f SDPFrag
+	err := f.Unmarshal([]byte(frag))
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	var s sdp.SessionDescription
+	err = s.Unmarshal([]byte(sdpOffer))
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	ff := FromSDP(s)
+	if !reflect.DeepEqual(ff, f) {
+		t.Errorf("Not equal: %v %v", ff, f)
+	}
+}

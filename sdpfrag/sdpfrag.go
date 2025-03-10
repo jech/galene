@@ -226,3 +226,50 @@ func PatchSDP(s sdp.SessionDescription, f SDPFrag) (sdp.SessionDescription, bool
 	}
 	return s, override
 }
+
+func getCandidates(as []sdp.Attribute, mid *string, index *uint16, ufrag string) []webrtc.ICECandidateInit {
+	var cs []webrtc.ICECandidateInit
+	for _, a := range as {
+		if a.Key != "candidate" {
+			continue
+		}
+		c := webrtc.ICECandidateInit{
+			Candidate: a.Value,
+			SDPMid: mid,
+			SDPMLineIndex: index,
+		}
+		if ufrag != "" {
+			c.UsernameFragment = &ufrag
+		}
+		cs = append(cs, c)
+	}
+	return cs
+
+}
+
+// FromSDP extracts the ICE information from an [sdp.SessionDescription]
+func FromSDP(s sdp.SessionDescription) SDPFrag {
+	var f SDPFrag
+	ufrag, _ := s.Attribute("ice-ufrag")
+	f.UsernameFragment = ufrag
+	pwd, _ := s.Attribute("ice-pwd")
+	f.Password = pwd
+	f.Candidates = getCandidates(s.Attributes, nil, nil, ufrag)
+
+	for index, m := range s.MediaDescriptions {
+		var mm MediaDescription
+		mm.MLine = m.MediaName.String()
+		mid, _ := m.Attribute("mid")
+		mm.Mid = mid
+		ufrag, _ := m.Attribute("ice-ufrag")
+		mm.UsernameFragment = ufrag
+		pwd, _ := m.Attribute("ice-pwd")
+		mm.Password = pwd
+		i := uint16(index)
+		mm.Candidates = getCandidates(
+			m.Attributes, &mid, &i, ufrag,
+		)
+		f.MediaDescriptions = append(f.MediaDescriptions, mm)
+	}
+	return f
+}

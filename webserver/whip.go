@@ -381,9 +381,28 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	uu, pp := frag.UFragPwd()
 	if uu != u || pp != p {
-		http.Error(w, "ICE restarts are not supported yet",
-			http.StatusUnprocessableEntity,
+		frag2, err := c.Restart(r.Context(), frag)
+		if err != nil {
+			log.Printf("WHIP restart: %v", err)
+			http.Error(w, "internal server error",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+		c.SetETag("\"" + newId() + "\"")
+		f2, err := frag2.Marshal()
+		if err != nil {
+			log.Printf("WHIP marshal frag: %v", err)
+			http.Error(w, "internal server error",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+		w.Header().Set(
+			"Content-Type", "application/trickle-ice-sdpfrag",
 		)
+		w.Header().Set("ETag", c.ETag())
+		w.Write(f2)
 		return
 	}
 	for _, init := range frag.AllCandidates() {

@@ -8,6 +8,9 @@ import (
 
 	"github.com/jech/galene/conn"
 	"github.com/jech/galene/group"
+	"github.com/jech/galene/sdpfrag"
+
+	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -241,4 +244,58 @@ func (c *WhipClient) GotICECandidate(init webrtc.ICECandidateInit) error {
 		return nil
 	}
 	return c.connection.addICECandidate(&init)
+}
+
+func (c *WhipClient) Restart(ctx context.Context, frag sdpfrag.SDPFrag) (sdpfrag.SDPFrag, error) {
+	c.mu.Lock()
+	conn := c.connection
+	c.mu.Unlock()
+	if conn == nil {
+		return sdpfrag.SDPFrag{}, errors.New("no connection")
+	}
+
+	offer := conn.pc.RemoteDescription()
+	var sdpOffer sdp.SessionDescription
+	err := sdpOffer.Unmarshal([]byte(offer.SDP))
+	if err != nil {
+		return sdpfrag.SDPFrag{}, nil
+	}
+	sdpOffer2, _ := sdpfrag.PatchSDP(sdpOffer, frag)
+	offer2, err := sdpOffer2.Marshal()
+	if err != nil {
+		return sdpfrag.SDPFrag{}, nil
+	}
+	err = conn.pc.SetRemoteDescription(webrtc.SessionDescription{
+		Type: webrtc.SDPTypeOffer,
+		SDP:  string(offer2),
+	})
+	if err != nil {
+		return sdpfrag.SDPFrag{}, err
+	}
+
+	answer, err := conn.pc.CreateAnswer(nil)
+	if err != nil {
+		return sdpfrag.SDPFrag{}, err
+	}
+
+	gatherComplete := webrtc.GatheringCompletePromise(conn.pc)
+
+	err = conn.pc.SetLocalDescription(answer)
+	if err != nil {
+		return sdpfrag.SDPFrag{}, err
+	}
+
+	select {
+	case <-ctx.Done():
+		return sdpfrag.SDPFrag{}, ctx.Err()
+	case <-gatherComplete:
+	}
+
+	sdpAnswer2 := conn.pc.LocalDescription()
+	var answer2 sdp.SessionDescription
+	err = answer2.Unmarshal([]byte(sdpAnswer2.SDP))
+	if err != nil {
+		return sdpfrag.SDPFrag{}, err
+	}
+	return sdpfrag.FromSDP(answer2), nil
 }
