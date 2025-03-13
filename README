@@ -14,7 +14,7 @@ Quick start:
         groups/example.json
     ./galene &
 
-Point your browser at <https:/localhost:8443/group/example/>, ignore the
+Point your browser at <https://localhost:8443/group/example/>, ignore the
 unknown certificate warning, and log in with username "bob" and password
 "secret".
 
@@ -256,7 +256,7 @@ the following strings:
    is not allowed to send them;
  - `caption`, a user with the right to display captions (only);
  - `admin`, a user with the right to administer the group (only).
-   
+
 Supported video codecs include:
 
  - `"vp8"` (compatible with all supported browsers);
@@ -301,16 +301,16 @@ version to version).
 For example, the entry
 
     "users": {"jch": {"password": "1234", "permissions": "op"}}
-    
+
 specifies that user "jch" may login as operator with password "1234", while
 
     "wildcard-user": {"password": "1234", "permissions": "present"}
-    
+
 allows any username with password *1234*.  Finally,
 
     "wildcard-user":
         {"password": {"type": "wildcard"}, "permissions": "present"}
-    
+
 allows any username with any password.
 
 
