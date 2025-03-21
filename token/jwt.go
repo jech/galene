@@ -100,7 +100,7 @@ func ParseKeys(keys []map[string]any, alg, kid string) ([]jwt.VerificationKey, e
 	ks := make([]jwt.VerificationKey, 0, len(keys))
 	for _, ky := range keys {
 		// return all keys if alg and kid are not specified
-		if alg != "" &&  ky["alg"] != alg {
+		if alg != "" && ky["alg"] != alg {
 			continue
 		}
 		if kid != "" && ky["kid"] != kid {

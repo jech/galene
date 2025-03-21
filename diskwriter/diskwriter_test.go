@@ -28,7 +28,7 @@ func TestAdjustOriginLocalNow(t *testing.T) {
 
 	c := &diskConn{
 		tracks: []*diskTrack{
-			&diskTrack{},
+			{},
 		},
 	}
 	for _, t := range c.tracks {
@@ -56,7 +56,7 @@ func TestAdjustOriginLocalEarlier(t *testing.T) {
 	c := &diskConn{
 		originLocal: earlier,
 		tracks: []*diskTrack{
-			&diskTrack{},
+			{},
 		},
 	}
 	for _, t := range c.tracks {
@@ -84,7 +84,7 @@ func TestAdjustOriginLocalLater(t *testing.T) {
 	c := &diskConn{
 		originLocal: later,
 		tracks: []*diskTrack{
-			&diskTrack{},
+			{},
 		},
 	}
 	for _, t := range c.tracks {
@@ -111,7 +111,7 @@ func TestAdjustOriginRemote(t *testing.T) {
 
 	c := &diskConn{
 		tracks: []*diskTrack{
-			&diskTrack{
+			{
 				remoteNTP: rtptime.TimeToNTP(earlier),
 				remoteRTP: 32,
 			},
@@ -144,7 +144,7 @@ func TestAdjustOriginLocalRemote(t *testing.T) {
 
 	c := &diskConn{
 		tracks: []*diskTrack{
-			&diskTrack{},
+			{},
 		},
 	}
 	for _, t := range c.tracks {

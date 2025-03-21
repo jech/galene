@@ -1,10 +1,10 @@
 package estimator
 
 import (
-	"testing"
-	"time"
 	"sync"
 	"sync/atomic"
+	"testing"
+	"time"
 
 	"github.com/jech/galene/rtptime"
 )
@@ -87,7 +87,7 @@ func TestEstimatorParallel(t *testing.T) {
 			addNow(rtptime.JiffiesPerSec / 1000)
 			b, p := estimate()
 			if i >= 1000 {
-				if b != p * 42 {
+				if b != p*42 {
 					t.Errorf("%v: Got %v %v (%v), expected %v %v",
 						n, p, b, i, 1000, p*42,
 					)
@@ -115,7 +115,7 @@ func BenchmarkEstimator(b *testing.B) {
 	e.Estimate()
 	b.ResetTimer()
 
-	for i := 0; i < 1000 * b.N; i++ {
+	for i := 0; i < 1000*b.N; i++ {
 		e.Accumulate(100)
 
 	}
@@ -130,7 +130,7 @@ func BenchmarkEstimatorParallel(b *testing.B) {
 	e.Estimate()
 	b.ResetTimer()
 
-	b.RunParallel(func (pb *testing.PB) {
+	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := 0; i < 1000; i++ {
 				e.Accumulate(100)

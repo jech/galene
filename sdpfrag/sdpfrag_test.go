@@ -1,8 +1,8 @@
 package sdpfrag
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 
 	"github.com/pion/sdp/v3"
 )
@@ -238,7 +238,7 @@ func testRoundtrip(t *testing.T, sdpfrag string) {
 }
 
 func TestRoundtrip(t *testing.T) {
-	type test struct { name, frag string }
+	type test struct{ name, frag string }
 	for _, tt := range []test{
 		{"sdpfragTrickle", sdpfragTrickle},
 		{"sdpfragEndOfCandidates", sdpfragEndOfCandidates},

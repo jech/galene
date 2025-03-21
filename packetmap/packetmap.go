@@ -31,7 +31,7 @@ func (m *Map) Map(seqno uint16, pid uint16) (bool, uint16, uint16) {
 
 	if m.delta == 0 && m.entries == nil {
 		if compare(m.next, seqno) <= 0 ||
-			uint16(m.next - seqno) > 8 * 1024 {
+			uint16(m.next-seqno) > 8*1024 {
 			m.next = seqno + 1
 			m.nextPid = pid
 		}
@@ -192,7 +192,7 @@ func (m *Map) Drop(seqno uint16, pid uint16) bool {
 
 	if len(m.entries) == 0 {
 		m.entries = []entry{
-			entry{
+			{
 				first:    seqno - 8192,
 				count:    8192,
 				delta:    0,

@@ -1021,7 +1021,7 @@ func (g *Group) userExists(username string) bool {
 	return found
 }
 
-//validUsername returns true if a string is a valid username.
+// validUsername returns true if a string is a valid username.
 // On the one hand, we want to allow usernames such as "jch@work"
 // or "Alice c/o Bob".  On the other hand, not restricting
 // usernames might lead to security vulnaribilities.

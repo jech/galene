@@ -234,8 +234,8 @@ func getCandidates(as []sdp.Attribute, mid *string, index *uint16, ufrag string)
 			continue
 		}
 		c := webrtc.ICECandidateInit{
-			Candidate: a.Value,
-			SDPMid: mid,
+			Candidate:     a.Value,
+			SDPMid:        mid,
 			SDPMLineIndex: index,
 		}
 		if ufrag != "" {

@@ -290,7 +290,7 @@ func PacketFlags(codec string, buf []byte) (Flags, error) {
 		flags.Start = vp9.B
 		flags.End = vp9.E
 		if vp9.B && len(vp9.Payload) > 0 &&
-			(vp9.Payload[0] & 0xc0) == 0x80 {
+			(vp9.Payload[0]&0xc0) == 0x80 {
 			profile := (vp9.Payload[0] >> 4) & 0x3
 			if profile != 3 {
 				flags.Keyframe = (vp9.Payload[0] & 0xC) == 0

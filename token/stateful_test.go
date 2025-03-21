@@ -17,7 +17,7 @@ func timeEqual(a, b *time.Time) bool {
 		return true
 	}
 
-	if a!= nil && b != nil {
+	if a != nil && b != nil {
 		return (*a).Equal(*b)
 	}
 
@@ -228,14 +228,14 @@ func TestTokenStorage(t *testing.T) {
 	user2 := "user2"
 	user3 := "user3"
 	tokens := []*Stateful{
-		&Stateful{
+		{
 			Token:       "tok1",
 			Group:       "test",
 			Username:    &user1,
 			Permissions: []string{"present", "message"},
 			Expires:     &future,
 		},
-		&Stateful{
+		{
 			Token:       "tok2",
 			Group:       "test",
 			Username:    &user2,
@@ -243,7 +243,7 @@ func TestTokenStorage(t *testing.T) {
 			Expires:     &nearFuture,
 			NotBefore:   &past,
 		},
-		&Stateful{
+		{
 			Token:       "tok3",
 			Group:       "test",
 			Username:    &user3,
@@ -323,35 +323,35 @@ func TestExpire(t *testing.T) {
 	user := "user"
 
 	tokens := []*Stateful{
-		&Stateful{
+		{
 			Token:       "tok1",
 			Group:       "test",
 			Username:    &user,
 			Permissions: []string{"present", "message"},
 			Expires:     &now,
 		},
-		&Stateful{
+		{
 			Token:       "tok2",
 			Group:       "test",
 			Username:    &user,
 			Permissions: []string{"present", "message"},
 			Expires:     &future,
 		},
-		&Stateful{
+		{
 			Token:       "tok3",
 			Group:       "test",
 			Username:    &user,
 			Permissions: []string{"present", "message"},
 			Expires:     &now,
 		},
-		&Stateful{
+		{
 			Token:       "tok4",
 			Group:       "test",
 			Username:    &user,
 			Permissions: []string{"present", "message"},
 			Expires:     &past,
 		},
-		&Stateful{
+		{
 			Token:       "tok5",
 			Group:       "test",
 			Username:    &user,
