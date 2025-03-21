@@ -25,6 +25,7 @@ import (
 var Directory, DataDirectory string
 var UseMDNS bool
 var UDPMin, UDPMax uint16
+var udpMux ice.UDPMux
 
 type NotAuthorisedError struct {
 	err error
@@ -357,6 +358,12 @@ func codecsFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 	return parms, nil
 }
 
+func SetUDPMux(port int) error {
+	var err error
+	udpMux, err = ice.NewMultiUDPMuxFromPort(port)
+	return err
+}
+
 func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 	s := webrtc.SettingEngine{}
 	s.SetSRTPReplayProtectionWindow(512)
@@ -379,7 +386,9 @@ func APIFromCodecs(codecs []webrtc.RTPCodecParameters) (*webrtc.API, error) {
 		}
 	}
 
-	if UDPMin > 0 && UDPMax > 0 {
+	if udpMux != nil {
+		s.SetICEUDPMux(udpMux)
+	} else if UDPMin > 0 && UDPMax > 0 {
 		s.SetEphemeralUDPPortRange(UDPMin, UDPMax)
 	}
 

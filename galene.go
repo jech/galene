@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 
 func main() {
 	var cpuprofile, memprofile, mutexprofile, httpAddr string
-	var udpRange string
+	var udp, udpRange string
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
@@ -42,8 +43,8 @@ func main() {
 		"store memory profile in `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "",
 		"store mutex profile in `file`")
-	flag.StringVar(&udpRange, "udp-range", "",
-		"UDP port `range`")
+	flag.StringVar(&udp, "udp", "", "UDP port")
+	flag.StringVar(&udpRange, "udp-range", "", "UDP port `range`")
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
@@ -51,16 +52,26 @@ func main() {
 		"built-in TURN server `address` (\"\" to disable)")
 	flag.Parse()
 
-	if udpRange != "" {
+	if udp != "" {
+		if udpRange != "" {
+			log.Fatalf("Cannot specify both -udp and -udp-range")
+		}
+		port, err := strconv.Atoi(udp)
+		if err != nil {
+			log.Fatalf("UDP: %v", err)
+		}
+		err = group.SetUDPMux(port)
+		if err != nil {
+			log.Fatalf("UDP: %v", err)
+		}
+	} else if udpRange != "" {
 		var min, max uint16
 		n, err := fmt.Sscanf(udpRange, "%v-%v", &min, &max)
 		if err != nil {
-			log.Printf("UDP range: %v", err)
-			os.Exit(1)
+			log.Fatalf("UDP range: %v", err)
 		}
 		if n != 2 || min <= 0 || max <= 0 || min > max {
-			log.Printf("UDP range: bad range")
-			os.Exit(1)
+			log.Fatalf("UDP range: bad range")
 		}
 		group.UDPMin = min
 		group.UDPMax = max
