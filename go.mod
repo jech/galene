@@ -4,17 +4,17 @@ go 1.20
 
 require (
 	github.com/at-wat/ebml-go v0.17.1
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/gorilla/websocket v1.5.0
 	github.com/jech/cert v0.0.0-20240301122532-f491cf43a77d
 	github.com/jech/samplebuilder v0.0.0-20241027120643-76c654ae55e1
-	github.com/pion/ice/v4 v4.0.7
+	github.com/pion/ice/v4 v4.0.8
 	github.com/pion/interceptor v0.1.37
 	github.com/pion/rtcp v1.2.15
-	github.com/pion/rtp v1.8.12
-	github.com/pion/sdp/v3 v3.0.10
+	github.com/pion/rtp v1.8.13
+	github.com/pion/sdp/v3 v3.0.11
 	github.com/pion/turn/v4 v4.0.0
-	github.com/pion/webrtc/v4 v4.0.13
+	github.com/pion/webrtc/v4 v4.0.14
 	golang.org/x/crypto v0.33.0
 	golang.org/x/sys v0.30.0
 	golang.org/x/term v0.29.0
