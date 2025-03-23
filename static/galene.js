@@ -763,19 +763,14 @@ function mapRequest(what) {
     switch(what) {
     case '':
         return {};
-        break;
     case 'audio':
         return {'': ['audio']};
-        break;
     case 'screenshare':
         return {screenshare: ['audio','video'], '': ['audio']};
-        break;
     case 'everything-low':
         return {'': ['audio','video-low']};
-        break;
     case 'everything':
         return {'': ['audio','video']}
-        break;
     default:
         throw new Error(`Unknown value ${what} in request`);
     }
@@ -2760,6 +2755,7 @@ async function closeSafariStream() {
 
 /**
  * @this {ServerConnection}
+ * @param {string} kind
  * @param {string} group
  * @param {Array<string>} perms
  * @param {Object<string,any>} status
@@ -3248,6 +3244,7 @@ function formatTime(time) {
 let lastMessage = {};
 
 /**
+ * @param {string} id
  * @param {string} peerId
  * @param {string} dest
  * @param {string} nick
