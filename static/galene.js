@@ -2337,7 +2337,7 @@ function setMediaStatus(c) {
         media.classList.add('media-failed');
     }
 
-    if(!c.up && status === 'failed') {
+    if(!c.up && state === 'failed') {
         let from = c.username ?
             `from user ${c.username}` :
             'from anonymous user';
