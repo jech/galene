@@ -1405,11 +1405,16 @@ let filters = {
                     ctx.filter = 'none';
 		} else {
 		    // Safari bug 198416, context.filter is not supported.
+
+                    // Work around typescript inferring ctx as none
+                    ctx = /**@type{CanvasRenderingContext2D}*/(ctx);
+
 		    let scale = 24;
 		    let swidth = src.videoWidth / scale;
 		    let sheight = src.videoHeight / scale;
 		    if(!('canvas' in this.userdata))
 			this.userdata.canvas = document.createElement('canvas');
+                    /** @type {HTMLCanvasElement} */
 		    let c2 = this.userdata.canvas;
 		    if(c2.width != swidth)
 			c2.width = swidth;
