@@ -1587,13 +1587,14 @@ Stream.prototype.setStatsInterval = function(ms) {
  * any -> cancelled -> closed
  *
  *
- * @parm {ServerConnection} sc
- * @parm {string} userid
- * @parm {string} rid
- * @parm {boolean} up
- * @parm {string} username
- * @parm {string} mimetype
- * @parm {number} size
+ * @param {ServerConnection} sc
+ * @param {string} userid
+ * @param {string} id
+ * @param {boolean} up
+ * @param {string} username
+ * @param {string} name
+ * @param {string} mimetype
+ * @param {number} size
  * @constructor
  */
 function TransferredFile(sc, userid, id, up, username, name, mimetype, size) {
