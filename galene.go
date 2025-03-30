@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 
 func main() {
 	var cpuprofile, memprofile, mutexprofile, httpAddr string
-	var udp, udpRange string
+	var udpRange string
 
 	flag.StringVar(&httpAddr, "http", ":8443", "web server `address`")
 	flag.StringVar(&webserver.StaticRoot, "static", "./static/",
@@ -43,8 +44,8 @@ func main() {
 		"store memory profile in `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "",
 		"store mutex profile in `file`")
-	flag.StringVar(&udp, "udp", "", "UDP port")
-	flag.StringVar(&udpRange, "udp-range", "", "UDP port `range`")
+	flag.StringVar(&udpRange, "udp-range", "",
+		"UDP `port` (multiplexing) or port1-port2 (range)")
 	flag.BoolVar(&group.UseMDNS, "mdns", false, "gather mDNS addresses")
 	flag.BoolVar(&ice.ICERelayOnly, "relay-only", false,
 		"require use of TURN relays for all media traffic")
@@ -52,29 +53,28 @@ func main() {
 		"built-in TURN server `address` (\"\" to disable)")
 	flag.Parse()
 
-	if udp != "" {
-		if udpRange != "" {
-			log.Fatalf("Cannot specify both -udp and -udp-range")
+	if udpRange != "" {
+		if strings.ContainsRune(udpRange, '-') {
+			var min, max uint16
+			n, err := fmt.Sscanf(udpRange, "%v-%v", &min, &max)
+			if err != nil || n != 2 {
+				log.Fatalf("UDP range: %v", err)
+			}
+			if n != 2 || min <= 0 || max <= 0 || min > max {
+				log.Fatalf("UDP range: bad range")
+			}
+			group.UDPMin = min
+			group.UDPMax = max
+		} else {
+			port, err := strconv.Atoi(udpRange)
+			if err != nil {
+				log.Fatalf("UDP: %v", err)
+			}
+			err = group.SetUDPMux(port)
+			if err != nil {
+				log.Fatalf("UDP: %v", err)
+			}
 		}
-		port, err := strconv.Atoi(udp)
-		if err != nil {
-			log.Fatalf("UDP: %v", err)
-		}
-		err = group.SetUDPMux(port)
-		if err != nil {
-			log.Fatalf("UDP: %v", err)
-		}
-	} else if udpRange != "" {
-		var min, max uint16
-		n, err := fmt.Sscanf(udpRange, "%v-%v", &min, &max)
-		if err != nil {
-			log.Fatalf("UDP range: %v", err)
-		}
-		if n != 2 || min <= 0 || max <= 0 || min > max {
-			log.Fatalf("UDP range: bad range")
-		}
-		group.UDPMin = min
-		group.UDPMax = max
 	}
 
 	if cpuprofile != "" {

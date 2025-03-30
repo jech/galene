@@ -2,7 +2,7 @@ Galene 0.97 (unreleased)
 
   * Upgrade to Pion v4.
   * Add support for ETags and ICE restarts to the WHIP server.
-  * Implement UDP multiplexing and the option "-udp".
+  * Implement UDP multiplexing.
 
 8 March 2025: Galene 0.96.3
 

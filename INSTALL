@@ -74,15 +74,15 @@ traffic to and from:
 
 For good performance, your firewall should allow incoming and outgoing
 traffic from the UDP ports used for media transfer.  By default, these are
-all high-numbered (ephemeral) ports, but they can be restricted using the
-following options:
+all high-numbered (ephemeral) ports, but they can be restricted using one
+of the following options:
 
   * the `-udp-range port1-port2` option restricts the UDP ports to be in
     the range from port1 to port2 inclusive; this should be a large range,
     on the order of a few tens of thousands of ports;
 
-  * the `-udp port` option makes the server use just a single port, and
-    demultiplex the traffic in userspace.
+  * the `-udp-range port` option makes the server use just a single port,
+    and demultiplex the traffic in userspace.
 
 If your server is behind NAT (which is not recommended), then the NAT must
 forward, at the very least, port 8443 to your server.  Ideally, you should
