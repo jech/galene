@@ -186,7 +186,7 @@ If you want to allow users to use any password, use a wildcard password:
 ## Reference
 
 Every group definition file contains a single JSON directory (a list of
-entries between `{' and `}').  All fields are optional, but unless you
+entries between `{` and `}`).  All fields are optional, but unless you
 specify at least one user definition (`op`, `presenter`, or `other`),
 nobody will be able to join the group.  The following fields are allowed:
 
