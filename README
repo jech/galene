@@ -156,7 +156,7 @@ with the permission `present`:
 
     {
         "users":{
-            "jch":  {"password": "1234", "permissions": "op"}
+            "jch":  {"password": "1234", "permissions": "op"},
             "john": {"password": "secret", "permissions": "present"}
         }
     }
