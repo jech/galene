@@ -265,7 +265,7 @@ Supported video codecs include:
  - `"av1"` (even better video quality, only supported by some browsers,
    recording is not supported, SVC is not supported);
  - `"h264"` (incompatible with Debian and with some older Android devices,
- - SVC  is not supported).
+   SVC  is not supported).
 
 Supported audio codecs include `"opus"`, `"g722"`, `"pcmu"` and `"pcma"`.
 Only Opus can be recorded to disk.  There is no good reason to use
