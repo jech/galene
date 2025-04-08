@@ -1333,6 +1333,22 @@ let filters = {
             return true;
         },
     },
+    'rotate': {
+        description: 'Rotate',
+        draw: async function(src, ctx) {
+            if(!(ctx instanceof CanvasRenderingContext2D))
+                throw new Error('bad context type');
+            if(ctx.canvas.width !== src.videoWidth ||
+               ctx.canvas.height !== src.videoHeight) {
+                ctx.canvas.width = src.videoWidth;
+                ctx.canvas.height = src.videoHeight;
+            }
+            ctx.scale(-1, -1);
+            ctx.drawImage(src, -src.videoWidth, -src.videoHeight);
+            ctx.resetTransform();
+            return true;
+        },
+    },
     'background-blur': {
         description: 'Background blur',
         predicate: async function() {
