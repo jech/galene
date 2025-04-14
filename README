@@ -16,7 +16,7 @@ Quick start:
 
 Point your browser at <https://localhost:8443/group/example/>, ignore the
 unknown certificate warning, and log in with username "bob" and password
-"secret".
+"1234".
 
 See the file INSTALL in this directory for full installation instructions.
 
