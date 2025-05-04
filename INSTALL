@@ -122,7 +122,8 @@ For a 32-bit MIPS board with no hardware floating point (WNDR3800, etc.):
 
 ## Deploy to your server
 
-Set up a user *galene* on your server, then do:
+Set up a user *galene* on your server, then copy the `galene` binary, and
+the directories `static`, `data` and `groups`:
 
     rsync -a galene static data groups galene@server.example.org:
 
