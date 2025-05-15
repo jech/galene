@@ -3,6 +3,9 @@ Galene 0.97 (unreleased)
   * Upgrade to Pion v4.
   * Add support for ETags and ICE restarts to the WHIP server.
   * Implement UDP multiplexing.
+  * Add rotate filter; this is useful when using a mobile phone that is
+    upside down as a webcam.
+  * Make the TURN server less verbose.
 
 8 March 2025: Galene 0.96.3
 
