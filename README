@@ -6,6 +6,7 @@ moderate server resources.  It is described at <https://galene.org>.
 
 Quick start:
 
+```
     git clone https://github.com/jech/galene
     cd galene
     CGO_ENABLED=0 go build -ldflags='-s -w'
@@ -13,6 +14,7 @@ Quick start:
     echo '{"users": {"bob": {"password":"1234", "permissions":"op"}}}' > \
         groups/example.json
     ./galene &
+```
 
 Point your browser at <https://localhost:8443/group/example/>, ignore the
 unknown certificate warning, and log in with username "bob" and password
@@ -83,13 +85,16 @@ commands; the output depends on whether you are an operator or not.
 The server may be configured in the JSON file `data/config.json`.  This
 file may look as follows:
 
+```
     {
         "users":{"root": {"password":"secret", "permissions": "admin"}},
         "canonicalHost": "galene.example.org"
     }
+```
 
 or, better, with a hashed password:
 
+```
     {
         "users": {
             "root": {
@@ -99,6 +104,7 @@ or, better, with a hashed password:
         },
         "canonicalHost": "galene.example.org"
     }
+```
 
 The fields are as follows:
 
@@ -136,6 +142,7 @@ a file `groups/teaching/networking.json` defines a group called
 
 A typical group definition file looks like this:
 
+```
     {
         "users":{
             "jch": {"password":"1234", "permissions": "op"}
@@ -143,6 +150,7 @@ A typical group definition file looks like this:
         "allow-recording": true,
         "auto-subgroups": true
     }
+```
 
 This defines a group with the operator (administrator) username *jch* and
 password *1234*.  The `allow-recording` entry says that the operator is
@@ -154,16 +162,19 @@ invitations (see *Stateful Tokens* below) for ordinary users.
 In order to allow password login for ordinary users, add password entries
 with the permission `present`:
 
+```
     {
         "users":{
             "jch":  {"password": "1234", "permissions": "op"},
             "john": {"password": "secret", "permissions": "present"}
         }
     }
+```
 
 If the group is to be publicly accessible, you may allow logins with any
 username using the `wildcard-user` entry::
 
+```
     {
         "users":{
             "jch": {"password":"1234", "permissions": "op"}
@@ -171,9 +182,11 @@ username using the `wildcard-user` entry::
         "wildcard-user": {"password": "1234", "permissions": "present"},
         "public": true
     }
+```
 
 If you want to allow users to use any password, use a wildcard password:
 
+```
     {
         "users":{
             "jch": {"password":"1234", "permissions": "op"}
@@ -182,6 +195,7 @@ If you want to allow users to use any password, use a wildcard password:
             {"password": {"type": "wildcard"}, "permissions": "present"},
         "public": true
     }
+```
 
 ## Reference
 
@@ -300,16 +314,22 @@ version to version).
 
 For example, the entry
 
+```
     "users": {"jch": {"password": "1234", "permissions": "op"}}
+```
 
 specifies that user "jch" may login as operator with password "1234", while
 
+```
     "wildcard-user": {"password": "1234", "permissions": "present"}
+```
 
 allows any username with password *1234*.  Finally,
 
+```
     "wildcard-user":
         {"password": {"type": "wildcard"}, "permissions": "present"}
+```
 
 allows any username with any password.
 
@@ -320,6 +340,7 @@ If you don't wish to store cleartext passwords on the server, you may
 generate hashed passwords with the `galenectl` utility.  A user entry with
 a hashed password looks like this:
 
+```
     "users": {
         "jch": {
             "password": {
@@ -332,6 +353,7 @@ a hashed password looks like this:
             "permissions": "op"
         }
     }
+```
 
 
 ### Stateful tokens
@@ -366,6 +388,7 @@ specifies one or more public keys in JWK format (with the restriction that
 the "alg" key must be specified).  In addition, it may specify either an
 authorisation server or an authorisation portal.
 
+```
     {
         "authKeys": [{
             "kty": "oct",
@@ -380,6 +403,7 @@ authorisation server or an authorisation portal.
         }]
         "authServer": "https://auth.example.org",
     }
+```
 
 If multiple keys are provided, then they will all be tried in turn, unless
 the token includes the "kid" header field, in which case only the
