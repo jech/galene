@@ -916,11 +916,12 @@ type Configuration struct {
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
 
-	PublicServer   bool   `json:"publicServer"`
-	CanonicalHost  string `json:"canonicalHost"`
-	ProxyURL       string `json:"proxyURL"`
-	WritableGroups bool   `json:"writableGroups"`
-	Users          map[string]UserDescription
+	CanonicalHost    string   `json:"canonicalHost"`
+	AllowOrigin      []string `json:"allowOrigin"`
+	AllowAdminOrigin []string `json:"allowAdminOrigin"`
+	ProxyURL         string   `json:"proxyURL"`
+	WritableGroups   bool     `json:"writableGroups"`
+	Users            map[string]UserDescription
 
 	// obsolete fields
 	Admin []ClientPattern `json:"admin"`

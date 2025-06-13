@@ -109,9 +109,8 @@ The fields are as follows:
  - `writableGroups`: if true, then the API can modify group description
    files; by default, group files are treated as read-only;
 
- - `publicServer`: if true, then cross-origin access to the server is
-   allowed.  This makes the server vulnerable to cross-origin scripting
-   attacks, but is necessary in some cases.
+ - `allowOrigin` is an array that contains the list of HTTP origins that
+   are allowed to access the server.
 
  - `proxyURL`: if running behind a reverse proxy, this specifies the root
    URL that will be visible outside the proxy.

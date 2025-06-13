@@ -502,29 +502,58 @@ func failAuthentication(w http.ResponseWriter, realm string) {
 	http.Error(w, "Haha!", http.StatusUnauthorized)
 }
 
-var wsUpgrader = websocket.Upgrader{
-	HandshakeTimeout: 30 * time.Second,
+func CheckOrigin(w http.ResponseWriter, r *http.Request, admin bool) bool {
+	if w != nil {
+		w.Header().Add("Vary", "Origin")
+	}
+
+	origins := r.Header["Origin"]
+	if len(origins) == 0 {
+		return true
+	}
+	origin := origins[0]
+
+	ok := false
+	o, err := url.Parse(origin)
+	if err == nil && strings.EqualFold(o.Host, r.Host) {
+		ok = true
+	} else {
+		conf, err := group.GetConfiguration()
+		if err != nil {
+			return false
+		}
+
+		allow := conf.AllowOrigin
+		if admin {
+			allow = conf.AllowAdminOrigin
+		}
+		for _, a := range allow {
+			if strings.EqualFold(origin, a) {
+				ok = true
+				break
+			}
+		}
+	}
+
+	if !ok {
+		return false
+	}
+
+	if w != nil {
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+	}
+	return true
 }
 
-var wsPublicUpgrader = websocket.Upgrader{
+var wsUpgrader = websocket.Upgrader{
 	HandshakeTimeout: 30 * time.Second,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		return CheckOrigin(nil, r, false)
 	},
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	conf, err := group.GetConfiguration()
-	if err != nil {
-		httpError(w, err)
-		return
-	}
-	upgrader := wsUpgrader
-	if conf.PublicServer {
-		upgrader = wsPublicUpgrader
-	}
-
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("Websocket upgrade: %v", err)
 		return

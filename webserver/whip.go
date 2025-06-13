@@ -165,15 +165,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conf, err := group.GetConfiguration()
-	if err != nil {
-		httpError(w, err)
-		return
-	}
-
-	if conf.PublicServer {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-	}
+	CheckOrigin(w, r, false)
 
 	if r.Method == "OPTIONS" {
 		w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, POST")
@@ -309,15 +301,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	conf, err := group.GetConfiguration()
-	if err != nil {
-		httpError(w, err)
-		return
-	}
-
-	if conf.PublicServer {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-	}
+	CheckOrigin(w, r, false)
 
 	if r.Method == "OPTIONS" {
 		w.Header().Set("Access-Control-Allow-Methods",
