@@ -104,6 +104,19 @@ func getJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	return false
 }
 
+func apiCORS(w http.ResponseWriter, r *http.Request, methods string) bool {
+	CheckOrigin(w, r, true)
+	if r.Method == "OPTIONS" {
+		w.Header().Set("Access-Control-Allow-Methods",
+			"OPTIONS, "+methods)
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Authorization, Content-Type",
+		)
+		return true
+	}
+	return false
+}
+
 func apiHandler(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, "/galene-api/") {
 		http.NotFound(w, r)
@@ -112,11 +125,14 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	first, kind, rest := splitPath(r.URL.Path[len("/galene-api"):])
 	if first == "/v0" && kind == ".stats" && rest == "" {
+		if apiCORS(w, r, "HEAD, GET") {
+			return
+		}
 		if !checkAdmin(w, r) {
 			return
 		}
 		if r.Method != "HEAD" && r.Method != "GET" {
-			methodNotAllowed(w, "HEAD", "GET")
+			methodNotAllowed(w, "HEAD, GET")
 			return
 		}
 		w.Header().Set("cache-control", "no-cache")
@@ -139,11 +155,14 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	}
 	g := first[1:]
 	if g == "" && kind == "" {
+		if apiCORS(w, r, "HEAD, GET") {
+			return
+		}
 		if !checkAdmin(w, r) {
 			return
 		}
 		if r.Method != "HEAD" && r.Method != "GET" {
-			methodNotAllowed(w, "HEAD", "GET")
+			methodNotAllowed(w, "HEAD, GET")
 			return
 		}
 		groups, err := group.GetDescriptionNames()
@@ -178,6 +197,9 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 		return
 	}
 
+	if apiCORS(w, r, "HEAD, GET, PUT, DELETE") {
+		return
+	}
 	if !checkAdmin(w, r) {
 		return
 	}
@@ -248,7 +270,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	methodNotAllowed(w, "HEAD", "GET", "PUT", "DELETE")
+	methodNotAllowed(w, "HEAD, GET, PUT, DELETE")
 	return
 }
 
@@ -258,11 +280,14 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		return
 	}
 	if pth == "/" {
+		if apiCORS(w, r, "HEAD, GET") {
+			return
+		}
 		if !checkAdmin(w, r) {
 			return
 		}
 		if r.Method != "HEAD" && r.Method != "GET" {
-			methodNotAllowed(w, "HEAD", "GET")
+			methodNotAllowed(w, "HEAD, GET")
 			return
 		}
 		users, etag, err := group.GetUsers(g)
@@ -310,6 +335,9 @@ func specialUserHandler(w http.ResponseWriter, r *http.Request, g, pth string, w
 }
 
 func userHandler(w http.ResponseWriter, r *http.Request, g, user string, wildcard bool) {
+	if apiCORS(w, r, "HEAD, GET, PUT, DELETE") {
+		return
+	}
 	if !checkAdmin(w, r) {
 		return
 	}
@@ -378,11 +406,14 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string, wildcar
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	methodNotAllowed(w, "HEAD", "GET", "PUT", "DELETE")
+	methodNotAllowed(w, "HEAD, GET, PUT, DELETE")
 	return
 }
 
 func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string, wildcard bool) {
+	if apiCORS(w, r, "PUT, POST, DELETE") {
+		return
+	}
 	if !checkPasswordAdmin(w, r, g, user, wildcard) {
 		return
 	}
@@ -433,7 +464,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string, wil
 		return
 	}
 
-	methodNotAllowed(w, "PUT", "POST", "DELETE")
+	methodNotAllowed(w, "PUT, POST, DELETE")
 	return
 }
 
@@ -442,6 +473,9 @@ type jwkset = struct {
 }
 
 func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
+	if apiCORS(w, r, "HEAD, GET") {
+		return
+	}
 	if !checkAdmin(w, r) {
 		return
 	}
@@ -481,7 +515,7 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 		return
 	}
 
-	methodNotAllowed(w, "PUT", "DELETE")
+	methodNotAllowed(w, "PUT, DELETE")
 	return
 }
 
@@ -490,9 +524,13 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		http.NotFound(w, r)
 		return
 	}
+	if apiCORS(w, r, "HEAD, GET, POST, PUT, DELETE") {
+		return
+	}
 	if !checkAdmin(w, r) {
 		return
 	}
+
 	// check that the group exists
 	_, err := group.GetDescription(g)
 	if err != nil {
@@ -541,7 +579,7 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 			w.WriteHeader(http.StatusCreated)
 			return
 		}
-		methodNotAllowed(w, "HEAD", "GET", "POST")
+		methodNotAllowed(w, "HEAD, GET, POST")
 		return
 	}
 
@@ -637,6 +675,6 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	methodNotAllowed(w, "HEAD", "GET", "PUT", "DELETE")
+	methodNotAllowed(w, "HEAD, GET, PUT, DELETE")
 	return
 }

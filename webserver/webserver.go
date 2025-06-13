@@ -146,15 +146,8 @@ func httpError(w http.ResponseWriter, err error) {
 		http.StatusInternalServerError)
 }
 
-func methodNotAllowed(w http.ResponseWriter, methods ...string) {
-	ms := ""
-	for _, m := range methods {
-		if ms != "" {
-			ms = ms + ", "
-		}
-		ms = ms + m
-	}
-	w.Header().Set("Allow", ms)
+func methodNotAllowed(w http.ResponseWriter, methods string) {
+	w.Header().Set("Allow", "OPTIONS, " + methods)
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 

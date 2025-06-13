@@ -112,6 +112,9 @@ The fields are as follows:
  - `allowOrigin` is an array that contains the list of HTTP origins that
    are allowed to access the server.
 
+ - `allowAdminOrigin` is like `allowOrigin`, but applies to the
+   administrative interface.
+
  - `proxyURL`: if running behind a reverse proxy, this specifies the root
    URL that will be visible outside the proxy.
 

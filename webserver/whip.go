@@ -178,7 +178,7 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != "POST" {
-		methodNotAllowed(w, "OPTIONS", "POST")
+		methodNotAllowed(w, "POST")
 		return
 	}
 
@@ -323,7 +323,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != "PATCH" {
-		methodNotAllowed(w, "OPTIONS", "DELETE", "PATCH")
+		methodNotAllowed(w, "DELETE, PATCH")
 		return
 
 	}
