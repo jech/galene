@@ -6,6 +6,8 @@ Galene 0.97 (unreleased)
   * Add rotate filter; this is useful when using a mobile phone that is
     upside down as a webcam.
   * Make the TURN server less verbose.
+  * Replace the configuration field "publicServer" with "allowOrigin" and
+    "allowAdminOrigin".  This is an incompatible change.
 
 8 March 2025: Galene 0.96.3
 
