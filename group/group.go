@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"net/url"
 	"os"
 	"path"
@@ -133,7 +134,7 @@ func (g *Group) SetLocked(locked bool, message string) {
 func (g *Group) Data() map[string]interface{} {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.data
+	return maps.Clone(g.data)
 }
 
 func (g *Group) UpdateData(d map[string]interface{}) {

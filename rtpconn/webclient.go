@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net"
 	"os"
 	"strings"
@@ -101,7 +102,7 @@ func (c *webClient) Permissions() []string {
 }
 
 func (c *webClient) Data() map[string]interface{} {
-	return c.data
+	return maps.Clone(c.data)
 }
 
 func (c *webClient) SetPermissions(perms []string) {
