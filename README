@@ -32,7 +32,7 @@ Groups are available under `/group/groupname/`.  You may share this URL
 with others, there is no need to go through the landing page.
 
 Recordings can be accessed under `/recordings/groupname/`.  This is only
-available to the administrator of the group.
+available to the group operator.
 
 Some statistics are available under `/stats.json`, with a human-readable
 version at `/stats.html`.  This is only available to the server administrator.
@@ -146,12 +146,12 @@ A typical group definition file looks like this:
         "auto-subgroups": true
     }
 
-This defines a group with the operator (administrator) username *jch* and
-password *1234*.  The `allow-recording` entry says that the operator is
-allowed to record videos to disk, and the `auto-subgroups` entry says
-that subgroups will be created automatically.  This particular group does
-not allow password login for ordinary users, and is suitable if you use
-invitations (see *Stateful Tokens* below) for ordinary users.
+This defines a group with the operator username *jch* and password *1234*.
+The `allow-recording` entry says that the operator is allowed to record
+videos to disk, and the `auto-subgroups` entry says that subgroups will be
+created automatically.  This particular group does not allow password
+login for ordinary users, and is suitable if you use invitations (see
+*Stateful Tokens* below) for ordinary users.
 
 In order to allow password login for ordinary users, add password entries
 with the permission `present`:
@@ -339,7 +339,7 @@ a hashed password looks like this:
 ### Stateful tokens
 
 Stateful tokens allow to temporarily grant access to a user.  In order to
-generate a stateful token, the group administrator types
+generate a stateful token, the group operator types
 
     /invite user period
 

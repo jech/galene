@@ -17,13 +17,18 @@ On Windows, do
 Set up a group called *test* by creating a file `groups/test.json`:
 
     mkdir groups
-    vi groups/name.json
+    vi groups/test.json
     
 You may use the following definition:
 
     {
-        "op": [{"username": "admin", "password": "1234"}],
-        "presenter": [{}]
+        "users":{
+            "admin": {"password": "1234", "permissions": "op"}
+        },
+        "wildcard-user": {
+            "password": {"type": "wildcard"},
+            "permissions": "present"
+        }
     }
 
 See the README file for more details about defining groups.
