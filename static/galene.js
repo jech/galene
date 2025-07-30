@@ -1030,6 +1030,8 @@ async function setMediaChoices(done) {
  * @param {string} [localId]
  */
 function newUpStream(localId) {
+    if(!serverConnection)
+        throw new Error("Not connected");
     let c = serverConnection.newUpStream(localId);
     c.onstatus = function(status) {
         setMediaStatus(c);
@@ -3796,7 +3798,14 @@ commands.replace = {
     }
 };
 
-commands.stopshare = {
+commands.sharescreen = {
+    description: 'start a screen share',
+    f: (c, r) => {
+        addShareMedia();
+    }
+}
+
+commands.unsharescreen = {
     description: 'stop screen share',
     f: (c, r) => {
         closeUpMedia('screenshare');

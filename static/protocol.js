@@ -1499,6 +1499,7 @@ Stream.prototype.updateStats = async function() {
         if(report) {
             for(let r of report.values()) {
                 if(stid && r.type === 'outbound-rtp') {
+                    console.log(r);
                     let id = stid;
                     // Firefox doesn't implement rid, use ssrc
                     // to discriminate simulcast tracks.
