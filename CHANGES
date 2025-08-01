@@ -3,11 +3,14 @@ Galene 0.97 (unreleased)
   * Upgrade to Pion v4.
   * Add support for ETags and ICE restarts to the WHIP server.
   * Implement UDP multiplexing.
+  * Implement hierarchical tokens.
   * Add rotate filter; this is useful when using a mobile phone that is
     upside down as a webcam.
+  * Implement /sharescreen, rename /stopshare to /unsharescreen.
   * Make the TURN server less verbose.
   * Replace the configuration field "publicServer" with "allowOrigin" and
     "allowAdminOrigin".  This is an incompatible change.
+  * Fix a race condtion in the setdata request.  Thanks to git-lui.
 
 8 March 2025: Galene 0.96.3
 
