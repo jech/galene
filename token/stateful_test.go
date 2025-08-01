@@ -72,6 +72,14 @@ func TestStatefulCheck(t *testing.T) {
 		Expires:     &future,
 		NotBefore:   &nearFuture,
 	}
+	token5 := &Stateful{
+		Token:            "token",
+		Group:            "group",
+		IncludeSubgroups: true,
+		Username:         &user,
+		Permissions:      []string{"present", "message"},
+		Expires:          &future,
+	}
 
 	success := []struct {
 		token          *Stateful
@@ -107,6 +115,20 @@ func TestStatefulCheck(t *testing.T) {
 			expUsername:    "",
 			expPermissions: []string{"present", "message"},
 		},
+		{
+			token:          token5,
+			group:          "group",
+			username:       &user,
+			expUsername:    "user",
+			expPermissions: []string{"present", "message"},
+		},
+		{
+			token:          token5,
+			group:          "group/subgroup",
+			username:       &user,
+			expUsername:    "user",
+			expPermissions: []string{"present", "message"},
+		},
 	}
 
 	for i, s := range success {
@@ -137,6 +159,11 @@ func TestStatefulCheck(t *testing.T) {
 		{
 			token:    token4,
 			group:    "group",
+			username: &user,
+		},
+		{
+			token:    token5,
+			group:    "groups",
 			username: &user,
 		},
 	}

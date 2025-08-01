@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -16,26 +17,28 @@ var ErrTagMismatch = errors.New("tag mismatch")
 
 // A stateful token
 type Stateful struct {
-	Token       string     `json:"token"`
-	Group       string     `json:"group"`
-	Username    *string    `json:"username,omitempty"`
-	Permissions []string   `json:"permissions"`
-	Expires     *time.Time `json:"expires,omitempty"`
-	NotBefore   *time.Time `json:"not-before,omitempty"`
-	IssuedAt    *time.Time `json:"issuedAt,omitempty"`
-	IssuedBy    *string    `json:"issuedBy,omitempty"`
+	Token            string     `json:"token"`
+	Group            string     `json:"group"`
+	IncludeSubgroups bool       `json:"includeSubgroups,omitempty"`
+	Username         *string    `json:"username,omitempty"`
+	Permissions      []string   `json:"permissions"`
+	Expires          *time.Time `json:"expires,omitempty"`
+	NotBefore        *time.Time `json:"not-before,omitempty"`
+	IssuedAt         *time.Time `json:"issuedAt,omitempty"`
+	IssuedBy         *string    `json:"issuedBy,omitempty"`
 }
 
 func (token *Stateful) Clone() *Stateful {
 	return &Stateful{
-		Token:       token.Token,
-		Group:       token.Group,
-		Username:    token.Username,
-		Permissions: append([]string(nil), token.Permissions...),
-		Expires:     token.Expires,
-		NotBefore:   token.NotBefore,
-		IssuedAt:    token.IssuedAt,
-		IssuedBy:    token.IssuedBy,
+		Token:            token.Token,
+		Group:            token.Group,
+		IncludeSubgroups: token.IncludeSubgroups,
+		Username:         token.Username,
+		Permissions:      append([]string(nil), token.Permissions...),
+		Expires:          token.Expires,
+		NotBefore:        token.NotBefore,
+		IssuedAt:         token.IssuedAt,
+		IssuedBy:         token.IssuedBy,
 	}
 }
 
@@ -83,8 +86,21 @@ func Get(token string) (*Stateful, string, error) {
 	return tokens.Get(token)
 }
 
+func (token *Stateful) match(group string) bool {
+	if group == "" {
+		return false
+	}
+	if group == token.Group {
+		return true
+	}
+	if token.IncludeSubgroups {
+		return strings.HasPrefix(group, token.Group + "/")
+	}
+	return false
+}
+
 func (token *Stateful) Check(host, group string, username *string) (string, []string, error) {
-	if token.Group == "" || group != token.Group {
+	if !token.match(group) {
 		return "", nil, errors.New("token for bad group")
 	}
 	now := time.Now()

@@ -1781,7 +1781,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if tok.Group != c.group.Name() {
 				return terror("error", "wrong group in token")
 			}
-
+			if tok.IncludeSubgroups {
+				return terror("error",
+					"hierarchical token not allowed",
+				)
+			}
 			if tok.Expires == nil {
 				return terror("error", "token doesn't expire")
 			}
@@ -1837,6 +1841,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				return terror("error", err.Error())
 			}
 			if tok.Group != "" || tok.Username != nil ||
+				tok.IncludeSubgroups ||
 				tok.Permissions != nil ||
 				tok.IssuedBy != nil ||
 				tok.IssuedAt != nil {
