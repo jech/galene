@@ -1060,6 +1060,9 @@ func listTokensCmd(cmdname string, args []string) {
 				exp = tt.Expires.Format(time.DateTime)
 			}
 			var perms []byte
+			if tt.IncludeSubgroups {
+				perms = append(perms, 'H')
+			}
 			for _, p := range tt.Permissions {
 				if len(p) > 0 {
 					perms = append(perms, p[0])
@@ -1070,7 +1073,7 @@ func listTokensCmd(cmdname string, args []string) {
 			sort.Slice(perms, func(i, j int) bool {
 				return perms[i] < perms[j]
 			})
-			fmt.Printf("%-11s %-12s %-4s %-20s\n", t,
+			fmt.Printf("%-11s %-20s %-4s %-20s\n", t,
 				username, perms, exp,
 			)
 		}
@@ -1079,11 +1082,14 @@ func listTokensCmd(cmdname string, args []string) {
 
 func createTokenCmd(cmdname string, args []string) {
 	var groupname, username, permissions string
+	var includeSubgroups bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.BoolVar(&includeSubgroups, "include-subgroups", false,
+		"include subgroups")
 	cmd.StringVar(&username, "user", "", "encode user `name` in token")
 	cmd.StringVar(&permissions, "permissions", "present", "permissions")
 	cmd.Parse(args)
@@ -1108,6 +1114,9 @@ func createTokenCmd(cmdname string, args []string) {
 	t["expires"] = time.Now().Add(24 * time.Hour)
 	if username != "" {
 		t["username"] = username
+	}
+	if includeSubgroups {
+		t["includeSubgroups"] = true
 	}
 
 	u, err := url.JoinPath(
