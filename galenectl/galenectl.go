@@ -67,6 +67,10 @@ var commands = map[string]command{
 		command:     createGroupCmd,
 		description: "create a group",
 	},
+	"update-group": {
+		command:     updateGroupCmd,
+		description: "change a group's definition",
+	},
 	"delete-group": {
 		command:     deleteGroupCmd,
 		description: "delete a group",
@@ -602,14 +606,32 @@ func deletePasswordCmd(cmdname string, args []string) {
 	}
 }
 
+// stdinJSON reads a JSON dictionary on standard input if doit is true.
+// It always returns a non-nil dictionary in the non-error case.
+func stdinJSON(doit bool) (map[string]any, error) {
+	data := make(map[string]any)
+	if doit {
+		decoder := json.NewDecoder(os.Stdin)
+		err := decoder.Decode(&data)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
+}
+
 func createGroupCmd(cmdname string, args []string) {
 	var groupname string
+	var doJSON bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
 		"%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.BoolVar(&doJSON, "json", false,
+		"read JSON template from standard input",
+	)
 	cmd.Parse(args)
 
 	if cmd.NArg() != 0 {
@@ -623,14 +645,19 @@ func createGroupCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	url, err := url.JoinPath(
+	u, err := url.JoinPath(
 		serverURL, "/galene-api/v0/.groups", groupname,
 	)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
 
-	err = putJSON(url, map[string]any{}, false)
+	data, err := stdinJSON(doJSON)
+	if err != nil {
+		log.Fatalf("Decode standard input: %v", err)
+	}
+
+	err = putJSON(u, data, false)
 	if err != nil {
 		log.Fatalf("Create group: %v", err)
 	}
@@ -657,16 +684,59 @@ func deleteGroupCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	url, err := url.JoinPath(
+	u, err := url.JoinPath(
 		serverURL, "/galene-api/v0/.groups", groupname,
 	)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
 
-	err = deleteValue(url)
+	err = deleteValue(u)
 	if err != nil {
 		log.Fatalf("Delete group: %v", err)
+	}
+}
+
+func updateGroupCmd(cmdname string, args []string) {
+	var groupname string
+	var doJSON bool
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.BoolVar(&doJSON, "json", false,
+		"read JSON template from standard input",
+	)
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	u, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", groupname,
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	data, err := stdinJSON(doJSON)
+	if err != nil {
+		log.Fatalf("Decode standard input: %v", err)
+	}
+
+	err = updateJSON(u, func(m map[string]any) map[string]any {
+		for k, v := range data {
+			m[k] = v
+		}
+		return m
+	})
+
+	if err != nil {
+		log.Fatalf("Update group: %v", err)
 	}
 }
 
@@ -792,10 +862,55 @@ func listUsersCmd(cmdname string, args []string) {
 	}
 }
 
+// permsFlag represents permissions on the command line.
+// In createUserCmd, we want to track whether the permissions were set
+// explicitly, so we cannot easily use flag.StringVar.
+type permsValue struct {
+	perms any
+}
+
+func (p *permsValue) Set(value string) error {
+	perms, err := parsePermissions(value, false)
+	if err != nil {
+		return err
+	}
+	*p = permsValue{
+		perms: perms,
+	}
+	return nil
+}
+
+func (p *permsValue) String() string {
+	switch perms := p.perms.(type) {
+	case string:
+		return perms
+	default:
+		v, err := json.Marshal(perms)
+		if err != nil {
+			return "ERROR: " + err.Error()
+		}
+		return string(v)
+	}
+}
+
+func userURL(wildcard bool, groupname, username string) (string, error) {
+	if wildcard {
+		return url.JoinPath(
+			serverURL, "/galene-api/v0/.groups", groupname,
+			".wildcard-user",
+		)
+	}
+	return url.JoinPath(
+		serverURL, "/galene-api/v0/.groups", groupname,
+		".users", username,
+	)
+}
+
 func createUserCmd(cmdname string, args []string) {
 	var groupname, username string
 	var wildcard bool
-	var permissions string
+	var permissions permsValue
+	var doJSON bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
 		"%v [option...] %v [option...]\n",
@@ -804,7 +919,11 @@ func createUserCmd(cmdname string, args []string) {
 	cmd.StringVar(&groupname, "group", "", "group `name`")
 	cmd.StringVar(&username, "user", "", "user `name`")
 	cmd.BoolVar(&wildcard, "wildcard", false, "create the wildcard user")
-	cmd.StringVar(&permissions, "permissions", "present", "permissions")
+	cmd.Var(&permissions, "permissions",
+		"permissions (default \"present\")")
+	cmd.BoolVar(&doJSON, "json", false,
+		"read JSON template from standard input",
+	)
 	cmd.Parse(args)
 
 	if cmd.NArg() != 0 {
@@ -825,29 +944,24 @@ func createUserCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	perms, err := parsePermissions(permissions, false)
-	if err != nil {
-		log.Fatalf("Parse permissions: %v", err)
-	}
-
-	var u string
-	if wildcard {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".wildcard-user",
-		)
-	} else {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".users", username,
-		)
-	}
+	u, err := userURL(wildcard, groupname, username)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
 
-	dict := map[string]any{"permissions": perms}
-	err = putJSON(u, dict, false)
+	data, err := stdinJSON(doJSON)
+	if err != nil {
+		log.Fatalf("Decode standard input: %v", err)
+	}
+
+	// command line overrides template.  If neither, default to "present".
+	if permissions.perms != nil {
+		data["permissions"] = permissions.perms
+	} else if _, ok := data["permissions"]; !ok {
+		data["permissions"] = "present"
+	}
+
+	err = putJSON(u, data, false)
 	if err != nil {
 		log.Fatalf("Create user: %v", err)
 	}
@@ -856,7 +970,8 @@ func createUserCmd(cmdname string, args []string) {
 func updateUserCmd(cmdname string, args []string) {
 	var groupname, username string
 	var wildcard bool
-	var permissions string
+	var permissions permsValue
+	var doJSON bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
 		"%v [option...] %v [option...]\n",
@@ -865,7 +980,7 @@ func updateUserCmd(cmdname string, args []string) {
 	cmd.StringVar(&groupname, "group", "", "group `name`")
 	cmd.StringVar(&username, "user", "", "user `name`")
 	cmd.BoolVar(&wildcard, "wildcard", false, "update the wildcard user")
-	cmd.StringVar(&permissions, "permissions", "", "permissions")
+	cmd.Var(&permissions, "permissions", "permissions")
 	cmd.Parse(args)
 
 	if cmd.NArg() != 0 {
@@ -873,34 +988,29 @@ func updateUserCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	perms, err := parsePermissions(permissions, false)
-	if err != nil {
-		log.Fatalf("Parse permissions: %v", err)
-	}
-
-	var u string
-	if wildcard {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".wildcard-user",
-		)
-	} else {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".users", username,
-		)
-	}
+	u, err := userURL(wildcard, groupname, username)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
 
+	data, err := stdinJSON(doJSON)
+	if err != nil {
+		log.Fatalf("Decode standard input: %v", err)
+	}
+
 	err = updateJSON(u, func(m map[string]any) map[string]any {
-		m["permissions"] = perms
+		// command line, if any, overrides template
+		for k, v := range data {
+			m[k] = v
+		}
+		if permissions.perms != nil {
+			m["permissions"] = permissions.perms
+		}
 		return m
 	})
 
 	if err != nil {
-		log.Fatalf("Create user: %v", err)
+		log.Fatalf("Update user: %v", err)
 	}
 }
 
