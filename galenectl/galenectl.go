@@ -730,7 +730,11 @@ func updateGroupCmd(cmdname string, args []string) {
 
 	err = updateJSON(u, func(m map[string]any) map[string]any {
 		for k, v := range data {
-			m[k] = v
+			if v == nil {
+				delete(m, k)
+			} else {
+				m[k] = v
+			}
 		}
 		return m
 	})
@@ -1001,7 +1005,11 @@ func updateUserCmd(cmdname string, args []string) {
 	err = updateJSON(u, func(m map[string]any) map[string]any {
 		// command line, if any, overrides template
 		for k, v := range data {
-			m[k] = v
+			if v == nil {
+				delete(m, k)
+			} else {
+				m[k] = v
+			}
 		}
 		if permissions.perms != nil {
 			m["permissions"] = permissions.perms
