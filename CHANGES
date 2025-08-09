@@ -1,4 +1,4 @@
-Galene 0.97 (unreleased)
+9 August 2025: Galene 1.0
 
   * Upgrade to Pion v4.
   * Add support for ETags and ICE restarts to the WHIP server.
