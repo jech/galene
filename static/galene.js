@@ -1283,6 +1283,8 @@ async function setFilter(c) {
  * @param {any[]} [transfer]
  */
 async function workerSendReceive(worker, message, transfer) {
+    if(worker.onmessage)
+        throw new Error("worker busy");
     let p = new Promise((resolve, reject) => {
         worker.onmessage = e => {
             if(e && e.data) {
@@ -1295,8 +1297,12 @@ async function workerSendReceive(worker, message, transfer) {
             }
         };
     });
-    worker.postMessage(message, transfer);
-    return await p
+    try {
+        worker.postMessage(message, transfer);
+        return await p
+    } finally {
+        worker.onmessage = null;
+    }
 }
 
 /**
