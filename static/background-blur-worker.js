@@ -73,9 +73,8 @@ onmessage = async e => {
     try {
         let data = e.data;
         if(data.model) {
-            if(imageSegmenter) {
-                throw new Error("image segmenter already inititialised");
-            }
+            if(imageSegmenter)
+                throw new Error("image segmenter already initialised");
             imageSegmenter = await loadImageSegmenter(data.model);
             if(!imageSegmenter)
                 throw new Error("loadImageSegmenter returned null");
