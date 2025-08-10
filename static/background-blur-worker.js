@@ -38,49 +38,57 @@ async function loadImageSegmenter(model) {
         });
 }
 
-onmessage = async e => {
-    let data = e.data;
-    if(imageSegmenter == null) {
-        try {
-            imageSegmenter = await loadImageSegmenter(data.model);
-            if(imageSegmenter == null)
-                throw new Error("loadImageSegmenter returned null");
-        } catch(e) {
-            postMessage(e);
-            return;
-        }
-        postMessage(null);
-        return;
-    }
-
-    let bitmap = e.data.bitmap;
-    if(!(bitmap instanceof ImageBitmap)) {
-        postMessage(new Error('Bad type for worker data'));
-        return;
-    }
+async function foregroundMask(bitmap, timestamp) {
+    if(!(bitmap instanceof ImageBitmap))
+        throw new Error('Bad type for worker data');
 
     try {
         let width = bitmap.width;
         let height = bitmap.height;
-        imageSegmenter.segmentForVideo(
-            bitmap, e.data.timestamp,
-            result => {
-                /** @type{Uint8Array} */
-                let mask = result.categoryMask.getAsUint8Array();
-                let id = new ImageData(width, height);
-                for(let i = 0; i < mask.length; i++)
-                    id.data[4 * i + 3] = mask[i];
-                result.close();
-                createImageBitmap(id).then(ib => {
-                    postMessage({
-                        bitmap: bitmap,
-                        mask: ib,
-                    }, [bitmap, ib]);
-                });
-            },
-        );
+        let p = new Promise((resolve, reject) =>
+            imageSegmenter.segmentForVideo(
+                bitmap, timestamp,
+                result => resolve(result),
+            ));
+        let result = await p;
+        /** @type{Uint8Array} */
+        let mask = result.categoryMask.getAsUint8Array();
+        let id = new ImageData(width, height);
+        for(let i = 0; i < mask.length; i++)
+            id.data[4 * i + 3] = mask[i];
+        result.close();
+
+        let ib = await createImageBitmap(id);
+        return {
+            bitmap: bitmap,
+            mask: ib,
+        };
     } catch(e) {
         bitmap.close();
+        throw(e);
+    }
+}
+
+onmessage = async e => {
+    try {
+        let data = e.data;
+        if(data.model) {
+            if(imageSegmenter) {
+                throw new Error("image segmenter already inititialised");
+            }
+            imageSegmenter = await loadImageSegmenter(data.model);
+            if(!imageSegmenter)
+                throw new Error("loadImageSegmenter returned null");
+            postMessage(null);
+        } else if(data.bitmap) {
+            if(imageSegmenter == null)
+                throw new Error("image segmenter not initialised");
+            let mask = await foregroundMask(data.bitmap, data.timestamp);
+            postMessage(mask, [mask.bitmap, mask.mask]);
+        } else {
+            throw new Error("unexpected message type");
+        }
+    } catch(e) {
         postMessage(e);
     }
-};
+}
