@@ -917,15 +917,15 @@ type Configuration struct {
 	modTime  time.Time `json:"-"`
 	fileSize int64     `json:"-"`
 
-	CanonicalHost    string   `json:"canonicalHost"`
-	AllowOrigin      []string `json:"allowOrigin"`
-	AllowAdminOrigin []string `json:"allowAdminOrigin"`
-	ProxyURL         string   `json:"proxyURL"`
-	WritableGroups   bool     `json:"writableGroups"`
-	Users            map[string]UserDescription
+	CanonicalHost    string                     `json:"canonicalHost,omitempty"`
+	AllowOrigin      []string                   `json:"allowOrigin,omitempty"`
+	AllowAdminOrigin []string                   `json:"allowAdminOrigin,omitempty"`
+	ProxyURL         string                     `json:"proxyURL,omitempty"`
+	WritableGroups   bool                       `json:"writableGroups,omitempty"`
+	Users            map[string]UserDescription `json:"users,omitempty"`
 
 	// obsolete fields
-	Admin []ClientPattern `json:"admin"`
+	Admin []ClientPattern `json:"admin,omitempty"`
 }
 
 func (conf Configuration) Zero() bool {

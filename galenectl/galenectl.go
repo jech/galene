@@ -31,13 +31,14 @@ import (
 
 type configuration struct {
 	Server        string `json:"server"`
-	AdminUsername string `json:"admin-username"`
-	AdminPassword string `json:"admin-password"`
-	AdminToken    string `json:"admin-token"`
+	AdminUsername string `json:"admin-username,omitempty"`
+	AdminPassword string `json:"admin-password,omitempty"`
+	AdminToken    string `json:"admin-token,omitempty"`
 }
 
 var insecure bool
 var serverURL, adminUsername, adminPassword, adminToken string
+var configFile string
 
 var client http.Client
 
@@ -50,6 +51,10 @@ var commands = map[string]command{
 	"hash-password": {
 		command:     hashPasswordCmd,
 		description: "generate a hashed password",
+	},
+	"initial-setup": {
+		command:     initialSetupCmd,
+		description: "initial setup of Galene and galenectl",
 	},
 	"set-password": {
 		command:     setPasswordCmd,
@@ -114,7 +119,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("UserConfigDir: %v", err)
 	}
-	configFile := filepath.Join(
+	configFile = filepath.Join(
 		filepath.Join(configdir, "galene"),
 		"galenectl.json",
 	)
@@ -319,6 +324,111 @@ func hashPasswordCmd(cmdname string, args []string) {
 	if err != nil {
 		log.Fatalf("Encode: %v", err)
 	}
+}
+
+func initialSetupCmd(cmdname string, args []string) {
+	var galeneConfigFn string
+
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&galeneConfigFn, "config", "config.json",
+		"Galene configuration `file`")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if adminUsername == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Option \"-admin-username\" is required.\n",
+		)
+		os.Exit(1)
+	}
+
+	if adminPassword == "" && adminToken == "" {
+		fmt.Fprint(os.Stdin, "Administrator password: ")
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			log.Fatalf("ReadPassword: %v", err)
+		}
+		adminPassword = string(pw)
+		fmt.Fprint(os.Stdin, "\n")
+	}
+
+	galeneConfig, err := os.OpenFile(galeneConfigFn,
+		os.O_WRONLY|os.O_CREATE|os.O_CREATE|os.O_EXCL,
+		0600)
+	if err != nil {
+		log.Fatalf("Create %v: %v", galeneConfigFn, err)
+	}
+
+	galenectlConfig, err := os.OpenFile(configFile,
+		os.O_WRONLY|os.O_CREATE|os.O_CREATE|os.O_EXCL,
+		0600)
+	if err != nil {
+		galeneConfig.Close()
+		os.Remove(galeneConfigFn)
+		log.Fatalf("Create %v: %v", galeneConfigFn, err)
+	}
+
+	defer galeneConfig.Close()
+	defer galenectlConfig.Close()
+
+	var users map[string]group.UserDescription
+	if adminPassword != "" {
+		pw, err := makePassword(adminPassword, "bcrypt", 0, 0, 0, 12)
+		if err != nil {
+			log.Fatalf("makePassword: %v", err)
+		}
+
+		perms, err := group.NewPermissions("admin")
+		if err != nil {
+			log.Fatalf("NewPermissions: %v", err)
+		}
+		users = map[string]group.UserDescription{
+			adminUsername: {
+				Password:    pw,
+				Permissions: perms,
+			},
+		}
+	}
+
+	config := group.Configuration{
+		WritableGroups: true,
+		Users:          users,
+	}
+
+	encoder := json.NewEncoder(galeneConfig)
+	encoder.SetIndent("", "    ")
+	err = encoder.Encode(&config)
+	if err != nil {
+		log.Fatalf("Encode %v: %v", galeneConfigFn, err)
+	}
+
+	ctlConfig := configuration{
+		Server:        serverURL,
+		AdminUsername: adminUsername,
+		AdminPassword: adminPassword,
+		AdminToken:    adminToken,
+	}
+
+	ctlEncoder := json.NewEncoder(galenectlConfig)
+	ctlEncoder.SetIndent("", "    ")
+	err = ctlEncoder.Encode(&ctlConfig)
+	if err != nil {
+		log.Fatalf("Encode %v: %v", configFile, err)
+	}
+
+	fmt.Printf("The file %v has been created.  ", galeneConfigFn)
+	fmt.Printf("Please copy it into your server's\n\"data/\" directory.\n")
+	fmt.Printf("The file %v has been created.  ", configFile)
+	fmt.Printf("It contains the administrator's\npassword in cleartext, ")
+	fmt.Printf("please keep it secure.\n")
 }
 
 func setAuthorization(req *http.Request) {
