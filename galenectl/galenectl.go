@@ -1001,6 +1001,9 @@ func (o *stringOption) Set(value string) error {
 }
 
 func (o *stringOption) String() string {
+	if o == nil {
+		return "(nil)"
+	}
 	if !o.set {
 		return "(unset)"
 	}
