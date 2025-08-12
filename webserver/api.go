@@ -124,7 +124,16 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	first, kind, rest := splitPath(r.URL.Path[len("/galene-api"):])
-	if first == "/v0" && kind == ".stats" && rest == "" {
+	if first != "/v0" {
+		http.NotFound(w, r)
+		return
+	}
+	switch kind {
+	case ".stats":
+		if rest != "" {
+			http.NotFound(w, r)
+			return
+		}
 		if apiCORS(w, r, "HEAD, GET") {
 			return
 		}
@@ -137,14 +146,11 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("cache-control", "no-cache")
 		sendJSON(w, r, stats.GetGroups())
-		return
-	} else if first == "/v0" && kind == ".groups" {
+	case ".groups":
 		apiGroupHandler(w, r, rest)
-		return
+	default:
+		http.NotFound(w, r)
 	}
-
-	http.NotFound(w, r)
-	return
 }
 
 func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
