@@ -976,37 +976,6 @@ func listUsersCmd(cmdname string, args []string) {
 	}
 }
 
-// permsFlag represents permissions on the command line.
-// In createUserCmd, we want to track whether the permissions were set
-// explicitly, so we cannot easily use flag.StringVar.
-type permsValue struct {
-	perms any
-}
-
-func (p *permsValue) Set(value string) error {
-	perms, err := parsePermissions(value, false)
-	if err != nil {
-		return err
-	}
-	*p = permsValue{
-		perms: perms,
-	}
-	return nil
-}
-
-func (p *permsValue) String() string {
-	switch perms := p.perms.(type) {
-	case string:
-		return perms
-	default:
-		v, err := json.Marshal(perms)
-		if err != nil {
-			return "ERROR: " + err.Error()
-		}
-		return string(v)
-	}
-}
-
 func userURL(wildcard bool, groupname, username string) (string, error) {
 	if wildcard {
 		return url.JoinPath(
@@ -1020,10 +989,28 @@ func userURL(wildcard bool, groupname, username string) (string, error) {
 	)
 }
 
+type stringOption struct {
+	set   bool
+	value string
+}
+
+func (o *stringOption) Set(value string) error {
+	o.value = value
+	o.set = true
+	return nil
+}
+
+func (o *stringOption) String() string {
+	if !o.set {
+		return "(unset)"
+	}
+	return o.value
+}
+
 func createUserCmd(cmdname string, args []string) {
 	var groupname, username string
 	var wildcard bool
-	var permissions permsValue
+	var permissions stringOption
 	var doJSON bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
@@ -1058,6 +1045,17 @@ func createUserCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
+	var perms any
+	if permissions.set {
+		var err error
+		perms, err = parsePermissions(permissions.value, false)
+		if err != nil {
+			fmt.Fprintf(cmd.Output(),
+				"Could parse \"-permissions\"\n",
+			)
+		}
+	}
+
 	u, err := userURL(wildcard, groupname, username)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
@@ -1069,8 +1067,8 @@ func createUserCmd(cmdname string, args []string) {
 	}
 
 	// command line overrides template.  If neither, default to "present".
-	if permissions.perms != nil {
-		data["permissions"] = permissions.perms
+	if permissions.set {
+		data["permissions"] = perms
 	} else if _, ok := data["permissions"]; !ok {
 		data["permissions"] = "present"
 	}
@@ -1084,7 +1082,7 @@ func createUserCmd(cmdname string, args []string) {
 func updateUserCmd(cmdname string, args []string) {
 	var groupname, username string
 	var wildcard bool
-	var permissions permsValue
+	var permissions stringOption
 	var doJSON bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
@@ -1107,6 +1105,17 @@ func updateUserCmd(cmdname string, args []string) {
 		log.Fatalf("Build URL: %v", err)
 	}
 
+	var perms any
+	if permissions.set {
+		var err error
+		perms, err = parsePermissions(permissions.value, false)
+		if err != nil {
+			fmt.Fprintf(cmd.Output(),
+				"Could parse \"-permissions\"\n",
+			)
+		}
+	}
+
 	data, err := stdinJSON(doJSON)
 	if err != nil {
 		log.Fatalf("Decode standard input: %v", err)
@@ -1121,8 +1130,8 @@ func updateUserCmd(cmdname string, args []string) {
 				m[k] = v
 			}
 		}
-		if permissions.perms != nil {
-			m["permissions"] = permissions.perms
+		if permissions.set {
+			m["permissions"] = perms
 		}
 		return m
 	})
