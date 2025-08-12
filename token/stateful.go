@@ -346,7 +346,7 @@ func (state *state) rewrite() error {
 	if err != nil {
 		return err
 	}
-	a, _, err := state.list("")
+	a, _, err := state.list("", true)
 	if err != nil {
 		os.Remove(tmpfile.Name())
 		return err
@@ -387,7 +387,10 @@ func (state *state) rewrite() error {
 }
 
 // called locked
-func (state *state) list(group string) ([]*Stateful, string, error) {
+func (state *state) list(group string, all bool) ([]*Stateful, string, error) {
+	if group != "" && all {
+		return nil, "", errors.New("cannot specify both group and all")
+	}
 	_, err := state.load()
 	if err != nil {
 		return nil, "", err
@@ -398,10 +401,8 @@ func (state *state) list(group string) ([]*Stateful, string, error) {
 		return a, state.etag(), nil
 	}
 	for _, t := range state.tokens {
-		if group != "" {
-			if t.Group != group {
-				continue
-			}
+		if !all && t.Group != group {
+			continue
 		}
 		a = append(a, t)
 	}
@@ -420,7 +421,7 @@ func (state *state) list(group string) ([]*Stateful, string, error) {
 func (state *state) List(group string) ([]*Stateful, string, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
-	return state.list(group)
+	return state.list(group, false)
 }
 
 func List(group string) ([]*Stateful, string, error) {
