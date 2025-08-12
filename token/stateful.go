@@ -94,6 +94,9 @@ func (token *Stateful) match(group string) bool {
 		return true
 	}
 	if token.IncludeSubgroups {
+		if token.Group == "" {
+			return true
+		}
 		return strings.HasPrefix(group, token.Group + "/")
 	}
 	return false

@@ -155,11 +155,10 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 
 func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	first, kind, rest := splitPath(pth)
-	if first == "" {
-		notFound(w)
-		return
+	g := ""
+	if first != "" {
+		g = first[1:]
 	}
-	g := first[1:]
 	if g == "" && kind == "" {
 		if apiCORS(w, r, "HEAD, GET") {
 			return
@@ -537,11 +536,13 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		return
 	}
 
-	// check that the group exists
-	_, err := group.GetDescription(g)
-	if err != nil {
-		httpError(w, err)
-		return
+	if g != "" {
+		// check that the group exists
+		_, err := group.GetDescription(g)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
 	}
 	if pth == "/" {
 		if r.Method == "HEAD" || r.Method == "GET" {

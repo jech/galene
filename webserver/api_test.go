@@ -312,12 +312,24 @@ func TestApi(t *testing.T) {
 		t.Errorf("Create token: %v %v", err, resp.StatusCode)
 	}
 
+	resp, err = do("POST", "/galene-api/v0/.groups/.tokens/",
+		"application/json", "", "", "{\"includeSubgroups\": true}")
+	if err != nil || resp.StatusCode != http.StatusCreated {
+		t.Errorf("Create global token: %v %v", err, resp.StatusCode)
+	}
+
 	var toknames []string
 	err = getJSON("/galene-api/v0/.groups/test/.tokens/", &toknames)
 	if err != nil || len(toknames) != 1 {
 		t.Errorf("Get tokens: %v %v", err, toknames)
 	}
 	tokname := toknames[0]
+
+	var globalToknames []string
+	err = getJSON("/galene-api/v0/.groups/test/.tokens/", &globalToknames)
+	if err != nil || len(globalToknames) != 1 {
+		t.Errorf("Get global tokens: %v %v", err, globalToknames)
+	}
 
 	tokens, etag, err := token.List("test")
 	if err != nil || len(tokens) != 1 || tokens[0].Token != tokname {
