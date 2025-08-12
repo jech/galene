@@ -1231,13 +1231,13 @@ func listGroupsCmd(cmdname string, args []string) {
 }
 
 func listTokensCmd(cmdname string, args []string) {
-	var groupname string
+	var groupname stringOption
 	var long bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
-	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Var(&groupname, "group", "group `name`")
 	cmd.BoolVar(&long, "l", false, "display token fields")
 	cmd.Parse(args)
 
@@ -1246,14 +1246,14 @@ func listTokensCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	if groupname == "" {
+	if !groupname.set {
 		fmt.Fprintf(cmd.Output(),
 			"Option \"-group\" is required\n")
 		os.Exit(1)
 	}
 
 	u, err := url.JoinPath(
-		serverURL, "/galene-api/v0/.groups/", groupname, ".tokens/",
+		serverURL, "/galene-api/v0/.groups/", groupname.value, ".tokens/",
 	)
 
 	if err != nil {
@@ -1318,13 +1318,14 @@ func listTokensCmd(cmdname string, args []string) {
 }
 
 func createTokenCmd(cmdname string, args []string) {
-	var groupname, username, permissions string
+	var groupname stringOption
+	var username, permissions string
 	var includeSubgroups bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
-	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Var(&groupname, "group", "group `name`")
 	cmd.BoolVar(&includeSubgroups, "include-subgroups", false,
 		"include subgroups")
 	cmd.StringVar(&username, "user", "", "encode user `name` in token")
@@ -1336,7 +1337,7 @@ func createTokenCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	if groupname == "" {
+	if !groupname.set {
 		fmt.Fprintf(cmd.Output(),
 			"Option \"-group\" is required\n")
 		os.Exit(1)
@@ -1357,7 +1358,7 @@ func createTokenCmd(cmdname string, args []string) {
 	}
 
 	u, err := url.JoinPath(
-		serverURL, "/galene-api/v0/.groups/", groupname, ".tokens/",
+		serverURL, "/galene-api/v0/.groups/", groupname.value, ".tokens/",
 	)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
@@ -1371,12 +1372,13 @@ func createTokenCmd(cmdname string, args []string) {
 }
 
 func revokeTokenCmd(cmdname string, args []string) {
-	var groupname, token string
+	var groupname stringOption
+	var token string
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
-	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Var(&groupname, "group", "group `name`")
 	cmd.StringVar(&token, "token", "", "`token` to delete")
 	cmd.Parse(args)
 
@@ -1385,14 +1387,14 @@ func revokeTokenCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	if groupname == "" || token == "" {
+	if !groupname.set || token == "" {
 		fmt.Fprintf(cmd.Output(),
 			"Options \"-group\" and \"-token\" are required\n")
 		os.Exit(1)
 	}
 
 	u, err := url.JoinPath(
-		serverURL, "/galene-api/v0/.groups/", groupname,
+		serverURL, "/galene-api/v0/.groups/", groupname.value,
 		".tokens", token,
 	)
 	if err != nil {
@@ -1409,12 +1411,13 @@ func revokeTokenCmd(cmdname string, args []string) {
 }
 
 func deleteTokenCmd(cmdname string, args []string) {
-	var groupname, token string
+	var groupname stringOption
+	var token string
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
-	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Var(&groupname, "group", "group `name`")
 	cmd.StringVar(&token, "token", "", "`token` to delete")
 	cmd.Parse(args)
 
@@ -1423,14 +1426,14 @@ func deleteTokenCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	if groupname == "" || token == "" {
+	if !groupname.set || token == "" {
 		fmt.Fprintf(cmd.Output(),
 			"Options \"-group\" and \"-token\" are required\n")
 		os.Exit(1)
 	}
 
 	u, err := url.JoinPath(
-		serverURL, "/galene-api/v0/.groups/", groupname,
+		serverURL, "/galene-api/v0/.groups/", groupname.value,
 		".tokens", token,
 	)
 	if err != nil {
