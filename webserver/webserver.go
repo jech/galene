@@ -118,6 +118,11 @@ func notFound(w http.ResponseWriter) {
 	io.Copy(w, f)
 }
 
+func internalError(w http.ResponseWriter, format string, args ...any) {
+	log.Printf(format, args...)
+	http.Error(w, "Internal server error", http.StatusInternalServerError)
+}
+
 var ErrIsDirectory = errors.New("is a directory")
 
 func httpError(w http.ResponseWriter, err error) {
@@ -141,13 +146,11 @@ func httpError(w http.ResponseWriter, err error) {
 			http.StatusRequestEntityTooLarge)
 		return
 	}
-	log.Printf("HTTP server error: %v", err)
-	http.Error(w, "Internal server error",
-		http.StatusInternalServerError)
+	internalError(w, "HTTP server error: %v", err)
 }
 
 func methodNotAllowed(w http.ResponseWriter, methods string) {
-	w.Header().Set("Allow", "OPTIONS, " + methods)
+	w.Header().Set("Allow", "OPTIONS, "+methods)
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
@@ -409,8 +412,8 @@ func baseURL(r *http.Request) (*url.URL, error) {
 func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 	pth, kind, rest := splitPath(r.URL.Path)
 	if kind != ".status" || rest != "" {
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		internalError(w, "groupStatusHandler: this shouldn't happen")
+		return
 	}
 	name := parseGroupName("/group/", pth)
 	if name == "" {
@@ -426,9 +429,7 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	base, err := baseURL(r)
 	if err != nil {
-		log.Printf("Parse ProxyURL: %v", err)
-		http.Error(w, "Internal server error",
-			http.StatusInternalServerError)
+		internalError(w, "Parse ProxyURL: %v", err)
 		return
 	}
 	d := g.Status(false, base)
@@ -574,7 +575,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(r.URL.Path) < 12 || r.URL.Path[:12] != "/recordings/" {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		internalError(w, "reconrdingsHandler: this shouldn't happen")
 		return
 	}
 

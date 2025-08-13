@@ -37,17 +37,34 @@ func checkAdmin(w http.ResponseWriter, r *http.Request) bool {
 func checkPasswordAdmin(w http.ResponseWriter, r *http.Request, groupname, user string, wildcard bool) bool {
 	username, password, ok := r.BasicAuth()
 	if ok {
-		ok, _ := adminMatch(username, password)
+		ok, err := adminMatch(username, password)
+		if err != nil {
+			internalError(w, "Admin match: %v", err)
+			return false
+		}
 		if ok {
 			return true
 		}
 	}
 	if ok && !wildcard && username == user {
 		desc, err := group.GetDescription(groupname)
-		if err == nil && desc.Users != nil {
+		if err != nil {
+			internalError(w,
+				"Get description for group %v: %v",
+				groupname, err,
+			)
+			return false
+		}
+		if desc.Users != nil {
 			u, ok := desc.Users[user]
 			if ok {
-				ok, _ := u.Password.Match(password)
+				ok, err := u.Password.Match(password)
+				if err != nil {
+					internalError(w,
+						"Password match: %v", err,
+					)
+					return false
+				}
 				if ok {
 					return true
 				}
