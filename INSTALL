@@ -11,14 +11,13 @@ On Windows, do
     set CGO_ENABLED=0
     go build -ldflags="-s -w"
 
-
 ## Set up a group
 
 Set up a group called *test* by creating a file `groups/test.json`:
 
     mkdir groups
     vi groups/test.json
-    
+
 You may use the following definition:
 
     {
@@ -59,7 +58,7 @@ cd ../../../../
 ## Test locally
 
     ./galene &
-    
+
 You should be able to access Galène at `https://localhost:8443`.  Connect
 to the group that you have just set up in two distinct browser windows,
 then press *Ready* in one of the two; you should see a video in the other.
@@ -141,7 +140,7 @@ a certificate, install it in the files `data/cert.pem` and `data/key.pem`:
     sudo cp /etc/letsencrypt/live/server.example.org/privkey.pem data/key.pem
     sudo chown galene:galene data/*.pem
     sudo chmod go-rw data/key.pem
-    
+
 Now arrange to run the binary on the server.  If you never reboot your
 server, it might be as simple as
 
@@ -256,7 +255,7 @@ look like this:
             ]
         }
     ]
-    
+
 In the case of s single TURN server, the `ice-servers.json` file should
 look like this:
 
@@ -285,7 +284,7 @@ that, then the `ice-servers.json` file should look like this:
             "credentialType": "hmac-sha1"
         }
     ]
-    
+
 For redundancy, you may set up multiple TURN servers, and ICE will use the
 first one that works.  If an `ice-servers.json` file is present and
 Galène's built-in TURN server is enabled, then the external server will be
