@@ -717,6 +717,58 @@ func deletePasswordCmd(cmdname string, args []string) {
 	}
 }
 
+// boolOption represents a boolean command-line option that may be unset
+type boolOption struct {
+	set   bool
+	value bool
+}
+
+func (o *boolOption) Set(value string) error {
+	v, err := strconv.ParseBool(value)
+	if err != nil {
+		return err
+	}
+	o.value = v
+	o.set = true
+	return nil
+}
+
+func (o *boolOption) String() string {
+	if o == nil {
+		return "(nil)"
+	}
+	if !o.set {
+		return "(unset)"
+	}
+	return strconv.FormatBool(o.value)
+}
+
+func (o *boolOption) IsBoolFlag() bool {
+	return true
+}
+
+// stringOption represents a command-line option that may be unset
+type stringOption struct {
+	set   bool
+	value string
+}
+
+func (o *stringOption) Set(value string) error {
+	o.value = value
+	o.set = true
+	return nil
+}
+
+func (o *stringOption) String() string {
+	if o == nil {
+		return "(nil)"
+	}
+	if !o.set {
+		return "(unset)"
+	}
+	return o.value
+}
+
 // stdinJSON reads a JSON dictionary on standard input if doit is true.
 // It always returns a non-nil dictionary in the non-error case.
 func stdinJSON(doit bool) (map[string]any, error) {
@@ -733,6 +785,7 @@ func stdinJSON(doit bool) (map[string]any, error) {
 
 func createGroupCmd(cmdname string, args []string) {
 	var groupname string
+	var unrestrictedTokens, autoSubgroups boolOption
 	var doJSON bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
@@ -740,6 +793,12 @@ func createGroupCmd(cmdname string, args []string) {
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Var(&unrestrictedTokens, "unrestricted-tokens",
+		"allow ordinary users to create tokens",
+	)
+	cmd.Var(&autoSubgroups, "auto-subgroups",
+		"create subgroups automatically",
+	)
 	cmd.BoolVar(&doJSON, "json", false,
 		"read JSON template from standard input",
 	)
@@ -766,6 +825,13 @@ func createGroupCmd(cmdname string, args []string) {
 	data, err := stdinJSON(doJSON)
 	if err != nil {
 		log.Fatalf("Decode standard input: %v", err)
+	}
+
+	if unrestrictedTokens.set {
+		data["unrestricted-tokens"] = unrestrictedTokens.value
+	}
+	if autoSubgroups.set {
+		data["auto-subgroups"] = autoSubgroups.value
 	}
 
 	err = putJSON(u, data, false)
@@ -810,6 +876,7 @@ func deleteGroupCmd(cmdname string, args []string) {
 
 func updateGroupCmd(cmdname string, args []string) {
 	var groupname string
+	var unrestrictedTokens, autoSubgroups boolOption
 	var doJSON bool
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname,
@@ -817,6 +884,12 @@ func updateGroupCmd(cmdname string, args []string) {
 		os.Args[0], cmdname,
 	)
 	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Var(&unrestrictedTokens, "unrestricted-tokens",
+		"allow ordinary users to create tokens",
+	)
+	cmd.Var(&autoSubgroups, "auto-subgroups",
+		"create subgroups automatically",
+	)
 	cmd.BoolVar(&doJSON, "json", false,
 		"read JSON template from standard input",
 	)
@@ -840,12 +913,19 @@ func updateGroupCmd(cmdname string, args []string) {
 	}
 
 	err = updateJSON(u, func(m map[string]any) map[string]any {
+		// command line, if any, overrides template
 		for k, v := range data {
 			if v == nil {
 				delete(m, k)
 			} else {
 				m[k] = v
 			}
+		}
+		if unrestrictedTokens.set {
+			m["unrestricted-tokens"] = unrestrictedTokens.value
+		}
+		if autoSubgroups.set {
+			m["auto-subgroups"] = autoSubgroups.value
 		}
 		return m
 	})
@@ -988,56 +1068,6 @@ func userURL(wildcard bool, groupname, username string) (string, error) {
 		serverURL, "/galene-api/v0/.groups", groupname,
 		".users", username,
 	)
-}
-
-type boolOption struct {
-	set   bool
-	value bool
-}
-
-func (o *boolOption) Set(value string) error {
-	v, err := strconv.ParseBool(value)
-	if err != nil {
-		return err
-	}
-	o.value = v
-	o.set = true
-	return nil
-}
-
-func (o *boolOption) String() string {
-	if o == nil {
-		return "(nil)"
-	}
-	if !o.set {
-		return "(unset)"
-	}
-	return strconv.FormatBool(o.value)
-}
-
-func (o *boolOption) IsBoolFlag() bool {
-	return true
-}
-
-type stringOption struct {
-	set   bool
-	value string
-}
-
-func (o *stringOption) Set(value string) error {
-	o.value = value
-	o.set = true
-	return nil
-}
-
-func (o *stringOption) String() string {
-	if o == nil {
-		return "(nil)"
-	}
-	if !o.set {
-		return "(unset)"
-	}
-	return o.value
 }
 
 func createUserCmd(cmdname string, args []string) {
