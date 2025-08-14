@@ -69,6 +69,10 @@ var commands = map[string]command{
 		command:     listGroupsCmd,
 		description: "list groups",
 	},
+	"show-group": {
+		command:     showGroupCmd,
+		description: "show group definition",
+	},
 	"create-group": {
 		command:     createGroupCmd,
 		description: "create a group",
@@ -1254,6 +1258,43 @@ func deleteUserCmd(cmdname string, args []string) {
 	err = deleteValue(u)
 	if err != nil {
 		log.Fatalf("Delete user: %v", err)
+	}
+}
+
+func showGroupCmd(cmdname string, args []string) {
+	var groupname string
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname,
+		"%v [option...] %v\n",
+		os.Args[0], cmdname,
+	)
+	cmd.StringVar(&groupname, "group", "", "group `name`")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	if groupname == "" {
+		log.Fatal("Option \"-group\" is required.")
+	}
+
+	u, err := url.JoinPath(serverURL, "/galene-api/v0/.groups/", groupname)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	var description map[string]any
+	_, err = getJSON(u, &description)
+	if err != nil {
+		log.Fatalf("Get group description: %v", err)
+	}
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "    ")
+	err = encoder.Encode(&description)
+	if err != nil {
+		log.Fatalf("Encode: %v", err)
 	}
 }
 
