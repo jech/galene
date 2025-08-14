@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -989,6 +990,35 @@ func userURL(wildcard bool, groupname, username string) (string, error) {
 	)
 }
 
+type boolOption struct {
+	set   bool
+	value bool
+}
+
+func (o *boolOption) Set(value string) error {
+	v, err := strconv.ParseBool(value)
+	if err != nil {
+		return err
+	}
+	o.value = v
+	o.set = true
+	return nil
+}
+
+func (o *boolOption) String() string {
+	if o == nil {
+		return "(nil)"
+	}
+	if !o.set {
+		return "(unset)"
+	}
+	return strconv.FormatBool(o.value)
+}
+
+func (o *boolOption) IsBoolFlag() bool {
+	return true
+}
+
 type stringOption struct {
 	set   bool
 	value string
@@ -1323,14 +1353,13 @@ func listTokensCmd(cmdname string, args []string) {
 func createTokenCmd(cmdname string, args []string) {
 	var groupname stringOption
 	var username, permissions string
-	var includeSubgroups bool
+	var includeSubgroups boolOption
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
 	)
 	cmd.Var(&groupname, "group", "group `name`")
-	cmd.BoolVar(&includeSubgroups, "include-subgroups", false,
-		"include subgroups")
+	cmd.Var(&includeSubgroups, "include-subgroups", "include subgroups")
 	cmd.StringVar(&username, "user", "", "encode user `name` in token")
 	cmd.StringVar(&permissions, "permissions", "present", "permissions")
 	cmd.Parse(args)
@@ -1356,8 +1385,8 @@ func createTokenCmd(cmdname string, args []string) {
 	if username != "" {
 		t["username"] = username
 	}
-	if includeSubgroups {
-		t["includeSubgroups"] = true
+	if includeSubgroups.set {
+		t["includeSubgroups"] = includeSubgroups.value
 	}
 
 	u, err := url.JoinPath(
