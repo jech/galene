@@ -97,7 +97,7 @@ func (token *Stateful) match(group string) bool {
 		if token.Group == "" {
 			return true
 		}
-		return strings.HasPrefix(group, token.Group + "/")
+		return strings.HasPrefix(group, token.Group+"/")
 	}
 	return false
 }
@@ -134,20 +134,24 @@ func member(v string, l []string) bool {
 	return false
 }
 
+// called locked
+func (state *state) reset() {
+	state.modTime = time.Time{}
+	state.fileSize = 0
+	state.tokens = nil
+}
+
 // load updates the state from the corresponding file.
 // called locked
 func (state *state) load() (string, error) {
 	if state.filename == "" {
-		state.modTime = time.Time{}
-		state.tokens = nil
-		return state.etag(), nil
+		state.reset()
+		return "", nil
 	}
 
 	fi, err := os.Stat(state.filename)
 	if err != nil {
-		state.modTime = time.Time{}
-		state.fileSize = 0
-		state.tokens = nil
+		state.reset()
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
 		}
@@ -160,9 +164,7 @@ func (state *state) load() (string, error) {
 
 	f, err := os.Open(state.filename)
 	if err != nil {
-		state.modTime = time.Time{}
-		state.fileSize = 0
-		state.tokens = nil
+		state.reset()
 		if errors.Is(err, os.ErrNotExist) {
 			return state.etag(), nil
 		}
@@ -179,8 +181,7 @@ func (state *state) load() (string, error) {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			state.modTime = time.Time{}
-			state.fileSize = 0
+			state.reset()
 			return "", err
 		}
 		// the "message" permission was introduced in Galene 0.9,
@@ -194,11 +195,9 @@ func (state *state) load() (string, error) {
 	state.tokens = ts
 	fi, err = f.Stat()
 	if err != nil {
-		state.modTime = time.Time{}
-		state.fileSize = 0
-		state.tokens = nil
+		state.reset()
 		if errors.Is(err, os.ErrNotExist) {
-			return state.etag(), nil
+			return "", nil
 		}
 		return "", err
 	}
@@ -323,9 +322,12 @@ func (state *state) add(token *Stateful) (*Stateful, error) {
 	state.tokens[token.Token] = token.Clone()
 
 	fi, err := f.Stat()
-	if err != nil {
+	if err == nil {
 		state.modTime = fi.ModTime()
 		state.fileSize = fi.Size()
+	} else {
+		// This shouldn't happen.  Force full read next time.
+		state.reset()
 	}
 	return token, nil
 }
@@ -381,9 +383,8 @@ func (state *state) rewrite() error {
 		state.modTime = fi.ModTime()
 		state.fileSize = fi.Size()
 	} else {
-		// force rereading next time
-		state.modTime = time.Time{}
-		state.fileSize = 0
+		// This shouldn't happen, force rereading next time
+		state.reset()
 	}
 
 	return nil
