@@ -180,7 +180,7 @@ galenectl set-password -group city-watch -user vimes
 ```
 
 You should now be able to test your Galene installation by pointing a web
-browser at <https://galene.example.org:8443/group/testing/>.
+browser at <https://galene.example.org:8443/group/city-watch/>.
 
 Create an ordinary user:
 
@@ -201,7 +201,7 @@ information.
 
 ## Advanced configuration
 
-Galene is designed to be exposed directly to the internet.  If your server
+Galene is designed to be exposed directly to the Internet.  If your server
 is behind a firewall or NAT router, some extra configuration is necessary.
 
 ### Running behind a firewall
@@ -234,7 +234,7 @@ failures, this is nothing to worry about.
 
 If your server is behind NAT, then currently the only option is to use
 a STUN, or, preferably, TURN server on a separate host, one that is not
-behind NAT.  See Section "Connectivity issues and ICE servers" below.
+behind NAT.  See Section *Connectivity issues and ICE servers* below.
 
 Galene has some support for running behind NAT without a helpful server,
 but this has not been exhaustively tested.  Please see the section
@@ -274,7 +274,7 @@ Galene over plain HTTP instead of HTTPS by using the command-line flag
 
 Note that even if you're using a reverse proxy, clients will attempt to
 establish direct UDP flows with Galene and direct TCP connections to
-Galene's TURN server; see the section on "Configuring your firewall"
+Galene's TURN server; see the section *Configuring your firewall*
 above.
 
 ## Connectivity issues and ICE servers

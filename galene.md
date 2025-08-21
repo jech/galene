@@ -1,7 +1,7 @@
 # Galene manual
 
 Please see the file [galene-install.md][1] for installation instructions.
-Please see the section "Server administration" below for detailed
+Please see the section *Server administration* below for detailed
 administration instructions.
 
 ## Usage
@@ -38,7 +38,7 @@ chat.
 
 ### Buttons
 
-There are up to three buttons at the top.  The most important is The
+There are up to three buttons at the top.  The most important is the
 *Enable*/*Disable* button, which switches on or off both the camera and
 the microphone.
 
@@ -52,14 +52,14 @@ individual window.
 
 There is a menu on the right of the user interface.  It allows switching
 off the camera (for audio-only sessions), choosing the camera and
-microphone and setting the video throughput.  The *Blackboard mode*
-checkbox increases resolution and sacrifices framerate in favour of image
-quality.  The *Play local file* dialog streams a video from a local file.
+microphone, and setting the video throughput.  The *Blackboard mode*
+checkbox increases resolution and sacrifices frame rate in favour of image
+quality.  The *Play local file* dialogue streams a video from a local file.
 
 ### User list
 
 There is a user list on the left, starting with the current user and
-continuing with all users that have joined the current group.
+followed by all the users that have joined the current group.
 
 The user list doubles as a set of menus.  Clicking on the current user (the
 first entry in the user list) opens the *group menu*, a menu with actions
@@ -68,7 +68,7 @@ a *user menu*, a menu that applies to that specific user.
 
 ### Chat pane
 
-The center pane is a traditional chat interface, with an input form at the
+The centre pane is a traditional chat interface, with an input form at the
 bottom and the chat history above it.  Chat history is never saved to
 disk, and is erased after four hours (or whatever is specified in the
 `"max-history-age"` field of the group definition).
@@ -84,7 +84,7 @@ commands.
 
 ### Inviting users
 
-In order to generate an invitation link, choose the entry "Invite user" in
+In order to generate an invitation link, choose the entry *Invite user* in
 the group menu.  This generates a link of the form
 
     https://galene.example.org:8443/group/city-watch/?token=XXX
@@ -98,22 +98,21 @@ however, groups may be configured with the `"unrestricted-tokens"` option,
 which allows all users to generate tokens.
 
 Tokens can be created, modified, and expired using the `/invite`,
-`/reinvite` and `/revoke` commands.
+`/reinvite`, and `/revoke` commands.
 
 ### File transfer
 
 Galene includes a peer-to-peer, end-to-end encrypted file transfer protocol.
 In order to transfer a file, click on the receiver's entry in the user
-list and choose "Send file".
+list and choose *Send file*.
 
 ### Group moderation
 
-If a user has the *op* permission (short for *Operator*), then they have
-access to a number of moderation tools.
-
-For a moderator, the contextual menu that opens when clicking on an entry
-in the user list is expanded with commands for muting a user, sending them
-a warning, retrieving their IP address, or kicking them out from a group.
+If a user has the *op* permission (short for *operator*), then they have
+access to a number of moderation tools.  The contextual menu that opens
+when clicking on an entry in the user list is expanded with commands for
+muting a user, sending them a warning, retrieving their IP address, or
+kicking them out from a group.
 
 The group menu (opened by clicking on one's own entry in the user's list)
 is extended with options to lock or to unlock a group (a locked group is
@@ -123,7 +122,6 @@ All of the moderation commands are also available as command-line commands
 (see above), which is helpful when moderating large groups.
 
 # Server administration
-
 
 ## The global configuration file
 
@@ -153,7 +151,7 @@ or, better, with a hashed password:
 }
 ```
 
-The file is initially set up using `galenectl initial-setup`, but may be
+The file is initially created using `galenectl initial-setup`, but may be
 manually edited at any time (there is no need to restart the server).  The
 fields are as follows:
 
@@ -165,7 +163,7 @@ fields are as follows:
    to modify group definitions; if unset or false, then only read-only
    access is allowed;
 
- - `allowOrigin` is an array that contains the list of HTTP origins that
+ - `allowOrigin` is an array containing the list of HTTP origins that
    are allowed to access the server;
 
  - `allowAdminOrigin` is like `allowOrigin`, but applies to the
@@ -181,7 +179,7 @@ fields are as follows:
 
 ## Group definitions
 
-Groups are described by JSON files in the `./groups/` directory.  These
+Groups are described by JSON files in the `groups/` directory.  These
 files are normally administered using the `galenectl` utility, but may
 also be edited manually (there is no need to restart the server).
 
@@ -204,11 +202,11 @@ galenectl create-group -group city-watch -unrestricted-tokens
 ```
 
 For more advanced configuration, `galenectl create-group` can be invoked
-with the `-json` flag, in which case it takes a JSON template on standard
+with the `-json` flag, in which case it takes a JSON template from standard
 input.  The syntax of a JSON template is just like that of a group
 definition file (see below), except that it must not contain the fields
 `users` and `wildcard-user`.  For example, in order to create a redirect
-(see the section "Group description reference" below):
+(see the section *Group description reference* below):
 
 ```sh
 echo '{"redirect": "https://galene.example.org:8443/group/city-watch/"}' | galenectl create-group -group amcw -json
@@ -236,7 +234,7 @@ galenectl delete-group -group amcw
 
 #### Creating, modifying, and deleting users
 
-A user entry is created with the `galenectl create-user` command :
+A user entry is created with the `galenectl create-user` command:
 
 ```sh
 galenectl create-user -group city-watch -user vimes -permissions op
@@ -244,7 +242,7 @@ galenectl create-user -group city-watch -user vimes -permissions op
 
 If the `-permissions` flag is not specified, it defaults to `present`,
 meaning that the user can participate in the chat and present videos to
-the group.  The other useful values are `message`, which allows a user
+the group.  Other useful values are `message`, which allows a user
 to participate in the chat only, and `observe`, which doesn't allow any
 active participation.
 
@@ -260,8 +258,8 @@ galenectl set-password -group city-watch -user vimes
 
 #### The fallback user
 
-It is sometimes useful to allow multiple users to log-in using the same
-password.  This is achieved by defining the *wildcard* user:
+It is sometimes useful to allow multiple users to log in using the same
+password.  This can be achieved by defining the *wildcard* user:
 
 ```sh
 galenectl create-user -group city-watch -wildcard
@@ -275,18 +273,18 @@ user's password is set to the password of type `wildcard`:
 galenectl set-password -group city-watch -wildcard -type wildcard
 ```
 
-See the section "Client authorisation" below for more information about
+See the section *Client authorisation* below for more information about
 password types.
 
 #### Automatic subgroups
 
-It is sometimes necessary to create large numbers of identical groups.
+It is sometimes necessary to create a large number of identical groups.
 For example, the author has been using Galene to supervise computer
 science practicals, where up to 40 students are working in groups of two.
 
-While it is possible to automate the creation of groups, by accessing
-Galene's API, by scripting calls to galenectl, or by directly generating
-files under `groups/`, Galene provides a facility known as *automatic
+While it is possible to automate the creation of groups by accessing
+Galene's API, by scripting calls to galenectl, or by generating files
+directly under `groups/`, Galene provides a facility called *automatic
 subgroups* that can be used to generate groups on demand.
 
 Automatic subgroups are enabled by setting the `"auto-subgroups"`
@@ -304,7 +302,7 @@ group's operator can view the list of populated subgroups with the command
 
 #### Managing tokens
 
-Tokens are normally managed using the `/invite`, `/reinvite` and `/expire`
+Tokens are normally managed using the `/invite`, `/reinvite`, and `/expire`
 commands in Galene's user interface, but they may also be managed using
 the `galenectl` utility's `create-token`, `revoke-token`, `delete-token`
 and `list-tokens` commands:
@@ -340,10 +338,10 @@ a file `groups/teaching/networking.json` defines a group called
 Every group definition file contains a single JSON dictionary.  All fields
 are optional.  The following fields are allowed:
 
- - `users`: is a dictionary that maps user names to user descriptions (see
+ - `users`: a dictionary that maps user names to user descriptions (see
    below);
 
- - `wildcard-user` is a user description that will be used for usernames
+ - `wildcard-user` a user description that will be used for usernames
    with no matching entry in the `users` dictionary;
 
  - `authKeys`, `authServer` and `authPortal`: see *Authorisation* below;
@@ -362,7 +360,7 @@ are optional.  The following fields are allowed:
  - `comment`: a human-readable string, ignored by the server;
 
  - `max-clients`: the maximum number of clients that may join the group at
-   a time;
+   one time;
 
  - `max-history-age`: the time, in seconds, during which chat history is
    kept (default 14400, i.e. 4 hours);
@@ -390,7 +388,7 @@ are optional.  The following fields are allowed:
  - `redirect`: if set, then attempts to join the group will be redirected
    to the given URL; most other fields are ignored in this case;
 
- - `codecs`: this is a list of codecs allowed in this group, see below for
+ - `codecs`: a list of codecs allowed in this group, see below for
    possible values.  The default is `["vp8", "opus"]`.
 
 A user definition is a dictionary with entries `password` and
@@ -400,14 +398,14 @@ hash-password` command.  The value of the `permissions` field can either
 be an array of individual permissions (not recommended), or one of the
 following strings:
 
- - `op`, a group operator, with all rights except administering the group;
+ - `op`: a group operator, with all rights except administering the group;
  - `present`, an ordinary user with the right to publish audio and video
    streams and send chat messages;
- - `message`, a user with the right to send chat messages;
- - `observe`, a user that receives media streams and chat messages, but
+ - `message`: a user with the right to send chat messages;
+ - `observe`: a user that receives media streams and chat messages, but
    is not allowed to send them;
- - `caption`, a user with the right to display captions (only);
- - `admin`, a user with the right to administer the group (only).
+ - `caption`: a user with the right to display captions (only);
+ - `admin`: a user with the right to administer the group (only).
 
 The value of the `codecs` field is an array of codecs allowed in the
 group.  Supported video codecs include:
@@ -429,14 +427,14 @@ anything except Opus.
 
 Galene implements three authorisation methods: a username/password
 authorisation scheme, a scheme using stateful tokens, and a mechanism
-based on cryptographic tokens.  The former two mechanism are intended to
+based on cryptographic tokens.  The former two mechanisms are intended to
 be used in standalone installations, while the cryptographic mechanism is
 designed to allow easy integration with an existing authorisation
 infrastructure (such as LDAP, OAuth2, or even Unix passwords).
 
 ### Password authorisation
 
-When password authorisation is used, authorised usernames and password are
+When password authorisation is used, authorised usernames and passwords are
 defined directly in the group configuration file, in the `users` and
 `wildcard-user` entries.  The `users` entry is a dictionary that maps user
 names to user descriptions; the `wildcard-user` is a user description
@@ -449,7 +447,7 @@ a dictionary describing a hashed password or a wildcard.  The
 `permissions` field should be one of `op`, `present`, `message` or
 `observe`.  (An array of Galene's internal permissions is also allowed,
 but this is not recommended, since internal permissions may vary from
-version to version).
+version to version.)
 
 For example, the entry
 
@@ -459,15 +457,15 @@ For example, the entry
 }
 ```
 
-specifies that user "vimes" may login as operator with password "sybil", while
+specifies that user "vimes" may log in as operator with password "sybil", while
 
 ```json
 {
     "wildcard-user": {"password": "1234", "permissions": "present"}
 }
-````
+```
 
-allows any username with password *1234*.  Finally,
+allows any username with the password *1234*.  Finally,
 
 ```json
 {
@@ -520,7 +518,7 @@ up without stopping the server.
 In many cases, it is useful to delegate authorisation decisions to a third
 party, such as an LDAP or OAuth2 client.  Galene implements delegation of
 authorisation decisions using cryptographic tokens generated by a third
-party known as an *authorisaton server*.  Two authorisation servers are
+party known as an *authorisation server*.  Two authorisation servers are
 available: an [LDAP client][2], and a [sample server written in Python][3].
 
 When an authorisation server is used, the `"authKeys"` entry of the group
@@ -553,7 +551,7 @@ authorisation portal.  An authorisation server is specified using the
 
 ```json
 {
-    "authServer": "https://auth.example.org",
+    "authServer": "https://auth.example.org"
 }
 ```
 
@@ -563,12 +561,11 @@ join the group using token authentication.  The password is never
 communicated to the server.
 
 Alternatively, the group file may specify an authorisation portal using
-the `"authPortal"` key
-
-If an authorisation portal is specified, then the default client will
-redirect initial client connections to the authorisation portal.  The
-authorisation portal is expected to authorise the client and then redirect
-it to Galene with the `username` and `token` query parameters set.
+the `"authPortal"` key.  If an authorisation portal is specified, then the
+default client will redirect initial client connections to the
+authorisation portal.  The authorisation portal is expected to authorise
+the client and then redirect it to Galene with the `username` and `token`
+query parameters set.
 
 [1]: <galene-install.md>
 [2]: <https://github.com/jech/galene-imap/>
