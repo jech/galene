@@ -1958,6 +1958,11 @@ TransferredFile.prototype.receive = async function() {
     f.dc.onclose = function(e) {
         f.cancel('remote peer closed connection');
     };
+    try {
+        f.dc.binaryType = 'blob';
+    } catch(e) {
+        console.warn(`binaryType blob: ${e}`);
+    }
     f.dc.onmessage = function(e) {
         f.receiveData(e.data).catch(e => f.cancel(e));
     };
