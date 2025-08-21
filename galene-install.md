@@ -67,7 +67,7 @@ Now copy the `galene` binary, and the directories `static`, `data` and
 rsync -a galene static data groups galene@galene.example.org:
 ```
 
-If you don't have a TLS certificate, Galène will generate a self-signed
+If you don't have a TLS certificate, Galene will generate a self-signed
 certificate (and print a warning to the logs).  If you have a certificate,
 install it in the files `data/cert.pem` and `data/key.pem`:
 
@@ -104,7 +104,7 @@ exec setuidgid galene ./galene
 ```
 
 If you are using *SystemD*, put the following in
-`/etc/systemd/system/galene.service`:
+`/etc/systemd/system/galene.service` (and then run `systemctl daemon-reload`):
 
 ```ini
 [Unit]
@@ -135,7 +135,7 @@ Build the `galenectl` utility, and copy it somewhere on your path:
 ```sh
 cd galenectl
 go build -ldflags='-s -w'
-sudo cp galenectl /usr/local/bin
+sudo cp galenectl /usr/local/bin/
 ```
 
 Now create an administrator password, and set up galenectl:
@@ -238,7 +238,7 @@ behind NAT.  See Section "Connectivity issues and ICE servers" below.
 
 Galene has some support for running behind NAT without a helpful server,
 but this has not been exhaustively tested.  Please see the section
-"Connectivity issues and ICE server" below.
+"Connectivity issues and ICE servers" below.
 
 ### Running behind a reverse proxy
 
@@ -287,7 +287,7 @@ that help punching holes in well-behaved NATs, and TURN servers, that
 serve as relays for traffic.  TURN is a superset of STUN: no STUN server
 is necessary if one or more TURN servers are available.
 
-Galène includes an IPv4-only TURN server, which is controlled by the
+Galene includes an IPv4-only TURN server, which is controlled by the
 `-turn` command-line option.  It has the following behaviour:
 
   * if its value is set to the empty string `""`, then the built-in server
@@ -311,7 +311,7 @@ Galène includes an IPv4-only TURN server, which is controlled by the
 
 If the server is not accessible from the Internet, e.g. because of NAT or
 because it is behind a restrictive firewall, then you should configure
-a TURN server that runs on a host that is accessible by both Galène and
+a TURN server that runs on a host that is accessible by both Galene and
 the clients.  Disable the built-in TURN server (`-turn ""` or the default
 `-turn auto`), and provide a working ICE configuration in the file
 `data/ice-servers.json`.  In the case of a single STUN server, it should
@@ -327,7 +327,7 @@ look like this:
 ]
 ```
 
-In the case of s single TURN server, the `ice-servers.json` file should
+In the case of a single TURN server, the `ice-servers.json` file should
 look like this:
 
 ```json
@@ -350,8 +350,8 @@ that, then the `ice-servers.json` file should look like this:
 [
     {
         "urls": [
-            "turn:turn.example.com:443",
-            "turn:turn.example.com:443?transport=tcp"
+            "turn:turn.example.org:443",
+            "turn:turn.example.org:443?transport=tcp"
         ],
         "username": "galene",
         "credential": "secret",
@@ -362,5 +362,5 @@ that, then the `ice-servers.json` file should look like this:
 
 For redundancy, you may set up multiple TURN servers, and ICE will use the
 first one that works.  If an `ice-servers.json` file is present and
-Galène's built-in TURN server is enabled, then the external server will be
+Galene's built-in TURN server is enabled, then the external server will be
 used in preference to the built-in server.

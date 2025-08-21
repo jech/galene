@@ -61,7 +61,7 @@ quality.  The *Play local file* dialog streams a video from a local file.
 There is a user list on the left, starting with the current user and
 continuing with all users that have joined the current group.
 
-The user list doubles as a set of menu.  Clicking on the current user (the
+The user list doubles as a set of menus.  Clicking on the current user (the
 first entry in the user list) opens the *group menu*, a menu with actions
 that apply to the group as a whole.  Clicking on a different user opens
 a *user menu*, a menu that applies to that specific user.
@@ -93,16 +93,16 @@ where the *XXX* part, known as the *token*, is a shared secret. Such
 a link allows password-less login to the group, and may therefore be
 shared e.g. over e-mail or instant messaging.
 
-The invitiation functionality is usually restricted to the moderator;
+The invitation functionality is usually restricted to the moderator;
 however, groups may be configured with the `"unrestricted-tokens"` option,
 which allows all users to generate tokens.
 
-Tokens can be created, modified, and expires using the `/invite`,
+Tokens can be created, modified, and expired using the `/invite`,
 `/reinvite` and `/revoke` commands.
-nnnn
+
 ### File transfer
 
-Galene includes a peer-to, end-to-end encrypted file transfer protocol.
+Galene includes a peer-to-peer, end-to-end encrypted file transfer protocol.
 In order to transfer a file, click on the receiver's entry in the user
 list and choose "Send file".
 
@@ -187,7 +187,7 @@ also be edited manually (there is no need to restart the server).
 
 ### Managing groups using `galenectl`
 
-#### Creating, modifying, and suppressing groups
+#### Creating, modifying, and deleting groups
 
 A group is created using `galenectl create-group`:
 
@@ -221,7 +221,7 @@ galenectl update-group -group city-watch -unrestricted-tokens=false
 ```
 
 If a JSON template is provided to `galenectl update-group`, then it is
-merged with the existing group configuration.  Entries may be suppressed
+merged with the existing group configuration.  Entries may be deleted
 by setting them to `null` in the template:
 
 ```sh
@@ -234,7 +234,7 @@ A group is deleted using `galenectl delete-group`:
 galenectl delete-group -group amcw
 ```
 
-#### Creating, modifying, and suppressing users
+#### Creating, modifying, and deleting users
 
 A user entry is created with the `galenectl create-user` command :
 
@@ -248,7 +248,7 @@ the group.  The other useful values are `message`, which allows a user
 to participate in the chat only, and `observe`, which doesn't allow any
 active participation.
 
-A user is modified using `galenectl update-user`, and suppressed using
+A user is modified using `galenectl update-user`, and deleted using
 `galenectl delete-user`.
 
 In order to be useful, a user entry needs to be assigned a password.  This
@@ -482,8 +482,8 @@ allows any username with any password.
 
 For security reasons, passwords are usually hashed before being stored in
 group descriptions (in fact, the `galenectl` utility does not even support
-storing plaintext passwords).  A hased password is represented as a JSON
-dicttionary with a field `type` and a number of type-specific fields.
+storing plaintext passwords).  A hashed password is represented as a JSON
+dictionary with a field `type` and a number of type-specific fields.
 
 A user entry with a hashed password looks like this:
 
@@ -503,7 +503,7 @@ A user entry with a hashed password looks like this:
 ```
 
 Hashed passwords are normally generated transparently to the user by the
-`galenectl set-password` command.  When edition group description files
+`galenectl set-password` command.  When editing group description files
 manually, hashed passwords can be generated with the `galenectl hash-password`
 utility.
 
@@ -532,13 +532,13 @@ the restriction that the "alg" key must be specified explicitly):
     "authKeys": [{
         "kty": "oct",
         "alg": "HS256",
-        "k": "MYz3IfCq4Yq-UmPdNqWEOdPl4C_m9imHHs9uveDUJGQ",
+        "k": "MYz3IfCq4Yq-UmPdNqWEOdPl4C_m9imHHs9uveDUJGQ"
     }, {
         "kty": "EC",
         "alg": "ES256",
         "crv": "P-256",
         "x": "dElK9qBNyCpRXdvJsn4GdjrFzScSzpkz_I0JhKbYC88",
-        "y": "pBhVb37haKvwEoleoW3qxnT4y5bK35_RTP7_RmFKR6Q",
+        "y": "pBhVb37haKvwEoleoW3qxnT4y5bK35_RTP7_RmFKR6Q"
     }]
 }
 ```
