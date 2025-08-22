@@ -497,7 +497,6 @@ function gotClose(code, reason) {
     let form = document.getElementById('loginform');
     if(!(form instanceof HTMLFormElement))
         throw new Error('Bad type for loginform');
-    form.active = true;
 }
 
 /**
@@ -4341,7 +4340,6 @@ document.getElementById('loginform').onsubmit = async function(e) {
     getInputElement('presentoff').checked = true;
 
     // Connect to the server, gotConnected will join.
-    form.active = false;
     serverConnect();
 };
 
