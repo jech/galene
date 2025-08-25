@@ -499,11 +499,15 @@ func requestKeyframe(t *diskTrack) {
 	}
 }
 
+func isVideo(codec string) bool {
+	return len(codec) > 6 && strings.EqualFold(codec[:6], "video/")
+}
+
 // writeRTP writes the packet without fetching lost packets
 // Called locked.
 func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 	codec := t.remote.Codec().MimeType
-	if len(codec) > 6 && strings.EqualFold(codec[:6], "video/") {
+	if isVideo(codec) {
 		kf, _ := gcodecs.Keyframe(codec, p)
 		if kf {
 			t.savedKf = p
@@ -562,7 +566,7 @@ func (t *diskTrack) writeBuffered(force bool) error {
 		}
 
 		var keyframe bool
-		if len(codec) > 6 && strings.EqualFold(codec[:6], "video/") {
+		if isVideo(codec) {
 			if t.savedKf == nil {
 				keyframe = false
 			} else {
