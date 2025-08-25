@@ -51,7 +51,11 @@ func newId() string {
 }
 
 func New(g *group.Group) *Client {
-	return &Client{group: g, id: newId()}
+	return &Client{
+		group: g,
+		id:    newId(),
+		down:  make(map[string]*diskConn),
+	}
 }
 
 func (client *Client) Group() *group.Group {
@@ -153,10 +157,6 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 	if err != nil {
 		g.WallOps("Write to disk: " + err.Error())
 		return err
-	}
-
-	if client.down == nil {
-		client.down = make(map[string]*diskConn)
 	}
 
 	down, err := newDiskConn(client, directory, up, tracks)
