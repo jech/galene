@@ -10,10 +10,157 @@ import (
 
 var errTruncated = errors.New("truncated packet")
 
-// Keyframe determines if packet is the start of a keyframe.
+func h264Keyframe(data []byte) (bool, bool) {
+	if len(data) < 1 {
+		return false, false
+	}
+	nalu := data[0] & 0x1F
+	if nalu == 0 {
+		// reserved
+		return false, false
+	} else if nalu <= 23 {
+		// simple NALU
+		return nalu == 7, true
+	} else if nalu == 24 || nalu == 25 || nalu == 26 || nalu == 27 {
+		// STAP-A, STAP-B, MTAP16 or MTAP24
+		i := 1
+		if nalu == 25 || nalu == 26 || nalu == 27 {
+			// skip DON
+			i += 2
+		}
+		for i < len(data) {
+			if i+2 > len(data) {
+				return false, false
+			}
+			length := uint16(data[i])<<8 |
+				uint16(data[i+1])
+			i += 2
+			if i+int(length) > len(data) {
+				return false, false
+			}
+			offset := 0
+			if nalu == 26 {
+				offset = 3
+			} else if nalu == 27 {
+				offset = 4
+			}
+			if offset >= int(length) {
+				return false, false
+			}
+			n := data[i+offset] & 0x1F
+			if n == 7 {
+				return true, true
+			} else if n >= 24 {
+				// is this legal?
+				return false, false
+			}
+			i += int(length)
+		}
+		if i == len(data) {
+			return false, true
+		}
+		return false, false
+	}
+	return false, false
+}
+
+func av1Keyframe(w int, data []byte) (bool, bool) {
+	getObu := func(data []byte, last bool) ([]byte, int, bool) {
+		if last {
+			return data, len(data), false
+		}
+		offset := 0
+		length := 0
+		for {
+			if len(data) <= offset {
+				return nil, offset, offset > 0
+			}
+			if offset >= 4 {
+				return nil, offset, true
+			}
+			l := data[offset]
+			length |= int(l&0x7f) << (offset * 7)
+			offset++
+			if (l & 0x80) == 0 {
+				break
+			}
+		}
+		if len(data) < offset+length {
+			return data[offset:], len(data), true
+		}
+		return data[offset : offset+length],
+			offset + length, false
+	}
+
+	offset := 0
+	i := 0
+	for {
+		obu, length, truncated := getObu(data[offset:], w == i+1)
+		if len(obu) < 1 {
+			return false, false
+		}
+		tpe := (obu[0] & 0x38) >> 3
+		switch i {
+		case 0:
+			// OBU_SEQUENCE_HEADER
+			if tpe != 1 {
+				return false, true
+			}
+		default:
+			// OBU_FRAME_HEADER or OBU_FRAME
+			if tpe == 3 || tpe == 6 {
+				if len(obu) < 2 {
+					return false, false
+				}
+				// show_existing_frame == 0
+				if (obu[1] & 0x80) != 0 {
+					return false, true
+				}
+				// frame_type == KEY_FRAME
+				return (obu[1] & 0x60) == 0, true
+			}
+		}
+		if truncated || i >= w {
+			// the first frame header is in a second
+			// packet, give up.
+			return false, false
+		}
+		offset += length
+		i++
+	}
+}
+
+// SampleKeyframe determines if a given sample is a keyframe.
 // It returns (true, true) if that is the case, (false, true) if that is
 // definitely not the case, and (false, false) if the information cannot
 // be determined.
+func SampleKeyframe(codec string, data []byte) (bool, bool) {
+	if len(data) < 1 {
+		return false, false
+	}
+
+	if strings.EqualFold(codec, "video/vp8") {
+		return data[0]&0x1 == 0, true
+	} else if strings.EqualFold(codec, "video/vp9") {
+		if (data[0] & 0xc0) != 0x80 {
+			return false, false
+		}
+
+		profile := (data[0] >> 4) & 0x3
+		if profile != 3 {
+			return (data[0] & 0xC) == 0, true
+		}
+		return (data[0] & 0x6) == 0, true
+	} else if strings.EqualFold(codec, "video/h264") {
+		return h264Keyframe(data)
+	} else if strings.EqualFold(codec, "video/av1") {
+		return av1Keyframe(0, data)
+	}
+	return false, false
+}
+
+// Keyframe determines if packet is the start of a keyframe.
+// The return values are as in [SampleKeyframe].
 func Keyframe(codec string, packet *rtp.Packet) (bool, bool) {
 	if strings.EqualFold(codec, "video/vp8") {
 		var vp8 codecs.VP8Packet
@@ -46,140 +193,17 @@ func Keyframe(codec string, packet *rtp.Packet) (bool, bool) {
 		}
 		return (vp9.Payload[0] & 0x6) == 0, true
 	} else if strings.EqualFold(codec, "video/av1") {
-		if len(packet.Payload) < 2 {
+		if len(packet.Payload) < 1 {
 			return false, true
 		}
 		// Z=0, N=1
 		if (packet.Payload[0] & 0x88) != 0x08 {
 			return false, true
 		}
-		w := (packet.Payload[0] & 0x30) >> 4
-
-		getObu := func(data []byte, last bool) ([]byte, int, bool) {
-			if last {
-				return data, len(data), false
-			}
-			offset := 0
-			length := 0
-			for {
-				if len(data) <= offset {
-					return nil, offset, offset > 0
-				}
-				if offset >= 4 {
-					return nil, offset, true
-				}
-				l := data[offset]
-				length |= int(l&0x7f) << (offset * 7)
-				offset++
-				if (l & 0x80) == 0 {
-					break
-				}
-			}
-			if len(data) < offset+length {
-				return data[offset:], len(data), true
-			}
-			return data[offset : offset+length],
-				offset + length, false
-		}
-		offset := 1
-		i := 0
-		for {
-			obu, length, truncated :=
-				getObu(packet.Payload[offset:], int(w) == i+1)
-			if len(obu) < 1 {
-				return false, false
-			}
-			tpe := (obu[0] & 0x38) >> 3
-			switch i {
-			case 0:
-				// OBU_SEQUENCE_HEADER
-				if tpe != 1 {
-					return false, true
-				}
-			default:
-				// OBU_FRAME_HEADER or OBU_FRAME
-				if tpe == 3 || tpe == 6 {
-					if len(obu) < 2 {
-						return false, false
-					}
-					// show_existing_frame == 0
-					if (obu[1] & 0x80) != 0 {
-						return false, true
-					}
-					// frame_type == KEY_FRAME
-					return (obu[1] & 0x60) == 0, true
-				}
-			}
-			if truncated || i >= int(w) {
-				// the first frame header is in a second
-				// packet, give up.
-				return false, false
-			}
-			offset += length
-			i++
-		}
+		w := int((packet.Payload[0] & 0x30) >> 4)
+		return av1Keyframe(w, packet.Payload[1:])
 	} else if strings.EqualFold(codec, "video/h264") {
-		if len(packet.Payload) < 1 {
-			return false, false
-		}
-		nalu := packet.Payload[0] & 0x1F
-		if nalu == 0 {
-			// reserved
-			return false, false
-		} else if nalu <= 23 {
-			// simple NALU
-			return nalu == 7, true
-		} else if nalu == 24 || nalu == 25 || nalu == 26 || nalu == 27 {
-			// STAP-A, STAP-B, MTAP16 or MTAP24
-			i := 1
-			if nalu == 25 || nalu == 26 || nalu == 27 {
-				// skip DON
-				i += 2
-			}
-			for i < len(packet.Payload) {
-				if i+2 > len(packet.Payload) {
-					return false, false
-				}
-				length := uint16(packet.Payload[i])<<8 |
-					uint16(packet.Payload[i+1])
-				i += 2
-				if i+int(length) > len(packet.Payload) {
-					return false, false
-				}
-				offset := 0
-				if nalu == 26 {
-					offset = 3
-				} else if nalu == 27 {
-					offset = 4
-				}
-				if offset >= int(length) {
-					return false, false
-				}
-				n := packet.Payload[i+offset] & 0x1F
-				if n == 7 {
-					return true, true
-				} else if n >= 24 {
-					// is this legal?
-					return false, false
-				}
-				i += int(length)
-			}
-			if i == len(packet.Payload) {
-				return false, true
-			}
-			return false, false
-		} else if nalu == 28 || nalu == 29 {
-			// FU-A or FU-B
-			if len(packet.Payload) < 2 {
-				return false, false
-			}
-			if (packet.Payload[1] & 0x80) == 0 {
-				// not a starting fragment
-				return false, true
-			}
-			return (packet.Payload[1]&0x1F == 7), true
-		}
-		return false, false
+		return h264Keyframe(packet.Payload)
 	}
 	return false, false
 }
