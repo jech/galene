@@ -318,7 +318,6 @@ type diskTrack struct {
 
 	kfRequested time.Time
 	lastKf      time.Time
-	savedKf     *rtp.Packet
 }
 
 func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
@@ -449,11 +448,7 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 		if ((p.SequenceNumber - lastSeqno) & 0x8000) == 0 {
 			// jump forward
 			count := p.SequenceNumber - lastSeqno
-			if count < 256 {
-				for i := uint16(1); i < count; i++ {
-					fetch(t, lastSeqno+i)
-				}
-			} else {
+			if count >= 256 {
 				requestKeyframe(t)
 			}
 			t.lastSeqno = some(uint32(p.SequenceNumber))
@@ -476,21 +471,6 @@ func (t *diskTrack) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-func fetch(t *diskTrack, seqno uint16) {
-	// since the samplebuilder retains packets, use a fresh buffer
-	buf := make([]byte, 1504)
-	n := t.remote.GetPacket(seqno, buf, false)
-	if n == 0 {
-		return
-	}
-	p := new(rtp.Packet)
-	err := p.Unmarshal(buf)
-	if err != nil {
-		return
-	}
-	t.writeRTP(p)
-}
-
 func requestKeyframe(t *diskTrack) {
 	now := time.Now()
 	if now.Sub(t.kfRequested) > 500*time.Millisecond {
@@ -510,7 +490,6 @@ func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 	if isVideo(codec) {
 		kf, _ := gcodecs.Keyframe(codec, p)
 		if kf {
-			t.savedKf = p
 			t.lastKf = time.Now()
 			if !valid(t.origin) {
 				t.setOrigin(
@@ -518,6 +497,9 @@ func (t *diskTrack) writeRTP(p *rtp.Packet) error {
 					t.remote.Codec().ClockRate,
 				)
 			}
+			w, h := gcodecs.KeyframeDimensions(codec, p)
+			t.conn.width = w
+			t.conn.height = h
 		} else if time.Since(t.lastKf) > 4*time.Second {
 			requestKeyframe(t)
 		}
@@ -567,17 +549,9 @@ func (t *diskTrack) writeBuffered(force bool) error {
 
 		var keyframe bool
 		if isVideo(codec) {
-			if t.savedKf == nil {
-				keyframe = false
-			} else {
-				keyframe = (ts == t.savedKf.Timestamp)
-			}
-
+			keyframe, _ = gcodecs.SampleKeyframe(codec, sample.Data)
 			if keyframe {
-				w, h := gcodecs.KeyframeDimensions(
-					codec, t.savedKf,
-				)
-				err := t.conn.initWriter(w, h, t, ts)
+				err := t.conn.initWriter(t, ts)
 				if err != nil {
 					t.conn.warn(
 						"Write to disk " + err.Error(),
@@ -589,7 +563,7 @@ func (t *diskTrack) writeBuffered(force bool) error {
 			keyframe = true
 			if t.writer == nil {
 				if !t.conn.hasVideo {
-					err := t.conn.initWriter(0, 0, t, ts)
+					err := t.conn.initWriter(t, ts)
 					if err != nil {
 						t.conn.warn(
 							"Write to disk " +
@@ -726,13 +700,9 @@ func (t *diskTrack) adjustOrigin(ts uint32) {
 }
 
 // called locked
-func (conn *diskConn) initWriter(width, height uint32, track *diskTrack, ts uint32) error {
+func (conn *diskConn) initWriter(track *diskTrack, ts uint32) error {
 	if conn.file != nil {
-		if width == conn.width && height == conn.height {
-			return nil
-		} else {
-			conn.close()
-		}
+		return nil
 	}
 
 	isWebm := true
@@ -758,8 +728,8 @@ func (conn *diskConn) initWriter(width, height uint32, track *diskTrack, ts uint
 				CodecID:     "V_VP8",
 				TrackType:   1,
 				Video: &webm.Video{
-					PixelWidth:  uint64(width),
-					PixelHeight: uint64(height),
+					PixelWidth:  uint64(conn.width),
+					PixelHeight: uint64(conn.height),
 				},
 			}
 		} else if strings.EqualFold(codec.MimeType, "video/vp9") {
@@ -769,8 +739,8 @@ func (conn *diskConn) initWriter(width, height uint32, track *diskTrack, ts uint
 				CodecID:     "V_VP9",
 				TrackType:   1,
 				Video: &webm.Video{
-					PixelWidth:  uint64(width),
-					PixelHeight: uint64(height),
+					PixelWidth:  uint64(conn.width),
+					PixelHeight: uint64(conn.height),
 				},
 			}
 		} else if strings.EqualFold(codec.MimeType, "video/h264") {
@@ -780,8 +750,8 @@ func (conn *diskConn) initWriter(width, height uint32, track *diskTrack, ts uint
 				CodecID:     "V_MPEG4/ISO/AVC",
 				TrackType:   1,
 				Video: &webm.Video{
-					PixelWidth:  uint64(width),
-					PixelHeight: uint64(height),
+					PixelWidth:  uint64(conn.width),
+					PixelHeight: uint64(conn.height),
 				},
 			}
 			isWebm = false
@@ -842,9 +812,6 @@ func (conn *diskConn) initWriter(width, height uint32, track *diskTrack, ts uint
 		conn.file = nil
 		return errors.New("unexpected number of writers")
 	}
-
-	conn.width = width
-	conn.height = height
 
 	for i, t := range conn.tracks {
 		t.writer = ws[i]
