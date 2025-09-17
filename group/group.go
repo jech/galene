@@ -42,8 +42,16 @@ func (err *NotAuthorisedError) Unwrap() error {
 	return err.err
 }
 
+var ErrBadPassword = &NotAuthorisedError{
+	err: errors.New("bad password"),
+}
+
+var ErrNoSuchUsername = &NotAuthorisedError{
+	err: errors.New("user not found"),
+}
+
 var ErrDuplicateUsername = &NotAuthorisedError{
-	errors.New("this username is taken"),
+	err: errors.New("this username is taken"),
 }
 
 type UserError string
@@ -1000,7 +1008,7 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) (Permissions, err
 			if ok {
 				return c.Permissions, nil
 			} else {
-				return Permissions{}, &NotAuthorisedError{}
+				return Permissions{}, ErrBadPassword
 			}
 		}
 	}
@@ -1011,7 +1019,7 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) (Permissions, err
 			return desc.WildcardUser.Permissions, nil
 		}
 	}
-	return Permissions{}, &NotAuthorisedError{}
+	return Permissions{}, ErrNoSuchUsername
 }
 
 // Return true if there is a user entry with the given username.
