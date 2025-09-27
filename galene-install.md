@@ -37,8 +37,8 @@ Optionally install Google's MediaPipe library:
 ```sh
 mkdir mediapipe
 cd mediapipe
-npm pack @mediapipe/tasks-vision
-tar xzf mediapipe-tasks-vision-*.tgz
+wget https://registry.npmjs.org/@mediapipe/tasks-vision/-/tasks-vision-0.10.21.tgz
+tar xzf tasks-vision-*.tgz
 rm -f ../static/third-party/tasks-vision
 mv package ../static/third-party/tasks-vision
 cd ../static/third-party/tasks-vision
@@ -54,10 +54,10 @@ The following instructions assume that your server is called
 `galene.example.org` and that you have already created a dedicated user
 called `galene`.
 
-First, create an empty directory called `groups`:
+First, make sure the `groups` and `data` directories exists:
 
 ```sh
-mkdir groups
+mkdir -p groups data
 ```
 
 Now copy the `galene` binary, and the directories `static`, `data` and
@@ -80,7 +80,7 @@ chmod go-rw data/key.pem
 ```
 
 Since certificates are regularly rotated, this should be done in a monthly
-cron job (or a *SystemD* timer unit, if you're feeling particularly kinky).
+cron job (or a *systemd* timer unit, if you're feeling particularly kinky).
 
 ### Run Galene on the server
 
@@ -118,6 +118,26 @@ User=galene
 Group=galene
 ExecStart=/home/galene/galene
 LimitNOFILE=65536
+# hardening
+DeviceAllow=
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProcSubset=pid
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectProc=invisible
+RemoveIPC=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=multi-user.target
