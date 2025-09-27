@@ -54,10 +54,10 @@ The following instructions assume that your server is called
 `galene.example.org` and that you have already created a dedicated user
 called `galene`.
 
-First, create an empty directory called `groups`:
+First, make sure the `groups` and `data` directories exists:
 
 ```sh
-mkdir groups
+mkdir -p groups data
 ```
 
 Now copy the `galene` binary, and the directories `static`, `data` and
