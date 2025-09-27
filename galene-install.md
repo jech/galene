@@ -80,7 +80,7 @@ chmod go-rw data/key.pem
 ```
 
 Since certificates are regularly rotated, this should be done in a monthly
-cron job (or a *SystemD* timer unit, if you're feeling particularly kinky).
+cron job (or a *systemd* timer unit, if you're feeling particularly kinky).
 
 ### Run Galene on the server
 
