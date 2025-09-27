@@ -37,8 +37,8 @@ Optionally install Google's MediaPipe library:
 ```sh
 mkdir mediapipe
 cd mediapipe
-npm pack @mediapipe/tasks-vision
-tar xzf mediapipe-tasks-vision-*.tgz
+wget https://registry.npmjs.org/@mediapipe/tasks-vision/-/tasks-vision-0.10.21.tgz
+tar xzf tasks-vision-*.tgz
 rm -f ../static/third-party/tasks-vision
 mv package ../static/third-party/tasks-vision
 cd ../static/third-party/tasks-vision
