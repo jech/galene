@@ -2,6 +2,7 @@ package token
 
 import (
 	"crypto/ecdsa"
+	"crypto/rsa"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -51,6 +52,28 @@ func TestJWKES256(t *testing.T) {
 	}
 	if !kk.IsOnCurve(kk.X, kk.Y) {
 		t.Errorf("point is not on curve")
+	}
+}
+
+func TestJWKRS256(t *testing.T) {
+	key := `{
+            "kty": "RSA",
+            "alg": "RS256",
+            "n": "pkW_7FkYAlKo4NSs-npeA4y6hHZk274RmQ1pf1nqNmXfipYqO4yySLWERZlj3B_yOCkXGn_MPQ-dZ5wiJEi1wW2RNMzb4_r1Q2l2GWZDTRLz4GGHIV0ZCdupacjVXN4lIa-oNJx2N8Pgfsla2zYRkaE9Le19uG5ncP1TW6INqd9-bSll95PIF59OQ10BvZGgGc1MYqVNB0mI0Q9OwSG4R2yaPGAnp8v2Wdjc0hDHzNBHajcjzsx0ZTM44s-rj-1-Z0JN-Gx1tG2UTPvrWXJcqfLvwE-9mGPfct8NgMDDdS_dX-xNF3RK-F93OwVfg6lccnCwOWpNwF6ZoFqxEXFcxw",
+            "e": "AQAB"
+        }`
+	var j map[string]interface{}
+	err := json.Unmarshal([]byte(key), &j)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	k, err := ParseKey(j)
+	if err != nil {
+		t.Fatalf("ParseKey: %v", err)
+	}
+	kk, ok := k.(*rsa.PublicKey)
+	if !ok || kk.Size() != 256 {
+		t.Errorf("ParseKey: got %v", kk)
 	}
 }
 

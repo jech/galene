@@ -3,7 +3,9 @@ package token
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rsa"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"math/big"
 	"net/url"
@@ -91,6 +93,27 @@ func ParseKey(key map[string]any) (any, error) {
 			X:     &x,
 			Y:     &y,
 		}, nil
+	case "RSA":
+		if alg != "RS256" {
+			return nil, errors.New("unknown alg")
+		}
+		nbytes, err := parseBase64("n", key)
+		if err != nil {
+			return nil, err
+		}
+		var n big.Int
+		n.SetBytes(nbytes)
+		ebytes, err := parseBase64("e", key)
+		if err != nil {
+			return nil, err
+		}
+		if len(ebytes) > 8 {
+			return nil, errors.New("unsupported e")
+		}
+		ebuffer := make([]byte, 8)
+		copy(ebuffer[8-len(ebytes):], ebytes)
+		e := binary.BigEndian.Uint64(ebuffer)
+		return &rsa.PublicKey{N: &n, E: int(e)}, nil
 	default:
 		return nil, errors.New("unknown key type")
 	}
