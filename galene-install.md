@@ -48,6 +48,8 @@ wget https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segm
 cd ../../../../
 ```
 
+If you don't have `wget` on your system, try using `curl -O` instead.
+
 ### Deploy to your server
 
 The following instructions assume that your server is called
