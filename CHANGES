@@ -6,6 +6,10 @@ Galene 1.1 (unreleased):
     galenectl group commands.
   * Reworked the documentation.
   * Fixed a bug that could cause multiple reads of the token file.
+  * Explicitly use blobs for file transfer, this should allow
+    transferring files larger than available memory.  This was the intent
+    all along, but the spec changed behind our back.
+  * Implemented support for RSA tokens.  Thanks to Jean Dupouy.
 
 9 August 2025: Galene 1.0
 
