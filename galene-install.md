@@ -264,9 +264,10 @@ example, with Nginx, you will need to say something like the following:
 
 ```
 location /ws {
-    proxy_pass ...;
+    proxy_pass https://localhost:8443/ws;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $http_host;
 }
 ```
 
