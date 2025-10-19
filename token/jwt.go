@@ -9,7 +9,6 @@ import (
 	"errors"
 	"math/big"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -201,7 +200,14 @@ func (token *JWT) Check(host, group string, username *string) (string, []string,
 	if err != nil {
 		return "", nil, err
 	}
-	ok := false
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", nil, errors.New("unexpected type for token")
+	}
+	incSubgroups, _ := claims["include-subgroups"].(bool)
+
+	ok = false
 	for _, u := range aud {
 		url, err := url.Parse(u)
 		if err != nil {
@@ -215,18 +221,19 @@ func (token *JWT) Check(host, group string, username *string) (string, []string,
 				continue
 			}
 		}
-		if url.Path == path.Join("/group", group)+"/" {
+		// aud path takes the form /group/<groupname>/
+		if !strings.HasPrefix(url.Path, "/group/") || !strings.HasSuffix(url.Path, "/") {
+			continue
+		}
+		tokenGroup := url.Path[len("/group/") : len(url.Path)-1]
+		if group == tokenGroup ||
+			incSubgroups && (tokenGroup == "" || strings.HasPrefix(group, tokenGroup+"/")) {
 			ok = true
 			break
 		}
 	}
 	if !ok {
 		return "", nil, errors.New("token for wrong group")
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return "", nil, errors.New("unexpected type for token")
 	}
 
 	var perms []string

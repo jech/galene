@@ -587,6 +587,10 @@ the same format as in the `joined` message.  Since the client will only
 use the token once, at the very beginning of the session, the tokens
 issued may have a short lifetime (on the order of 30s).
 
+A boolean `include-subgroups` claim may be included in the JWT payload. It
+has the same effect as the `include-subgroups` parameter used when generating
+a stateful token.
+
 ## Authentication portal
 
 If a group's status dictionary has a non-empty `authPortal` field, Galene
