@@ -365,6 +365,14 @@ func initialSetupCmd(cmdname string, args []string) {
 		fmt.Fprint(os.Stdin, "\n")
 	}
 
+	configDir := filepath.Dir(configFile)
+	if configDir != "" {
+		err := os.MkdirAll(configDir, 0o700)
+		if err != nil {
+			log.Fatalf("Create directory %v: %v", configDir)
+		}
+	}
+
 	galeneConfig, err := os.OpenFile(galeneConfigFn,
 		os.O_WRONLY|os.O_CREATE|os.O_CREATE|os.O_EXCL,
 		0600)
