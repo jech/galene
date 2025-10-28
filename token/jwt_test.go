@@ -127,6 +127,11 @@ func TestJWT(t *testing.T) {
 		t.Errorf("goodToken is valid for wrong group")
 	}
 
+	_, _, err = tok.Check("galene.org:8443", "auth/subgroup", &john)
+	if err == nil {
+		t.Errorf("goodToken is valid for subgroup")
+	}
+
 	emptySubToken := "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIiLCJhdWQiOiJodHRwczovL2dhbGVuZS5vcmc6ODQ0My9ncm91cC9hdXRoLyIsInBlcm1pc3Npb25zIjpbInByZXNlbnQiXSwiaWF0IjoxNjQ1MzEwMjk0LCJleHAiOjI5MDY3NTAyOTQsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTIzNC8ifQo.xwpHIRzKAIgiHKG1pVQyZlXcolmvRwNvBm6FN2gTwZw"
 
 	tok, err = Parse(emptySubToken, keys)
@@ -173,5 +178,16 @@ func TestJWT(t *testing.T) {
 	_, err = Parse(noneToken, keys)
 	if err == nil {
 		t.Errorf("noneToken is good")
+	}
+
+	subgroupsToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiYXVkIjoiaHR0cHM6Ly9nYWxlbmUub3JnOjg0NDMvZ3JvdXAvYXV0aC8iLCJpbmNsdWRlLXN1Ymdyb3VwcyI6dHJ1ZSwicGVybWlzc2lvbnMiOlsicHJlc2VudCJdLCJpYXQiOjE2NDUzMTAyOTQsImV4cCI6MjkwNjc1MDI5NCwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDoxMjM0LyJ9.ty4B7cJPCGJPMadwOCNMGQirIByj1L9AxWiDFnBm5wA"
+	tok, err = Parse(subgroupsToken, keys)
+	if err != nil {
+		t.Errorf("subgroupsToken is not valid: %v", err)
+	}
+
+	_, _, err = tok.Check("galene.org:8443", "auth/subgroup", &john)
+	if err != nil {
+		t.Errorf("subgroupsToken is not valid for subgroup: %v", err)
 	}
 }
