@@ -146,7 +146,7 @@ Now create an administrator password, and set up galenectl:
 galenectl -admin-username admin initial-setup
 ```
 
-This command creates two files: `galenectl.conf` and `config.json`.  The
+This command creates two files: `galenectl.json` and `config.json`.  The
 former is already at the right place, the latter must be copied to the
 server's `data/` directory:
 
