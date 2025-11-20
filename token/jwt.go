@@ -188,6 +188,22 @@ func parseJWT(token string, keys []map[string]any) (*JWT, error) {
 	return (*JWT)(t), nil
 }
 
+func matchGroup(pth, group string, includeSubgroups bool) bool {
+	if !includeSubgroups {
+		return pth == "/group/"+group+"/"
+	}
+
+	if !strings.HasPrefix(pth, "/group/") {
+		return false
+	}
+
+	if !strings.HasSuffix(pth, "/") {
+		return false
+	}
+
+	return strings.HasPrefix("/group/"+group+"/", pth)
+}
+
 func (token *JWT) Check(host, group string, username *string) (string, []string, error) {
 	sub, err := token.Claims.GetSubject()
 	if err != nil {
@@ -205,7 +221,7 @@ func (token *JWT) Check(host, group string, username *string) (string, []string,
 	if !ok {
 		return "", nil, errors.New("unexpected type for token")
 	}
-	incSubgroups, _ := claims["include-subgroups"].(bool)
+	includeSubgroups, _ := claims["include-subgroups"].(bool)
 
 	ok = false
 	for _, u := range aud {
@@ -221,13 +237,7 @@ func (token *JWT) Check(host, group string, username *string) (string, []string,
 				continue
 			}
 		}
-		// aud path takes the form /group/<groupname>/
-		if !strings.HasPrefix(url.Path, "/group/") || !strings.HasSuffix(url.Path, "/") {
-			continue
-		}
-		tokenGroup := url.Path[len("/group/") : len(url.Path)-1]
-		if group == tokenGroup ||
-			incSubgroups && (tokenGroup == "" || strings.HasPrefix(group, tokenGroup+"/")) {
+		if matchGroup(url.Path, group, includeSubgroups) {
 			ok = true
 			break
 		}

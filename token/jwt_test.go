@@ -77,6 +77,42 @@ func TestJWKRS256(t *testing.T) {
 	}
 }
 
+func TestMatchGroup(t *testing.T) {
+	type tt struct {
+		p, g string
+		s    bool
+	}
+	good := []tt{
+		{"/group/a/", "a", false},
+		{"/group/a/b/", "a/b", false},
+		{"/group/a/", "a", true},
+		{"/group/a/", "a/b", true},
+		{"/group/a/b/", "a/b", true},
+		{"/group/a/b/", "a/b/c", true},
+	}
+
+	bad := []tt{
+		{"/group/a/", "b", false},
+		{"/group/a", "a", false},
+		{"/group/a", "a", true},
+		{"/group/a/", "a/b", false},
+		{"/group/a/b/", "a", false},
+		{"/group/a/b/", "a", true},
+	}
+
+	for _, test := range good {
+		if !matchGroup(test.p, test.g, test.s) {
+			t.Errorf("%v %v %v didn't match", test.p, test.g, test.s)
+		}
+	}
+
+	for _, test := range bad {
+		if matchGroup(test.p, test.g, test.s) {
+			t.Errorf("%v %v %v matched", test.p, test.g, test.s)
+		}
+	}
+}
+
 func TestJWT(t *testing.T) {
 	key := `{"alg":"HS256","k":"H7pCkktUl5KyPCZ7CKw09y1j460tfIv4dRcS1XstUKY","key_ops":["sign","verify"],"kty":"oct"}`
 	var k map[string]interface{}
