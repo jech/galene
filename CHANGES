@@ -10,6 +10,8 @@ Galene 1.1 (unreleased):
     transferring files larger than available memory.  This was the intent
     all along, but the spec changed behind our back.
   * Implemented support for RSA tokens.  Thanks to Jean Dupouy.
+  * Added support for include-inferiors in cryptographic tokens.  Thanks
+    to izeau.
 
 9 August 2025: Galene 1.0
 
