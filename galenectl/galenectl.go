@@ -369,7 +369,7 @@ func initialSetupCmd(cmdname string, args []string) {
 	if configDir != "" {
 		err := os.MkdirAll(configDir, 0o700)
 		if err != nil {
-			log.Fatalf("Create directory %v: %v", configDir)
+			log.Fatalf("Create directory %v: %v", configDir, err)
 		}
 	}
 
