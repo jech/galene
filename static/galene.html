@@ -29,9 +29,9 @@
           <header>
             <nav class="topnav navbar navbar-expand navbar-light fixed-top">
               <div id="header">
-                <div class="collapse" title="Collapse left panel" id="sidebarCollapse">
+                <button class="collapse" aria-label="Collapse left panel" id="sidebarCollapse">
                   <i class="fas fa-align-left" aria-hidden="true"></i>
-                </div>
+                </button>
                 <h1 id="title" class="header-title">Galène</h1>
               </div>
 
@@ -47,21 +47,21 @@
                   </button>
                 </li>
                 <li>
-                  <div id="mutebutton" class="nav-link nav-button">
+                  <button id="mutebutton" class="nav-link nav-button" aria-pressed="false" aria-label="Mute microphone">
                     <span><i class="fas fa-microphone-slash" aria-hidden="true"></i></span>
-                    <label>Mute</label>
-                  </div>
+                    <span class="nav-text">Mute</span>
+                  </button>
                 </li>
                 <li>
-                  <div id="sharebutton" class="invisible nav-link nav-button">
+                  <button id="sharebutton" class="invisible nav-link nav-button" aria-label="Share screen">
                     <span><i class="fas fa-share-square" aria-hidden="true"></i></span>
-                    <label>Share Screen</label>
-                  </div>
+                    <span class="nav-text">Share Screen</span>
+                  </button>
                 </li>
                 <li>
-                  <div class="nav-button nav-link nav-more" id="openside">
+                  <button class="nav-button nav-link nav-more" id="openside" aria-label="More options" aria-haspopup="true">
                     <span><i class="fas fa-ellipsis-v" aria-hidden="true"></i></span>
-                  </div>
+                  </button>
                 </li>
               </ul>
             </nav>
@@ -70,10 +70,11 @@
             <div class="coln-left" id="left">
               <div id="chat">
                 <div id="chatbox">
-                  <div class="close-chat" id="close-chat"  title="Hide chat">
+                  <button class="close-chat" id="close-chat" aria-label="Hide chat">
                     <span class="close-icon"></span>
-                  </div>
+                  </button>
                   <div id="box"></div>
+                  <div id="chat-announcements" aria-live="polite" aria-atomic="true" class="sr-only"></div>
                   <div class="reply">
                     <form id="inputform">
                       <textarea id="input" class="form-reply"></textarea>

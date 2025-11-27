@@ -626,10 +626,14 @@ function setLocalMute(mute, reflect) {
         icon.classList.add('fa-microphone-slash');
         icon.classList.remove('fa-microphone');
         button.classList.add('muted');
+        button.setAttribute('aria-pressed', 'true');
+        button.setAttribute('aria-label', 'Unmute microphone');
     } else {
         icon.classList.remove('fa-microphone-slash');
         icon.classList.add('fa-microphone');
         button.classList.remove('muted');
+        button.setAttribute('aria-pressed', 'false');
+        button.setAttribute('aria-label', 'Mute microphone');
     }
     if(reflect)
         updateSettings({localMute: mute});
@@ -2060,6 +2064,10 @@ async function setMedia(c, mirror, video) {
         peersdiv.appendChild(div);
     }
 
+    // Add aria-label to identify video stream owner
+    let username = c.username || 'Participant';
+    div.setAttribute('aria-label', `Video stream from ${username}`);
+
     showHideMedia(c, div)
 
     let media = /** @type {HTMLVideoElement} */
@@ -2077,6 +2085,9 @@ async function setMedia(c, mirror, video) {
         media.autoplay = true;
         media.playsInline = true;
         media.id = 'media-' + c.localId;
+        // Add aria-label for screen readers
+        let username = c.username || 'Participant';
+        media.setAttribute('aria-label', `Video from ${username}`);
         div.appendChild(media);
         addCustomControls(media, div, c, !!video);
     }
@@ -2653,11 +2664,24 @@ function changeUser(id, userinfo) {
  * @param {user} userinfo
  */
 function setUserStatus(id, elt, userinfo) {
-    elt.textContent = userinfo.username ? userinfo.username : '(anon)';
-    if(userinfo.data.raisehand)
+    let username = userinfo.username ? userinfo.username : '(anon)';
+    elt.textContent = username;
+
+    let wasRaised = elt.classList.contains('user-status-raisehand');
+    if(userinfo.data.raisehand) {
         elt.classList.add('user-status-raisehand');
-    else
+        elt.setAttribute('aria-label', `${username} (hand raised)`);
+        // Announce when hand is newly raised (not on initial load)
+        if(!wasRaised && id !== (serverConnection && serverConnection.id)) {
+            let announcement = document.getElementById('chat-announcements');
+            if(announcement) {
+                announcement.textContent = `${username} raised their hand`;
+            }
+        }
+    } else {
         elt.classList.remove('user-status-raisehand');
+        elt.setAttribute('aria-label', username);
+    }
 
     let microphone=false, camera = false;
     for(let label in userinfo.streams) {
@@ -2668,6 +2692,17 @@ function setUserStatus(id, elt, userinfo) {
                 camera = true;
         }
     }
+
+    // Build descriptive aria-label with media status
+    let statusParts = [username];
+    if(userinfo.data.raisehand)
+        statusParts.push('hand raised');
+    if(camera)
+        statusParts.push('camera on');
+    if(microphone)
+        statusParts.push('microphone on');
+    elt.setAttribute('aria-label', statusParts.join(', '));
+
     if(camera) {
         elt.classList.remove('user-status-microphone');
         elt.classList.add('user-status-camera');
@@ -3382,6 +3417,15 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
     box.appendChild(row);
     if(box.scrollHeight > box.clientHeight) {
         box.scrollTop = box.scrollHeight - box.clientHeight;
+    }
+
+    // Announce new messages to screen readers (but not history)
+    if(!history) {
+        let announcement = document.getElementById('chat-announcements');
+        if(announcement) {
+            let messageText = typeof message === 'string' ? message : body.textContent;
+            announcement.textContent = nick ? `${nick}: ${messageText}` : messageText;
+        }
     }
 
     return;

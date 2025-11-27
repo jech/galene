@@ -1,3 +1,27 @@
+/* Accessibility: Visible focus indicators for keyboard navigation */
+button:focus,
+[role="button"]:focus,
+select:focus,
+input:focus,
+textarea:focus,
+a:focus {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+}
+
+/* Accessibility: Screen reader only content */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
 .nav-fixed .topnav {
     z-index: 1039;
 }
@@ -312,7 +336,6 @@
     resize: none;
     overflow: hidden;
     padding: 5px;
-    outline: none;
     border: none;
     text-indent: 5px;
     box-shadow: none;
@@ -865,11 +888,13 @@ h1 {
 }
 
 #input:focus {
-    outline: none;
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
 }
 
 #inputbutton:focus {
-    outline: none;
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
 }
 
 #resizer {
