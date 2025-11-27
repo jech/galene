@@ -2577,7 +2577,11 @@ function makeContextualMenuAccessible(menuElement) {
             menuItems[currentIndex].focus();
         } else if(e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            menuItems[currentIndex].click();
+            // Click the parent li element which has the actual click handler
+            let parentLi = menuItems[currentIndex].parentElement;
+            if(parentLi) {
+                parentLi.click();
+            }
         }
     });
 }
