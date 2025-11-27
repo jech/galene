@@ -2536,6 +2536,53 @@ document.getElementById('invite-dialog').onclose = function(e) {
 };
 
 /**
+ * Adds keyboard navigation to Contextual menu
+ * @param {HTMLElement} menuElement
+ */
+function makeContextualMenuAccessible(menuElement) {
+    // Find all menu items
+    let menuItems = menuElement.querySelectorAll('.contextualMenuItem:not(.disabled)');
+    if(menuItems.length === 0) return;
+
+    let currentIndex = 0;
+
+    // Make menu items focusable and add ARIA
+    menuItems.forEach((item, index) => {
+        item.setAttribute('role', 'menuitem');
+        item.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    });
+
+    // Focus first item
+    menuItems[0].focus();
+
+    // Add keyboard navigation
+    menuElement.addEventListener('keydown', function(e) {
+        if(e.key === 'Escape') {
+            e.preventDefault();
+            contextualCore.CloseMenu();
+            return;
+        }
+
+        if(e.key === 'ArrowDown') {
+            e.preventDefault();
+            menuItems[currentIndex].setAttribute('tabindex', '-1');
+            currentIndex = (currentIndex + 1) % menuItems.length;
+            menuItems[currentIndex].setAttribute('tabindex', '0');
+            menuItems[currentIndex].focus();
+        } else if(e.key === 'ArrowUp') {
+            e.preventDefault();
+            menuItems[currentIndex].setAttribute('tabindex', '-1');
+            currentIndex = currentIndex === 0 ? menuItems.length - 1 : currentIndex - 1;
+            menuItems[currentIndex].setAttribute('tabindex', '0');
+            menuItems[currentIndex].focus();
+        } else if(e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            menuItems[currentIndex].click();
+        }
+    });
+}
+
+/**
  * @param {HTMLElement} elt
  */
 function userMenu(elt) {
@@ -2598,6 +2645,15 @@ function userMenu(elt) {
     new Contextual({
         items: items,
     });
+
+    // Add keyboard navigation after menu is created
+    setTimeout(() => {
+        let menu = document.querySelector('.contextualMenu');
+        if(menu) {
+            menu.setAttribute('role', 'menu');
+            makeContextualMenuAccessible(menu);
+        }
+    }, 0);
 }
 
 /**
@@ -3482,6 +3538,15 @@ function chatMessageMenu(elt) {
     new Contextual({
         items: items,
     });
+
+    // Add keyboard navigation after menu is created
+    setTimeout(() => {
+        let menu = document.querySelector('.contextualMenu');
+        if(menu) {
+            menu.setAttribute('role', 'menu');
+            makeContextualMenuAccessible(menu);
+        }
+    }, 0);
 }
 
 /**
