@@ -4344,7 +4344,7 @@ function displayError(message, level) {
     /** @ts-ignore */
     Toastify({
         text: message,
-        duration: 4000,
+        duration: 8000,  // Increased from 4000 for screen reader users
         close: true,
         position: position,
         gravity: gravity,
@@ -4417,7 +4417,7 @@ document.getElementById('openside').onclick = function(e) {
 };
 
 
-document.getElementById('clodeside').onclick = function(e) {
+document.getElementById('closeside').onclick = function(e) {
     e.preventDefault();
     closeNav();
 };
