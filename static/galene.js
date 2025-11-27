@@ -2609,12 +2609,23 @@ function addUser(id, userinfo) {
     let user = document.createElement('div');
     user.id = 'user-' + id;
     user.classList.add("user-p");
+    user.setAttribute('role', 'button');
+    user.setAttribute('tabindex', '0');
     setUserStatus(id, user, userinfo);
     user.addEventListener('click', function(e) {
         let elt = e.target;
         if(!elt || !(elt instanceof HTMLElement))
             throw new Error("Couldn't find user div");
         userMenu(elt);
+    });
+    user.addEventListener('keydown', function(e) {
+        if(e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            let elt = e.target;
+            if(!elt || !(elt instanceof HTMLElement))
+                throw new Error("Couldn't find user div");
+            userMenu(elt);
+        }
     });
 
     let us = div.children;
@@ -3663,6 +3674,24 @@ commands.unlock = {
     }
 };
 
+commands.raisehand = {
+    description: 'raise your hand',
+    f: (c, r) => {
+        if(!serverConnection || !serverConnection.id)
+            throw new Error('Not connected');
+        serverConnection.userAction('setdata', serverConnection.id, {'raisehand': true});
+    }
+};
+
+commands.unraisehand = {
+    description: 'lower your hand',
+    f: (c, r) => {
+        if(!serverConnection || !serverConnection.id)
+            throw new Error('Not connected');
+        serverConnection.userAction('setdata', serverConnection.id, {'raisehand': null});
+    }
+};
+
 commands.record = {
     predicate: recordingPredicate,
     description: 'start recording',
@@ -4319,6 +4348,30 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
+// Add keyboard support for chat resizer
+document.getElementById('resizer').addEventListener('keydown', function(e) {
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        let full_width = document.getElementById("mainrow").offsetWidth;
+        let left = document.getElementById("left");
+        let right = document.getElementById("right");
+        let current_width = left.offsetWidth;
+        let step = 20; // pixels per keypress
+
+        let new_width = e.key === 'ArrowLeft' ? current_width - step : current_width + step;
+        let left_percent = new_width * 100 / full_width;
+
+        // set min chat width to 300px
+        let min_left_width = 300 * 100 / full_width;
+        if (left_percent < min_left_width) {
+            return;
+        }
+
+        left.style.flex = left_percent.toString();
+        right.style.flex = (100 - left_percent).toString();
+    }
+}, false);
+
 /**
  * @param {unknown} message
  * @param {string} [level]
@@ -4405,6 +4458,14 @@ document.getElementById('sidebarCollapse').onclick = function(e) {
     document.getElementById("mainrow").classList.toggle("full-width-active");
 };
 
+document.getElementById('sidebarCollapse').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        document.getElementById("left-sidebar").classList.toggle("active");
+        document.getElementById("mainrow").classList.toggle("full-width-active");
+    }
+};
+
 document.getElementById('openside').onclick = function(e) {
       e.preventDefault();
       let sidewidth = document.getElementById("sidebarnav").style.width;
@@ -4416,10 +4477,30 @@ document.getElementById('openside').onclick = function(e) {
       }
 };
 
+document.getElementById('openside').onkeydown = function(e) {
+      if(e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          let sidewidth = document.getElementById("sidebarnav").style.width;
+          if (sidewidth !== "0px" && sidewidth !== "") {
+              closeNav();
+              return;
+          } else {
+              openNav();
+          }
+      }
+};
+
 
 document.getElementById('closeside').onclick = function(e) {
     e.preventDefault();
     closeNav();
+};
+
+document.getElementById('closeside').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        closeNav();
+    }
 };
 
 document.getElementById('collapse-video').onclick = function(e) {
@@ -4429,11 +4510,29 @@ document.getElementById('collapse-video').onclick = function(e) {
     hideVideo(true);
 };
 
+document.getElementById('collapse-video').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('collapse-video', false);
+        setVisibility('show-video', true);
+        hideVideo(true);
+    }
+};
+
 document.getElementById('show-video').onclick = function(e) {
     e.preventDefault();
     setVisibility('video-container', true);
     setVisibility('collapse-video', true);
     setVisibility('show-video', false);
+};
+
+document.getElementById('show-video').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('video-container', true);
+        setVisibility('collapse-video', true);
+        setVisibility('show-video', false);
+    }
 };
 
 document.getElementById('close-chat').onclick = function(e) {
@@ -4443,11 +4542,29 @@ document.getElementById('close-chat').onclick = function(e) {
     resizePeers();
 };
 
+document.getElementById('close-chat').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('left', false);
+        setVisibility('show-chat', true);
+        resizePeers();
+    }
+};
+
 document.getElementById('show-chat').onclick = function(e) {
     e.preventDefault();
     setVisibility('left', true);
     setVisibility('show-chat', false);
     resizePeers();
+};
+
+document.getElementById('show-chat').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('left', true);
+        setVisibility('show-chat', false);
+        resizePeers();
+    }
 };
 
 async function serverConnect() {
