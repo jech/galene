@@ -4724,4 +4724,83 @@ async function start() {
     setViewportHeight();
 }
 
+// Global keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Control+Alt+H - Raise or lower hand
+    if(e.ctrlKey && e.altKey && e.key === 'h') {
+        e.preventDefault();
+        if(!serverConnection || !serverConnection.id) {
+            return;
+        }
+
+        let mydata = serverConnection.users[serverConnection.id].data;
+        let isRaised = mydata['raisehand'];
+
+        // Toggle hand state
+        serverConnection.userAction(
+            'setdata',
+            serverConnection.id,
+            {'raisehand': isRaised ? null : true}
+        );
+
+        // Announce the action
+        let announcement = document.getElementById('chat-announcements');
+        if(announcement) {
+            announcement.textContent = isRaised ? 'Hand lowered' : 'Hand raised';
+        }
+
+        // Focus on user's name button in the user list
+        let userButton = document.getElementById('user-' + serverConnection.id);
+        if(userButton) {
+            userButton.focus();
+        }
+    }
+
+    // Control+Shift+C - Expand or collapse chat
+    if(e.ctrlKey && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+
+        let leftPanel = document.getElementById('left');
+        let showChatButton = document.getElementById('show-chat');
+        let closeChatButton = document.getElementById('close-chat');
+
+        // Check if chat is currently visible
+        let isChatVisible = leftPanel && leftPanel.style.display !== 'none';
+
+        if(isChatVisible) {
+            // Collapse chat
+            setVisibility('left', false);
+            setVisibility('show-chat', true);
+            resizePeers();
+
+            // Announce the action
+            let announcement = document.getElementById('chat-announcements');
+            if(announcement) {
+                announcement.textContent = 'Chat collapsed';
+            }
+
+            // Focus the show-chat button
+            if(showChatButton) {
+                showChatButton.focus();
+            }
+        } else {
+            // Expand chat
+            setVisibility('left', true);
+            setVisibility('show-chat', false);
+            resizePeers();
+
+            // Announce the action
+            let announcement = document.getElementById('chat-announcements');
+            if(announcement) {
+                announcement.textContent = 'Chat expanded';
+            }
+
+            // Focus the close-chat button
+            if(closeChatButton) {
+                closeChatButton.focus();
+            }
+        }
+    }
+});
+
 start();
