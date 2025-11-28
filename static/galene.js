@@ -4749,15 +4749,17 @@ document.addEventListener('keydown', function(e) {
             announcement.textContent = isRaised ? 'Hand lowered' : 'Hand raised';
         }
 
-        // Focus on user's name button in the user list
-        let userButton = document.getElementById('user-' + serverConnection.id);
-        if(userButton) {
-            userButton.focus();
-        }
+        // Focus on user's name button in the user list (delayed to ensure announcement is read)
+        setTimeout(function() {
+            let userButton = document.getElementById('user-' + serverConnection.id);
+            if(userButton) {
+                userButton.focus();
+            }
+        }, 100);
     }
 
-    // Control+Shift+C - Expand or collapse chat
-    if(e.ctrlKey && e.shiftKey && e.key === 'C') {
+    // Control+Alt+C - Expand or collapse chat
+    if(e.ctrlKey && e.altKey && e.key === 'c') {
         e.preventDefault();
 
         let leftPanel = document.getElementById('left');
@@ -4779,10 +4781,12 @@ document.addEventListener('keydown', function(e) {
                 announcement.textContent = 'Chat collapsed';
             }
 
-            // Focus the show-chat button
-            if(showChatButton) {
-                showChatButton.focus();
-            }
+            // Focus the show-chat button (delayed to ensure announcement is read)
+            setTimeout(function() {
+                if(showChatButton) {
+                    showChatButton.focus();
+                }
+            }, 100);
         } else {
             // Expand chat
             setVisibility('left', true);
@@ -4795,11 +4799,43 @@ document.addEventListener('keydown', function(e) {
                 announcement.textContent = 'Chat expanded';
             }
 
-            // Focus the close-chat button
-            if(closeChatButton) {
-                closeChatButton.focus();
-            }
+            // Focus the close-chat button (delayed to ensure announcement is read)
+            setTimeout(function() {
+                if(closeChatButton) {
+                    closeChatButton.focus();
+                }
+            }, 100);
         }
+    }
+
+    // Control+Alt+T - Mute or unmute microphone
+    if(e.ctrlKey && e.altKey && e.key === 't') {
+        e.preventDefault();
+        let muteButton = document.getElementById('mutebutton');
+        if(!muteButton) {
+            return;
+        }
+
+        let localMute = getSettings().localMute;
+        if (localMute && !findUpMedia('camera')) {
+            displayMessage('Please use Enable to enable your camera or microphone.');
+            return;
+        }
+
+        // Toggle mute state
+        localMute = !localMute;
+        setLocalMute(localMute, true);
+
+        // Announce the action
+        let announcement = document.getElementById('chat-announcements');
+        if(announcement) {
+            announcement.textContent = localMute ? 'Microphone muted' : 'Microphone unmuted';
+        }
+
+        // Focus the mute button (delayed to ensure announcement is read)
+        setTimeout(function() {
+            muteButton.focus();
+        }, 100);
     }
 });
 
