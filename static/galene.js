@@ -3669,7 +3669,11 @@ commands.help = {
                 continue;
             cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
         }
-        localMessage(cs.sort().join('\n'));
+        let shortcuts = '\n\nKeyboard shortcuts:\n' +
+            'Control+Alt+H: Raise or lower hand\n' +
+            'Control+Alt+C: Expand or collapse chat\n' +
+            'Control+Alt+T: Mute or unmute microphone';
+        localMessage(cs.sort().join('\n') + shortcuts);
     }
 };
 
@@ -4727,7 +4731,7 @@ async function start() {
 // Global keyboard shortcuts
 document.addEventListener('keydown', function(e) {
     // Control+Alt+H - Raise or lower hand
-    if(e.ctrlKey && e.altKey && e.key === 'h') {
+    if(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'h') {
         e.preventDefault();
         if(!serverConnection || !serverConnection.id) {
             return;
@@ -4759,7 +4763,7 @@ document.addEventListener('keydown', function(e) {
     }
 
     // Control+Alt+C - Expand or collapse chat
-    if(e.ctrlKey && e.altKey && e.key === 'c') {
+    if(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
 
         let leftPanel = document.getElementById('left');
@@ -4809,7 +4813,7 @@ document.addEventListener('keydown', function(e) {
     }
 
     // Control+Alt+T - Mute or unmute microphone
-    if(e.ctrlKey && e.altKey && e.key === 't') {
+    if(e.ctrlKey && e.altKey && e.key.toLowerCase() === 't') {
         e.preventDefault();
         let muteButton = document.getElementById('mutebutton');
         if(!muteButton) {
