@@ -3441,7 +3441,7 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         }
 
         if(doHeader) {
-            let header = document.createElement('p');
+            let header = document.createElement('h3');
             let user = document.createElement('span');
             let u = dest && serverConnection.users[dest];
             let name = (u && u.username);
@@ -4523,15 +4523,23 @@ function closeNav() {
 }
 
 document.getElementById('sidebarCollapse').onclick = function(e) {
-    document.getElementById("left-sidebar").classList.toggle("active");
+    let sidebar = document.getElementById("left-sidebar");
+    sidebar.classList.toggle("active");
     document.getElementById("mainrow").classList.toggle("full-width-active");
+    // Update aria-expanded to reflect the state
+    let isCollapsed = sidebar.classList.contains("active");
+    e.currentTarget.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
 };
 
 document.getElementById('sidebarCollapse').onkeydown = function(e) {
     if(e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        document.getElementById("left-sidebar").classList.toggle("active");
+        let sidebar = document.getElementById("left-sidebar");
+        sidebar.classList.toggle("active");
         document.getElementById("mainrow").classList.toggle("full-width-active");
+        // Update aria-expanded to reflect the state
+        let isCollapsed = sidebar.classList.contains("active");
+        e.currentTarget.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
     }
 };
 

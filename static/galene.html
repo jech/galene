@@ -29,7 +29,7 @@
           <header>
             <nav class="topnav navbar navbar-expand navbar-light fixed-top">
               <div id="header">
-                <button class="collapse" aria-label="Collapse left panel" id="sidebarCollapse">
+                <button class="collapse" aria-label="Toggle left panel" aria-expanded="true" id="sidebarCollapse">
                   <i class="fas fa-align-left" aria-hidden="true"></i>
                 </button>
                 <h1 id="title" class="header-title">Galène</h1>
@@ -73,6 +73,7 @@
                   <button class="close-chat" id="close-chat" aria-label="Hide chat">
                     <span class="close-icon"></span>
                   </button>
+                  <h2 id="chat-history-heading" class="sr-only">Chat History</h2>
                   <div id="box"></div>
                   <div id="chat-announcements" aria-live="polite" aria-atomic="true" class="sr-only"></div>
                   <div class="reply">
@@ -116,21 +117,23 @@
                       <input id="password" type="password" name="password"
                              autocomplete="current-password" class="form-control"/>
                     </div>
-                    <label>Enable at start:</label>
-                    <div class="present-switch">
-                      <p class="switch-radio">
-                        <input id="presentoff" type="radio" name="presentradio" value="" checked/>
-                        <label for="presentoff">Nothing</label>
-                      </p>
-                      <p class="switch-radio">
-                        <input id="presentmike" type="radio" name="presentradio" value="mike"/>
-                        <label for="presentmike">Microphone</label>
-                      </p>
-                      <p class="switch-radio">
-                        <input id="presentboth" type="radio" name="presentradio" value="both"/>
-                        <label for="presentboth">Camera and microphone</label>
-                      </p>
-                    </div>
+                    <fieldset>
+                      <legend>Enable at start:</legend>
+                      <div class="present-switch">
+                        <p class="switch-radio">
+                          <input id="presentoff" type="radio" name="presentradio" value="" checked/>
+                          <label for="presentoff">Nothing</label>
+                        </p>
+                        <p class="switch-radio">
+                          <input id="presentmike" type="radio" name="presentradio" value="mike"/>
+                          <label for="presentmike">Microphone</label>
+                        </p>
+                        <p class="switch-radio">
+                          <input id="presentboth" type="radio" name="presentradio" value="both"/>
+                          <label for="presentboth">Camera and microphone</label>
+                        </p>
+                      </div>
+                    </fieldset>
                     <div class="clear"></div>
                     <div class="connect">
                       <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect"/>
@@ -159,11 +162,11 @@
             <div class="profile-info">
               <span id="userspan"></span>
               <span id="permspan"></span>
-              <span id="chpwspan" class="invisible"><a id="change-password">Change password</a></span>
+              <span id="chpwspan" class="invisible"><a id="change-password" aria-label="Change password">Change password</a></span>
             </div>
             <div class="user-logout">
-              <a id="disconnectbutton">
-                <span class="logout-icon"><i class="fas fa-sign-out-alt"></i></span>
+              <a id="disconnectbutton" aria-label="Logout">
+                <span class="logout-icon"><i class="fas fa-sign-out-alt" aria-hidden="true"></i></span>
                 <span class="logout-text">Logout</span>
               </a>
             </div>
