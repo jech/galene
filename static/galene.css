@@ -128,7 +128,6 @@
     -webkit-box-align: center;
     align-items: center;
     -webkit-box-pack: justify;
-    justify-content: space-between;
     background: #610a86;
 }
 .navbar {
@@ -680,6 +679,15 @@ textarea.form-reply {
     margin-left: 0;
 }
 
+.nav-more svg {
+    height: 26px;
+    fill: #dbd9d9;
+}
+
+.nav-more:hover svg {
+    fill: #c2a4e0;
+}
+
 .header-title {
     float: left;
     margin: 0;
@@ -690,7 +698,7 @@ textarea.form-reply {
 }
 
 #title {
-    text-align: center;
+    flex-grow: 1;
 }
 
 h1 {
@@ -1086,17 +1094,19 @@ legend {
 }
 
 header .collapse {
-    float: left;
-    text-align: center;
     cursor: pointer;
-    font-size: 20px;
-    color: #dbd9d9;
     margin-right: 20px;
     margin-left: 5px;
+    width: 18px;
+    height: 22px;
 }
 
-header .collapse:hover {
-    color: #c2a4e0;
+header .collapse svg {
+    fill: #dbd9d9;
+}
+
+header .collapse:hover svg {
+    fill: #c2a4e0;
 }
 
 .galene-header {
