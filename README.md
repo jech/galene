@@ -28,7 +28,7 @@ in this directory.
   * [galene.md][2]: usage and administration;
   * [galene-client.md][3]: writing clients;
   * [galene-protocol.md][4]: the client protocol;
-  * [galene-api.md][4]: Galene's administrative API.
+  * [galene-api.md][5]: Galene's administrative API.
 
 ## Further information
 
@@ -43,3 +43,4 @@ Answers to common questions and issues are at <https://galene.org/faq.html>.
 [2]: <galene.md>
 [3]: <galene-client.md>
 [4]: <galene-protocol.md>
+[5]: <galene-api.md>
