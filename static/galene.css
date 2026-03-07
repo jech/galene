@@ -1276,6 +1276,8 @@ header .collapse:hover {
     #left-sidebar.active {
         min-width: 200px;
         max-width: 200px;
+        /* on top of video peers */
+        z-index: 1002;
     }
 
     #left-sidebar {
