@@ -533,7 +533,9 @@ function setViewportHeight() {
     document.documentElement.style.setProperty(
         '--vh', `${window.innerHeight/100}px`,
     );
-    showVideo();
+    if (!getVisibility('left')) {
+        showVideo();
+    }
     // Ajust video component size
     resizePeers();
 }
@@ -575,6 +577,16 @@ function setVisibility(id, visible) {
         elt.classList.remove('invisible');
     else
         elt.classList.add('invisible');
+}
+
+/**
+ * getVisibility tells whether specified element is visible.
+ *
+ * @param {string} id
+ */
+function getVisibility(id) {
+    let elt = document.getElementById(id);
+    return !elt.classList.contains('invisible');
 }
 
 /**
