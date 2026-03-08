@@ -34,20 +34,22 @@ var StaticRoot string
 var Insecure bool
 
 func Serve(address string, dataDir string) error {
-	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
-	http.HandleFunc("/group/", groupHandler)
-	http.HandleFunc("/recordings",
+	serverMux := http.NewServeMux()
+	serverMux.Handle("/", &fileHandler{http.Dir(StaticRoot)})
+	serverMux.HandleFunc("/group/", groupHandler)
+	serverMux.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r,
 				"/recordings/", http.StatusPermanentRedirect)
 		})
-	http.HandleFunc("/recordings/", recordingsHandler)
-	http.HandleFunc("/ws", wsHandler)
-	http.HandleFunc("/public-groups.json", publicHandler)
-	http.HandleFunc("/galene-api/", apiHandler)
+	serverMux.HandleFunc("/recordings/", recordingsHandler)
+	serverMux.HandleFunc("/ws", wsHandler)
+	serverMux.HandleFunc("/public-groups.json", publicHandler)
+	serverMux.HandleFunc("/galene-api/", apiHandler)
 
 	s := &http.Server{
 		Addr:              address,
+		Handler:           corsHandler(serverMux),
 		ReadHeaderTimeout: 60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
@@ -87,6 +89,13 @@ func Serve(address string, dataDir string) error {
 		}
 	}()
 	return nil
+}
+
+func corsHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		CheckOrigin(w, r, false)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func cspHeader(w http.ResponseWriter, connect string) {
