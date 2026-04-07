@@ -84,6 +84,8 @@ func sendJSON(w http.ResponseWriter, r *http.Request, v any) {
 	e.Encode(v)
 }
 
+const maxAPIMessageSize = 1024 * 1024
+
 func getText(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 	ctype, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || !strings.EqualFold(ctype, "text/plain") {
@@ -93,7 +95,9 @@ func getText(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 		return nil, true
 	}
 
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4096))
+	body, err := io.ReadAll(
+		http.MaxBytesReader(w, r.Body, maxAPIMessageSize),
+	)
 	if err != nil {
 		httpError(w, err)
 		return nil, true
@@ -111,7 +115,9 @@ func getJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 		return true
 	}
 
-	d := json.NewDecoder(r.Body)
+	d := json.NewDecoder(
+		http.MaxBytesReader(w, r.Body, maxAPIMessageSize),
+	)
 	err = d.Decode(v)
 	if err != nil {
 		httpError(w, err)
