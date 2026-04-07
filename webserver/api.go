@@ -519,7 +519,9 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 				http.StatusUnsupportedMediaType)
 			return
 		}
-		d := json.NewDecoder(r.Body)
+		d := json.NewDecoder(
+			http.MaxBytesReader(w, r.Body, maxAPIMessageSize),
+		)
 		var keys jwkset
 		err = d.Decode(&keys)
 		if err != nil {
