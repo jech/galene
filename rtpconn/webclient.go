@@ -832,10 +832,13 @@ func readMessage(conn *websocket.Conn, m *clientMessage) error {
 	return conn.ReadJSON(&m)
 }
 
+const maxWSMessageSize = 1024 * 1024
 const protocolVersion = "2"
 
 func StartClient(conn *websocket.Conn, addr net.Addr) (err error) {
 	var m clientMessage
+
+	conn.SetReadLimit(maxWSMessageSize)
 
 	err = readMessage(conn, &m)
 	if err != nil {
