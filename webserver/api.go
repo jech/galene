@@ -501,7 +501,7 @@ type jwkset = struct {
 }
 
 func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
-	if apiCORS(w, r, "HEAD, GET") {
+	if apiCORS(w, r, "PUT, DELETE") {
 		return
 	}
 	if !checkAdmin(w, r) {
