@@ -12,6 +12,12 @@ Galene 1.1 (unreleased):
   * Implemented support for RSA tokens.  Thanks to Jean Dupouy.
   * Added support for include-inferiors in cryptographic tokens.  Thanks
     to izeau.
+  * Fixed an issue with the chat window and the users' list disappearing
+    on mobile.  Thanks to Kirill smelkov.
+  * Fixed an issue that made it impossible to add a wildcard user to a
+    group with no users.  Thanks to Andrea Zucchelli.
+  * Added some more protection against denial of service attacks.  Thanks
+    to Vinayak Mishra.
 
 9 August 2025: Galene 1.0
 
