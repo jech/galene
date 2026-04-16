@@ -4360,12 +4360,8 @@ document.getElementById('disconnectbutton').onclick = function(e) {
     closeNav();
 };
 
-function openNav() {
-    document.getElementById("sidebarnav").style.width = "250px";
-}
-
 function closeNav() {
-    document.getElementById("sidebarnav").style.width = "0";
+    document.getElementById("sidebarnav").classList.remove("opened");
 }
 
 document.getElementById('sidebarCollapse').onclick = function(e) {
@@ -4374,18 +4370,10 @@ document.getElementById('sidebarCollapse').onclick = function(e) {
 };
 
 document.getElementById('openside').onclick = function(e) {
-      e.preventDefault();
-      let sidewidth = document.getElementById("sidebarnav").style.width;
-      if (sidewidth !== "0px" && sidewidth !== "") {
-          closeNav();
-          return;
-      } else {
-          openNav();
-      }
+    document.getElementById("sidebarnav").classList.add("opened");
 };
 
-
-document.getElementById('clodeside').onclick = function(e) {
+document.getElementById('closeside').onclick = function(e) {
     e.preventDefault();
     closeNav();
 };
