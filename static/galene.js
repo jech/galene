@@ -575,6 +575,11 @@ getButtonElement('unpresentbutton').onclick = function(e) {
     resizePeers();
 };
 
+getButtonElement('enable-cta').onclick = function(e) {
+    e.preventDefault();
+    getButtonElement('presentbutton').click();
+};
+
 /**
  * @param {string} id
  * @param {boolean} visible
@@ -618,6 +623,7 @@ function setButtonsVisibility() {
 
     // don't allow multiple presentations
     setVisibility('presentbutton', canPresent && !local);
+    setVisibility('enable-cta', canPresent && !local);
     setVisibility('unpresentbutton', local);
 
     setVisibility('mutebutton', !connected || canPresent);

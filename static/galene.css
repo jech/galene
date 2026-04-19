@@ -1428,3 +1428,35 @@ header .collapse:hover {
 .toastify.info .toast-close {
     color: #000;
 }
+
+.enable-cta {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1100;
+    padding: 18px 28px;
+    font-size: 1.3em;
+    font-weight: 600;
+    border-radius: 12px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    width: auto;
+}
+
+.enable-cta i {
+    font-size: 1.2em;
+}
+
+@media only screen and (max-width: 1024px) {
+    .enable-cta {
+        font-size: 1.15em;
+        padding: 16px 22px;
+        max-width: calc(100vw - 32px);
+        white-space: normal;
+        text-align: center;
+    }
+}
