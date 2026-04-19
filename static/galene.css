@@ -1448,6 +1448,8 @@ header .collapse:hover {
     width: auto;
     max-width: calc(100% - 32px);
     box-sizing: border-box;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .enable-cta.invisible {
