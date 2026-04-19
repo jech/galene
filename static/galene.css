@@ -1445,8 +1445,8 @@ header .collapse:hover {
     justify-content: center;
     gap: 10px;
     text-align: center;
-    width: auto;
-    max-width: calc(100% - 32px);
+    width: max-content;
+    max-width: calc(100vw - 32px);
     box-sizing: border-box;
     white-space: normal;
     overflow-wrap: anywhere;
