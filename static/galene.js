@@ -4502,6 +4502,16 @@ async function start() {
     if(parms.get('autojoin') === '1')
         autojoin = true;
 
+    {
+        let m = window.location.pathname.match(
+            /\/autojoin\/token\/([^/]+)\/?$/,
+        );
+        if(m) {
+            token = decodeURIComponent(m[1]);
+            autojoin = true;
+        }
+    }
+
     if(token) {
         await serverConnect();
     } else if(groupStatus.authPortal) {
