@@ -1442,9 +1442,12 @@ header .collapse:hover {
     box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
-    white-space: nowrap;
+    text-align: center;
     width: auto;
+    max-width: calc(100% - 32px);
+    box-sizing: border-box;
 }
 
 .enable-cta.invisible {
@@ -1459,8 +1462,5 @@ header .collapse:hover {
     .enable-cta {
         font-size: 1.15em;
         padding: 16px 22px;
-        max-width: calc(100vw - 32px);
-        white-space: normal;
-        text-align: center;
     }
 }
