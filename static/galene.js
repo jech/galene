@@ -65,6 +65,14 @@ let token = null;
 let probingState = null;
 
 /**
+ * When true (set from ?autojoin=1 in the URL together with ?token=),
+ * skip the post-probe Connect click and auto-continue with camera+mic on.
+ *
+ * @type {boolean}
+ */
+let autojoin = false;
+
+/**
  * @typedef {Object} settings - the type of stored settings
  * @property {boolean} [localMute]
  * @property {string} [video]
@@ -2836,6 +2844,10 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
             closeSafariStream();
             this.close();
             setButtonsVisibility();
+            if(autojoin) {
+                presentRequested = 'both';
+                serverConnect();
+            }
             return;
         } else {
             token = null;
@@ -4486,6 +4498,9 @@ async function start() {
 
     if(parms.has('token'))
         token = parms.get('token');
+
+    if(parms.get('autojoin') === '1')
+        autojoin = true;
 
     if(token) {
         await serverConnect();
