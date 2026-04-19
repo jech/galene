@@ -2845,6 +2845,22 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
             this.close();
             setButtonsVisibility();
             if(autojoin) {
+                // Prime cam/mic permission so enumerateDevices returns
+                // populated deviceIds. Firefox won't report them (and
+                // our videoselect default ends up empty, breaking
+                // addLocalMedia) until permission has been granted at
+                // least once on this origin.
+                try {
+                    let s = await navigator.mediaDevices.getUserMedia(
+                        {audio: true, video: true},
+                    );
+                    s.getTracks().forEach(t => t.stop());
+                    await setMediaChoices(false);
+                } catch(e) {
+                    console.warn(
+                        "autojoin media prime failed:", e,
+                    );
+                }
                 presentRequested = 'both';
                 serverConnect();
             }
