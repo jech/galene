@@ -1447,6 +1447,10 @@ header .collapse:hover {
     width: auto;
 }
 
+.enable-cta.invisible {
+    display: none;
+}
+
 .enable-cta i {
     font-size: 1.2em;
 }
