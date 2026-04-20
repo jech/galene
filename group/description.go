@@ -223,6 +223,12 @@ type Description struct {
 	// The URL of the authentication portal, if any.
 	AuthPortal string `json:"authPortal,omitempty"`
 
+	// Webhook fired (HTTP POST, fire-and-forget) when a client joins an
+	// empty group, i.e. on the 0 → 1 client transition. Body is a small
+	// JSON object: {"group": "<name>"}. Intended for external push /
+	// notification services.
+	NotifyWebhook string `json:"notify-webhook,omitempty"`
+
 	// Codec preferences.  If empty, a suitable default is chosen in
 	// the APIFromNames function.
 	Codecs []string `json:"codecs,omitempty"`

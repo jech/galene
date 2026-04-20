@@ -1,12 +1,14 @@
 package group
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"maps"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -599,6 +601,30 @@ func deleteUnlocked(g *Group) bool {
 	return true
 }
 
+var notifyWebhookClient = &http.Client{Timeout: 5 * time.Second}
+
+func fireNotifyWebhook(u, groupName string) {
+	body, err := json.Marshal(map[string]string{"group": groupName})
+	if err != nil {
+		return
+	}
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		log.Printf("notify-webhook %s: build request: %v", groupName, err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := notifyWebhookClient.Do(req)
+	if err != nil {
+		log.Printf("notify-webhook %s: %v", groupName, err)
+		return
+	}
+	resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		log.Printf("notify-webhook %s: status %d", groupName, resp.StatusCode)
+	}
+}
+
 func member(v string, l []string) bool {
 	for _, w := range l {
 		if v == w {
@@ -682,8 +708,13 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 	if g.clients[id] != nil {
 		return nil, ProtocolError("duplicate client id")
 	}
+	wasEmpty := len(clients) == 0
 	g.clients[id] = c
 	g.timestamp = time.Now()
+
+	if wasEmpty && g.description.NotifyWebhook != "" {
+		go fireNotifyWebhook(g.description.NotifyWebhook, g.Name())
+	}
 
 	c.Joined(g.Name(), "join")
 
