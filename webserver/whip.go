@@ -295,7 +295,7 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	if t := c.Token(); t != "" {
 		token := parseBearerToken(r.Header.Get("Authorization"))
-		if token != t {
+		if !group.ConstantTimeCompare(t, token) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
