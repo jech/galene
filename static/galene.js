@@ -3842,7 +3842,7 @@ function parseCommand(line) {
     while(i < line.length && line[i] === ' ')
         i++;
     let start = ' ';
-    if(i < line.length && line[i] === '"' || line[i] === "'") {
+    if(i < line.length && (line[i] === '"' || line[i] === "'")) {
         start = line[i];
         i++;
     }
