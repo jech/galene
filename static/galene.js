@@ -2523,7 +2523,7 @@ document.getElementById('invite-dialog').onclose = function(e) {
         try {
             expires = dateFromInput(ex.value);
         } catch(e) {
-            displayError(`Couldn't parse ${nb.value}: ${e}`);
+            displayError(`Couldn't parse ${ex.value}: ${e}`);
             return;
         }
     }
@@ -2613,7 +2613,7 @@ function addUser(id, userinfo) {
     user.classList.add("user-p");
     setUserStatus(id, user, userinfo);
     user.addEventListener('click', function(e) {
-        let elt = e.target;
+        let elt = e.currentTarget;
         if(!elt || !(elt instanceof HTMLElement))
             throw new Error("Couldn't find user div");
         userMenu(elt);
@@ -3092,7 +3092,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
     case 'kicked':
     case 'error':
     case 'warning':
-    case 'info':
+    case 'info': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
@@ -3100,7 +3100,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         let from = id ? (username || 'Anonymous') : 'The Server';
         displayError(`${from} said: ${message}`, kind);
         break;
-    case 'mute':
+    }
+    case 'mute': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
@@ -3109,6 +3110,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         let by = username ? ' by ' + username : '';
         displayWarning(`You have been muted${by}`);
         break;
+    }
     case 'clearchat': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
@@ -4201,7 +4203,9 @@ function handleInput() {
             } else {
                 let c = commands[cmd];
                 if(!c) {
-                    displayError(`Uknown command /${cmd}, type /help for help`);
+                    displayError(
+                        `Unknown command /${cmd}, type /help for help`
+                    );
                     return;
                 }
                 if(c.predicate) {
