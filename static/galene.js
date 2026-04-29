@@ -1212,6 +1212,7 @@ Filter.prototype.draw = async function() {
         });
         if(frameRate && frameRate != this.frameRate) {
             clearInterval(this.timer);
+            this.frameRate = frameRate;
             this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
         }
     }
