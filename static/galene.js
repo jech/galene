@@ -397,7 +397,7 @@ function setChangePassword(username) {
     if(!(a instanceof HTMLAnchorElement))
         throw new Error('Bad type for chpwspan');
     if(username) {
-        a.href = `/change-password.html?group=${encodeURI(group)}&username=${encodeURI(username)}`;
+        a.href = `/change-password.html?group=${encodeURIComponent(group)}&username=${encodeURIComponent(username)}`;
         a.target = '_blank';
         s.classList.remove('invisible');
     } else {
