@@ -138,9 +138,8 @@ type Client interface {
 	Addr() net.Addr
 	Id() string
 	Username() string
-	SetUsername(string)
+	Init(string, []string)
 	Permissions() []string
-	SetPermissions([]string)
 	Data() map[string]interface{}
 	PushConn(g *Group, id string, conn conn.Up, tracks []conn.UpTrack, replace string) error
 	RequestConns(target Client, g *Group, id string) error

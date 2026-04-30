@@ -93,8 +93,9 @@ func (c *webClient) Username() string {
 	return c.username
 }
 
-func (c *webClient) SetUsername(username string) {
+func (c *webClient) Init(username string, perms []string) {
 	c.username = username
+	c.permissions = perms
 }
 
 func (c *webClient) Permissions() []string {
@@ -103,10 +104,6 @@ func (c *webClient) Permissions() []string {
 
 func (c *webClient) Data() map[string]interface{} {
 	return maps.Clone(c.data)
-}
-
-func (c *webClient) SetPermissions(perms []string) {
-	c.permissions = perms
 }
 
 func (c *webClient) PushClient(group, kind, id string, username string, perms []string, data map[string]interface{}) error {

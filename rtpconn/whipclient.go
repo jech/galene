@@ -51,20 +51,15 @@ func (c *WhipClient) Username() string {
 	return c.username
 }
 
-func (c *WhipClient) SetUsername(username string) {
+func (c *WhipClient) Init(username string, perms []string) {
 	c.username = username
+	c.permissions = perms
 }
 
 func (c *WhipClient) Permissions() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.permissions
-}
-
-func (c *WhipClient) SetPermissions(perms []string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.permissions = perms
 }
 
 func (c *WhipClient) Data() map[string]interface{} {

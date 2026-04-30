@@ -625,8 +625,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 			return nil, err
 		}
 
-		c.SetUsername(username)
-		c.SetPermissions(perms)
+		c.Init(username, perms)
 
 		if !member("op", perms) {
 			if g.locked != nil {
