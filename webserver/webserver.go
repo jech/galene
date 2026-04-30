@@ -326,6 +326,19 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Pretty autojoin URL: /group/<name>/autojoin/token/<token>. Map it
+	// (and any ".status" fetched relative to it) onto the standard
+	// /group/<name>/... dispatch. The browser URL is left untouched —
+	// static/galene.js reads the token out of window.location.pathname.
+	if i := strings.Index(r.URL.Path, "/autojoin/token"); i >= 0 {
+		tail := r.URL.Path[i+len("/autojoin/token"):]
+		if j := strings.Index(tail, "/."); j >= 0 {
+			r.URL.Path = r.URL.Path[:i] + tail[j:]
+		} else {
+			r.URL.Path = r.URL.Path[:i] + "/"
+		}
+	}
+
 	dir, kind, rest := splitPath(r.URL.Path)
 	if kind == ".status" && rest == "" {
 		groupStatusHandler(w, r)

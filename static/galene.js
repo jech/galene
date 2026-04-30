@@ -65,6 +65,14 @@ let token = null;
 let probingState = null;
 
 /**
+ * When true (set from ?autojoin=1 in the URL together with ?token=),
+ * skip the post-probe Connect click and auto-continue with camera+mic on.
+ *
+ * @type {boolean}
+ */
+let autojoin = false;
+
+/**
  * @typedef {Object} settings - the type of stored settings
  * @property {boolean} [localMute]
  * @property {string} [video]
@@ -567,6 +575,11 @@ getButtonElement('unpresentbutton').onclick = function(e) {
     resizePeers();
 };
 
+getButtonElement('enable-cta').onclick = function(e) {
+    e.preventDefault();
+    getButtonElement('presentbutton').click();
+};
+
 /**
  * @param {string} id
  * @param {boolean} visible
@@ -610,6 +623,7 @@ function setButtonsVisibility() {
 
     // don't allow multiple presentations
     setVisibility('presentbutton', canPresent && !local);
+    setVisibility('enable-cta', canPresent && !local);
     setVisibility('unpresentbutton', local);
 
     setVisibility('mutebutton', !connected || canPresent);
@@ -2837,6 +2851,26 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
             closeSafariStream();
             this.close();
             setButtonsVisibility();
+            if(autojoin) {
+                // Prime cam/mic permission so enumerateDevices returns
+                // populated deviceIds. Firefox won't report them (and
+                // our videoselect default ends up empty, breaking
+                // addLocalMedia) until permission has been granted at
+                // least once on this origin.
+                try {
+                    let s = await navigator.mediaDevices.getUserMedia(
+                        {audio: true, video: true},
+                    );
+                    s.getTracks().forEach(t => t.stop());
+                    await setMediaChoices(false);
+                } catch(e) {
+                    console.warn(
+                        "autojoin media prime failed:", e,
+                    );
+                }
+                presentRequested = 'both';
+                serverConnect();
+            }
             return;
         } else {
             token = null;
@@ -4491,6 +4525,19 @@ async function start() {
 
     if(parms.has('token'))
         token = parms.get('token');
+
+    if(parms.get('autojoin') === '1')
+        autojoin = true;
+
+    {
+        let m = window.location.pathname.match(
+            /\/autojoin\/token\/([^/]+)\/?$/,
+        );
+        if(m) {
+            token = decodeURIComponent(m[1]);
+            autojoin = true;
+        }
+    }
 
     if(token) {
         await serverConnect();
