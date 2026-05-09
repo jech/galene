@@ -397,7 +397,7 @@ function setChangePassword(username) {
     if(!(a instanceof HTMLAnchorElement))
         throw new Error('Bad type for chpwspan');
     if(username) {
-        a.href = `/change-password.html?group=${encodeURI(group)}&username=${encodeURI(username)}`;
+        a.href = `/change-password.html?group=${encodeURIComponent(group)}&username=${encodeURIComponent(username)}`;
         a.target = '_blank';
         s.classList.remove('invisible');
     } else {
@@ -533,7 +533,9 @@ function setViewportHeight() {
     document.documentElement.style.setProperty(
         '--vh', `${window.innerHeight/100}px`,
     );
-    showVideo();
+    if (!getVisibility('left')) {
+        showVideo();
+    }
     // Ajust video component size
     resizePeers();
 }
@@ -575,6 +577,16 @@ function setVisibility(id, visible) {
         elt.classList.remove('invisible');
     else
         elt.classList.add('invisible');
+}
+
+/**
+ * getVisibility tells whether specified element is visible.
+ *
+ * @param {string} id
+ */
+function getVisibility(id) {
+    let elt = document.getElementById(id);
+    return !elt.classList.contains('invisible');
 }
 
 /**
@@ -1204,6 +1216,7 @@ Filter.prototype.draw = async function() {
         });
         if(frameRate && frameRate != this.frameRate) {
             clearInterval(this.timer);
+            this.frameRate = frameRate;
             this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
         }
     }
@@ -2521,7 +2534,7 @@ document.getElementById('invite-dialog').onclose = function(e) {
         try {
             expires = dateFromInput(ex.value);
         } catch(e) {
-            displayError(`Couldn't parse ${nb.value}: ${e}`);
+            displayError(`Couldn't parse ${ex.value}: ${e}`);
             return;
         }
     }
@@ -2673,7 +2686,7 @@ function addUser(id, userinfo) {
     user.setAttribute('tabindex', '0');
     setUserStatus(id, user, userinfo);
     user.addEventListener('click', function(e) {
-        let elt = e.target;
+        let elt = e.currentTarget;
         if(!elt || !(elt instanceof HTMLElement))
             throw new Error("Couldn't find user div");
         userMenu(elt);
@@ -3185,7 +3198,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
     case 'kicked':
     case 'error':
     case 'warning':
-    case 'info':
+    case 'info': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
@@ -3193,7 +3206,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         let from = id ? (username || 'Anonymous') : 'The Server';
         displayError(`${from} said: ${message}`, kind);
         break;
-    case 'mute':
+    }
+    case 'mute': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
@@ -3202,6 +3216,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         let by = username ? ' by ' + username : '';
         displayWarning(`You have been muted${by}`);
         break;
+    }
     case 'clearchat': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
@@ -3975,7 +3990,7 @@ function parseCommand(line) {
     while(i < line.length && line[i] === ' ')
         i++;
     let start = ' ';
-    if(i < line.length && line[i] === '"' || line[i] === "'") {
+    if(i < line.length && (line[i] === '"' || line[i] === "'")) {
         start = line[i];
         i++;
     }
@@ -4334,7 +4349,9 @@ function handleInput() {
             } else {
                 let c = commands[cmd];
                 if(!c) {
-                    displayError(`Uknown command /${cmd}, type /help for help`);
+                    displayError(
+                        `Unknown command /${cmd}, type /help for help`
+                    );
                     return;
                 }
                 if(c.predicate) {

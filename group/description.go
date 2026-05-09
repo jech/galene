@@ -761,9 +761,6 @@ func SetUserPassword(group, username string, wildcard bool, pw Password) error {
 	if err != nil {
 		return err
 	}
-	if desc.Users == nil {
-		return os.ErrNotExist
-	}
 
 	if wildcard {
 		if desc.WildcardUser == nil {
@@ -771,6 +768,9 @@ func SetUserPassword(group, username string, wildcard bool, pw Password) error {
 		}
 		desc.WildcardUser.Password = pw
 	} else {
+		if desc.Users == nil {
+			return os.ErrNotExist
+		}
 		user, ok := desc.Users[username]
 		if !ok {
 			return os.ErrNotExist

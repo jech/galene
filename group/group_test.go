@@ -25,7 +25,7 @@ func TestConstantTimeCompare(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		e := constantTimeCompare(test.a, test.b)
+		e := ConstantTimeCompare(test.a, test.b)
 		if e != (test.a == test.b) {
 			t.Errorf("constantTimeCompare(%v, %v): got %v",
 				test.a, test.b, e,

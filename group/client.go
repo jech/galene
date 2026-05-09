@@ -31,8 +31,8 @@ type Password RawPassword
 // out of memory when doing too many BCrypt hashes at the same time.
 var hashSemaphore = make(chan struct{}, runtime.GOMAXPROCS(-1))
 
-// constantTimeCompare compares a and b in time proportional to the length of a.
-func constantTimeCompare(a, b string) bool {
+// ConstantTimeCompare compares a and b in time proportional to the length of a.
+func ConstantTimeCompare(a, b string) bool {
 	as := []byte(a)
 	bs := make([]byte, len(as))
 	copy(bs, b)
@@ -48,7 +48,7 @@ func (p Password) Match(pw string) (bool, error) {
 		if p.Key == nil {
 			return false, errors.New("missing key")
 		}
-		return constantTimeCompare(pw, *p.Key), nil
+		return ConstantTimeCompare(pw, *p.Key), nil
 	case "wildcard":
 		return true, nil
 	case "pbkdf2":

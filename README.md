@@ -28,7 +28,19 @@ in this directory.
   * [galene.md][2]: usage and administration;
   * [galene-client.md][3]: writing clients;
   * [galene-protocol.md][4]: the client protocol;
-  * [galene-api.md][4]: Galene's administrative API.
+  * [galene-api.md][5]: Galene's administrative API.
+  
+## Contributing
+
+In order to contribute to Galene, you may:
+
+  * send patches to [the Galene mailing list][6] by sending mail to
+    <galene@lists.galene.org>;
+  * submit pull requests on GitHub.
+
+For general discussion, please use the [Galene mailing list][6] (feel free
+to send mail without subscribing).  Please do not use Github for general
+discussion.
 
 ## Further information
 
@@ -43,3 +55,5 @@ Answers to common questions and issues are at <https://galene.org/faq.html>.
 [2]: <galene.md>
 [3]: <galene-client.md>
 [4]: <galene-protocol.md>
+[5]: <galene-api.md>
+[6]: <https://lists.galene.org/>

@@ -832,10 +832,13 @@ func readMessage(conn *websocket.Conn, m *clientMessage) error {
 	return conn.ReadJSON(&m)
 }
 
+const maxWSMessageSize = 1024 * 1024
 const protocolVersion = "2"
 
 func StartClient(conn *websocket.Conn, addr net.Addr) (err error) {
 	var m clientMessage
+
+	conn.SetReadLimit(maxWSMessageSize)
 
 	err = readMessage(conn, &m)
 	if err != nil {
@@ -917,6 +920,10 @@ type pushClientAction struct {
 	username    string
 	permissions []string
 	data        map[string]interface{}
+}
+
+type changePermissionsAction struct {
+	kind string
 }
 
 type permissionsChangedAction struct{}
@@ -1219,6 +1226,29 @@ func handleAction(c *webClient, a any) error {
 				}
 			}
 		}
+	case changePermissionsAction:
+		switch a.kind {
+		case "op":
+			c.permissions = addnew("op", c.permissions)
+			g := c.Group()
+			if g != nil && g.Description().AllowRecording {
+				c.permissions = addnew("record", c.permissions)
+			}
+		case "unop":
+			c.permissions = remove("op", c.permissions)
+			c.permissions = remove("record", c.permissions)
+		case "present":
+			c.permissions = addnew("present", c.permissions)
+		case "unpresent":
+			c.permissions = remove("present", c.permissions)
+		case "shutup":
+			c.permissions = remove("message", c.permissions)
+		case "unshutup":
+			c.permissions = addnew("message", c.permissions)
+		default:
+			return group.UserError("unknown permission")
+		}
+		c.action(permissionsChangedAction{})
 	case permissionsChangedAction:
 		g := c.Group()
 		if g == nil {
@@ -1332,41 +1362,6 @@ func closeDownConn(c *webClient, id string, message string) error {
 			return err
 		}
 	}
-	return nil
-}
-
-func setPermissions(g *group.Group, id string, perm string) error {
-	client := g.GetClient(id)
-	if client == nil {
-		return group.UserError("no such user")
-	}
-
-	c, ok := client.(*webClient)
-	if !ok {
-		return group.UserError("this is not a real user")
-	}
-
-	switch perm {
-	case "op":
-		c.permissions = addnew("op", c.permissions)
-		if g.Description().AllowRecording {
-			c.permissions = addnew("record", c.permissions)
-		}
-	case "unop":
-		c.permissions = remove("op", c.permissions)
-		c.permissions = remove("record", c.permissions)
-	case "present":
-		c.permissions = addnew("present", c.permissions)
-	case "unpresent":
-		c.permissions = remove("present", c.permissions)
-	case "shutup":
-		c.permissions = remove("message", c.permissions)
-	case "unshutup":
-		c.permissions = addnew("message", c.permissions)
-	default:
-		return group.UserError("unknown permission")
-	}
-	c.action(permissionsChangedAction{})
 	return nil
 }
 
@@ -1909,10 +1904,17 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
 			}
-			err := setPermissions(g, m.Dest, m.Kind)
-			if err != nil {
-				return c.error(err)
+			t := g.GetClient(m.Dest)
+			if t == nil {
+				return c.error(group.UserError("no suck user"))
 			}
+			target, ok := t.(*webClient)
+			if !ok {
+				return c.error(group.UserError(
+					"this is not a real user",
+				))
+			}
+			target.action(changePermissionsAction{m.Kind})
 		case "identify":
 			if !member("op", c.permissions) {
 				return c.error(group.UserError("not authorised"))
