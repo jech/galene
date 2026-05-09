@@ -133,15 +133,18 @@ a:focus {
     display: none;
 }
 
-.sidenav .user-logout a {
+.sidenav .user-logout button {
+    background: transparent;
+    border: 0;
     font-size: 1em;
     padding: 7px 0 0;
     color: #e4157e;
     cursor: pointer;
+    font: inherit;
     line-height: .7;
 }
 
-.sidenav .user-logout a:hover {
+.sidenav .user-logout button:hover {
     color: #ab0659;
 }
 
