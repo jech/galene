@@ -1382,7 +1382,7 @@ let filters = {
             }
             return true;
         },
-        init: async function(ctx) {
+        init: async function() {
             if(!(this instanceof Filter))
                 throw new Error('Bad type for this');
             if(this.userdata.worker)
