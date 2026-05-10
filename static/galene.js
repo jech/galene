@@ -39,7 +39,7 @@ let serverConnection;
  * function in order to obtain the WebSocket address, and a second time
  * after joining.
  *
- * @type {Object}
+ * @type {Record<string,any>}
  */
 let groupStatus = {};
 
@@ -767,7 +767,7 @@ getSelectElement('simulcastselect').onchange = async function(e) {
  * Maps the state of the receive UI element to a protocol request.
  *
  * @param {string} what
- * @returns {Object<string,Array<string>>}
+ * @returns {Record<string,Array<string>>}
  */
 
 function mapRequest(what) {
@@ -846,7 +846,7 @@ getInputElement('displayallbox').onchange = function(e) {
 
 /**
  * @this {Stream}
- * @param {Object<string,any>} stats
+ * @param {Record<string,any>} stats
  */
 function gotUpStats(stats) {
     let c = this;
@@ -886,7 +886,7 @@ function setActive(c, value) {
 
 /**
  * @this {Stream}
- * @param {Object<string,any>} stats
+ * @param {Record<string,any>} stats
  */
 function gotDownStats(stats) {
     if(!getInputElement('activitybox').checked)
@@ -1162,7 +1162,7 @@ function Filter(stream, definition) {
     this.count = 0;
     /** @type {boolean} */
     this.fixedFramerate = false;
-    /** @type {Object} */
+    /** @type {Record<string,any>} */
     this.userdata = {}
     /** @type {MediaStream} */
     this.captureStream = this.canvas.captureStream(0);
@@ -1318,7 +1318,7 @@ async function workerSendReceive(worker, message, transfer) {
 }
 
 /**
- * @type {Object.<string,filterDefinition>}
+ * @type {Record.<string,filterDefinition>}
  */
 let filters = {
     'mirror-h': {
@@ -2794,8 +2794,8 @@ async function closeSafariStream() {
  * @param {string} kind
  * @param {string} group
  * @param {Array<string>} perms
- * @param {Object<string,any>} status
- * @param {Object<string,any>} data
+ * @param {Record<string,any>} status
+ * @param {Record<string,any>} data
  * @param {string} error
  * @param {string} message
  */
@@ -3659,7 +3659,7 @@ commands.subgroups = {
 };
 
 /**
- * @type {Object<string,number>}
+ * @type {Record<string,number>}
  */
 const units = {
     s: 1000,

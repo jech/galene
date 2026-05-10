@@ -65,8 +65,8 @@ function newLocalId() {
  * @typedef {Object} user
  * @property {string} username
  * @property {Array<string>} permissions
- * @property {Object<string,any>} data
- * @property {Object<string,Object<string,boolean>>} streams
+ * @property {Record<string,any>} data
+ * @property {Record<string,Record<string,boolean>>} streams
  */
 
 /**
@@ -97,7 +97,7 @@ function ServerConnection() {
     /**
      * The set of users in this group, including ourself.
      *
-     * @type {Object<string,user>}
+     * @type {Record<string,user>}
      */
     this.users = {};
     /**
@@ -115,13 +115,13 @@ function ServerConnection() {
     /**
      * The set of all up streams, indexed by their id.
      *
-     * @type {Object<string,Stream>}
+     * @type {Record<string,Stream>}
      */
     this.up = {};
     /**
      * The set of all down streams, indexed by their id.
      *
-     * @type {Object<string,Stream>}
+     * @type {Record<string,Stream>}
      */
     this.down = {};
     /**
@@ -140,7 +140,7 @@ function ServerConnection() {
      * userdata is a convenient place to attach data to a ServerConnection.
      * It is not used by the library.
      *
-     * @type {Object<unknown,unknown>}
+     * @type {Record<string,any>}
      */
     this.userdata = {};
     /**
@@ -198,7 +198,7 @@ function ServerConnection() {
      *
      * kind is one of 'join', 'fail', 'change' or 'leave'.
      *
-     * @type{(this: ServerConnection, kind: string, group: string, permissions: Array<string>, status: Object<string,any>, data: Object<string,any>, error: string, message: string) => void}
+     * @type{(this: ServerConnection, kind: string, group: string, permissions: Array<string>, status: Record<string,any>, data: Record<string,any>, error: string, message: string) => void}
      */
     this.onjoined = null;
     /**
@@ -230,7 +230,7 @@ function ServerConnection() {
     /**
      * The set of files currently being transferred.
      *
-     * @type {Object<string,TransferredFile>}
+     * @type {Record<string,TransferredFile>}
     */
     this.transferredFiles = {};
     /**
@@ -260,8 +260,8 @@ function ServerConnection() {
   * @property {string} [token]
   * @property {boolean} [privileged]
   * @property {Array<string>} [permissions]
-  * @property {Object<string,any>} [status]
-  * @property {Object<string,any>} [data]
+  * @property {Record<string,any>} [status]
+  * @property {Record<string,any>} [data]
   * @property {string} [group]
   * @property {unknown} [value]
   * @property {boolean} [noecho]
@@ -269,8 +269,8 @@ function ServerConnection() {
   * @property {string} [sdp]
   * @property {RTCIceCandidate} [candidate]
   * @property {string} [label]
-  * @property {Object<string,Array<string>>|Array<string>} [request]
-  * @property {Object<string,any>} [rtcConfiguration]
+  * @property {Record<string,Array<string>>|Array<string>} [request]
+  * @property {Record<string,any>} [rtcConfiguration]
   */
 
 /**
@@ -552,7 +552,7 @@ function parseTime(value) {
  * @param {string} group - The name of the group to join.
  * @param {string} username - the username to join as.
  * @param {string|Object} credentials - password or authServer.
- * @param {Object<string,any>} [data] - the initial associated data.
+ * @param {Record<string,any>} [data] - the initial associated data.
  */
 ServerConnection.prototype.join = async function(group, username, credentials, data) {
     let m = {
@@ -645,7 +645,7 @@ ServerConnection.prototype.leave = function(group) {
 /**
  * request sets the list of requested tracks
  *
- * @param {Object<string,Array<string>>} what
+ * @param {Record<string,Array<string>>} what
  *     - A dictionary that maps labels to a sequence of 'audio', 'video'
  *       or 'video-low.  An entry with an empty label '' provides the default.
  */
@@ -1149,7 +1149,7 @@ function Stream(sc, id, localId, pc, up) {
      * a dictionary indexed by track id, with each value a dictionary of
      * statistics.
      *
-     * @type {Object<string,unknown>}
+     * @type {Record<string,unknown>}
      */
     this.stats = {};
     /**
@@ -1163,7 +1163,7 @@ function Stream(sc, id, localId, pc, up) {
      * userdata is a convenient place to attach data to a Stream.
      * It is not used by the library.
      *
-     * @type{Object<unknown,unknown>}
+     * @type{Record<string,any>}
      */
     this.userdata = {};
 
@@ -1207,7 +1207,7 @@ function Stream(sc, id, localId, pc, up) {
     /**
      * onstats is called when we have new statistics about the connection
      *
-     * @type{(this: Stream, stats: Object<unknown,unknown>) => void}
+     * @type{(this: Stream, stats: Record<string,unknown>) => void}
      */
     this.onstats = null;
 }
@@ -1479,7 +1479,7 @@ Stream.prototype.request = function(what) {
 Stream.prototype.updateStats = async function() {
     let c = this;
     let old = c.stats;
-    /** @type{Object<string,unknown>} */
+    /** @type{Record<string,unknown>} */
     let stats = {};
 
     let transceivers = c.pc.getTransceivers();
