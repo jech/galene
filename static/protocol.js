@@ -605,12 +605,12 @@ ServerConnection.prototype.join = async function(group, username, credentials, d
             ctype = ctype.trim();
             switch(ctype.toLowerCase()) {
             case 'application/jwt':
-                let data = await r.text();
-                if(!data)
+                let body = await r.text();
+                if(!body)
                     throw new Error(
-                        "The authorisation server returned empty token",
+                        "The authorisation server returned an empty token",
                     );
-                m.token = data;
+                m.token = body;
                 break;
             default:
                 throw new Error(`The authorisation server returned ${ctype}`);
@@ -1303,8 +1303,8 @@ function recomputeUserStreams(sc, id) {
     let streams = id === sc.id ? sc.up : sc.down;
     let old = user.streams;
     user.streams = {};
-    for(id in streams) {
-        let c = streams[id];
+    for(let streamid in streams) {
+        let c = streams[streamid];
         if(!c.stream)
             continue;
         if(!user.streams[c.label])
