@@ -46,7 +46,7 @@ let groupStatus = {};
 /**
  * True if we need to request a password.
  *
- * type {boolean}
+ * @type {boolean}
  */
 let pwAuth = false;
 
@@ -1150,10 +1150,8 @@ function Filter(stream, definition) {
     this.video = document.createElement('video');
     /** @type {HTMLCanvasElement} */
     this.canvas = document.createElement('canvas');
-    /** @type {any} */
+    /** @type {CanvasRenderingContext2D} */
     this.context = this.canvas.getContext('2d');
-    /** @type {MediaStream} */
-    this.captureStream = null;
     /** @type {MediaStream} */
     this.outputStream = null;
     /** @type {number} */
@@ -1292,7 +1290,7 @@ async function setFilter(c) {
  *
  * @param {Worker} worker
  * @param {any} message
- * @param {any[]} [transfer]
+ * @param {Transferable[]} [transfer]
  */
 async function workerSendReceive(worker, message, transfer) {
     if(worker.onmessage)
@@ -2175,6 +2173,7 @@ function cloneHTMLElement(elt) {
  * @param {HTMLVideoElement} media
  * @param {HTMLElement} container
  * @param {Stream} c
+ * @param {boolean} toponly
  */
 function addCustomControls(media, container, c, toponly) {
     if(!toponly && !document.getElementById('controls-' + c.localId)) {

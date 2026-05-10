@@ -267,7 +267,7 @@ function ServerConnection() {
   * @property {boolean} [noecho]
   * @property {string|number} [time]
   * @property {string} [sdp]
-  * @property {RTCIceCandidate} [candidate]
+  * @property {RTCIceCandidateInit} [candidate]
   * @property {string} [label]
   * @property {Record<string,Array<string>>|Array<string>} [request]
   * @property {Record<string,any>} [rtcConfiguration]
@@ -1029,7 +1029,7 @@ ServerConnection.prototype.gotAbort = function(id) {
  * Don't call this.
  *
  * @param {string} id
- * @param {RTCIceCandidate} candidate
+ * @param {RTCIceCandidateInit} candidate
  * @function
  */
 ServerConnection.prototype.gotRemoteIce = async function(id, candidate) {
@@ -1054,6 +1054,7 @@ ServerConnection.prototype.gotRemoteIce = async function(id, candidate) {
  * @param {string} id
  * @param {string} localId
  * @param {RTCPeerConnection} pc
+ * @param {boolean} up
  *
  * @constructor
  */
@@ -1134,14 +1135,14 @@ function Stream(sc, id, localId, pc, up) {
      * Buffered local ICE candidates.  This will be flushed by
      * flushLocalIceCandidates after we send a local description.
      *
-     * @type {RTCIceCandidate[]}
+     * @type {Array<RTCIceCandidate>}
      */
     this.localIceCandidates = [];
     /**
      * Buffered remote ICE candidates.  This will be flushed by
      * flushRemoteIceCandidates when we get a remote SDP description.
      *
-     * @type {RTCIceCandidate[]}
+     * @type {Array<RTCIceCandidateInit>}
      */
     this.remoteIceCandidates = [];
     /**
@@ -1207,7 +1208,7 @@ function Stream(sc, id, localId, pc, up) {
     /**
      * onstats is called when we have new statistics about the connection
      *
-     * @type{(this: Stream, stats: Record<string,unknown>) => void}
+     * @type{(this: Stream, stats: Record<string,any>) => void}
      */
     this.onstats = null;
 }
@@ -1401,6 +1402,7 @@ Stream.prototype.negotiate = async function (restartIce) {
     if(!c.up)
         throw new Error('not an up stream');
 
+    /** @type {RTCOfferOptions} */
     let options = {};
     if(restartIce)
         options = {iceRestart: true};
@@ -1635,7 +1637,7 @@ function TransferredFile(sc, userid, id, up, username, name, mimetype, size) {
      * The state of this file transfer.  See the description of the
      * constructor for possible state transitions.
      *
-     * @type {string}
+     * @type {TransferredFileState}
      */
     this.state = '';
     /**
@@ -1707,7 +1709,7 @@ function TransferredFile(sc, userid, id, up, username, name, mimetype, size) {
      * in order to display a progress bar.  Call this.cancel in order
      * to cancel the transfer.
      *
-     * @type {(this: TransferredFile, state: TransferredFileState, [data]: string) => void}
+     * @type {(this: TransferredFile, state: TransferredFileState, data: any) => void}
      */
     this.onevent = null;
 }
