@@ -1903,7 +1903,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			t := g.GetClient(m.Dest)
 			if t == nil {
-				return c.error(group.UserError("no suck user"))
+				return c.error(group.UserError("no such user"))
 			}
 			target, ok := t.(*webClient)
 			if !ok {
