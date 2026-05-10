@@ -320,7 +320,7 @@ ServerConnection.prototype.connect = function(url) {
 
     sc.socket = new WebSocket(url);
 
-    this.pingHandler = setInterval(e => {
+    this.pingHandler = setInterval(() => {
         if(!sc.lastServerMessage) {
             sc.error(new Error('Timeout'));
             return;
