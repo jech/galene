@@ -51,6 +51,7 @@ func main() {
 		"require use of TURN relays for all media traffic")
 	flag.StringVar(&turnserver.Address, "turn", "auto",
 		"built-in TURN server `address` (\"\" to disable)")
+	flag.BoolVar(&webserver.NoStatic, "no-static", false, "run without serving the frontend")
 	flag.Parse()
 
 	if udpRange != "" {
