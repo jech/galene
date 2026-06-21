@@ -1,4 +1,4 @@
-Galene 1.1 (unreleased):
+21 June 2026: Galene 1.1
 
   * Implemented "galenectl initial-setup".
   * Implemented global tokens.
@@ -18,6 +18,8 @@ Galene 1.1 (unreleased):
     group with no users.  Thanks to Andrea Zucchelli.
   * Added some more protection against denial of service attacks.  Thanks
     to Vinayak Mishra.
+  * Fixed some race condtions in permission handling.  Thanks to Vinayak
+    Mishra.
 
 9 August 2025: Galene 1.0
 
