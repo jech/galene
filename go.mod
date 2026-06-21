@@ -3,7 +3,7 @@ module github.com/jech/galene
 go 1.21
 
 require (
-	github.com/at-wat/ebml-go v0.17.1
+	github.com/at-wat/ebml-go v0.18.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/jech/cert v0.0.0-20240301122532-f491cf43a77d
