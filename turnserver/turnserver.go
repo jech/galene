@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/pion/turn/v4"
+	"github.com/pion/turn/v5"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -188,11 +188,11 @@ func Start() error {
 
 	server.server, err = turn.NewServer(turn.ServerConfig{
 		Realm: "galene.org",
-		AuthHandler: func(u, r string, src net.Addr) ([]byte, bool) {
-			if u != username || r != "galene.org" {
-				return nil, false
+		AuthHandler: func(ra *turn.RequestAttributes) (string, []byte, bool) {
+			if ra.Username != username || ra.Realm != "galene.org" {
+				return "", nil, false
 			}
-			return turn.GenerateAuthKey(u, r, password), true
+			return ra.Username, turn.GenerateAuthKey(ra.Username, ra.Realm, password), true
 		},
 		ListenerConfigs:   lcs,
 		PacketConnConfigs: pccs,
