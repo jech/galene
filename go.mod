@@ -1,6 +1,6 @@
 module github.com/jech/galene
 
-go 1.21
+go 1.24.0
 
 require (
 	github.com/at-wat/ebml-go v0.18.0
