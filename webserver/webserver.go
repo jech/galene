@@ -717,12 +717,13 @@ func checkRecordPermission(w http.ResponseWriter, r *http.Request, groupname str
 		return false
 	}
 
-	g := group.Get(groupname)
-	if g == nil {
+	desc, err := group.GetDescription(groupname)
+	if err != nil {
 		return false
 	}
 
-	_, p, err := g.GetPermission(
+	_, p, err := desc.GetPermission(
+		groupname,
 		group.ClientCredentials{
 			Username: &user,
 			Password: pass,

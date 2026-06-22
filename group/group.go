@@ -614,7 +614,9 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 	clients := g.getClientsUnlocked(nil)
 
 	if !slices.Contains(c.Permissions(), "system") {
-		username, perms, err := g.getPermission(creds)
+		username, perms, err := g.description.GetPermission(
+			g.name, creds,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -962,10 +964,7 @@ func GetConfiguration() (*Configuration, error) {
 	return configuration.configuration, nil
 }
 
-// called locked
-func (g *Group) getPasswordPermission(creds ClientCredentials) (Permissions, error) {
-	desc := g.description
-
+func (desc *Description) getPasswordPermission(creds ClientCredentials) (Permissions, error) {
 	if creds.Username == nil {
 		return Permissions{}, errors.New("username not provided")
 	}
@@ -997,12 +996,10 @@ func (g *Group) getPasswordPermission(creds ClientCredentials) (Permissions, err
 func (g *Group) UserExists(username string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.userExists(username)
+	return g.description.userExists(username)
 }
 
-// called locked
-func (g *Group) userExists(username string) bool {
-	desc := g.description
+func (desc *Description) userExists(username string) bool {
 	if desc.Users == nil {
 		return false
 	}
@@ -1019,9 +1016,7 @@ func validUsername(username string) bool {
 	return username == "" || validGroupName(username)
 }
 
-// called locked
-func (g *Group) getPermission(creds ClientCredentials) (string, []string, error) {
-	desc := g.description
+func (desc *Description) GetPermission(groupname string, creds ClientCredentials) (string, []string, error) {
 	var username string
 	var perms []string
 	if creds.Token != "" {
@@ -1036,23 +1031,19 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 		}
 
 		username, perms, err =
-			tok.Check(conf.CanonicalHost, g.name)
+			tok.Check(conf.CanonicalHost, groupname)
 		if err != nil {
 			return "", nil, &NotAuthorisedError{err: err}
 		}
-		if username == "" {
-			if creds.Username == nil {
-				// ask the client to prompt for a username
-				return "", nil, ErrUsernameRequired
-			}
-			if g.userExists(*creds.Username) {
+		if username == "" && creds.Username != nil {
+			if desc.userExists(*creds.Username) {
 				return "", nil, ErrDuplicateUsername
 			}
 			username = *creds.Username
 		}
 	} else if creds.Username != nil {
 		username = *creds.Username
-		ps, err := g.getPasswordPermission(creds)
+		ps, err := desc.getPasswordPermission(creds)
 		if err != nil {
 			return "", nil, err
 		}
@@ -1068,12 +1059,6 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 	}
 
 	return username, perms, nil
-}
-
-func (g *Group) GetPermission(creds ClientCredentials) (string, []string, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return g.getPermission(creds)
 }
 
 type Status struct {

@@ -222,7 +222,7 @@ func TestPermissions(t *testing.T) {
 	for _, c := range badClients {
 		t.Run("bad "+*c.Username, func(t *testing.T) {
 			var autherr *NotAuthorisedError
-			_, p, err := g.GetPermission(c)
+			_, p, err := g.Description().GetPermission(g.name, c)
 			if !errors.As(err, &autherr) {
 				t.Errorf("GetPermission %v: %v %v", c, err, p)
 			}
@@ -231,7 +231,7 @@ func TestPermissions(t *testing.T) {
 
 	for _, cp := range goodClients {
 		t.Run("good "+*cp.c.Username, func(t *testing.T) {
-			u, p, err := g.GetPermission(cp.c)
+			u, p, err := g.Description().GetPermission(g.name, cp.c)
 			if err != nil {
 				t.Errorf("GetPermission %v: %v", cp.c, err)
 			} else if u != *cp.c.Username ||
