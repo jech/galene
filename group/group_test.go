@@ -311,7 +311,7 @@ func TestUsernameTaken(t *testing.T) {
 	if !g.UserExists("john") {
 		t.Error("UserExists(john) is false")
 	}
-	if !g.UserExists("john") {
+	if !g.UserExists("james") {
 		t.Error("UserExists(james) is false")
 	}
 	if g.UserExists("paul") {
