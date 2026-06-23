@@ -84,18 +84,6 @@ func canPresent(perms []string) bool {
 	return false
 }
 
-func parseBearerToken(auth string) string {
-	auths := strings.Split(auth, ",")
-	for _, a := range auths {
-		a = strings.Trim(a, " \t")
-		s := strings.Split(a, " ")
-		if len(s) == 2 && strings.EqualFold(s[0], "bearer") {
-			return s[1]
-		}
-	}
-	return ""
-}
-
 var iceServerReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
 
 func formatICEServer(server webrtc.ICEServer, u string) string {

@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"mime"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -18,12 +20,73 @@ import (
 	"github.com/jech/galene/token"
 )
 
+// isAdminOrExplicitPassword checks whether creds either identify
+// either an admin or contain an explicit password the the given user.
+func isAdminOrExplicitPassword(groupname, user string, creds group.ClientCredentials) bool {
+	if creds.Username != nil {
+		ok, err := globalAdminMatch(*creds.Username, creds.Password)
+		if err != nil {
+			log.Printf("Read config file: %v", err)
+			return false
+		}
+		if ok {
+			return true
+		}
+	}
+
+	if groupname == "" {
+		if creds.Token != "" {
+			ok, err := checkGlobalAdminToken(creds.Token)
+			if err == nil && ok {
+				return true
+			}
+		}
+		return false
+	}
+
+	desc, err := group.GetDescription(groupname)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Printf("get description (%v): %v", groupname, err)
+		}
+		return false
+	}
+
+	if user != "" && desc.Users != nil {
+		u, ok := desc.Users[user]
+		if ok {
+			ok, err := u.Password.Match(creds.Password)
+			if err != nil && ok {
+				return true
+			}
+		}
+	}
+
+	_, perms, err := desc.GetPermission(groupname, creds)
+	if err != nil {
+		if !errors.Is(err, group.ErrNoSuchUsername) {
+			log.Printf("Get permission (%v): %v", groupname, err)
+		}
+		return false
+	}
+	if slices.Contains(perms, "admin") {
+		return true
+	}
+
+	return false
+}
+
 // checkAdmin checks whether the client authentifies as an administrator
-func checkAdmin(w http.ResponseWriter, r *http.Request) bool {
+func checkAdmin(w http.ResponseWriter, r *http.Request, groupname string) bool {
+	var creds group.ClientCredentials
 	username, password, ok := r.BasicAuth()
 	if ok {
-		ok, _ = globalAdminMatch(username, password)
+		creds.Username = &username
+		creds.Password = password
 	}
+	creds.Token = parseBearerToken(r.Header.Get("Authorization"))
+
+	ok = isAdminOrExplicitPassword(groupname, "", creds)
 	if !ok {
 		failAuthentication(w, "/galene-api/")
 		return false
@@ -31,48 +94,25 @@ func checkAdmin(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// checkPasswordAdmin checks whether the client authentifies as either an
-// administrator or the given user.  It is used to check whether the
-// client has the right to change user's password.
-func checkPasswordAdmin(w http.ResponseWriter, r *http.Request, groupname, user string, wildcard bool) bool {
+// checkAdminOrExplicitPassword checks whether the client authentifies as
+// either an administrator or the given user with an explicit password.
+// It is used to check whether the client has the right to change a
+// password.
+func checkAdminOrExplicitPassword(w http.ResponseWriter, r *http.Request, groupname, user string) bool {
+	var creds group.ClientCredentials
 	username, password, ok := r.BasicAuth()
 	if ok {
-		ok, err := globalAdminMatch(username, password)
-		if err != nil {
-			internalError(w, "Admin match: %v", err)
-			return false
-		}
-		if ok {
-			return true
-		}
+		creds.Username = &username
+		creds.Password = password
 	}
-	if ok && !wildcard && username == user {
-		desc, err := group.GetDescription(groupname)
-		if err != nil {
-			internalError(w,
-				"Get description for group %v: %v",
-				groupname, err,
-			)
-			return false
-		}
-		if desc.Users != nil {
-			u, ok := desc.Users[user]
-			if ok {
-				ok, err := u.Password.Match(password)
-				if err != nil {
-					internalError(w,
-						"Password match: %v", err,
-					)
-					return false
-				}
-				if ok {
-					return true
-				}
-			}
-		}
+	creds.Token = parseBearerToken(r.Header.Get("Authorization"))
+
+	ok = isAdminOrExplicitPassword(groupname, user, creds)
+	if !ok {
+		failAuthentication(w, "/galene-api/")
+		return false
 	}
-	failAuthentication(w, "/galene-api/")
-	return false
+	return true
 }
 
 func sendJSON(w http.ResponseWriter, r *http.Request, v any) {
@@ -160,7 +200,7 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		if apiCORS(w, r, "HEAD, GET") {
 			return
 		}
-		if !checkAdmin(w, r) {
+		if !checkAdmin(w, r, "") {
 			return
 		}
 		if r.Method != "HEAD" && r.Method != "GET" {
@@ -186,7 +226,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 		if apiCORS(w, r, "HEAD, GET") {
 			return
 		}
-		if !checkAdmin(w, r) {
+		if !checkAdmin(w, r, "") {
 			return
 		}
 		if r.Method != "HEAD" && r.Method != "GET" {
@@ -218,7 +258,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 		tokensHandler(w, r, g, rest)
 		return
 	} else if kind != "" {
-		if !checkAdmin(w, r) {
+		if !checkAdmin(w, r, g) {
 			return
 		}
 		notFound(w)
@@ -228,7 +268,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 	if apiCORS(w, r, "HEAD, GET, PUT, DELETE") {
 		return
 	}
-	if !checkAdmin(w, r) {
+	if !checkAdmin(w, r, g) {
 		return
 	}
 
@@ -311,7 +351,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		if apiCORS(w, r, "HEAD, GET") {
 			return
 		}
-		if !checkAdmin(w, r) {
+		if !checkAdmin(w, r, g) {
 			return
 		}
 		if r.Method != "HEAD" && r.Method != "GET" {
@@ -340,7 +380,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 		passwordHandler(w, r, g, first2[1:], false)
 		return
 	}
-	if !checkAdmin(w, r) {
+	if !checkAdmin(w, r, g) {
 		return
 	}
 	notFound(w)
@@ -355,7 +395,7 @@ func specialUserHandler(w http.ResponseWriter, r *http.Request, g, pth string, w
 		passwordHandler(w, r, g, "", wildcard)
 		return
 	}
-	if !checkAdmin(w, r) {
+	if !checkAdmin(w, r, g) {
 		return
 	}
 	notFound(w)
@@ -366,7 +406,7 @@ func userHandler(w http.ResponseWriter, r *http.Request, g, user string, wildcar
 	if apiCORS(w, r, "HEAD, GET, PUT, DELETE") {
 		return
 	}
-	if !checkAdmin(w, r) {
+	if !checkAdmin(w, r, g) {
 		return
 	}
 
@@ -442,7 +482,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string, wil
 	if apiCORS(w, r, "PUT, POST, DELETE") {
 		return
 	}
-	if !checkPasswordAdmin(w, r, g, user, wildcard) {
+	if !wildcard && !checkAdminOrExplicitPassword(w, r, g, user) {
 		return
 	}
 
@@ -504,7 +544,7 @@ func keysHandler(w http.ResponseWriter, r *http.Request, g string) {
 	if apiCORS(w, r, "PUT, DELETE") {
 		return
 	}
-	if !checkAdmin(w, r) {
+	if !checkAdmin(w, r, g) {
 		return
 	}
 
@@ -557,7 +597,7 @@ func tokensHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	if apiCORS(w, r, "HEAD, GET, POST, PUT, DELETE") {
 		return
 	}
-	if !checkAdmin(w, r) {
+	if !checkAdmin(w, r, g) {
 		return
 	}
 
