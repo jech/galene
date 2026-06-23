@@ -637,7 +637,7 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok := checkGroupPermissions(w, r, group)
+	ok := checkRecordPermission(w, r, group)
 	if !ok {
 		failAuthentication(w, "recordings/"+group)
 		return
@@ -705,7 +705,7 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 	}
 }
 
-func checkGroupPermissions(w http.ResponseWriter, r *http.Request, groupname string) bool {
+func checkRecordPermission(w http.ResponseWriter, r *http.Request, groupname string) bool {
 	user, pass, ok := r.BasicAuth()
 	if !ok {
 		return false
