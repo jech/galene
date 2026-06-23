@@ -498,6 +498,10 @@ func failAuthentication(w http.ResponseWriter, realm string) {
 	http.Error(w, "Haha!", http.StatusUnauthorized)
 }
 
+// CheckOrigin adds the CORS header to the reply.
+// It obeys the AllowOrigin or AllowAdminOrigin field of the global
+// configuration, depending on the value of admin.
+// It returns true if the header was added, false otherwise.
 func CheckOrigin(w http.ResponseWriter, r *http.Request, admin bool) bool {
 	if w != nil {
 		w.Header().Add("Vary", "Origin")
