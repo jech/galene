@@ -123,15 +123,6 @@ func (token *Stateful) Check(host, group string) (string, []string, error) {
 	return user, token.Permissions, nil
 }
 
-func member(v string, l []string) bool {
-	for _, w := range l {
-		if v == w {
-			return true
-		}
-	}
-	return false
-}
-
 // called locked
 func (state *state) reset() {
 	state.modTime = time.Time{}
@@ -181,12 +172,6 @@ func (state *state) load() (string, error) {
 		} else if err != nil {
 			state.reset()
 			return "", err
-		}
-		// the "message" permission was introduced in Galene 0.9,
-		// so add it to tokens read from disk.  We can remove this
-		// hack in late 2024.
-		if !member("message", t.Permissions) {
-			t.Permissions = append(t.Permissions, "message")
 		}
 		ts[t.Token] = &t
 	}
