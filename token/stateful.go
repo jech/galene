@@ -88,7 +88,7 @@ func Get(token string) (*Stateful, string, error) {
 
 func (token *Stateful) match(group string) bool {
 	if group == "" {
-		return false
+		return token.IncludeSubgroups && token.Group == ""
 	}
 	if group == token.Group {
 		return true

@@ -152,6 +152,13 @@ func TestStatefulCheck(t *testing.T) {
 			expUsername:    "user",
 			expPermissions: []string{"present", "message"},
 		},
+		{
+			token:          token7,
+			group:          "",
+			username:       &user,
+			expUsername:    "user",
+			expPermissions: []string{"present", "message"},
+		},
 	}
 
 	for i, s := range success {
@@ -197,11 +204,6 @@ func TestStatefulCheck(t *testing.T) {
 		{
 			token:    token6,
 			group:    "group",
-			username: &user,
-		},
-		{
-			token:    token7,
-			group:    "",
 			username: &user,
 		},
 	}
