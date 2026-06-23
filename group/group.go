@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -599,15 +600,6 @@ func deleteUnlocked(g *Group) bool {
 	return true
 }
 
-func member(v string, l []string) bool {
-	for _, w := range l {
-		if v == w {
-			return true
-		}
-	}
-	return false
-}
-
 func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) {
 	g, err := Add(group, nil)
 	if err != nil {
@@ -619,7 +611,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 
 	clients := g.getClientsUnlocked(nil)
 
-	if !member("system", c.Permissions()) {
+	if !slices.Contains(c.Permissions(), "system") {
 		username, perms, err := g.getPermission(creds)
 		if err != nil {
 			return nil, err
@@ -627,7 +619,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 
 		c.Init(username, perms)
 
-		if !member("op", perms) {
+		if !slices.Contains(perms, "op") {
 			if g.locked != nil {
 				m := *g.locked
 				if m == "" {
@@ -654,7 +646,9 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 			if g.description.Autokick {
 				ops := false
 				for _, c := range clients {
-					if member("op", c.Permissions()) {
+					if !slices.Contains(
+						c.Permissions(), "op",
+					) {
 						ops = true
 						break
 					}
@@ -668,7 +662,8 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 			}
 		}
 
-		if !member("op", perms) && g.description.MaxClients > 0 {
+		if !slices.Contains(perms, "op") &&
+			g.description.MaxClients > 0 {
 			if len(g.clients) >= g.description.MaxClients {
 				return nil, UserError("too many users")
 			}
@@ -709,7 +704,7 @@ func autoLockKick(g *Group) {
 
 	clients := g.getClientsUnlocked(nil)
 	for _, c := range clients {
-		if member("op", c.Permissions()) {
+		if slices.Contains(c.Permissions(), "op") {
 			return
 		}
 	}
@@ -838,32 +833,6 @@ func (g *Group) WallOps(message string) {
 
 const maxChatHistory = 50
 
-// deleteFunc is just like slices.DeleteFunc.
-// Remove this once we require Go 1.21.
-func deleteFunc[S ~[]E, E any](s S, f func(E) bool) S {
-	i := 0
-	for i = range s {
-		if f(s[i]) {
-			break
-		}
-	}
-	if i >= len(s) {
-		return s
-	}
-
-	for j := i + 1; j < len(s); j++ {
-		if v := s[j]; !f(v) {
-			s[i] = v
-			i++
-		}
-	}
-	var zero E
-	for j := i; j < len(s); j++ {
-		s[j] = zero
-	}
-	return s[:i]
-}
-
 func (g *Group) ClearChatHistory(id string, userId string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -871,7 +840,7 @@ func (g *Group) ClearChatHistory(id string, userId string) {
 		g.history = nil
 		return
 	}
-	g.history = deleteFunc(g.history, func(e ChatHistoryEntry) bool {
+	g.history = slices.DeleteFunc(g.history, func(e ChatHistoryEntry) bool {
 		return e.Source == userId && (id == "" || e.Id == id)
 	})
 }
