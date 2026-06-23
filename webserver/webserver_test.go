@@ -215,32 +215,32 @@ func TestMatchAdmin(t *testing.T) {
 	}`))
 	f.Close()
 
-	ok, err := adminMatch("jch", "pwd")
+	ok, err := globalAdminMatch("jch", "pwd")
 	if ok || err != nil {
 		t.Errorf("jch: %v %v", ok, err)
 	}
 
-	ok, err = adminMatch("root", "pwd")
+	ok, err = globalAdminMatch("root", "pwd")
 	if !ok || err != nil {
 		t.Errorf("root: %v %v", ok, err)
 	}
 
-	ok, err = adminMatch("root", "notpwd")
+	ok, err = globalAdminMatch("root", "notpwd")
 	if ok || err != nil {
 		t.Errorf("root: %v %v", ok, err)
 	}
 
-	ok, err = adminMatch("root", "")
+	ok, err = globalAdminMatch("root", "")
 	if ok || err != nil {
 		t.Errorf("root: %v %v", ok, err)
 	}
 
-	ok, err = adminMatch("notroot", "pwd")
+	ok, err = globalAdminMatch("notroot", "pwd")
 	if ok || err != nil {
 		t.Errorf("notroot: %v %v", ok, err)
 	}
 
-	ok, err = adminMatch("notroot", "notpwd")
+	ok, err = globalAdminMatch("notroot", "notpwd")
 	if ok || err != nil {
 		t.Errorf("notroot: %v %v", ok, err)
 	}

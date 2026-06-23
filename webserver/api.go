@@ -22,7 +22,7 @@ import (
 func checkAdmin(w http.ResponseWriter, r *http.Request) bool {
 	username, password, ok := r.BasicAuth()
 	if ok {
-		ok, _ = adminMatch(username, password)
+		ok, _ = globalAdminMatch(username, password)
 	}
 	if !ok {
 		failAuthentication(w, "/galene-api/")
@@ -37,7 +37,7 @@ func checkAdmin(w http.ResponseWriter, r *http.Request) bool {
 func checkPasswordAdmin(w http.ResponseWriter, r *http.Request, groupname, user string, wildcard bool) bool {
 	username, password, ok := r.BasicAuth()
 	if ok {
-		ok, err := adminMatch(username, password)
+		ok, err := globalAdminMatch(username, password)
 		if err != nil {
 			internalError(w, "Admin match: %v", err)
 			return false

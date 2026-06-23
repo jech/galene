@@ -463,7 +463,9 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 	e.Encode(g)
 }
 
-func adminMatch(username, password string) (bool, error) {
+// globalAdminMatch checks whether the given credentials match with an
+// administrator entry in the global configuration file.
+func globalAdminMatch(username, password string) (bool, error) {
 	conf, err := group.GetConfiguration()
 	if err != nil {
 		return false, err
