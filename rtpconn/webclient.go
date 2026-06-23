@@ -1426,7 +1426,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if err != nil {
 			var e, s string
 			var autherr *group.NotAuthorisedError
-			if errors.Is(err, token.ErrUsernameRequired) {
+			if errors.Is(err, group.ErrUsernameRequired) {
 				s = err.Error()
 				e = "need-username"
 			} else if errors.Is(err, group.ErrDuplicateUsername) {

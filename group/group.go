@@ -29,6 +29,8 @@ var UseMDNS bool
 var UDPMin, UDPMax uint16
 var udpMux ice.UDPMux
 
+var ErrUsernameRequired = errors.New("username required")
+
 type NotAuthorisedError struct {
 	err error
 }
@@ -1034,11 +1036,15 @@ func (g *Group) getPermission(creds ClientCredentials) (string, []string, error)
 		}
 
 		username, perms, err =
-			tok.Check(conf.CanonicalHost, g.name, creds.Username)
+			tok.Check(conf.CanonicalHost, g.name)
 		if err != nil {
 			return "", nil, &NotAuthorisedError{err: err}
 		}
-		if username == "" && creds.Username != nil {
+		if username == "" {
+			if creds.Username == nil {
+				// ask the client to prompt for a username
+				return "", nil, ErrUsernameRequired
+			}
 			if g.userExists(*creds.Username) {
 				return "", nil, ErrDuplicateUsername
 			}

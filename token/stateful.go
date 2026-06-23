@@ -102,7 +102,7 @@ func (token *Stateful) match(group string) bool {
 	return false
 }
 
-func (token *Stateful) Check(host, group string, username *string) (string, []string, error) {
+func (token *Stateful) Check(host, group string) (string, []string, error) {
 	if !token.match(group) {
 		return "", nil, errors.New("token for bad group")
 	}
@@ -118,8 +118,6 @@ func (token *Stateful) Check(host, group string, username *string) (string, []st
 	user := ""
 	if token.Username != nil {
 		user = *token.Username
-	} else if username == nil {
-		return "", nil, ErrUsernameRequired
 	}
 
 	return user, token.Permissions, nil

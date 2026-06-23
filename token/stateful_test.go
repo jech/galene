@@ -155,7 +155,7 @@ func TestStatefulCheck(t *testing.T) {
 	}
 
 	for i, s := range success {
-		u, p, err := s.token.Check("", s.group, s.username)
+		u, p, err := s.token.Check("", s.group)
 		if err != nil || u != s.expUsername ||
 			!reflect.DeepEqual(p, s.expPermissions) {
 			t.Errorf("Check %v failed: %v %v %v -> %v %v %v",
@@ -207,7 +207,7 @@ func TestStatefulCheck(t *testing.T) {
 	}
 
 	for i, s := range failure {
-		u, p, err := s.token.Check("", s.group, s.username)
+		u, p, err := s.token.Check("", s.group)
 		if err == nil {
 			t.Errorf("Check %v succeded: %v %v %v -> %v %v %v",
 				i, s.token, s.group, s.username,

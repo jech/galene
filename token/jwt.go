@@ -204,7 +204,7 @@ func matchGroup(pth, group string, includeSubgroups bool) bool {
 	return strings.HasPrefix("/group/"+group+"/", pth)
 }
 
-func (token *JWT) Check(host, group string, username *string) (string, []string, error) {
+func (token *JWT) Check(host, group string) (string, []string, error) {
 	sub, err := token.Claims.GetSubject()
 	if err != nil {
 		return "", nil, err

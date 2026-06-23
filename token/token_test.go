@@ -39,7 +39,7 @@ func TestToken(t *testing.T) {
 		t.Fatalf("Parse: %v", err)
 	}
 
-	_, _, err = token.Check("galene.org:8443", "group", &user)
+	_, _, err = token.Check("galene.org:8443", "group")
 	if err != nil {
 		t.Errorf("Check: %v", err)
 	}
