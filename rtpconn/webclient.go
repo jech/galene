@@ -10,6 +10,7 @@ import (
 	"maps"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -938,15 +939,6 @@ type kickAction struct {
 
 var errEmptyId = group.ProtocolError("empty id")
 
-func member(v string, l []string) bool {
-	for _, w := range l {
-		if v == w {
-			return true
-		}
-	}
-	return false
-}
-
 func remove(v string, l []string) []string {
 	for i, w := range l {
 		if v == w {
@@ -958,7 +950,7 @@ func remove(v string, l []string) []string {
 }
 
 func addnew(v string, l []string) []string {
-	if member(v, l) {
+	if slices.Contains(l, v) {
 		return l
 	}
 	l = append(l, v)
@@ -1263,7 +1255,7 @@ func handleAction(c *webClient, a any) error {
 			Status:           &status,
 			RTCConfiguration: ice.ICEConfiguration(),
 		})
-		if !member("present", c.permissions) {
+		if !slices.Contains(c.permissions, "present") {
 			up := getUpConns(c)
 			for _, u := range up {
 				err := delUpConn(
@@ -1487,7 +1479,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if m.Id == "" {
 			return errEmptyId
 		}
-		if !member("present", c.permissions) {
+		if !slices.Contains(c.permissions, "present") {
 			if m.Replace != "" {
 				delUpConn(c, m.Replace, c.id, true)
 			}
@@ -1578,7 +1570,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if m.Type == "chat" && m.Kind == "caption" {
 			required = "caption"
 		}
-		if !member(required, c.permissions) {
+		if !slices.Contains(c.permissions, required) {
 			return c.error(group.UserError("not authorised"))
 		}
 
@@ -1604,7 +1596,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			Source:     m.Source,
 			Dest:       m.Dest,
 			Username:   m.Username,
-			Privileged: member("op", c.permissions),
+			Privileged: slices.Contains(c.permissions, "op"),
 			Time:       now.Format(time.RFC3339),
 			Kind:       m.Kind,
 			NoEcho:     m.NoEcho,
@@ -1639,7 +1631,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 		switch m.Kind {
 		case "clearchat":
-			if !member("op", c.permissions) {
+			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
 			var id, userId string
@@ -1670,7 +1662,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				log.Printf("broadcast(clearchat): %v", err)
 			}
 		case "lock", "unlock":
-			if !member("op", c.permissions) {
+			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
 			message := ""
@@ -1680,7 +1672,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			g.SetLocked(m.Kind == "lock", message)
 		case "record":
-			if !member("record", c.permissions) {
+			if !slices.Contains(c.permissions, "record") {
 				return c.error(group.UserError("not authorised"))
 			}
 			for _, cc := range g.GetClients(c) {
@@ -1701,7 +1693,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			requestConns(disk, c.group, "")
 		case "unrecord":
-			if !member("record", c.permissions) {
+			if !slices.Contains(c.permissions, "record") {
 				return c.error(group.UserError("not authorised"))
 			}
 			for _, cc := range g.GetClients(c) {
@@ -1712,7 +1704,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				}
 			}
 		case "subgroups":
-			if !member("op", c.permissions) {
+			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
 			s := ""
@@ -1733,7 +1725,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Value:    s,
 			})
 		case "setdata":
-			if !member("op", c.permissions) {
+			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
 			data, ok := m.Value.(map[string]interface{})
@@ -1753,7 +1745,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 					Value:      m,
 				})
 			}
-			if !member("token", c.permissions) {
+			if !slices.Contains(c.permissions, "token") {
 				return terror("not-authorised", "not authorised")
 			}
 			tok, err := parseStatefulToken(m.Value)
@@ -1788,7 +1780,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 
 			for _, p := range tok.Permissions {
-				if !member(p, c.permissions) {
+				if !slices.Contains(c.permissions, p) {
 					return terror(
 						"not-authorised",
 						"not authorised",
@@ -1824,8 +1816,8 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 					Value:      m,
 				})
 			}
-			if !member("op", c.permissions) ||
-				!member("token", c.permissions) {
+			if !slices.Contains(c.permissions, "op") ||
+				!slices.Contains(c.permissions, "token") {
 				return terror("not-authorised", "not authorised")
 			}
 			tok, err := parseStatefulToken(m.Value)
@@ -1874,8 +1866,8 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 					Value:      m,
 				})
 			}
-			if !member("op", c.permissions) ||
-				!member("token", c.permissions) {
+			if !slices.Contains(c.permissions, "op") ||
+				!slices.Contains(c.permissions, "token") {
 				return terror("not-authorised", "not authorised")
 			}
 			tokens, _, err := token.List(c.group.Name())
@@ -1898,7 +1890,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		}
 		switch m.Kind {
 		case "op", "unop", "present", "unpresent", "shutup", "unshutup":
-			if !member("op", c.permissions) {
+			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
 			t := g.GetClient(m.Dest)
@@ -1913,7 +1905,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			}
 			target.action(changePermissionsAction{m.Kind})
 		case "identify":
-			if !member("op", c.permissions) {
+			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
 			d := g.GetClient(m.Dest)
@@ -1946,7 +1938,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 				Value:      value,
 			})
 		case "kick":
-			if !member("op", c.permissions) {
+			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
 			message := ""
@@ -2168,7 +2160,7 @@ func clientWriter(conn *websocket.Conn, ch <-chan interface{}, done chan<- struc
 }
 
 func (c *webClient) Warn(oponly bool, message string) error {
-	if oponly && !member("op", c.permissions) {
+	if oponly && !slices.Contains(c.permissions, "op") {
 		return nil
 	}
 
