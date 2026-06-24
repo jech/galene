@@ -638,10 +638,14 @@ function setLocalMute(mute, reflect) {
         icon.classList.add('fa-microphone-slash');
         icon.classList.remove('fa-microphone');
         button.classList.add('muted');
+        button.setAttribute('aria-pressed', 'true');
+        button.setAttribute('aria-label', 'Unmute microphone');
     } else {
         icon.classList.remove('fa-microphone-slash');
         icon.classList.add('fa-microphone');
         button.classList.remove('muted');
+        button.setAttribute('aria-pressed', 'false');
+        button.setAttribute('aria-label', 'Mute microphone');
     }
     if(reflect)
         updateSettings({localMute: mute});
@@ -2071,6 +2075,10 @@ async function setMedia(c, mirror, video) {
         peersdiv.appendChild(div);
     }
 
+    // Add aria-label to identify video stream owner
+    let username = c.username || 'Participant';
+    div.setAttribute('aria-label', `Video stream from ${username}`);
+
     showHideMedia(c, div)
 
     let media = /** @type {HTMLVideoElement} */
@@ -2088,6 +2096,9 @@ async function setMedia(c, mirror, video) {
         media.autoplay = true;
         media.playsInline = true;
         media.id = 'media-' + c.localId;
+        // Add aria-label for screen readers
+        let username = c.username || 'Participant';
+        media.setAttribute('aria-label', `Video from ${username}`);
         div.appendChild(media);
         addCustomControls(media, div, c, !!video);
     }
@@ -2537,6 +2548,57 @@ document.getElementById('invite-dialog').onclose = function(e) {
 };
 
 /**
+ * Adds keyboard navigation to Contextual menu
+ * @param {HTMLElement} menuElement
+ */
+function makeContextualMenuAccessible(menuElement) {
+    // Find all menu items
+    let menuItems = menuElement.querySelectorAll('.contextualMenuItem:not(.disabled)');
+    if(menuItems.length === 0) return;
+
+    let currentIndex = 0;
+
+    // Make menu items focusable and add ARIA
+    menuItems.forEach((item, index) => {
+        item.setAttribute('role', 'menuitem');
+        item.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    });
+
+    // Focus first item
+    menuItems[0].focus();
+
+    // Add keyboard navigation
+    menuElement.addEventListener('keydown', function(e) {
+        if(e.key === 'Escape') {
+            e.preventDefault();
+            contextualCore.CloseMenu();
+            return;
+        }
+
+        if(e.key === 'ArrowDown') {
+            e.preventDefault();
+            menuItems[currentIndex].setAttribute('tabindex', '-1');
+            currentIndex = (currentIndex + 1) % menuItems.length;
+            menuItems[currentIndex].setAttribute('tabindex', '0');
+            menuItems[currentIndex].focus();
+        } else if(e.key === 'ArrowUp') {
+            e.preventDefault();
+            menuItems[currentIndex].setAttribute('tabindex', '-1');
+            currentIndex = currentIndex === 0 ? menuItems.length - 1 : currentIndex - 1;
+            menuItems[currentIndex].setAttribute('tabindex', '0');
+            menuItems[currentIndex].focus();
+        } else if(e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            // Click the parent li element which has the actual click handler
+            let parentLi = menuItems[currentIndex].parentElement;
+            if(parentLi) {
+                parentLi.click();
+            }
+        }
+    });
+}
+
+/**
  * @param {HTMLElement} elt
  */
 function userMenu(elt) {
@@ -2599,6 +2661,15 @@ function userMenu(elt) {
     new Contextual({
         items: items,
     });
+
+    // Add keyboard navigation after menu is created
+    setTimeout(() => {
+        let menu = document.querySelector('.contextualMenu');
+        if(menu) {
+            menu.setAttribute('role', 'menu');
+            makeContextualMenuAccessible(menu);
+        }
+    }, 0);
 }
 
 /**
@@ -2610,12 +2681,23 @@ function addUser(id, userinfo) {
     let user = document.createElement('div');
     user.id = 'user-' + id;
     user.classList.add("user-p");
+    user.setAttribute('role', 'button');
+    user.setAttribute('tabindex', '0');
     setUserStatus(id, user, userinfo);
     user.addEventListener('click', function(e) {
         let elt = e.currentTarget;
         if(!elt || !(elt instanceof HTMLElement))
             throw new Error("Couldn't find user div");
         userMenu(elt);
+    });
+    user.addEventListener('keydown', function(e) {
+        if(e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            let elt = e.target;
+            if(!elt || !(elt instanceof HTMLElement))
+                throw new Error("Couldn't find user div");
+            userMenu(elt);
+        }
     });
 
     let us = div.children;
@@ -2665,11 +2747,24 @@ function changeUser(id, userinfo) {
  * @param {user} userinfo
  */
 function setUserStatus(id, elt, userinfo) {
-    elt.textContent = userinfo.username ? userinfo.username : '(anon)';
-    if(userinfo.data.raisehand)
+    let username = userinfo.username ? userinfo.username : '(anon)';
+    elt.textContent = username;
+
+    let wasRaised = elt.classList.contains('user-status-raisehand');
+    if(userinfo.data.raisehand) {
         elt.classList.add('user-status-raisehand');
-    else
+        elt.setAttribute('aria-label', `${username} (hand raised)`);
+        // Announce when hand is newly raised (not on initial load)
+        if(!wasRaised && id !== (serverConnection && serverConnection.id)) {
+            let announcement = document.getElementById('chat-announcements');
+            if(announcement) {
+                announcement.textContent = `${username} raised their hand`;
+            }
+        }
+    } else {
         elt.classList.remove('user-status-raisehand');
+        elt.setAttribute('aria-label', username);
+    }
 
     let microphone=false, camera = false;
     for(let label in userinfo.streams) {
@@ -2680,6 +2775,17 @@ function setUserStatus(id, elt, userinfo) {
                 camera = true;
         }
     }
+
+    // Build descriptive aria-label with media status
+    let statusParts = [username];
+    if(userinfo.data.raisehand)
+        statusParts.push('hand raised');
+    if(camera)
+        statusParts.push('camera on');
+    if(microphone)
+        statusParts.push('microphone on');
+    elt.setAttribute('aria-label', statusParts.join(', '));
+
     if(camera) {
         elt.classList.remove('user-status-microphone');
         elt.classList.add('user-status-camera');
@@ -3349,7 +3455,7 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         }
 
         if(doHeader) {
-            let header = document.createElement('p');
+            let header = document.createElement('h3');
             let user = document.createElement('span');
             let u = dest && serverConnection.users[dest];
             let name = (u && u.username);
@@ -3398,6 +3504,15 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         box.scrollTop = box.scrollHeight - box.clientHeight;
     }
 
+    // Announce new messages to screen readers (but not history)
+    if(!history) {
+        let announcement = document.getElementById('chat-announcements');
+        if(announcement) {
+            let messageText = typeof message === 'string' ? message : body.textContent;
+            announcement.textContent = nick ? `${nick}: ${messageText}` : messageText;
+        }
+    }
+
     return;
 }
 
@@ -3441,6 +3556,15 @@ function chatMessageMenu(elt) {
     new Contextual({
         items: items,
     });
+
+    // Add keyboard navigation after menu is created
+    setTimeout(() => {
+        let menu = document.querySelector('.contextualMenu');
+        if(menu) {
+            menu.setAttribute('role', 'menu');
+            makeContextualMenuAccessible(menu);
+        }
+    }, 0);
 }
 
 /**
@@ -3559,7 +3683,11 @@ commands.help = {
                 continue;
             cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
         }
-        localMessage(cs.sort().join('\n'));
+        let shortcuts = '\n\nKeyboard shortcuts:\n' +
+            'Control+Alt+H: Raise or lower hand\n' +
+            'Control+Alt+C: Expand or collapse chat\n' +
+            'Control+Alt+T: Mute or unmute microphone';
+        localMessage(cs.sort().join('\n') + shortcuts);
     }
 };
 
@@ -3630,6 +3758,24 @@ commands.unlock = {
     description: 'unlock this group, revert the effect of /lock',
     f: (c, r) => {
         serverConnection.groupAction('unlock');
+    }
+};
+
+commands.raisehand = {
+    description: 'raise your hand',
+    f: (c, r) => {
+        if(!serverConnection || !serverConnection.id)
+            throw new Error('Not connected');
+        serverConnection.userAction('setdata', serverConnection.id, {'raisehand': true});
+    }
+};
+
+commands.unraisehand = {
+    description: 'lower your hand',
+    f: (c, r) => {
+        if(!serverConnection || !serverConnection.id)
+            throw new Error('Not connected');
+        serverConnection.userAction('setdata', serverConnection.id, {'raisehand': null});
     }
 };
 
@@ -4291,6 +4437,30 @@ function chatResizer(e) {
 
 document.getElementById('resizer').addEventListener('mousedown', chatResizer, false);
 
+// Add keyboard support for chat resizer
+document.getElementById('resizer').addEventListener('keydown', function(e) {
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        let full_width = document.getElementById("mainrow").offsetWidth;
+        let left = document.getElementById("left");
+        let right = document.getElementById("right");
+        let current_width = left.offsetWidth;
+        let step = 20; // pixels per keypress
+
+        let new_width = e.key === 'ArrowLeft' ? current_width - step : current_width + step;
+        let left_percent = new_width * 100 / full_width;
+
+        // set min chat width to 300px
+        let min_left_width = 300 * 100 / full_width;
+        if (left_percent < min_left_width) {
+            return;
+        }
+
+        left.style.flex = left_percent.toString();
+        right.style.flex = (100 - left_percent).toString();
+    }
+}, false);
+
 /**
  * @param {unknown} message
  * @param {string} [level]
@@ -4316,7 +4486,7 @@ function displayError(message, level) {
     /** @ts-ignore */
     Toastify({
         text: message,
-        duration: 4000,
+        duration: 8000,  // Increased from 4000 for screen reader users
         close: true,
         position: position,
         gravity: gravity,
@@ -4373,8 +4543,24 @@ function closeNav() {
 }
 
 document.getElementById('sidebarCollapse').onclick = function(e) {
-    document.getElementById("left-sidebar").classList.toggle("active");
+    let sidebar = document.getElementById("left-sidebar");
+    sidebar.classList.toggle("active");
     document.getElementById("mainrow").classList.toggle("full-width-active");
+    // Update aria-expanded to reflect the state
+    let isCollapsed = sidebar.classList.contains("active");
+    e.currentTarget.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+};
+
+document.getElementById('sidebarCollapse').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        let sidebar = document.getElementById("left-sidebar");
+        sidebar.classList.toggle("active");
+        document.getElementById("mainrow").classList.toggle("full-width-active");
+        // Update aria-expanded to reflect the state
+        let isCollapsed = sidebar.classList.contains("active");
+        e.currentTarget.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+    }
 };
 
 document.getElementById('openside').onclick = function(e) {
@@ -4388,10 +4574,30 @@ document.getElementById('openside').onclick = function(e) {
       }
 };
 
+document.getElementById('openside').onkeydown = function(e) {
+      if(e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          let sidewidth = document.getElementById("sidebarnav").style.width;
+          if (sidewidth !== "0px" && sidewidth !== "") {
+              closeNav();
+              return;
+          } else {
+              openNav();
+          }
+      }
+};
 
-document.getElementById('clodeside').onclick = function(e) {
+
+document.getElementById('closeside').onclick = function(e) {
     e.preventDefault();
     closeNav();
+};
+
+document.getElementById('closeside').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        closeNav();
+    }
 };
 
 document.getElementById('collapse-video').onclick = function(e) {
@@ -4401,11 +4607,29 @@ document.getElementById('collapse-video').onclick = function(e) {
     hideVideo(true);
 };
 
+document.getElementById('collapse-video').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('collapse-video', false);
+        setVisibility('show-video', true);
+        hideVideo(true);
+    }
+};
+
 document.getElementById('show-video').onclick = function(e) {
     e.preventDefault();
     setVisibility('video-container', true);
     setVisibility('collapse-video', true);
     setVisibility('show-video', false);
+};
+
+document.getElementById('show-video').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('video-container', true);
+        setVisibility('collapse-video', true);
+        setVisibility('show-video', false);
+    }
 };
 
 document.getElementById('close-chat').onclick = function(e) {
@@ -4415,11 +4639,29 @@ document.getElementById('close-chat').onclick = function(e) {
     resizePeers();
 };
 
+document.getElementById('close-chat').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('left', false);
+        setVisibility('show-chat', true);
+        resizePeers();
+    }
+};
+
 document.getElementById('show-chat').onclick = function(e) {
     e.preventDefault();
     setVisibility('left', true);
     setVisibility('show-chat', false);
     resizePeers();
+};
+
+document.getElementById('show-chat').onkeydown = function(e) {
+    if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setVisibility('left', true);
+        setVisibility('show-chat', false);
+        resizePeers();
+    }
 };
 
 async function serverConnect() {
@@ -4501,5 +4743,120 @@ async function start() {
     }
     setViewportHeight();
 }
+
+// Global keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Control+Alt+H - Raise or lower hand
+    if(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        if(!serverConnection || !serverConnection.id) {
+            return;
+        }
+
+        let mydata = serverConnection.users[serverConnection.id].data;
+        let isRaised = mydata['raisehand'];
+
+        // Toggle hand state
+        serverConnection.userAction(
+            'setdata',
+            serverConnection.id,
+            {'raisehand': isRaised ? null : true}
+        );
+
+        // Announce the action
+        let announcement = document.getElementById('chat-announcements');
+        if(announcement) {
+            announcement.textContent = isRaised ? 'Hand lowered' : 'Hand raised';
+        }
+
+        // Focus on user's name button in the user list (delayed to ensure announcement is read)
+        setTimeout(function() {
+            let userButton = document.getElementById('user-' + serverConnection.id);
+            if(userButton) {
+                userButton.focus();
+            }
+        }, 100);
+    }
+
+    // Control+Alt+C - Expand or collapse chat
+    if(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+
+        let leftPanel = document.getElementById('left');
+        let showChatButton = document.getElementById('show-chat');
+        let closeChatButton = document.getElementById('close-chat');
+
+        // Check if chat is currently visible
+        let isChatVisible = leftPanel && leftPanel.style.display !== 'none';
+
+        if(isChatVisible) {
+            // Collapse chat
+            setVisibility('left', false);
+            setVisibility('show-chat', true);
+            resizePeers();
+
+            // Announce the action
+            let announcement = document.getElementById('chat-announcements');
+            if(announcement) {
+                announcement.textContent = 'Chat collapsed';
+            }
+
+            // Focus the show-chat button (delayed to ensure announcement is read)
+            setTimeout(function() {
+                if(showChatButton) {
+                    showChatButton.focus();
+                }
+            }, 100);
+        } else {
+            // Expand chat
+            setVisibility('left', true);
+            setVisibility('show-chat', false);
+            resizePeers();
+
+            // Announce the action
+            let announcement = document.getElementById('chat-announcements');
+            if(announcement) {
+                announcement.textContent = 'Chat expanded';
+            }
+
+            // Focus the close-chat button (delayed to ensure announcement is read)
+            setTimeout(function() {
+                if(closeChatButton) {
+                    closeChatButton.focus();
+                }
+            }, 100);
+        }
+    }
+
+    // Control+Alt+T - Mute or unmute microphone
+    if(e.ctrlKey && e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        let muteButton = document.getElementById('mutebutton');
+        if(!muteButton) {
+            return;
+        }
+
+        let localMute = getSettings().localMute;
+        if (localMute && !findUpMedia('camera')) {
+            displayMessage('Please use Enable to enable your camera or microphone.');
+            return;
+        }
+
+        // Toggle mute state
+        localMute = !localMute;
+        setLocalMute(localMute, true);
+
+        // Announce the action
+        let announcement = document.getElementById('chat-announcements');
+        if(announcement) {
+            announcement.textContent = localMute ? 'Microphone muted' : 'Microphone unmuted';
+        }
+
+        // Focus the mute button (delayed to ensure announcement is read)
+        setTimeout(function() {
+            muteButton.focus();
+        }, 100);
+    }
+});
 
 start();
