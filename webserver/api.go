@@ -56,7 +56,7 @@ func isAdminOrExplicitPassword(groupname, user string, creds group.ClientCredent
 		u, ok := desc.Users[user]
 		if ok {
 			ok, err := u.Password.Match(creds.Password)
-			if err != nil && ok {
+			if err == nil && ok {
 				return true
 			}
 		}
