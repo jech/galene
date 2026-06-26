@@ -482,8 +482,14 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, g, user string, wil
 	if apiCORS(w, r, "PUT, POST, DELETE") {
 		return
 	}
-	if !wildcard && !checkAdminOrExplicitPassword(w, r, g, user) {
-		return
+	if wildcard {
+		if !checkAdmin(w, r, g) {
+			return
+		}
+	} else {
+		if !checkAdminOrExplicitPassword(w, r, g, user) {
+			return
+		}
 	}
 
 	if r.Method == "PUT" {
