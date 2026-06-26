@@ -788,7 +788,7 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 				"<input type=\"hidden\" name=\"filename\" value=\"%v\">"+
 				"<button type=\"submit\" name=\"q\" value=\"delete\">Delete</button>"+
 				"</form></td></tr>\n",
-			url.PathEscape(group), fi.Name())
+			url.PathEscape(group), html.EscapeString(fi.Name()))
 	}
 	fmt.Fprintf(w, "</table>\n")
 	fmt.Fprintf(w, "</body></html>\n")
