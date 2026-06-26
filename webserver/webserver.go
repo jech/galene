@@ -750,6 +750,10 @@ func checkRecordPermission(w http.ResponseWriter, r *http.Request, groupname str
 }
 
 func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, group string) {
+	if r.Method != "HEAD" && r.Method != "GET" {
+		methodNotAllowed(w, "HEAD,GET")
+		return
+	}
 	// read early, so we return permission errors to HEAD
 	fis, err := f.Readdir(-1)
 	if err != nil {
