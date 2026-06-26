@@ -797,6 +797,7 @@ func serveGroupRecordings(w http.ResponseWriter, r *http.Request, f *os.File, gr
 func Shutdown() {
 	if server == nil {
 		log.Printf("Shutting down nonexistent server")
+		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
