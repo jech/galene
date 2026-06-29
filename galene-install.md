@@ -147,8 +147,9 @@ galenectl -admin-username admin initial-setup
 ```
 
 This command creates two files: `galenectl.json` and `config.json`.  The
-former is already at the right place, the latter must be copied to the
-server's `data/` directory:
+former is already at the right place (type `galenectl -h` to find out the
+location on your system), while the latter must be copied to the server's
+`data/` directory:
 
 ```sh
 rsync config.json galene@galene.example.org:data/
