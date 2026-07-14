@@ -256,3 +256,7 @@ func (token *JWT) Check(host, group string) (string, []string, error) {
 
 	return sub, perms, nil
 }
+
+func (token *JWT) NeedsUsername() bool {
+	return false
+}

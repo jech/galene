@@ -122,6 +122,10 @@ func (token *Stateful) Check(host, group string) (string, []string, error) {
 
 	return user, token.Permissions, nil
 }
+func (token *Stateful) NeedsUsername() bool {
+	return token.Username == nil
+}
+
 
 // called locked
 func (state *state) reset() {

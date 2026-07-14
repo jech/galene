@@ -2,6 +2,7 @@ package token
 
 type Token interface {
 	Check(host, group string) (string, []string, error)
+	NeedsUsername() bool
 }
 
 func Parse(token string, keys []map[string]interface{}) (Token, error) {

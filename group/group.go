@@ -1025,6 +1025,10 @@ func (desc *Description) GetPermission(groupname string, creds ClientCredentials
 			return "", nil, &NotAuthorisedError{err: err}
 		}
 
+		if creds.Username == nil && tok.NeedsUsername() {
+			return "", nil, ErrUsernameRequired
+		}
+
 		conf, err := GetConfiguration()
 		if err != nil {
 			return "", nil, err
