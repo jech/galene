@@ -650,7 +650,7 @@ func AddClient(group string, c Client, creds ClientCredentials) (*Group, error) 
 			if g.description.Autokick {
 				ops := false
 				for _, c := range clients {
-					if !slices.Contains(
+					if slices.Contains(
 						c.Permissions(), "op",
 					) {
 						ops = true
