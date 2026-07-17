@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/jech/galene/group"
@@ -89,6 +90,53 @@ func TestMatch(t *testing.T) {
 		if m != test.m {
 			t.Errorf("Expected %v, got %v (%v)",
 				test.m, m, err,
+			)
+		}
+	}
+}
+
+func TestParsePermissions(t *testing.T) {
+	tests := []struct {
+		i string
+		e bool
+		o any // nil for error
+	}{
+		{"", false, nil},
+		{"   ", false, nil},
+
+		{`["message", "present", "token"]`, false,
+			[]string{"message", "present", "token"},
+		},
+		{`[]`, false, []string{}},
+		{`[foo]`, false, nil},
+		{`  ["message"]`, false, []string{"message"}},
+		{"op", false, "op"},
+		{"present", false, "present"},
+		{"unknown", false, "unknown"},
+		{"  op  ", false, "op"},
+		{"op", true, []string{
+			"op", "present", "message", "caption", "token",
+		}},
+		{"present", true, []string{"present", "message"}},
+		{"message", true, []string{"message"}},
+		{"observe", true, []string{}},
+		{"caption", true, []string{"caption"}},
+		{"admin", true, []string{"admin"}},
+		{"unknown", true, nil},
+	}
+
+	for _, test := range tests {
+		o, err := parsePermissions(test.i, test.e)
+		if (err != nil) != (test.o == nil) {
+			t.Errorf("parsePermissions(%v, %v): expected %v, got %v (%v)",
+				test.i, test.e, test.o, o, err,
+			)
+			continue
+		}
+
+		if !reflect.DeepEqual(o, test.o) {
+			t.Errorf("parsePermissions(%v, %v): expected %v, got %v",
+				test.i, test.e, test.o, o,
 			)
 		}
 	}
