@@ -66,3 +66,30 @@ func TestFormatPermissions(t *testing.T) {
 		}
 	}
 }
+
+func TestMatch(t *testing.T) {
+	tests := []struct {
+		ps []string
+		v  string
+		m  bool
+	}{
+		{[]string{}, "foo", false},
+		{[]string{"foo"}, "foo", true},
+		{[]string{"foo"}, "bar", false},
+		{[]string{"foo*"}, "foobar", true},
+		{[]string{"foo*"}, "foo", true},
+		{[]string{"foo*"}, "bar", false},
+		{[]string{"foo", "bar"}, "foo", true},
+		{[]string{"foo", "bar"}, "bar", true},
+		{[]string{"foo", "bar"}, "baz", false},
+		{[]string{"foo", "[", "bar"}, "bar", false},
+	}
+	for _, test := range tests {
+		m, err := match(test.ps, test.v)
+		if m != test.m {
+			t.Errorf("Expected %v, got %v (%v)",
+				test.m, m, err,
+			)
+		}
+	}
+}
