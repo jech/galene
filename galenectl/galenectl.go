@@ -1432,6 +1432,7 @@ func createTokenCmd(cmdname string, args []string) {
 	var groupname stringOption
 	var username, permissions string
 	var includeSubgroups boolOption
+	var duration time.Duration
 	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
 	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
 		os.Args[0], cmdname,
@@ -1440,6 +1441,8 @@ func createTokenCmd(cmdname string, args []string) {
 	cmd.Var(&includeSubgroups, "include-subgroups", "include subgroups")
 	cmd.StringVar(&username, "user", "", "encode user `name` in token")
 	cmd.StringVar(&permissions, "permissions", "present", "permissions")
+	cmd.DurationVar(&duration, "duration", 24*time.Hour,
+		"time interval during which the token will be valid")
 	cmd.Parse(args)
 
 	if cmd.NArg() != 0 {
@@ -1459,7 +1462,7 @@ func createTokenCmd(cmdname string, args []string) {
 	}
 	t := make(map[string]any)
 	t["permissions"] = perms
-	t["expires"] = time.Now().Add(24 * time.Hour)
+	t["expires"] = time.Now().Add(duration)
 	if username != "" {
 		t["username"] = username
 	}
