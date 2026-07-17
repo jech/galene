@@ -508,10 +508,10 @@ func putJSON(url string, value any, overwrite bool) error {
 		return err
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 	if resp.StatusCode >= 300 {
 		return httpError{resp.StatusCode, resp.Status}
 	}
-	io.Copy(io.Discard, resp.Body)
 	return nil
 }
 
@@ -533,11 +533,11 @@ func postJSON(url string, value any) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 	if resp.StatusCode >= 300 {
 		return "", httpError{resp.StatusCode, resp.Status}
 	}
 	location := resp.Header.Get("location")
-	io.Copy(io.Discard, resp.Body)
 	return location, nil
 }
 
