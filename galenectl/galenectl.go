@@ -962,7 +962,7 @@ func parsePermissions(p string, expand bool) (any, error) {
 		return nil, errors.New("empty permissions")
 	}
 	if p[0] == '[' {
-		var a []any
+		var a []string
 		err := json.Unmarshal([]byte(p), &a)
 		if err != nil {
 			return nil, err
