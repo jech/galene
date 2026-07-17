@@ -374,19 +374,19 @@ func initialSetupCmd(cmdname string, args []string) {
 	}
 
 	galeneConfig, err := os.OpenFile(galeneConfigFn,
-		os.O_WRONLY|os.O_CREATE|os.O_CREATE|os.O_EXCL,
+		os.O_WRONLY|os.O_CREATE|os.O_EXCL,
 		0600)
 	if err != nil {
 		log.Fatalf("Create %v: %v", galeneConfigFn, err)
 	}
 
 	galenectlConfig, err := os.OpenFile(configFile,
-		os.O_WRONLY|os.O_CREATE|os.O_CREATE|os.O_EXCL,
+		os.O_WRONLY|os.O_CREATE|os.O_EXCL,
 		0600)
 	if err != nil {
 		galeneConfig.Close()
 		os.Remove(galeneConfigFn)
-		log.Fatalf("Create %v: %v", galeneConfigFn, err)
+		log.Fatalf("Create %v: %v", configFile, err)
 	}
 
 	defer galeneConfig.Close()
@@ -558,6 +558,9 @@ func updateJSON[T any](url string, update func(T) T) error {
 		return err
 	}
 	req, err := http.NewRequest("PUT", url, bytes.NewReader(j))
+	if err != nil {
+		return err
+	}
 	setAuthorization(req)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("If-Match", etag)
@@ -912,6 +915,12 @@ func updateGroupCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
+	if groupname == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Option \"-group\" is required\n")
+		os.Exit(1)
+	}
+
 	u, err := url.JoinPath(
 		serverURL, "/galene-api/v0/.groups", groupname,
 	)
@@ -1126,8 +1135,9 @@ func createUserCmd(cmdname string, args []string) {
 		perms, err = parsePermissions(permissions.value, false)
 		if err != nil {
 			fmt.Fprintf(cmd.Output(),
-				"Could parse \"-permissions\"\n",
+				"Could not parse \"-permissions\"\n",
 			)
+			os.Exit(1)
 		}
 	}
 
@@ -1186,8 +1196,9 @@ func updateUserCmd(cmdname string, args []string) {
 		perms, err = parsePermissions(permissions.value, false)
 		if err != nil {
 			fmt.Fprintf(cmd.Output(),
-				"Could parse \"-permissions\"\n",
+				"Could not parse \"-permissions\"\n",
 			)
+			os.Exit(1)
 		}
 	}
 
@@ -1246,19 +1257,7 @@ func deleteUserCmd(cmdname string, args []string) {
 		os.Exit(1)
 	}
 
-	var u string
-	var err error
-	if wildcard {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".wildcard-user",
-		)
-	} else {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".users", username,
-		)
-	}
+	u, err := userURL(wildcard, groupname, username)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
