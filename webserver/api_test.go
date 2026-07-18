@@ -24,6 +24,7 @@ var setupOnce sync.Once
 func setup() {
 	setupOnce.Do(func() {
 		Insecure = true
+		StaticRoot = os.TempDir()
 		err := Serve("localhost:1234", "")
 		if err != nil {
 			panic("could not start server")
