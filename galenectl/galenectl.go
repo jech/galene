@@ -108,6 +108,10 @@ var commands = map[string]command{
 		command:     createTokenCmd,
 		description: "request a token",
 	},
+	"update-token": {
+		command:     updateTokenCmd,
+		description: "change a token's permissions, etc.",
+	},
 	"revoke-token": {
 		command:     revokeTokenCmd,
 		description: "revoke a token",
@@ -1431,6 +1435,66 @@ func createTokenCmd(cmdname string, args []string) {
 	fmt.Println(location)
 }
 
+func updateTokenCmd(cmdname string, args []string) {
+	var groupname stringOption
+	var token string
+	var permissions stringOption
+	var duration durationOption
+	cmd := flag.NewFlagSet(cmdname, flag.ExitOnError)
+	setUsage(cmd, cmdname, "%v [option...] %v [option...]\n",
+		os.Args[0], cmdname,
+	)
+	cmd.Var(&groupname, "group", "group `name`")
+	cmd.StringVar(&token, "token", "", "`token` to update")
+	cmd.Var(&permissions, "permissions", "new token permissions")
+	cmd.Var(&duration, "duration", "new token validity duration")
+	cmd.Parse(args)
+
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+
+	var perms any
+	var err error
+	if permissions.set {
+		perms, err = parsePermissions(permissions.value, true)
+		if err != nil {
+			fmt.Fprintf(cmd.Output(),
+				"Could not parse \"-permissions\"\n",
+			)
+			os.Exit(1)
+		}
+	}
+
+	if !groupname.set || token == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Options \"-group\" and \"-token\" are required\n")
+		os.Exit(1)
+	}
+
+	u, err := url.JoinPath(
+		serverURL, "/galene-api/v0/.groups/", groupname.value,
+		".tokens", token,
+	)
+	if err != nil {
+		log.Fatalf("Build URL: %v", err)
+	}
+
+	err = updateJSON(u, func(v map[string]any) map[string]any {
+		if permissions.set {
+			v["permissions"] = perms
+		}
+		if duration.set {
+			v["expires"] = time.Now().Add(duration.value)
+		}
+		return v
+	})
+	if err != nil {
+		log.Fatalf("Update token: %v", err)
+	}
+}
+
 func revokeTokenCmd(cmdname string, args []string) {
 	var groupname stringOption
 	var token string
@@ -1439,7 +1503,7 @@ func revokeTokenCmd(cmdname string, args []string) {
 		os.Args[0], cmdname,
 	)
 	cmd.Var(&groupname, "group", "group `name`")
-	cmd.StringVar(&token, "token", "", "`token` to delete")
+	cmd.StringVar(&token, "token", "", "`token` to revoke")
 	cmd.Parse(args)
 
 	if cmd.NArg() != 0 {
