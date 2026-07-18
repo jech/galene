@@ -38,6 +38,7 @@ var Directory string
 type Client struct {
 	group *group.Group
 	id    string
+	root  *os.Root
 
 	mu     sync.Mutex
 	down   map[string]*diskConn
@@ -50,8 +51,19 @@ func newId() string {
 	return hex.EncodeToString(b)
 }
 
-func New(g *group.Group) *Client {
-	return &Client{group: g, id: newId()}
+func New(g *group.Group) (*Client, error) {
+	directory := filepath.Join(Directory, g.Name())
+	err := os.MkdirAll(directory, 0700)
+	if err != nil {
+		return nil, err
+	}
+
+	root, err := os.OpenRoot(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{group: g, id: newId(), root: root}, nil
 }
 
 func (client *Client) Group() *group.Group {
@@ -89,11 +101,11 @@ func (client *Client) RequestConns(target group.Client, g *group.Group, id strin
 func (client *Client) Close() error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
-
 	for _, down := range client.down {
 		down.Close()
 	}
 	client.down = nil
+	client.root.Close()
 	client.closed = true
 	return nil
 }
@@ -144,18 +156,11 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 		return nil
 	}
 
-	directory := filepath.Join(Directory, client.group.Name())
-	err := os.MkdirAll(directory, 0700)
-	if err != nil {
-		g.WallOps("Write to disk: " + err.Error())
-		return err
-	}
-
 	if client.down == nil {
 		client.down = make(map[string]*diskConn)
 	}
 
-	down, err := newDiskConn(client, directory, up, tracks)
+	down, err := newDiskConn(client, up, tracks)
 	if err != nil {
 		g.WallOps("Write to disk: " + err.Error())
 		return err
@@ -166,10 +171,9 @@ func (client *Client) PushConn(g *group.Group, id string, up conn.Up, tracks []c
 }
 
 type diskConn struct {
-	client    *Client
-	directory string
-	username  string
-	hasVideo  bool
+	client   *Client
+	username string
+	hasVideo bool
 
 	mu            sync.Mutex
 	file          *os.File
@@ -198,7 +202,7 @@ func (conn *diskConn) open(extension string) error {
 		return errors.New("already open")
 	}
 
-	file, err := openDiskFile(conn.directory, conn.username, extension)
+	file, err := openDiskFile(conn.client.root, conn.username, extension)
 	if err != nil {
 		return err
 	}
@@ -250,7 +254,7 @@ func sanitise(s string) string {
 	return replacer.Replace(s)
 }
 
-func openDiskFile(directory, username, extension string) (*os.File, error) {
+func openDiskFile(root *os.Root, username, extension string) (*os.File, error) {
 	filenameFormat := "2006-01-02T15:04:05.000"
 	if runtime.GOOS == "windows" {
 		filenameFormat = "2006-01-02T15-04-05-000"
@@ -270,8 +274,7 @@ func openDiskFile(directory, username, extension string) (*os.File, error) {
 			)
 		}
 
-		fn = filepath.Join(directory, fn)
-		f, err := os.OpenFile(
+		f, err := root.OpenFile(
 			fn, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600,
 		)
 		if err == nil {
@@ -317,7 +320,7 @@ type diskTrack struct {
 	savedKf     *rtp.Packet
 }
 
-func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
+func newDiskConn(client *Client, up conn.Up, remoteTracks []conn.UpTrack) (*diskConn, error) {
 	var audio, video conn.UpTrack
 
 	for _, remote := range remoteTracks {
@@ -355,11 +358,10 @@ func newDiskConn(client *Client, directory string, up conn.Up, remoteTracks []co
 
 	_, username := up.User()
 	conn := diskConn{
-		client:    client,
-		directory: directory,
-		username:  username,
-		tracks:    make([]*diskTrack, 0, len(tracks)),
-		remote:    up,
+		client:   client,
+		username: username,
+		tracks:   make([]*diskTrack, 0, len(tracks)),
+		remote:   up,
 	}
 
 	for _, remote := range tracks {

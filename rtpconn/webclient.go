@@ -1681,8 +1681,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 					return c.error(group.UserError("already recording"))
 				}
 			}
-			disk := diskwriter.New(g)
-			_, err := group.AddClient(g.Name(), disk,
+			disk, err := diskwriter.New(g)
+			if err != nil {
+				return c.error(err)
+			}
+			_, err = group.AddClient(g.Name(), disk,
 				group.ClientCredentials{
 					System: true,
 				},
