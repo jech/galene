@@ -30,11 +30,17 @@ import (
 var server *http.Server
 
 var StaticRoot string
+var staticRoot *os.Root
 
 var Insecure bool
 
 func Serve(address string, dataDir string) error {
-	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
+	var err error
+	staticRoot, err = os.OpenRoot(StaticRoot)
+	if err != nil {
+		return err
+	}
+	http.Handle("/", &fileHandler{staticRoot})
 	http.HandleFunc("/group/", groupHandler)
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +114,7 @@ func notFound(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 
-	f, err := os.Open(path.Join(StaticRoot, "404.html"))
+	f, err := staticRoot.Open("404.html")
 	if err != nil {
 		fmt.Fprintln(w, "<p>Not found</p>")
 		return
@@ -196,7 +202,7 @@ func makeCachable(w http.ResponseWriter, p string, fi os.FileInfo, cachable bool
 
 // fileHandler is our custom reimplementation of http.FileServer
 type fileHandler struct {
-	root http.FileSystem
+	root *os.Root
 }
 
 func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -205,13 +211,17 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cspHeader(w, "")
-	p := r.URL.Path
-	// this ensures any leading .. are removed by path.Clean below
-	if !strings.HasPrefix(p, "/") {
-		p = "/" + p
-		r.URL.Path = p
+	if !strings.HasPrefix(r.URL.Path, "/") {
+		http.Error(w,
+			"internal server error", http.StatusInternalServerError)
+		return
 	}
-	p = path.Clean(p)
+	var p string
+	if r.URL.Path == "/" {
+		p = "."
+	} else {
+		p = r.URL.Path[1:]
+	}
 
 	f, err := fh.root.Open(p)
 	if err != nil {
@@ -263,8 +273,8 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // serveFile is similar to http.ServeFile, except that it doesn't check
 // for .. and adds cachability headers.
-func serveFile(w http.ResponseWriter, r *http.Request, p string) {
-	f, err := os.Open(p)
+func serveFile(w http.ResponseWriter, r *http.Request, root *os.Root, p string) {
+	f, err := root.Open(p)
 	if err != nil {
 		httpError(w, err)
 		return
@@ -371,7 +381,7 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 
 	status := g.Status(false, nil)
 	cspHeader(w, status.AuthServer)
-	serveFile(w, r, filepath.Join(StaticRoot, "galene.html"))
+	serveFile(w, r, staticRoot, "galene.html")
 }
 
 func baseURL(r *http.Request) (*url.URL, error) {
