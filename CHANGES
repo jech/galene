@@ -1,3 +1,9 @@
+Galene 1.2 (unreleased)
+
+  * Implemented recursive and global tokens.
+  * Implemented "galenectl update-token".
+  * Removed backwards compatibility with Galene 0.8.
+
 21 June 2026: Galene 1.1
 
   * Implemented "galenectl initial-setup".
