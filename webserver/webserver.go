@@ -585,7 +585,11 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := "/" + r.URL.Path[12:]
+	p := r.URL.Path[12:]
+	if p == "" {
+		http.Error(w, "Bad group name", http.StatusBadRequest)
+		return
+	}
 
 	if filepath.Separator != '/' &&
 		strings.ContainsRune(p, filepath.Separator) {
@@ -594,14 +598,14 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p = path.Clean(p)
-
-	if p == "/" {
-		http.Error(w, "Nothing here", http.StatusForbidden)
+	root, err := os.OpenRoot(diskwriter.Directory)
+	if err != nil {
+		httpError(w, err)
 		return
 	}
+	defer root.Close()
 
-	f, err := os.Open(filepath.Join(diskwriter.Directory, p))
+	f, err := root.Open(p)
 	if err != nil {
 		httpError(w, err)
 		return
@@ -619,18 +623,14 @@ func recordingsHandler(w http.ResponseWriter, r *http.Request) {
 		for len(p) > 0 && p[len(p)-1] == '/' {
 			p = p[:len(p)-1]
 		}
-		group = parseGroupName("/", p)
+		group = parseGroupName("", p)
 		if group == "" {
 			http.Error(w, "Bad group name", http.StatusBadRequest)
 			return
 		}
 	} else {
-		if p[len(p)-1] == '/' {
-			http.Error(w, "Bad group name", http.StatusBadRequest)
-			return
-		}
 		group, filename = path.Split(p)
-		group = parseGroupName("/", group)
+		group = parseGroupName("", group)
 		if group == "" {
 			http.Error(w, "Bad group name", http.StatusBadRequest)
 			return
@@ -692,12 +692,15 @@ func handleGroupAction(w http.ResponseWriter, r *http.Request, group string) {
 				http.StatusBadRequest)
 			return
 		}
-		err := os.Remove(
-			filepath.Join(diskwriter.Directory,
-				filepath.Join(group,
-					path.Clean("/"+filename),
-				),
-			),
+		root, err := os.OpenRoot(diskwriter.Directory)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		defer root.Close()
+
+		err = root.Remove(
+			filepath.Join(group, path.Clean("/"+filename)),
 		)
 		if err != nil {
 			httpError(w, err)
