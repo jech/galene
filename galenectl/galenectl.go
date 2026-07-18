@@ -18,7 +18,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -730,58 +729,6 @@ func deletePasswordCmd(cmdname string, args []string) {
 	if err != nil {
 		log.Fatalf("Delete password: %v", err)
 	}
-}
-
-// boolOption represents a boolean command-line option that may be unset
-type boolOption struct {
-	set   bool
-	value bool
-}
-
-func (o *boolOption) Set(value string) error {
-	v, err := strconv.ParseBool(value)
-	if err != nil {
-		return err
-	}
-	o.value = v
-	o.set = true
-	return nil
-}
-
-func (o *boolOption) String() string {
-	if o == nil {
-		return "(nil)"
-	}
-	if !o.set {
-		return "(unset)"
-	}
-	return strconv.FormatBool(o.value)
-}
-
-func (o *boolOption) IsBoolFlag() bool {
-	return true
-}
-
-// stringOption represents a command-line option that may be unset
-type stringOption struct {
-	set   bool
-	value string
-}
-
-func (o *stringOption) Set(value string) error {
-	o.value = value
-	o.set = true
-	return nil
-}
-
-func (o *stringOption) String() string {
-	if o == nil {
-		return "(nil)"
-	}
-	if !o.set {
-		return "(unset)"
-	}
-	return o.value
 }
 
 // stdinJSON reads a JSON dictionary on standard input if doit is true.
