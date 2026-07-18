@@ -33,9 +33,13 @@ var StaticRoot string
 
 var Insecure bool
 
+var NoStatic bool
+
 func Serve(address string, dataDir string) error {
-	http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
-	http.HandleFunc("/group/", groupHandler)
+	if !NoStatic {
+		http.Handle("/", &fileHandler{http.Dir(StaticRoot)})
+		http.HandleFunc("/group/", groupHandler)
+	}
 	http.HandleFunc("/recordings",
 		func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r,
