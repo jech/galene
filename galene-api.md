@@ -7,6 +7,8 @@ users.  For example, in order to create a group, a client may do
     Content-Type: application/json
     If-None-Match: *
 
+    {...}
+
 The `If-None-Match` header avoids overwriting an existing group.
 
 In order to edit a group definition, a client first does
@@ -19,11 +21,21 @@ The client then modifies the group defintion, and does
     PUT /galene-api/v0/.groups/groupname/
     If-Match: "abcd"
 
+    {...}
+
 where "abcd" is the entity tag returned by the GET request.  If the group
 definition has changed in the meantime, the entity tag will no longer be
 valid, and the server will fail the update, which avoids losing an update
 in the case of a concurrent modification.
 
+## Authentication
+
+The Galene API can use either HTTP Basic or bearer token authentication.
+For HTTP Basic, the authorised user needs to be defined in Galene's
+configuration file with the permission "admin".  For bearer token
+authentication, the token must have the "admin" permission, either
+a stateful or a cryptographic token may be used, and it must have the
+permission "admin".
 
 ## Endpoints
 
