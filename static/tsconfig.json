@@ -15,6 +15,7 @@
     },
     "files": [
         "protocol.js",
+        "settings.js",
         "galene.js",
         "management.js",
         "example/example.js"
