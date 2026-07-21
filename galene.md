@@ -568,5 +568,5 @@ the client and then redirect it to Galene with the `username` and `token`
 query parameters set.
 
 [1]: <galene-install.md>
-[2]: <https://github.com/jech/galene-imap/>
+[2]: <https://github.com/jech/galene-ldap/>
 [3]: <https://github.com/jech/galene-sample-auth-server/>
