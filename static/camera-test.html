@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Galène camera test</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+    <link rel="stylesheet" type="text/css" href="/common.css"/>
+    <link rel="stylesheet" type="text/css" href="/camera-test.css"/>
+  </head>
+
+  <body>
+    <details id="test-camera">
+      <summary>Test camera and microphone</summary>
+      <p>
+        <fieldset>
+          <label for="test-videoselect" class="sidenav-label-first">Camera:</label>
+          <select id="test-videoselect" class="select select-inline">
+            <option value="">off</option>
+          </select>
+
+          <label for="test-audioselect" class="sidenav-label">Microphone:</label>
+          <select id="test-audioselect" class="select select-inline">
+            <option value="">off</option>
+          </select>
+        </fieldset>
+        <video id="test-video" controls muted autoplay playsInline></video>
+        <canvas id="test-fft" width=640 height=50></canvas>
+      </p>
+    </details>
+    <script src="/third-party/toastify/toastify.js" defer></script>
+    <script src="/settings.js" defer></script>
+    <script src="/camera-test.js" defer></script>
+  </body>
+</html>
+

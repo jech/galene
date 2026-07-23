@@ -1,0 +1,27 @@
+.select {
+    width: 120px;
+}
+
+.invisible {
+    display: none;
+}
+
+#test-video {
+    display: block;
+    width: 640px;
+    height: 400px;
+}
+
+#test-fft {
+    display: block;
+    background: linear-gradient(to right, #E0E0E0, #EFEFEF);
+}
+
+.toastify.error {
+    background: linear-gradient(to right, #e20a0a, #df2d2d);
+    color: #fff;
+}
+
+.toastify.error .toast-close {
+    color: #fff;
+}
