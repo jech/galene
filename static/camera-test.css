@@ -1,0 +1,76 @@
+#presentbutton, #unpresentbutton {
+    white-space: nowrap;
+    margin-right: 0.4em;
+    margin-top: .1em;
+    font-size: 1.1em;
+    text-align: left;
+    width: 5.8em;
+}
+
+#presentbutton {
+    color: #fff;
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+#unpresentbutton {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+#permissionsbutton {
+    color: #fff;
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.btn {
+    display: inline-block;
+    font-weight: 400;
+    font-size: 1em;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: 0.255rem .75rem;
+    line-height: 1.5;
+    border-radius: .25rem;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+
+.select {
+    width: 120px;
+}
+
+.invisible {
+    display: none;
+}
+
+#video {
+    width: 640px;
+    height: 400px;
+}
+
+#volume {
+    background: linear-gradient(to right, #D0D0D0, #E7E7E7);
+}
+
+@media only screen and (max-width: 1024px) {
+    #presentbutton, #unpresentbutton {
+        width: auto;
+    }
+}
+
+.toastify.error {
+    background: linear-gradient(to right, #e20a0a, #df2d2d);
+    color: #fff;
+}
+
+.toastify.error .toast-close {
+    color: #fff;
+}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Galène camera test</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+    <link rel="stylesheet" type="text/css" href="/common.css"/>
+    <link rel="stylesheet" type="text/css" href="/camera-test.css"/>
+  </head>
+
+  <body>
+    <div id="permissionsdiv">
+      <button id="permissionsbutton" class="btn">
+        <span class="nav-test">Request Permissions</span>
+      </button>
+    </div>
+    <div id="maindiv" class="invisible">
+      <p>
+        <fieldset>
+          <label for="videoselect" class="sidenav-label-first">Camera:</label>
+          <select id="videoselect" class="select select-inline">
+            <option value="">off</option>
+          </select>
+
+          <label for="audioselect" class="sidenav-label">Microphone:</label>
+          <select id="audioselect" class="select select-inline">
+            <option value="">off</option>
+          </select>
+        </fieldset>
+        <button id="presentbutton" class="invisible btn">
+          <span class="nav-text">Enable</span>
+        </button>
+        <button id="unpresentbutton" class="invisible btn">
+          <span class="nav-text">Disable</span>
+        </button>
+      <p>
+        <video id="video" controls muted autoplay playsInline></video>
+      </p>
+      <p>
+        <canvas id="volume" width=640 height=40></canvas>
+      </p>
+    </div>
+    <script src="/third-party/toastify/toastify.js" defer></script>
+    <script src="/settings.js" defer></script>
+    <script src="/camera-test.js" defer></script>
+  </body>
+</html>
+
