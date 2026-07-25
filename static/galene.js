@@ -1807,7 +1807,7 @@ function registerControlHandlers(localId, media, container) {
         volume.oninput = function() {
           let slider = /** @type{HTMLInputElement} */
               (getVideoButton(volume, "volume-slider"));
-          media.volume = parseInt(slider.value, 10)/100;
+          media.volume = parseFloat(slider.value)/100;
         };
     }
 
