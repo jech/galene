@@ -3021,7 +3021,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         clearChat(id, userId);
         break;
     }
-    case 'token':
+    case 'token': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
@@ -3048,7 +3048,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             }
         }
         break;
-    case 'tokenlist':
+    }
+    case 'tokenlist': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
@@ -3064,7 +3065,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         }
         localMessage(s);
         break;
-    case 'userinfo':
+    }
+    case 'userinfo': {
         if(!privileged) {
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
@@ -3077,6 +3079,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             'unknown address';
         localMessage(`User ${message.id} has ${u} and ${a}.`);
         break;
+    }
     default:
         console.warn(`Got unknown user message ${kind}`);
         break;
