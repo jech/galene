@@ -674,7 +674,7 @@ getSelectElement('simulcastselect').onchange = async function(e) {
 function mapRequest(what) {
     switch(what) {
     case '':
-        return {};
+        return {'': []};
     case 'audio':
         return {'': ['audio']};
     case 'screenshare':
