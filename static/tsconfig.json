@@ -17,6 +17,7 @@
         "protocol.js",
         "settings.js",
         "filter.js",
+        "camera-test.js",
         "galene.js",
         "management.js",
         "example/example.js"

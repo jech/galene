@@ -135,9 +135,23 @@
                       <input id="connectbutton" type="submit" class="btn btn-blue" value="Connect"/>
                     </div>
                   </form>
-                  <div class="clear"></div>
                 </div>
-              </div>
+                <details id="test-camera">
+                  <summary>Test camera and microphone</summary>
+                  <fieldset>
+                    <label for="test-videoselect" class="sidenav-label-firs">Camera:</label>
+                    <select id="test-videoselect" class="select select-inline">
+                      <option value="">off</option>
+                    </select>
+
+                    <label for="test-audioselect" class="sidenav-label">Microphone:</label>
+                    <select id="test-audioselect" class="select select-inline">
+                      <option value="">off</option>
+                    </select>
+                  </fieldset>
+                  <video id="test-video" controls muted autoplay playsInline></video>
+                  <canvas id="test-fft" width=320 height=50></canvas>
+                </details>
             </div>
           </div>
         </div>
@@ -308,6 +322,7 @@
     <script src="/third-party/contextual/contextual.js" defer></script>
     <script src="/settings.js" defer></script>
     <script src="/filter.js" defer></script>
+    <script src="/camera-test.js" defer></script>
     <script src="/galene.js" defer></script>
   </body>
 </html>
