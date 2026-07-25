@@ -392,7 +392,7 @@ function gotClose(code, reason) {
     closeUpMedia();
     closeSafariStream();
     setConnected(false);
-    if(code != 1000) {
+    if(code !== 1000) {
         console.warn('Socket close', code, reason);
     }
     let form = document.getElementById('loginform');
@@ -974,8 +974,8 @@ async function setSendParameters(c, bps, simulcast) {
             continue;
         let p = s.getParameters();
         if((!p.encodings ||
-            !simulcast && p.encodings.length != 1) ||
-           (simulcast && p.encodings.length != 2)) {
+            !simulcast && p.encodings.length !== 1) ||
+           (simulcast && p.encodings.length !== 2)) {
             await replaceUpStream(c);
             return;
         }
@@ -1082,7 +1082,7 @@ Filter.prototype.start = async function() {
     this.outputStream.addTrack(this.captureStream.getTracks()[0]);
     this.inputStream.getTracks().forEach(t => {
         t.onended = e => this.stop();
-        if(t.kind != 'video')
+        if(t.kind !== 'video')
             this.outputStream.addTrack(t);
     });
     this.video.srcObject = this.inputStream;
@@ -1109,7 +1109,7 @@ Filter.prototype.draw = async function() {
                     frameRate = r;
             }
         });
-        if(frameRate && frameRate != this.frameRate) {
+        if(frameRate && frameRate !== this.frameRate) {
             clearInterval(this.timer);
             this.frameRate = frameRate;
             this.timer = setInterval(() => this.draw(), 1000 / this.frameRate);
@@ -1346,9 +1346,9 @@ let filters = {
 			this.userdata.canvas = document.createElement('canvas');
                     /** @type {HTMLCanvasElement} */
 		    let c2 = this.userdata.canvas;
-		    if(c2.width != swidth)
+		    if(c2.width !== swidth)
 			c2.width = swidth;
-		    if(c2.height != sheight)
+		    if(c2.height !== sheight)
 			c2.height = sheight;
 		    let ctx2 = c2.getContext('2d');
 		    // scale down the background
@@ -1433,7 +1433,7 @@ function doSimulcast() {
  */
 
 async function setUpStream(c, stream) {
-    if(c.stream != null)
+    if(c.stream !== null)
         throw new Error("Setting nonempty stream");
 
     c.setStream(stream);
@@ -1457,10 +1457,10 @@ async function setUpStream(c, stream) {
     function addUpTrack(t) {
         let settings = getSettings();
         if(c.label === 'camera') {
-            if(t.kind == 'audio') {
+            if(t.kind === 'audio') {
                 if(settings.localMute)
                     t.enabled = false;
-            } else if(t.kind == 'video') {
+            } else if(t.kind === 'video') {
                 if(settings.blackboardMode) {
                     t.contentHint = 'detail';
                 }
@@ -1584,8 +1584,8 @@ async function replaceUpStream(c) {
     }
 
     await setMedia(cn,
-                   cn.label == 'camera' && getSettings().mirrorView,
-                   cn.label == 'video' && media);
+                   cn.label === 'camera' && getSettings().mirrorView,
+                   cn.label === 'video' && media);
 
     return cn;
 }
@@ -2575,7 +2575,7 @@ function setUserStatus(id, elt, userinfo) {
     let microphone=false, camera = false;
     for(let label in userinfo.streams) {
         for(let kind in userinfo.streams[label]) {
-            if(kind == 'audio')
+            if(kind === 'audio')
                 microphone = true;
             else
                 camera = true;
@@ -2610,7 +2610,7 @@ function gotUser(id, kind) {
     switch(kind) {
     case 'add':
         addUser(id, serverConnection.users[id]);
-        if(Object.keys(serverConnection.users).length == 3)
+        if(Object.keys(serverConnection.users).length === 3)
             reconsiderSendParameters();
         break;
     case 'delete':
@@ -3030,7 +3030,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             displayError(`Token operation failed: ${message}`)
             return
         }
-        if(typeof message != 'object') {
+        if(typeof message !== 'object') {
             displayError('Unexpected type for token');
             return;
         }
@@ -3371,7 +3371,7 @@ let captionsTimer = null;
  * @param {string|HTMLElement} message
  */
 function displayCaption(message) {
-    if(captionsTimer != null) {
+    if(captionsTimer !== null) {
         clearTimeout(captionsTimer);
         captionsTimer = null;
     }
