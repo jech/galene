@@ -3100,7 +3100,7 @@ function formatToken(token, details) {
             by = ' issued by ' + token.issuedBy;
         if(token.issuedAt) {
             if(by === '')
-                by = ' issued at ' + token.issuedAt;
+                by = ' issued at ' + (new Date(token.issuedAt)).toLocaleString();
             else
                 by = by + ' at ' + (new Date(token.issuedAt)).toLocaleString();
         }
@@ -3577,7 +3577,7 @@ const units = {
 function parseExpiration(s) {
     if(!s)
         return null;
-    let re = /^([0-9]+)(s|min|h|d|yr)$/
+    let re = /^([0-9]+)(s|min|h|d|mon|yr)$/
     let e = re.exec(s)
     if(e) {
         let unit = units[e[2]];
