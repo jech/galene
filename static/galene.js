@@ -510,7 +510,7 @@ function gotDownStream(c) {
     };
     c.onerror = function(e) {
         console.error(e);
-        displayError(e.toString());
+        displayError(e);
     };
     c.ondowntrack = function(track, transceiver, stream) {
         setMedia(c);
@@ -2512,7 +2512,7 @@ document.getElementById('invite-dialog').onclose = function(e) {
         try {
             notBefore = dateFromInput(nb.value);
         } catch(e) {
-            displayError(`Couldn't parse ${nb.value}: ${e}`);
+            displayError(`Couldn't parse ${nb.value}: ${e.message}`);
             return;
         }
     }
@@ -2522,7 +2522,7 @@ document.getElementById('invite-dialog').onclose = function(e) {
         try {
             expires = dateFromInput(ex.value);
         } catch(e) {
-            displayError(`Couldn't parse ${ex.value}: ${e}`);
+            displayError(`Couldn't parse ${ex.value}: ${e.message}`);
             return;
         }
     }
@@ -4296,6 +4296,8 @@ document.getElementById('resizer').addEventListener('mousedown', chatResizer, fa
  * @param {string} [level]
  */
 function displayError(message, level) {
+    if(message instanceof Error)
+        message = message.message;
     if(!level)
         level = "error";
     let position = 'center';
@@ -4429,7 +4431,7 @@ async function serverConnect() {
     serverConnection.onconnected = gotConnected;
     serverConnection.onerror = function(e) {
         console.error(e);
-        displayError(e.toString());
+        displayError(e);
     };
     serverConnection.onpeerconnection = onPeerConnection;
     serverConnection.onclose = gotClose;
@@ -4450,7 +4452,7 @@ async function serverConnect() {
         await serverConnection.connect(url);
     } catch(e) {
         console.error(e);
-        displayError(e.message ? e.message : "Couldn't connect to " + url);
+        displayError(`Couldn't connect to ${url}: ${e.message}`);
     }
 }
 
