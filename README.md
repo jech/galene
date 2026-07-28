@@ -1,6 +1,6 @@
 # The Galene videoconferencing system
 
-Galene is a fully-features videoconferencing system that is easy to deploy
+Galene is a fully-featured videoconferencing system that is easy to deploy
 and requires very moderate server resources.  It is described at
 <https://galene.org>.
 
