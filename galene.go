@@ -60,7 +60,7 @@ func main() {
 			if err != nil || n != 2 {
 				log.Fatalf("UDP range: %v", err)
 			}
-			if n != 2 || min <= 0 || max <= 0 || min > max {
+			if min <= 0 || max <= 0 || min > max {
 				log.Fatalf("UDP range: bad range")
 			}
 			group.UDPMin = min
