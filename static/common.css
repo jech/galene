@@ -16,7 +16,7 @@ h1 {
 }
 
 body {
-    overflow-x: hidden;
+    overflow: hidden;
 }
 body, html {
     height: 100%;
