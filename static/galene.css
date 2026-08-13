@@ -851,7 +851,7 @@ h1 {
 
 .close-chat {
     position: absolute;
-    top: 2px;
+    top: 14px;
     right: 14px;
     width: 25px;
     font-size: 1em;
