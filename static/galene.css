@@ -673,7 +673,7 @@ textarea.form-reply {
 .nav-link:hover {
     color: #c2a4e0;
 }
-.nav-link label:hover {
+.nav-link:hover label {
     color: #c2a4e0;
 }
 
