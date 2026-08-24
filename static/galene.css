@@ -129,14 +129,14 @@
 
 .navbar {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     background: #610a86;
-}
-.navbar {
     position: relative;
     padding: .1rem;
+    overflow: auto;
+    flex-wrap: nowrap;
+    width: 100%;
 }
 
 .btn {
@@ -270,6 +270,7 @@
 
 .container {
     width: 100%;
+    overflow: hidden;
 }
 
 .users-header {
@@ -1433,4 +1434,9 @@ header .collapse:hover {
 }
 .toastify.info .toast-close {
     color: #000;
+}
+
+#header {
+    display: flex;
+    margin-right: 0.4em;
 }
