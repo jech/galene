@@ -503,6 +503,10 @@ textarea.form-reply {
     height: 100%;
 }
 
+.top-video-controls .controls-button {
+    padding-top: 10px;
+}
+
 .controls-left {
     float: left;
     text-align: left;
