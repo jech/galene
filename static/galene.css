@@ -1446,3 +1446,18 @@ header .collapse:hover {
 .toastify.info .toast-close {
     color: #000;
 }
+
+#main > div > div {
+    overflow: hidden;
+}
+
+header > .navbar {
+    overflow: auto;
+    flex-wrap: nowrap;
+    width: 100%;
+}
+
+#header {
+    display: flex;
+    margin-right: 0.4em;
+}
