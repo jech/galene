@@ -1311,7 +1311,7 @@ async function addLocalMedia(localId) {
 
     c.label = 'camera';
 
-    if(settings.filter) {
+    if(video && settings.filter) {
         let filter = filters[settings.filter];
         if(filter)
             c.userdata.filterDefinition = filter;
