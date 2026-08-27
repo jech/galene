@@ -1182,26 +1182,21 @@ header .collapse:hover {
     color: #20b91e;
     margin-right: 5px;
     font-weight: 900;
+    width: 1em;
+    display: inline-block;
+    text-align: center;
+}
+
+#users > div.user-status-microphone::before {
+    content: "\f130";
+}
+
+#users > div.user-status-camera::before {
+    content: "\f030";
 }
 
 #users > div.user-status-raisehand::before {
     content: "\f256";
-}
-
-#users > div::after {
-    font-family: 'Font Awesome 6 Free';
-    color: #808080;
-    margin-left: 5px;
-    font-weight: 900;
-    float: right;
-}
-
-#users > div.user-status-microphone::after {
-    content: "\f130";
-}
-
-#users > div.user-status-camera::after {
-    content: "\f030";
 }
 
 .close-icon {
