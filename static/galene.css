@@ -1164,7 +1164,8 @@ header .collapse:hover {
     line-height: 18px;
     margin: 0 !important;
     cursor: pointer;
-    overflow: hidden;
+    overflow: auto;
+    scrollbar-width: none;
     white-space: pre;
 }
 
