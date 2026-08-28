@@ -1307,6 +1307,8 @@ function recomputeUserStreams(sc, id) {
         let c = streams[streamid];
         if(!c.stream)
             continue;
+        if(c.source !== id && id !== sc.id)
+            continue;
         if(!user.streams[c.label])
             user.streams[c.label] = {};
         c.stream.getTracks().forEach(t => {
