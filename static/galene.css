@@ -48,10 +48,6 @@
     background-color: #eee;
 }
 
-.profile {
-    width: 230px;
-}
-
 .profile-logo {
     float: left;
     width: 50px;
@@ -945,7 +941,8 @@ h1 {
     position: fixed;
     -webkit-transition: all .2s ease-out;
     transition: all .2s ease-out;
-    width: 0px;
+    width: 250px;
+    transform: translateX(100%);
     /* on top of everything */
     z-index: 2999;
     top: 0;
@@ -953,6 +950,10 @@ h1 {
     height: calc(var(--vh, 1vh) * 100);
     overflow-x: hidden;
     overflow-y: hidden;
+}
+
+.sidenav.opened {
+    transform: translateX(0);
 }
 
 .sidenav a {
