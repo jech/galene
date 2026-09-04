@@ -3,6 +3,7 @@ Galene 1.2 (unreleased)
   * Implemented recursive and global tokens.
   * Implemented token authentication for the administrative interface.
   * Implemented "galenectl update-token".
+  * Added a microphone and camera test to the login page.
   * Fixed incorrect handling of the "autokick" group option.
   * Implemented "galenectl update-token".
   * Added "-duration" flag to "galenectl create-token".
