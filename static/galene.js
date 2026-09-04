@@ -3893,6 +3893,80 @@ document.getElementById('loginform').onsubmit = async function(e) {
     serverConnect();
 };
 
+
+/** @type{CameraTest} */
+let cameraTest = null;
+
+document.getElementById('test-camera').ontoggle = async function(e) {
+    let details = this;
+    if(!(details instanceof HTMLDetailsElement))
+        throw new Error('Unexpected type for this');
+    if(details.open) {
+        if(!cameraTest) {
+            let video = document.getElementById('test-video');
+            if(!(video instanceof HTMLVideoElement))
+                throw new Error('Bad type for video');
+            let canvas = document.getElementById('test-fft');
+            if(!(canvas instanceof HTMLCanvasElement))
+                throw new Error('Bad type for FFT canvas');
+            cameraTest = new CameraTest(
+                video, canvas,
+                getSelectElement('test-videoselect'),
+                getSelectElement('test-audioselect'),
+            );
+        }
+        try {
+            await cameraTest.setMediaChoices();
+            cameraTest.reflectSettings();
+            if(cameraTest.video.srcObject != null)
+                return;
+            await cameraTest.setStream(true);
+            await cameraTest.setAnalyser();
+        } catch(e) {
+            displayError(e);
+            await cameraTest.stopStream();
+            await cameraTest.setAnalyser();
+        }
+    } else {
+        try {
+            await cameraTest.stopStream();
+            await cameraTest.setAnalyser();
+        } catch(e) {
+            displayError(e);
+        }
+    }
+}
+
+getSelectElement('test-videoselect').onchange = async function(e) {
+    e.preventDefault();
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
+    if(!cameraTest)
+        throw new Error('Camera test not started');
+    updateSettings({video: this.value});
+    try {
+        await cameraTest.setStream();
+        await cameraTest.setAnalyser();
+    } catch(e) {
+        displayError(e);
+    }
+};
+
+getSelectElement('test-audioselect').onchange = async function(e) {
+    e.preventDefault();
+    if(!(this instanceof HTMLSelectElement))
+        throw new Error('Unexpected type for this');
+    if(!cameraTest)
+        throw new Error('Camera test not started');
+    updateSettings({audio: this.value});
+    try {
+        await cameraTest.setStream();
+        await cameraTest.setAnalyser();
+    } catch(e) {
+        displayError(e);
+    }
+};
+
 document.getElementById('disconnectbutton').onclick = function(e) {
     serverConnection.close();
     closeNav();

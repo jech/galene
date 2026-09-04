@@ -596,6 +596,7 @@ textarea.form-reply {
     height: calc(var(--vh, 1vh) * 100 - 56px);
     position: relative;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     overflow: scroll;
 }
@@ -603,7 +604,7 @@ textarea.form-reply {
 .login-box {
     width: 20em;
     padding: 1em;
-    margin: 5em auto;
+    margin: 2.5em auto;
     height: 23em;
     background: #fcfcfc;
 }
@@ -616,6 +617,21 @@ textarea.form-reply {
 .login-box h2 {
     text-align: center;
     margin-bottom: 40px;
+}
+
+#test-camera {
+    margin: 0 auto;
+    width: 20em;
+}
+
+#test-video {
+    display: block;
+    width: 100%;
+}
+
+#test-fft {
+    display: block;
+    background: linear-gradient(to right, #E0E0E0, #EFEFEF);
 }
 
 .label-fallback {
