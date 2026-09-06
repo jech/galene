@@ -263,6 +263,10 @@ function setConnected(connected) {
     let connectionbox = document.getElementById('login-container');
     if(connected) {
         clearChat();
+        let testCamera =  /** @type{HTMLDetailsElement} */
+            (document.getElementById('test-camera'));
+        // this causes the camera test to stop running
+        testCamera.open = false;
         userbox.classList.remove('invisible');
         connectionbox.classList.add('invisible');
         displayUsername();
