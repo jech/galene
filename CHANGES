@@ -1,3 +1,11 @@
+Galene 1.2.1 (unreleased)
+
+  * Ensured that the camera test and audio analyser are stopped when the
+    user logs in (they were hidden from view, but not stopped).
+  * Fixed some issues with computing the status of user streams that could
+    cause the wrong icon to appear in the user list.  Thanks to
+    Daniel Höxtermann.
+
 5 September 2026: Galene 1.2
 
   * Implemented recursive and global tokens.
