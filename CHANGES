@@ -1,4 +1,4 @@
-Galene 1.2.1 (unreleased)
+8 September 2026: Galene 1.2.1
 
   * Ensured that the camera test and audio analyser are stopped when the
     user logs in (they were hidden from view, but not stopped).
