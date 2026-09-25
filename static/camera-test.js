@@ -73,8 +73,6 @@ function CameraTest(video, canvas, videoselect, audioselect) {
     this.ctx = null;
     /** @type {AudioContext} */
     this.audioContext = null;
-    /** @type {boolean} */
-    this.permissionsRequested = false;
 }
 
 CameraTest.prototype.reflectSettings = function() {
@@ -253,37 +251,33 @@ CameraTest.prototype.drawFFT = function() {
     }
 }
 
-CameraTest.prototype.requestPermissions = async function() {
-    if(this.permissionsRequested)
-        return false;
-
+CameraTest.prototype.setMediaChoices = async function() {
     let ds = await getPermissionsConstraints();
     if(!('video' in ds || 'audio' in ds))
         throw new Error('No device detected');
     let stream = await navigator.mediaDevices.getUserMedia(ds);
-    await new Promise((resolve, reject) => setTimeout(resolve, 200));
-    stopStream(stream);
-    this.permissionsRequested = true;
-    return true;
-}
 
-CameraTest.prototype.setMediaChoices = async function() {
-    let devices = await navigator.mediaDevices.enumerateDevices();
+    try {
+        await new Promise((resolve, reject) => setTimeout(resolve, 200));
+        let devices = await navigator.mediaDevices.enumerateDevices();
 
-    let cn = 1, mn = 1;
+        let cn = 1, mn = 1;
 
-    devices.forEach(d => {
-        let label = d.label;
-        if(d.kind === 'videoinput') {
-            if(!label)
-                label = `Camera ${cn}`;
-            addSelectOption(this.videoselect, label, d.deviceId);
-            cn++;
-        } else if(d.kind === 'audioinput') {
-            if(!label)
-                label = `Microphone ${mn}`;
-            addSelectOption(this.audioselect, label, d.deviceId);
-            mn++;
-        }
-    });
+        devices.forEach(d => {
+            let label = d.label;
+            if(d.kind === 'videoinput') {
+                if(!label)
+                    label = `Camera ${cn}`;
+                addSelectOption(this.videoselect, label, d.deviceId);
+                cn++;
+            } else if(d.kind === 'audioinput') {
+                if(!label)
+                    label = `Microphone ${mn}`;
+                addSelectOption(this.audioselect, label, d.deviceId);
+                mn++;
+            }
+        });
+    } finally {
+        stopStream(stream);
+    }
 }
