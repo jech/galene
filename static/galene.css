@@ -1,16 +1,16 @@
 :root {
     /* Stacking order, from bottom to top. */
-    --z-video-label: 1;
-    --z-chat-input: 1000;
-    --z-peers: 1000;
-    --z-resizer: 1000;
-    --z-chat-button: 1002;
-    --z-sidebar-mobile: 1002;
-    --z-fixed-top: 1030;
-    --z-topnav: 1039;
-    --z-captions: 1390;
-    --z-context-menu: 2999;
-    --z-sidenav: 2999;
+    --z-video-label: 10;
+    --z-chat-input: 20;
+    --z-peers: 20;
+    --z-resizer: 20;
+    --z-chat-button: 30;
+    --z-sidebar-mobile: 30;
+    --z-fixed-top: 40;
+    --z-topnav: 50;
+    --z-captions: 60;
+    --z-context-menu: 70;
+    --z-sidenav: 70;
 }
 
 .nav-fixed .topnav {
