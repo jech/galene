@@ -11,6 +11,8 @@
     --z-captions: 60;
     --z-context-menu: 70;
     --z-sidenav: 70;
+
+    --topnav-height: 3.5rem;
 }
 
 .nav-fixed .topnav {
@@ -27,7 +29,7 @@
 
 .topnav {
     padding-left: 0;
-    height: 3.5rem;
+    height: var(--topnav-height);
     z-index: var(--z-topnav);
 }
 
@@ -285,7 +287,7 @@
 
 .full-width {
     width: calc(100vw - 200px);
-    height: calc(var(--vh, 1vh) * 100 - 56px);
+    height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
 }
 
 .full-width-active {
@@ -456,7 +458,7 @@ textarea.form-reply {
 }
 
 .video-container {
-    height: calc(var(--vh, 1vh) * 100 - 56px);
+    height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
     position: relative;
     background: rgba(0, 0, 0, 0.91);
     /* Display only when showing video */
@@ -608,7 +610,7 @@ textarea.form-reply {
 }
 
 .login-container {
-    height: calc(var(--vh, 1vh) * 100 - 56px);
+    height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
     position: relative;
     display: flex;
     flex-direction: column;
@@ -1265,7 +1267,7 @@ header .collapse:hover {
     }
 
     .full-width {
-        height: calc(var(--vh, 1vh) * 100 - 56px);
+        height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
     }
 
     .close-chat, .show-chat {
@@ -1274,8 +1276,8 @@ header .collapse:hover {
 
     .video-container {
         position: fixed;
-        height: calc(var(--vh, 1vh) * 100 - 56px);
-        top: 56px;
+        height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
+        top: var(--topnav-height);
         right: 0;
         left: 0;
         margin-bottom: 60px;
@@ -1287,8 +1289,8 @@ header .collapse:hover {
 
     .login-container {
         position: fixed;
-        height: calc(var(--vh, 1vh) * 100 - 56px);
-        top: 56px;
+        height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
+        top: var(--topnav-height);
         right: 0;
         left: 0;
         background: #eff3f9;
