@@ -971,6 +971,10 @@ h1 {
     overflow-y: hidden;
 }
 
+.sidenav.is-open {
+    width: 250px;
+}
+
 .sidenav a {
     padding: 10px 20px;
     text-decoration: none;
