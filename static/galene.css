@@ -1,5 +1,20 @@
+:root {
+    /* Stacking order, from bottom to top. */
+    --z-video-label: 1;
+    --z-chat-input: 1000;
+    --z-peers: 1000;
+    --z-resizer: 1000;
+    --z-chat-button: 1002;
+    --z-sidebar-mobile: 1002;
+    --z-fixed-top: 1030;
+    --z-topnav: 1039;
+    --z-captions: 1390;
+    --z-context-menu: 2999;
+    --z-sidenav: 2999;
+}
+
 .nav-fixed .topnav {
-    z-index: 1039;
+    z-index: var(--z-topnav);
 }
 
 .fixed-top{
@@ -7,13 +22,13 @@
     top: 0;
     right: 0;
     left: 0;
-    z-index: 1030;
+    z-index: var(--z-fixed-top);
 }
 
 .topnav {
     padding-left: 0;
     height: 3.5rem;
-    z-index: 1039;
+    z-index: var(--z-topnav);
 }
 
 .navbar .form-control, .topnav {
@@ -304,7 +319,7 @@
     background-color: #eae7e5;
     padding: 10px 5px 10px 5px;
     margin: 0;
-    z-index: 1000;
+    z-index: var(--z-chat-input);
 }
 
 .reply textarea {
@@ -451,7 +466,7 @@ textarea.form-reply {
 .chat-btn {
     display: block;
     /*on top of video peers*/
-    z-index: 1002;
+    z-index: var(--z-chat-button);
     font-size: 1.8em;
     position: absolute;
     top: 10px;
@@ -643,7 +658,7 @@ textarea.form-reply {
     position: absolute;
     bottom: 0;
     width: 100%;
-    z-index: 1;
+    z-index: var(--z-video-label);
     text-align: center;
     line-height: 24px;
     color: #ffffff;
@@ -891,7 +906,7 @@ h1 {
 #resizer {
     width: 4px;
     margin-left: -4px;
-    z-index: 1000;
+    z-index: var(--z-resizer);
 }
 
 #resizer:hover {
@@ -913,7 +928,7 @@ h1 {
     min-height: 100%;
     width: auto; 
     height: auto; 
-    z-index: 1000;
+    z-index: var(--z-peers);
     background-size: cover;
     overflow: hidden;
     vertical-align: top!important;
@@ -963,7 +978,7 @@ h1 {
     transition: all .2s ease-out;
     width: 0px;
     /* on top of everything */
-    z-index: 2999;
+    z-index: var(--z-sidenav);
     top: 0;
     right: 0;
     height: calc(var(--vh, 1vh) * 100);
@@ -1293,7 +1308,7 @@ header .collapse:hover {
         min-width: 200px;
         max-width: 200px;
         /* on top of video peers */
-        z-index: 1002;
+        z-index: var(--z-sidebar-mobile);
     }
 
     #left-sidebar {
@@ -1347,7 +1362,7 @@ header .collapse:hover {
     bottom: 40px;
     width: 100%;
     pointer-events: none;
-    z-index: 1390;
+    z-index: var(--z-captions);
     alpha: 0;
 }
 
@@ -1377,7 +1392,7 @@ header .collapse:hover {
 }
 
 .contextualMenu{
-    z-index: 2999;
+    z-index: var(--z-context-menu);
 }
 
 .file-progress {
