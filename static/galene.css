@@ -11,6 +11,17 @@
     --z-captions: 60;
     --z-context-menu: 70;
     --z-sidenav: 70;
+
+    /* Top bar height.
+       "rem" means "times the font size". The default font size in
+       the browser is 16px, so 3.5rem is 3.5 x 16px = 56px.
+       If the user sets a bigger font, for example 20px, the top bar
+       also gets bigger: 3.5 x 20px = 70px.
+       The elements under the top bar use this variable to calculate
+       their height, so they always fit in the window.
+       Don't use a fixed 56px. Use this variable, and change the
+       height only here. */
+    --topnav-height: 3.5rem;
 }
 
 .nav-fixed .topnav {
@@ -27,7 +38,7 @@
 
 .topnav {
     padding-left: 0;
-    height: 3.5rem;
+    height: var(--topnav-height);
     z-index: var(--z-topnav);
 }
 
@@ -285,7 +296,7 @@
 
 .full-width {
     width: calc(100vw - 200px);
-    height: calc(var(--vh, 1vh) * 100 - 56px);
+    height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
 }
 
 .full-width-active {
@@ -456,7 +467,7 @@ textarea.form-reply {
 }
 
 .video-container {
-    height: calc(var(--vh, 1vh) * 100 - 56px);
+    height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
     position: relative;
     background: rgba(0, 0, 0, 0.91);
     /* Display only when showing video */
@@ -608,7 +619,7 @@ textarea.form-reply {
 }
 
 .login-container {
-    height: calc(var(--vh, 1vh) * 100 - 56px);
+    height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
     position: relative;
     display: flex;
     flex-direction: column;
@@ -1259,7 +1270,7 @@ header .collapse:hover {
     }
 
     .full-width {
-        height: calc(var(--vh, 1vh) * 100 - 56px);
+        height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
     }
 
     .close-chat, .show-chat {
@@ -1268,8 +1279,8 @@ header .collapse:hover {
 
     .video-container {
         position: fixed;
-        height: calc(var(--vh, 1vh) * 100 - 56px);
-        top: 56px;
+        height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
+        top: var(--topnav-height);
         right: 0;
         left: 0;
         margin-bottom: 60px;
@@ -1281,8 +1292,8 @@ header .collapse:hover {
 
     .login-container {
         position: fixed;
-        height: calc(var(--vh, 1vh) * 100 - 56px);
-        top: 56px;
+        height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
+        top: var(--topnav-height);
         right: 0;
         left: 0;
         background: #eff3f9;
