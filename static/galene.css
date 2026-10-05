@@ -1173,7 +1173,14 @@ header .collapse:hover {
     border: 1px solid #f7f7f7;
 }
 
+/* User list in the left sidebar. Each row shows a status icon, the
+   user name, and a camera or microphone icon on the right. All three
+   stay on one line. If the name is too long, it is shortened with
+   "..." so the icon on the right is always visible.
+   The rules below set the row height, the icons and their colours. */
 #users .user-p {
+    display: flex;
+    align-items: center;
     position: relative;
     padding: 10px !important;
     border-bottom: 1px solid #f0f0f0;
@@ -1210,7 +1217,13 @@ header .collapse:hover {
     color: #808080;
     margin-left: 5px;
     font-weight: 900;
-    float: right;
+}
+
+#users .user-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #users > div.user-status-microphone::after {
