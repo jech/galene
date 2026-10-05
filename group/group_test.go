@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 	"time"
@@ -402,5 +404,39 @@ func TestPayloadTypeDistinct(t *testing.T) {
 			continue
 		}
 		m[pt] = n
+	}
+}
+
+func TestGetConfiguration(t *testing.T) {
+	DataDirectory = t.TempDir()
+	path := filepath.Join(DataDirectory, "config.json")
+
+	os.WriteFile(path, []byte("{\"canonicalHost\":\"example.com\"}"), 0600)
+	expected := "example.com"
+
+	conf, err := GetConfiguration()
+	if err != nil {
+		t.Fatalf("GetConfiguration: got %q", err)
+	}
+	if expected != conf.CanonicalHost {
+		t.Errorf("Expected CanonicalHost %q, got %q", expected, conf.CanonicalHost)
+	}
+
+	os.Remove(path)
+	expected = ""
+
+	conf, err = GetConfiguration()
+	if err != nil {
+		t.Fatalf("GetConfiguration: got %q", err)
+	}
+	if expected != conf.CanonicalHost {
+		t.Errorf("Expected CanonicalHost %q, got %q", expected, conf.CanonicalHost)
+	}
+
+	os.WriteFile(path, []byte("{\"unknownField\":true}"), 0600)
+
+	_, err = GetConfiguration()
+	if err == nil {
+		t.Error("GetConfiguration: expected error for unknown field")
 	}
 }

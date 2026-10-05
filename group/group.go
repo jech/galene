@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"maps"
@@ -21,6 +22,7 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"
 
+	"github.com/jech/galene/config"
 	"github.com/jech/galene/token"
 )
 
@@ -892,11 +894,6 @@ func (g *Group) GetChatHistory() []ChatHistoryEntry {
 
 // Configuration represents the contents of the data/config.json file.
 type Configuration struct {
-	// The modtime and size of the file.  These are used to detect
-	// when a file has changed on disk.
-	modTime  time.Time `json:"-"`
-	fileSize int64     `json:"-"`
-
 	CanonicalHost    string                     `json:"canonicalHost,omitempty"`
 	AllowOrigin      []string                   `json:"allowOrigin,omitempty"`
 	AllowAdminOrigin []string                   `json:"allowAdminOrigin,omitempty"`
@@ -908,60 +905,57 @@ type Configuration struct {
 	Admin []ClientPattern `json:"admin,omitempty"`
 }
 
-func (conf Configuration) Zero() bool {
-	return conf.modTime.Equal(time.Time{}) &&
-		conf.fileSize == 0
-}
-
 var configuration struct {
 	mu            sync.Mutex
 	configuration *Configuration
+
+	// The file and its last known tag. These are used to detect
+	// when a file has changed on disk.
+	configFile config.ConfigFile
+	configTag  string
 }
 
 func GetConfiguration() (*Configuration, error) {
 	configuration.mu.Lock()
 	defer configuration.mu.Unlock()
 
-	if configuration.configuration == nil {
+	path := filepath.Join(DataDirectory, "config.json")
+	if configuration.configFile.Path() != path {
+		configuration.configFile = config.NewConfigFile(path)
+		configuration.configTag = ""
 		configuration.configuration = &Configuration{}
 	}
 
-	filename := filepath.Join(DataDirectory, "config.json")
-	fi, err := os.Stat(filename)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			if !configuration.configuration.Zero() {
-				configuration.configuration = &Configuration{}
-			}
-			return configuration.configuration, nil
+	currentTag := configuration.configFile.Tag()
+	if currentTag != configuration.configTag {
+		if err := configuration.configFile.Read(handleConfiguration); err != nil {
+			return nil, err
 		}
-		return nil, err
+
+		configuration.configTag = currentTag
+	}
+	return configuration.configuration, nil
+}
+
+func handleConfiguration(r io.Reader) error {
+	if r == nil {
+		configuration.configuration = &Configuration{}
+		return nil
 	}
 
-	if configuration.configuration.modTime.Equal(fi.ModTime()) &&
-		configuration.configuration.fileSize == fi.Size() {
-		return configuration.configuration, nil
-	}
-
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	d := json.NewDecoder(f)
+	d := json.NewDecoder(r)
 	d.DisallowUnknownFields()
 	var conf Configuration
-	err = d.Decode(&conf)
-	if err != nil {
-		return nil, err
+	if err := d.Decode(&conf); err != nil {
+		return err
 	}
+
 	if conf.Admin != nil {
-		log.Printf("%v: field \"admin\" is obsolete, ignored", filename)
+		log.Printf("%v: field \"admin\" is obsolete, ignored", configuration.configFile.Path())
 		conf.Admin = nil
 	}
 	configuration.configuration = &conf
-	return configuration.configuration, nil
+	return nil
 }
 
 func (desc *Description) getPasswordPermission(creds ClientCredentials) (Permissions, error) {
