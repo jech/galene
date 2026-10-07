@@ -240,7 +240,7 @@ func TestWritableGroups(t *testing.T) {
 		t.Errorf("GetSanitisedDescription: got %v", err)
 	}
 
-	desc.DisplayName = "Test"
+	desc = &Description{DisplayName: "Test"}
 
 	err = UpdateDescription("test", "\"badetag\"", desc)
 	if !errors.Is(err, ErrTagMismatch) {
@@ -263,6 +263,38 @@ func TestWritableGroups(t *testing.T) {
 	testUser(t, "", true)
 }
 
+func TestDeleteDescription(t *testing.T) {
+	err := setupTest(t.TempDir(), t.TempDir(), true)
+	if err != nil {
+		t.Fatalf("setupTest: %v", err)
+	}
+
+	err = UpdateDescription("test", "", &Description{})
+	if err != nil {
+		t.Errorf("UpdateDescription: got %v", err)
+	}
+
+	err = DeleteDescription("test", "")
+	if !errors.Is(err, ErrTagMismatch) {
+		t.Errorf("DeleteDescription: got %v, expected ErrTagMismatch", err)
+	}
+
+	_, token, err := GetSanitisedDescription("test")
+	if err != nil {
+		t.Errorf("GetSanitisedDescription: got %v", err)
+	}
+
+	err = DeleteDescription("test", token)
+	if err != nil {
+		t.Errorf("DeleteDescription: got %v", err)
+	}
+
+	_, _, err = GetSanitisedDescription("test")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("GetSanitisedDescription: got %v, expected ErrNotExist", err)
+	}
+}
+
 func testUser(t *testing.T, username string, wildcard bool) {
 	_, _, err := GetSanitisedUser("test", username, wildcard)
 	if !errors.Is(err, os.ErrNotExist) {
@@ -278,7 +310,7 @@ func testUser(t *testing.T, username string, wildcard bool) {
 
 	user, token, err := GetSanitisedUser("test", username, wildcard)
 	if err != nil || token == "" || user.Permissions.name != "observe" {
-		t.Errorf("GetDescription: got %v %v, expected %v %v",
+		t.Errorf("GetSanitisedUser: got %v %v, expected %v %v",
 			err, user.Permissions.name, nil, "observe",
 		)
 	}
@@ -287,7 +319,7 @@ func testUser(t *testing.T, username string, wildcard bool) {
 		Permissions: Permissions{name: "present"},
 	})
 	if !errors.Is(err, ErrTagMismatch) {
-		t.Errorf("UpdateDescription: got %v, expected ErrTagMismatch",
+		t.Errorf("UpdateUser: got %v, expected ErrTagMismatch",
 			err)
 	}
 
@@ -305,6 +337,22 @@ func testUser(t *testing.T, username string, wildcard bool) {
 	})
 	if err != nil {
 		t.Errorf("SetUserPassword: got %v", err)
+	}
+
+	token, _ = GetUserTag("test", username, wildcard)
+	err = DeleteUser("test", username, wildcard, "")
+	if !errors.Is(err, ErrTagMismatch) {
+		t.Errorf("DeleteUser: got %v, expected ErrTagMismatch", err)
+	}
+
+	err = DeleteUser("test", username, wildcard, token)
+	if err != nil {
+		t.Errorf("DeleteUser: got %v", err)
+	}
+
+	_, _, err = GetSanitisedUser("test", username, wildcard)
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("GetSanitisedUser: got %v, expected os.ErrNotExist", err)
 	}
 }
 

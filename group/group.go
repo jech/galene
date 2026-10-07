@@ -500,11 +500,11 @@ func add(name string, desc *Description) (*Group, []Client, error) {
 
 	notify := false
 	if desc != nil {
-		if !descriptionMatch(g.description, desc) {
+		if !g.description.matches(desc) {
 			g.description = desc
 			notify = true
 		}
-	} else if !descriptionUnchanged(name, g.description) {
+	} else if g.description.hasChanged() {
 		desc, err = readDescription(name, true)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
