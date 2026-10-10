@@ -57,10 +57,10 @@ func TestBase(t *testing.T) {
 		{"http://b.org", false, "a.org", "http://b.org"},
 	}
 
-	dir := t.TempDir()
-	group.DataDirectory = dir
-
 	for _, v := range a {
+		dir := t.TempDir()
+		group.DataDirectory = dir
+
 		conf := group.Configuration{
 			ProxyURL: v.p,
 		}

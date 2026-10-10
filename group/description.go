@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jech/galene/config"
 	"github.com/jech/galene/token"
 )
 
@@ -154,10 +156,10 @@ type Description struct {
 	// the name of the group, for example in case of a subgroup.
 	FileName string `json:"-"`
 
-	// The modtime and size of the file.  These are used to detect
+	// The file and its last known tag. These are used to detect
 	// when a file has changed on disk.
-	modTime  time.Time `json:"-"`
-	fileSize int64     `json:"-"`
+	configFile config.ConfigFile
+	configTag  string
 
 	// Whether this is an automatically generated subgroup
 	isSubgroup bool `json:"-"`
@@ -244,15 +246,15 @@ func maxHistoryAge(desc *Description) time.Duration {
 	return DefaultMaxHistoryAge
 }
 
-func getDescriptionFile[T any](name string, allowSubgroups bool, get func(string) (T, error)) (T, string, bool, error) {
+func getConfigFile(name string, allowSubgroups bool) (config.ConfigFile, bool, error) {
 	isSubgroup := false
 	for name != "" {
 		fileName := filepath.Join(
 			Directory, path.Clean("/"+name)+".json",
 		)
-		r, err := get(fileName)
+		_, err := os.Stat(fileName)
 		if !errors.Is(err, os.ErrNotExist) {
-			return r, fileName, isSubgroup, err
+			return config.NewConfigFile(fileName), isSubgroup, err
 		}
 		if !allowSubgroups {
 			break
@@ -261,44 +263,27 @@ func getDescriptionFile[T any](name string, allowSubgroups bool, get func(string
 		name, _ = path.Split(name)
 		name = strings.TrimRight(name, "/")
 	}
-	var zero T
-	return zero, "", false, os.ErrNotExist
+	return config.NewConfigFile(""), false, os.ErrNotExist
 }
 
-// descriptionMatch returns true if the description hasn't changed between
-// d1 and d2
-func descriptionMatch(d1, d2 *Description) bool {
-	if d1.FileName != d2.FileName {
+// Return true if the descriptions are based on identical files.
+func (desc *Description) matches(other *Description) bool {
+	if other == nil {
 		return false
 	}
-
-	if d1.fileSize != d2.fileSize || !d1.modTime.Equal(d2.modTime) {
-		return false
-	}
-	return true
+	return desc.FileName == other.FileName && desc.configTag == other.configTag
 }
 
-// descriptionUnchanged returns true if a group's description hasn't
-// changed since it was last read.
-func descriptionUnchanged(name string, desc *Description) bool {
-	fi, fileName, _, err := getDescriptionFile(name, true, os.Stat)
-	if err != nil || fileName != desc.FileName {
-		return false
-	}
-
-	if fi.Size() != desc.fileSize || !fi.ModTime().Equal(desc.modTime) {
-		return false
-	}
-	return true
+// Return true if the description has changed since it was last read.
+func (desc *Description) hasChanged() bool {
+	return desc.configFile.Tag() != desc.configTag
 }
 
 // GetDescription gets a group description, either from cache or from disk
 func GetDescription(name string) (*Description, error) {
 	g := Get(name)
-	if g != nil {
-		if descriptionUnchanged(name, g.description) {
-			return g.description, nil
-		}
+	if g != nil && !g.description.hasChanged() {
+		return g.description, nil
 	}
 
 	return readDescription(name, true)
@@ -319,20 +304,17 @@ func GetSanitisedDescription(name string) (*Description, string, error) {
 	desc.Users = nil
 	desc.WildcardUser = nil
 	desc.AuthKeys = nil
-	return &desc, makeETag(desc.fileSize, desc.modTime), nil
+	return &desc, desc.configTag, nil
 }
 
 // GetDescriptionTag returns an ETag for a description.
 func GetDescriptionTag(name string) (string, error) {
-	fi, _, _, err := getDescriptionFile(name, false, os.Stat)
+	configFile, _, err := getConfigFile(name, false)
 	if err != nil {
 		return "", err
 	}
-	return makeETag(fi.Size(), fi.ModTime()), nil
-}
 
-func makeETag(fileSize int64, modTime time.Time) string {
-	return fmt.Sprintf("\"%v-%v\"", fileSize, modTime.UnixNano())
+	return configFile.Tag(), nil
 }
 
 // DeleteDescription deletes a description (and therefore persistently
@@ -341,14 +323,16 @@ func DeleteDescription(name, etag string) error {
 	groups.mu.Lock()
 	defer groups.mu.Unlock()
 
-	fi, fileName, _, err := getDescriptionFile(name, false, os.Stat)
+	configFile, _, err := getConfigFile(name, false)
 	if err != nil {
 		return err
 	}
-	if etag != makeETag(fi.Size(), fi.ModTime()) {
+
+	err = configFile.Delete(etag)
+	if errors.Is(err, config.ErrTagMismatch) {
 		return ErrTagMismatch
 	}
-	return os.Remove(fileName)
+	return err
 }
 
 // UpdateDescription overwrites a description if it matches a given ETag.
@@ -365,13 +349,14 @@ func UpdateDescription(name, etag string, desc *Description) error {
 	var filename string
 	old, err := readDescription(name, false)
 	if err == nil {
-		oldetag = makeETag(old.fileSize, old.modTime)
+		oldetag = old.configTag
 		filename = old.FileName
 	} else if errors.Is(err, os.ErrNotExist) {
 		old = nil
 		filename = filepath.Join(
 			Directory, path.Clean("/"+name)+".json",
 		)
+		desc.configFile = config.NewConfigFile(filename)
 	} else {
 		return err
 	}
@@ -385,6 +370,8 @@ func UpdateDescription(name, etag string, desc *Description) error {
 		newdesc.Users = old.Users
 		newdesc.WildcardUser = old.WildcardUser
 		newdesc.AuthKeys = old.AuthKeys
+		newdesc.configFile = old.configFile
+		newdesc.configTag = old.configTag
 	}
 
 	return rewriteDescriptionFile(filename, &newdesc)
@@ -399,70 +386,41 @@ func rewriteDescriptionFile(filename string, desc *Description) error {
 		return ErrDescriptionsNotWritable
 	}
 
-	dir := filepath.Dir(filename)
-
-	err = os.MkdirAll(dir, 0700)
+	err = desc.configFile.Write(desc.configTag, func(w io.Writer) error {
+		encoder := json.NewEncoder(w)
+		return encoder.Encode(desc)
+	})
+	if errors.Is(err, config.ErrTagMismatch) {
+		return ErrTagMismatch
+	}
 	if err != nil {
 		return err
 	}
 
-	f, err := os.CreateTemp(dir, "*.temp")
-	if err != nil {
-		return err
-	}
-	temp := f.Name()
-
-	encoder := json.NewEncoder(f)
-	err = encoder.Encode(desc)
-	if err == nil {
-		err = f.Sync()
-	}
-	if err != nil {
-		f.Close()
-		os.Remove(temp)
-		return err
-	}
-	err = f.Close()
-	if err != nil {
-		os.Remove(temp)
-		return err
-	}
-
-	err = os.Rename(temp, filename)
-	if err != nil {
-		os.Remove(temp)
-		return err
-	}
-
+	desc.configTag = desc.configFile.Tag()
 	return nil
-
 }
 
 // readDescription reads a group's description from disk
 func readDescription(name string, allowSubgroups bool) (*Description, error) {
-	r, fileName, isSubgroup, err :=
-		getDescriptionFile(name, allowSubgroups, os.Open)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	var desc Description
-
-	fi, err := r.Stat()
+	configFile, isSubgroup, err := getConfigFile(name, allowSubgroups)
 	if err != nil {
 		return nil, err
 	}
 
-	d := json.NewDecoder(r)
-	d.DisallowUnknownFields()
-	err = d.Decode(&desc)
+	desc := Description{
+		FileName:   configFile.Path(),
+		configFile: configFile,
+		configTag:  configFile.Tag(),
+	}
+	err = configFile.Read(func(r io.Reader) error {
+		d := json.NewDecoder(r)
+		d.DisallowUnknownFields()
+		return d.Decode(&desc)
+	})
 	if err != nil {
 		return nil, err
 	}
-	desc.FileName = fileName
-	desc.fileSize = fi.Size()
-	desc.modTime = fi.ModTime()
 
 	err = upgradeDescription(&desc)
 	if err != nil {
@@ -615,7 +573,7 @@ func GetUsers(group string) ([]string, string, error) {
 		users = append(users, u)
 	}
 
-	return users, makeETag(desc.fileSize, desc.modTime), nil
+	return users, desc.configTag, nil
 }
 
 func GetSanitisedUser(group, username string, wildcard bool) (UserDescription, string, error) {
@@ -648,7 +606,7 @@ func GetSanitisedUser(group, username string, wildcard bool) (UserDescription, s
 	}
 
 	u.Password = Password{}
-	return u, makeETag(desc.fileSize, desc.modTime), nil
+	return u, desc.configTag, nil
 }
 
 func GetUserTag(group, username string, wildcard bool) (string, error) {
@@ -683,8 +641,7 @@ func DeleteUser(group, username string, wildcard bool, etag string) error {
 		}
 	}
 
-	oldetag := makeETag(desc.fileSize, desc.modTime)
-	if oldetag != etag {
+	if desc.configTag != etag {
 		return ErrTagMismatch
 	}
 
@@ -729,7 +686,7 @@ func UpdateUser(group, username string, wildcard bool, etag string, user *UserDe
 
 	var oldetag string
 	if ok {
-		oldetag = makeETag(desc.fileSize, desc.modTime)
+		oldetag = desc.configTag
 	} else {
 		oldetag = ""
 	}
