@@ -1255,9 +1255,9 @@ async function addLocalMedia(localId) {
     let settings = getSettings();
 
     /** @type{boolean|MediaTrackConstraints} */
-    let audio = settings.audio ? {deviceId: settings.audio} : false;
+    let audio = settings.audio ? exactDeviceConstraint(settings.audio) : false;
     /** @type{boolean|MediaTrackConstraints} */
-    let video = settings.video ? {deviceId: settings.video} : false;
+    let video = settings.video ? exactDeviceConstraint(settings.video) : false;
 
     if(video) {
         let resolution = settings.resolution;
