@@ -2198,11 +2198,7 @@ function changeUser(id, userinfo) {
  * @param {user} userinfo
  */
 function setUserStatus(id, elt, userinfo) {
-    let name = document.createElement('span');
-    name.classList.add('user-name');
-    name.textContent = userinfo.username ? userinfo.username : '(anon)';
-    elt.textContent = '';
-    elt.appendChild(name);
+    elt.textContent = userinfo.username ? userinfo.username : '(anon)';
     if(userinfo.data.raisehand)
         elt.classList.add('user-status-raisehand');
     else
