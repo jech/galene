@@ -12,15 +12,6 @@
     --z-context-menu: 70;
     --z-sidenav: 70;
 
-    /* Top bar height.
-       "rem" means "times the font size". The default font size in
-       the browser is 16px, so 3.5rem is 3.5 x 16px = 56px.
-       If the user sets a bigger font, for example 20px, the top bar
-       also gets bigger: 3.5 x 20px = 70px.
-       The elements under the top bar use this variable to calculate
-       their height, so they always fit in the window.
-       Don't use a fixed 56px. Use this variable, and change the
-       height only here. */
     --topnav-height: 3.5rem;
 }
 
