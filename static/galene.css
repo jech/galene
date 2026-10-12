@@ -1183,10 +1183,12 @@ header .collapse:hover {
     cursor: pointer;
     overflow: hidden;
     white-space: pre;
+    text-overflow: ellipsis;
+    padding-right: 30px !important;
 }
 
 #left-sidebar.active #users > div {
-    padding: 10px 5px !important;
+    padding: 10px 30px 10px 5px !important;
 }
 
 #users > div:hover {
@@ -1208,9 +1210,9 @@ header .collapse:hover {
 #users > div::after {
     font-family: 'Font Awesome 6 Free';
     color: #808080;
-    margin-left: 5px;
     font-weight: 900;
-    float: right;
+    position: absolute;
+    right: 10px;
 }
 
 #users > div.user-status-microphone::after {
