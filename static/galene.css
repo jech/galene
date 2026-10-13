@@ -666,6 +666,10 @@ textarea.form-reply {
     color: #ffffff;
 }
 
+.label.up-stream:hover {
+    cursor: pointer;
+}
+
 .nav-link {
     padding: 0;
     color: #dbd9d9;
