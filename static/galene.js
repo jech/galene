@@ -1644,10 +1644,18 @@ async function setMedia(c, mirror, video) {
         label = document.createElement('div');
         label.id = 'label-' + c.localId;
         label.classList.add('label');
+        label.dataset.defaultText = '';
+        label.dataset.fallbackText = '';
+        label.dataset.showFallback = false;
+        label.onclick = function() {
+            let showFallback = (label.dataset.showFallback === 'true');
+            label.dataset.showFallback = !showFallback;
+            updateLabelElement(label);
+        };
         div.appendChild(label);
     }
 
-    setLabel(c);
+    setLabel(c, '');
     setMediaStatus(c);
 
     showVideo();
@@ -1917,15 +1925,23 @@ function setLabel(c, fallback) {
     let label = document.getElementById('label-' + c.localId);
     if(!label)
         return;
-    let l = c.username;
-    if(l) {
-        label.textContent = l;
-        label.classList.remove('label-fallback');
-    } else if(fallback) {
-        label.textContent = fallback;
+    label.dataset.defaultText = c.username || serverConnection.username;
+    label.dataset.fallbackText = fallback;
+    updateLabelElement(label);
+}
+
+/**
+ * @param {Element} label
+ */
+function updateLabelElement(label) {
+    let defaultText = label.dataset.defaultText;
+    let fallbackText = label.dataset.fallbackText;
+    let showFallback = (label.dataset.showFallback === 'true');
+    if(fallbackText && (!defaultText || showFallback)) {
+        label.textContent = fallbackText;
         label.classList.add('label-fallback');
     } else {
-        label.textContent = '';
+        label.textContent = defaultText;
         label.classList.remove('label-fallback');
     }
 }
