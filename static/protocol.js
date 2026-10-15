@@ -726,6 +726,7 @@ ServerConnection.prototype.newUpStream = function(localId) {
     let c = new Stream(this, id, localId || newLocalId(), pc, true);
     if(oldId)
         c.replace = oldId;
+    c.username = sc.username;
     sc.up[id] = c;
 
     pc.onnegotiationneeded = async e => {
