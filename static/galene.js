@@ -1925,7 +1925,7 @@ function setLabel(c, fallback) {
     let label = document.getElementById('label-' + c.localId);
     if(!label)
         return;
-    label.dataset.defaultText = c.username || serverConnection.username;
+    label.dataset.defaultText = c.username;
     label.dataset.fallbackText = fallback;
     updateLabelElement(label);
 }
