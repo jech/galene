@@ -124,7 +124,7 @@ are PUT, POST and DELETE.
 
 ### List of stateful tokens
 
-    /galene-api/v0/.groups/groupname/.users/username/.tokens/
+    /galene-api/v0/.groups/groupname/.tokens/
 
 GET returns the list of stateful tokens, as a JSON array.  POST creates
 a new token, and returns its name in the `Location` header.  Allowed
@@ -132,9 +132,9 @@ methods are HEAD, GET and POST.
 
 ### Stateful token
 
-    /galene-api/v0/.groups/groupname/.users/username/.tokens/token
+    /galene-api/v0/.groups/groupname/.tokens/token
 
 The full contents of a single token, in JSON.  The exact format may change
 between versions, so a client should first GET a token, update one or more
-fields, then PUT the resulting token.  Allowed methods are HEAD, GET and
-PUT.
+fields, then PUT the resulting token.  Allowed methods are HEAD, GET, PUT
+and DELETE.
