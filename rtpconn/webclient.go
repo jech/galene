@@ -939,22 +939,25 @@ type kickAction struct {
 
 var errEmptyId = group.ProtocolError("empty id")
 
-func remove(v string, l []string) []string {
-	for i, w := range l {
-		if v == w {
-			l = append(l[:i], l[i+1:]...)
-			return l
-		}
+// remove removes an element from a slice.  In order to avoid sharing
+// issues, it performs a deep copy if the list changes.
+func remove(l *[]string, v string) {
+	if !slices.Contains(*l, v) {
+		return
 	}
-	return l
+	ll := slices.Clone(*l)
+	ll = slices.DeleteFunc(ll, func(w string) bool { return v == w })
+	*l = ll
 }
 
-func addnew(v string, l []string) []string {
-	if slices.Contains(l, v) {
-		return l
+// addnew is like remove, but it adds an element.
+func addnew(l *[]string, v string) {
+	if slices.Contains(*l, v) {
+		return
 	}
-	l = append(l, v)
-	return l
+	ll := slices.Clone(*l)
+	ll = append(ll, v)
+	*l = ll
 }
 
 func clientLoop(c *webClient, ws *websocket.Conn, versionError bool) error {
@@ -1218,22 +1221,22 @@ func handleAction(c *webClient, a any) error {
 	case changePermissionsAction:
 		switch a.kind {
 		case "op":
-			c.permissions = addnew("op", c.permissions)
+			addnew(&c.permissions, "op")
 			g := c.Group()
 			if g != nil && g.Description().AllowRecording {
-				c.permissions = addnew("record", c.permissions)
+				addnew(&c.permissions, "record")
 			}
 		case "unop":
-			c.permissions = remove("op", c.permissions)
-			c.permissions = remove("record", c.permissions)
+			remove(&c.permissions, "op")
+			remove(&c.permissions, "record")
 		case "present":
-			c.permissions = addnew("present", c.permissions)
+			addnew(&c.permissions, "present")
 		case "unpresent":
-			c.permissions = remove("present", c.permissions)
+			remove(&c.permissions, "present")
 		case "shutup":
-			c.permissions = remove("message", c.permissions)
+			remove(&c.permissions, "message")
 		case "unshutup":
-			c.permissions = addnew("message", c.permissions)
+			addnew(&c.permissions, "message")
 		default:
 			return group.UserError("unknown permission")
 		}
