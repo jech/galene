@@ -1221,6 +1221,10 @@ header .collapse:hover {
     content: "\f030";
 }
 
+#users > div.user-status-active::after {
+    color: #610a86;
+}
+
 .close-icon {
     font: normal 1em/1 Arial, sans-serif;
     display: inline-block;

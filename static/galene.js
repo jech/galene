@@ -787,6 +787,14 @@ function setActive(c, value) {
         peer.classList.add('peer-active');
     else
         peer.classList.remove('peer-active');
+
+    let user = document.getElementById('user-' + c.source);
+    if(user) {
+        if(value)
+            user.classList.add('user-status-active');
+        else
+            user.classList.remove('user-status-active');
+    }
 }
 
 /**
