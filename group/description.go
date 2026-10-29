@@ -33,6 +33,7 @@ var permissionsMap = map[string][]string{
 	"observe": {},
 	"caption": {"caption"},
 	"admin":   {"admin"},
+	"metrics": {"metrics"},
 }
 
 func NewPermissions(name string) (Permissions, error) {
