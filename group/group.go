@@ -970,15 +970,10 @@ func (desc *Description) getPasswordPermission(creds ClientCredentials) (Permiss
 	}
 	if desc.Users != nil {
 		if c, found := desc.Users[*creds.Username]; found {
-			ok, err := c.Password.Match(creds.Password)
-			if err != nil {
+			if err := desc.authenticateUsernamePassword(creds); err != nil {
 				return Permissions{}, err
 			}
-			if ok {
-				return c.Permissions, nil
-			} else {
-				return Permissions{}, ErrBadPassword
-			}
+			return c.Permissions, nil
 		}
 	}
 
@@ -989,6 +984,31 @@ func (desc *Description) getPasswordPermission(creds ClientCredentials) (Permiss
 		}
 	}
 	return Permissions{}, ErrNoSuchUsername
+}
+
+// Authenticate against group-level or global user.
+func (desc *Description) authenticateUsernamePassword(creds ClientCredentials) error {
+	var password Password
+
+	if u, ok := desc.Users[*creds.Username]; ok && u.Password.Type != "" {
+		password = u.Password
+	} else {
+		u, _, err := GetGlobalUser(*creds.Username)
+		if err != nil {
+			return err
+		}
+
+		password = u.Password
+	}
+
+	match, err := password.Match(creds.Password)
+	if err != nil {
+		return err
+	}
+	if !match {
+		return ErrBadPassword
+	}
+	return nil
 }
 
 // Return true if there is a user entry with the given username.

@@ -781,3 +781,34 @@ func SetUserPassword(group, username string, wildcard bool, pw Password) error {
 	}
 	return rewriteDescriptionFile(desc.FileName, desc)
 }
+
+// Return the user's password and its actual location.
+// The group argument may be an auto-subgroup.
+// The actual location is the name of the group containing the password
+// for group-level users, or an empty string for global users.
+func GetUserPassword(group, username string) (Password, string, error) {
+	for group != "" {
+		fileName := filepath.Join(Directory, path.Clean("/"+group)+".json")
+		if _, err := os.Stat(fileName); err == nil {
+			break
+		}
+		group, _ = path.Split(group)
+		group = strings.TrimRight(group, "/")
+	}
+
+	if group != "" {
+		desc, err := GetDescription(group)
+		if err != nil {
+			return Password{}, "", err
+		}
+		if u, ok := desc.Users[username]; ok && u.Password.Type != "" {
+			return u.Password, group, nil
+		}
+	}
+
+	u, _, err := GetGlobalUser(username)
+	if err != nil {
+		return Password{}, "", err
+	}
+	return u.Password, "", nil
+}
