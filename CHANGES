@@ -1,3 +1,11 @@
+Galene 1.2.2 (unreleased)
+
+  * Fixed camera selection in the camera test on Firefox.
+  * Fixed a bug that could cause incorrect user permissions when using the
+    moderation tools.  Thanks to Alberto Brusconi.
+  * Added an activity indicator to the users list.  Thanks to alxndr42.
+  * Fixed overflow in the users list.  Thanks to alxndr42.
+
 8 September 2026: Galene 1.2.1
 
   * Ensured that the camera test and audio analyser are stopped when the
