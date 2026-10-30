@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -51,6 +52,7 @@ func Serve(address string, dataDir string) error {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/public-groups.json", publicHandler)
 	http.HandleFunc("/galene-api/", apiHandler)
+	http.HandleFunc("/metrics", metricsHandler)
 
 	s := &http.Server{
 		Addr:              address,
@@ -476,6 +478,13 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 // globalAdminMatch checks whether the given credentials match with an
 // administrator entry in the global configuration file.
 func globalAdminMatch(username, password string) (bool, error) {
+	return globalPermissionMatch(username, password, "admin")
+}
+
+// globalPermissionMatch checks whether the given credentials match with
+// an entry in the global configuration file that has one of the given
+// permissions.
+func globalPermissionMatch(username, password string, perms ...string) (bool, error) {
 	conf, err := group.GetConfiguration()
 	if err != nil {
 		return false, err
@@ -490,9 +499,8 @@ func globalAdminMatch(username, password string) (bool, error) {
 		if !ok {
 			return false, nil
 		}
-		perms := u.Permissions.Permissions(nil)
-		for _, p := range perms {
-			if p == "admin" {
+		for _, p := range u.Permissions.Permissions(nil) {
+			if slices.Contains(perms, p) {
 				return true, nil
 			}
 		}
