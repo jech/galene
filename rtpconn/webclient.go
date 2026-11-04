@@ -1716,11 +1716,11 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			s := ""
 			for _, sg := range group.GetSubGroups(g.Name()) {
 				plural := ""
-				if sg.Clients > 1 {
+				if sg.ClientCount > 1 {
 					plural = "s"
 				}
 				s = s + fmt.Sprintf("%v (%v client%v)\n",
-					sg.Name, sg.Clients, plural)
+					sg.Name, sg.ClientCount, plural)
 			}
 			username := "Server"
 			c.write(clientMessage{

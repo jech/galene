@@ -547,8 +547,8 @@ func GetNames() []string {
 }
 
 type SubGroup struct {
-	Name    string
-	Clients int
+	Name        string
+	ClientCount int
 }
 
 func GetSubGroups(parent string) []SubGroup {
