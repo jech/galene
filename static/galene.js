@@ -768,10 +768,10 @@ function gotUpStats(stats) {
     }
 
     if(values.length === 0) {
-        setLabel(c, '');
+        setUpLabel(c, '');
     } else {
         values.sort((x,y) => x - y);
-        setLabel(c, values
+        setUpLabel(c, values
                  .map(x => Math.round(x / 1000).toString())
                  .reduce((x, y) => x + '+' + y));
     }
@@ -1664,7 +1664,7 @@ async function setMedia(c, mirror, video) {
         div.appendChild(label);
     }
 
-    setLabel(c, '');
+    setUpLabel(c, '');
     setMediaStatus(c);
 
     showVideo();
@@ -1930,7 +1930,7 @@ function setMediaStatus(c) {
  * @param {Stream} c
  * @param {string} [fallback]
  */
-function setLabel(c, fallback) {
+function setUpLabel(c, fallback) {
     let label = document.getElementById('label-' + c.localId);
     if(!label)
         return;
