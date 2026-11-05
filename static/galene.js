@@ -3259,6 +3259,22 @@ commands.subgroups = {
     }
 };
 
+commands.touchsubgroup = {
+    f: (c, r) => {
+        let p = parseCommand(r);
+        if(!p[0])
+            throw new Error(`/${c} requires parameters`);
+        let url = document.location.href + p[0];
+        fetch(url, {"method": "HEAD"})
+            .then(r => {
+                if(r.status >= 300) {
+                    displayError(`Group ${p[0]}: ${r.status} ${r.statusText}`);
+                }
+            })
+            .catch(e => displayError(e));
+    }
+}
+
 /**
  * @type {Record<string,number>}
  */
