@@ -903,9 +903,53 @@ type Configuration struct {
 	ProxyURL         string                     `json:"proxyURL,omitempty"`
 	WritableGroups   bool                       `json:"writableGroups,omitempty"`
 	Users            map[string]UserDescription `json:"users,omitempty"`
+	Metrics          MetricsMode                `json:"metrics,omitempty"`
 
 	// obsolete fields
 	Admin []ClientPattern `json:"admin,omitempty"`
+}
+
+// MetricsMode is the value of the "metrics" field of the configuration
+// file.  It is false (disabled), true (authenticated) or "public".
+type MetricsMode int
+
+const (
+	MetricsDisabled MetricsMode = iota
+	MetricsAuthenticated
+	MetricsPublic
+)
+
+func (m MetricsMode) MarshalJSON() ([]byte, error) {
+	switch m {
+	case MetricsDisabled:
+		return json.Marshal(false)
+	case MetricsAuthenticated:
+		return json.Marshal(true)
+	case MetricsPublic:
+		return json.Marshal("public")
+	default:
+		return nil, errors.New("unknown metrics mode")
+	}
+}
+
+func (m *MetricsMode) UnmarshalJSON(b []byte) error {
+	var v bool
+	err := json.Unmarshal(b, &v)
+	if err == nil {
+		if v {
+			*m = MetricsAuthenticated
+		} else {
+			*m = MetricsDisabled
+		}
+		return nil
+	}
+	var s string
+	err = json.Unmarshal(b, &s)
+	if err == nil && s == "public" {
+		*m = MetricsPublic
+		return nil
+	}
+	return errors.New("metrics must be true, false or \"public\"")
 }
 
 func (conf Configuration) Zero() bool {

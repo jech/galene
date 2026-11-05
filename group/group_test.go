@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -402,5 +403,44 @@ func TestPayloadTypeDistinct(t *testing.T) {
 			continue
 		}
 		m[pt] = n
+	}
+}
+
+func TestMetricsMode(t *testing.T) {
+	tests := []struct {
+		json string
+		mode MetricsMode
+	}{
+		{`false`, MetricsDisabled},
+		{`true`, MetricsAuthenticated},
+		{`"public"`, MetricsPublic},
+	}
+	for _, test := range tests {
+		var m MetricsMode
+		err := json.Unmarshal([]byte(test.json), &m)
+		if err != nil || m != test.mode {
+			t.Errorf("Unmarshal %v: got %v %v", test.json, m, err)
+		}
+		b, err := json.Marshal(m)
+		if err != nil || string(b) != test.json {
+			t.Errorf("Marshal %v: got %v %v", m, string(b), err)
+		}
+	}
+	for _, bad := range []string{`"private"`, `1`, `{}`} {
+		var m MetricsMode
+		err := json.Unmarshal([]byte(bad), &m)
+		if err == nil {
+			t.Errorf("Unmarshal %v: expected error, got %v", bad, m)
+		}
+	}
+
+	var conf Configuration
+	err := json.Unmarshal([]byte(`{"metrics": "public"}`), &conf)
+	if err != nil || conf.Metrics != MetricsPublic {
+		t.Errorf("Configuration: got %v %v", conf.Metrics, err)
+	}
+	b, _ := json.Marshal(Configuration{})
+	if strings.Contains(string(b), "metrics") {
+		t.Errorf("Expected metrics to be omitted, got %v", string(b))
 	}
 }
