@@ -2755,6 +2755,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         } else {
             let base = groupsBase();
             for(let i = 0; i < message.length; i++) {
+                if(i != 0)
+                    div.appendChild(document.createElement('br'));
                 let sg = message[i];
                 let g;
                 if(base) {
@@ -2765,14 +2767,12 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
                 } else {
                     g = document.createTextNode(sg.name);
                 }
-                let p = document.createElement('p');
-                p.appendChild(g);
+                div.appendChild(g);
                 let count =
                     !(sg.clientCount) ? ': empty' :
                     sg.clientCount == 1 ? ': 1 client' :
                     `: ${sg.clientCount} clients`
-                p.appendChild(document.createTextNode(count));
-                div.appendChild(p);
+                div.appendChild(document.createTextNode(count));
             }
         }
         localMessage(div);
