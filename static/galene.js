@@ -2634,6 +2634,13 @@ function gotFileTransferEvent(state, data) {
     }
 }
 
+function groupsBase() {
+    let url = window.location.href;
+    if(!url.endsWith(group + '/'))
+       return '';
+    return url.slice(0, -(group.length + 1));
+}
+
 /**
  * @param {string} id
  * @param {string} dest
@@ -2735,6 +2742,41 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             'address ' + message.address :
             'unknown address';
         localMessage(`User ${message.id} has ${u} and ${a}.`);
+        break;
+    }
+    case 'subgrouplist': {
+        if(id) {
+            console.error(`Got message kind ${kind} not from server`);
+            return;
+        }
+        console.log(message);
+        let div = document.createElement('div');
+        if(message.length == 0) {
+            div.textContent = 'No subgroups.';
+        } else {
+            let base = groupsBase();
+            for(let i = 0; i < message.length; i++) {
+                let sg = message[i];
+                let g;
+                if(base) {
+                    g = document.createElement('a');
+                    g.textContent = sg.name;
+                    g.href = base + sg.name + '/';
+                    g.target = '_blank';
+                } else {
+                    g = document.createTextNode(sg.name);
+                }
+                    sg.clientCount == 1 ? '1 client' :
+                    `${sg.clientCount} clients`;
+                let p = document.createElement('p');
+                p.appendChild(g);
+                p.appendChild(document.createTextNode(
+                    `: ${sg.clientCount} ${sg.clientCount == 1 ? 'client' : 'clients'}`
+                ));
+                div.appendChild(p);
+            }
+        }
+        localMessage(div);
         break;
     }
     default:

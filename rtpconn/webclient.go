@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"maps"
 	"net"
@@ -1713,22 +1712,14 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if !slices.Contains(c.permissions, "op") {
 				return c.error(group.UserError("not authorised"))
 			}
-			s := ""
-			for _, sg := range group.GetSubGroups(g.Name()) {
-				plural := ""
-				if sg.ClientCount > 1 {
-					plural = "s"
-				}
-				s = s + fmt.Sprintf("%v (%v client%v)\n",
-					sg.Name, sg.ClientCount, plural)
-			}
-			username := "Server"
+
+			sg := group.GetSubGroups(g.Name())
 			c.write(clientMessage{
-				Type:     "chat",
-				Dest:     c.id,
-				Username: &username,
-				Time:     time.Now().Format(time.RFC3339),
-				Value:    s,
+				Type:       "usermessage",
+				Kind:       "subgrouplist",
+				Dest:       c.id,
+				Time:       time.Now().Format(time.RFC3339),
+				Value:      sg,
 			})
 		case "setdata":
 			if !slices.Contains(c.permissions, "op") {
