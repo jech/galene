@@ -4,7 +4,12 @@ Galene 1.2.2 (unreleased)
   * Fixed a bug that could cause incorrect user permissions when using the
     moderation tools.  Thanks to Alberto Brusconi.
   * Added an activity indicator to the users list.  Thanks to alxndr42.
-  * Fixed overflow in the users list.  Thanks to alxndr42.
+  * Fixed overflow in the users list.  Thanks to Valent Turković.
+  * Changed the representation of one's own video to use a username
+    instead of connection stats; one can still get the stats by clicking
+    on the username.  Thanks to alxndr42.
+  * Changes to subgroups: the outpout of /subgroups is now clickable, it
+    includes empty subgroups, and there is a new command /touchsubgroup.
 
 8 September 2026: Galene 1.2.1
 
