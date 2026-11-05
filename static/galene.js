@@ -1655,10 +1655,10 @@ async function setMedia(c, mirror, video) {
         label.classList.add(c.up ? 'up-stream' : 'down-stream');
         label.dataset.defaultText = '';
         label.dataset.fallbackText = '';
-        label.dataset.showFallback = false;
+        label.dataset.showFallback = 'false';
         label.onclick = function() {
             let showFallback = (label.dataset.showFallback === 'true');
-            label.dataset.showFallback = !showFallback;
+            label.dataset.showFallback = showFallback ? 'false' : 'true';
             updateLabelElement(label);
         };
         div.appendChild(label);
@@ -1940,7 +1940,7 @@ function setLabel(c, fallback) {
 }
 
 /**
- * @param {Element} label
+ * @param {HTMLElement} label
  */
 function updateLabelElement(label) {
     let defaultText = label.dataset.defaultText;
