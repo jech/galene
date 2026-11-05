@@ -560,10 +560,7 @@ func GetSubGroups(parent string) []SubGroup {
 			g.mu.Lock()
 			count := len(g.clients)
 			g.mu.Unlock()
-			if count > 0 {
-				subgroups = append(subgroups,
-					SubGroup{g.name, count})
-			}
+			subgroups = append(subgroups, SubGroup{g.name, count})
 		}
 		return true
 	})

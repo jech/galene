@@ -2765,13 +2765,13 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
                 } else {
                     g = document.createTextNode(sg.name);
                 }
-                    sg.clientCount == 1 ? '1 client' :
-                    `${sg.clientCount} clients`;
                 let p = document.createElement('p');
                 p.appendChild(g);
-                p.appendChild(document.createTextNode(
-                    `: ${sg.clientCount} ${sg.clientCount == 1 ? 'client' : 'clients'}`
-                ));
+                let count =
+                    !(sg.clientCount) ? ': empty' :
+                    sg.clientCount == 1 ? ': 1 client' :
+                    `: ${sg.clientCount} clients`
+                p.appendChild(document.createTextNode(count));
                 div.appendChild(p);
             }
         }
