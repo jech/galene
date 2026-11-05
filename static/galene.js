@@ -2749,7 +2749,6 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             console.error(`Got message kind ${kind} not from server`);
             return;
         }
-        console.log(message);
         let div = document.createElement('div');
         if(message.length == 0) {
             div.textContent = 'No subgroups.';
