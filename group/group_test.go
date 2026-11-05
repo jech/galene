@@ -64,8 +64,8 @@ func TestGroup(t *testing.T) {
 		t.Errorf("Expected 2, got %v", names)
 	}
 
-	if subs := GetSubGroups("group"); len(subs) != 0 {
-		t.Errorf("Expected [], got %v", subs)
+	if subs := GetSubGroups("group"); len(subs) != 1 {
+		t.Errorf("Expected 1 element, got %v", subs)
 	}
 
 	if public := GetPublic(nil); len(public) != 1 || public[0].Name != "group/subgroup" {
