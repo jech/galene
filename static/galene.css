@@ -454,6 +454,7 @@ textarea.form-reply {
 }
 
 .message-me-content {
+    display: inline;
     white-space: pre-wrap;
 }
 
