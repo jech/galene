@@ -3275,6 +3275,22 @@ commands.touchsubgroup = {
     }
 }
 
+commands.msgsubgroup = {
+    f: (c, r) => {
+        let p = parseCommand(r);
+        if(!p[0] || !p[1])
+            throw new Error(`/${c} requires parameters`);
+        let id = findUserId(p[0]);
+        if(!id)
+            throw new Error(`Unknown user ${p[0]}`);
+        let url = document.location.href + p[1];
+        let m = `Please join the group at <${encodeURI(url)}/>.`;
+        serverConnection.chat('', id, m);
+        addToChatbox(serverConnection.id, null, id, serverConnection.username,
+                     new Date(), false, false, '', m);
+    }
+}
+
 /**
  * @type {Record<string,number>}
  */
