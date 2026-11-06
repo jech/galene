@@ -8,8 +8,9 @@ Galene 1.2.2 (unreleased)
   * Changed the representation of one's own video to use a username
     instead of connection stats; one can still get the stats by clicking
     on the username.  Thanks to alxndr42.
-  * Changes to subgroups: the outpout of /subgroups is now clickable, it
-    includes empty subgroups, and there is a new command /touchsubgroup.
+  * Changes to subgroups: the output of /subgroups is now clickable, it
+    includes empty subgroups, and there are new (undocumented) commands
+    /touchsubgroup and /msgsubgroup.
 
 8 September 2026: Galene 1.2.1
 
