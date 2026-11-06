@@ -57,6 +57,8 @@ func setupTest(dir, datadir string) error {
 	}
 
 	token.SetStatefulFilename(filepath.Join(datadir, "tokens.jsonl"))
+	group.SetGlobalUsersPath(
+		filepath.Join(group.DataDirectory, "var", "users.json"))
 	return nil
 }
 
@@ -408,6 +410,94 @@ func TestApi(t *testing.T) {
 	if err != nil || resp.StatusCode != http.StatusNoContent {
 		t.Errorf("Delete keys: %v %v", err, resp.StatusCode)
 	}
+
+	// BEGIN: Global user tests
+	err = getJSON("/galene-api/v0/.users/", &users)
+	if err != nil || len(users) != 0 {
+		t.Errorf("Get users: %v", err)
+	}
+
+	resp, err = do("PUT", "/galene-api/v0/.users/jch",
+		"text/plain", "", "*",
+		`hello, world!`)
+	if err != nil || resp.StatusCode != http.StatusUnsupportedMediaType {
+		t.Errorf("Create user (bad content-type): %v %v",
+			err, resp.StatusCode)
+	}
+
+	resp, err = do("PUT", "/galene-api/v0/.users/jch",
+		"application/json", "", "*",
+		`{"permissions": "present"}`)
+	if err != nil || resp.StatusCode != http.StatusCreated {
+		t.Errorf("Create user: %v %v", err, resp.StatusCode)
+	}
+
+	err = getJSON("/galene-api/v0/.users/", &users)
+	if err != nil || len(users) != 1 || users[0] != "jch" {
+		t.Errorf("Get users: %v %v", err, users)
+	}
+
+	resp, err = do("PUT", "/galene-api/v0/.users/jch",
+		"application/json", "", "*",
+		`{"permissions": "present"}`)
+	if err != nil || resp.StatusCode != http.StatusPreconditionFailed {
+		t.Errorf("Create user (bad ETag): %v %v", err, resp.StatusCode)
+	}
+
+	resp, err = do("PUT", "/galene-api/v0/.users/jch/.password",
+		"application/json", "", "",
+		`"toto"`)
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Set password (PUT): %v %v", err, resp.StatusCode)
+	}
+	globalUser, _, err := group.GetGlobalUser("jch")
+	if err != nil {
+		t.Errorf("GetGlobalUser: got %q", err)
+	}
+	if globalUser.Password.Type != "plain" {
+		t.Errorf("Password.Type: %v", globalUser.Password.Type)
+	}
+
+	resp, err = do("POST", "/galene-api/v0/.users/jch/.password",
+		"text/plain", "", "",
+		`toto`)
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Set password (POST): %v %v", err, resp.StatusCode)
+	}
+	globalUser, _, err = group.GetGlobalUser("jch")
+	if err != nil {
+		t.Errorf("GetGlobalUser: got %q", err)
+	}
+	if globalUser.Password.Type != "bcrypt" {
+		t.Errorf("Password.Type: %v", globalUser.Password.Type)
+	}
+
+	user = group.UserDescription{}
+	err = getJSON("/galene-api/v0/.users/jch", &user)
+	if err != nil {
+		t.Errorf("Get user: %v", err)
+	}
+	if user.Password.Type != "" && user.Password.Key != nil {
+		t.Errorf("User not sanitised properly")
+	}
+	if user.Permissions.String() != "null"  {
+		t.Errorf("Unexpected permissions: %v", user.Permissions.String())
+	}
+
+	resp, err = do("DELETE", "/galene-api/v0/.users/jch",
+		"", "", "", "")
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Errorf("Delete user: %v %v", err, resp.StatusCode)
+	}
+
+	err = getJSON("/galene-api/v0/.users/", &users)
+	if err != nil {
+		t.Errorf("Get users: %v", err)
+	}
+	if len(users) != 0 {
+		t.Errorf("Users (after delete): %#v", users)
+	}
+	// END: Global user tests
 
 	resp, err = do("DELETE", "/galene-api/v0/.groups/test/",
 		"", "", "", "")

@@ -132,6 +132,8 @@ func main() {
 
 	// make sure the list of public groups is updated early
 	go group.Update()
+	group.SetGlobalUsersPath(
+		filepath.Join(group.DataDirectory, "var", "users.json"))
 
 	// causes the built-in server to start if required
 	ice.Update()

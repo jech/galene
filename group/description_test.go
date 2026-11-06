@@ -319,3 +319,80 @@ func TestSubGroup(t *testing.T) {
 		t.Fatalf("UpdateDescription: got %v", err)
 	}
 }
+
+func TestGetUserPassword(t *testing.T) {
+	setupGlobalUsersTest(t)
+	err := setupTest(t.TempDir(), t.TempDir(), true)
+	if err != nil {
+		t.Fatalf("setupTest: %q", err)
+	}
+
+	user := "test"
+	err = AddGlobalUser(user)
+	if err != nil {
+		t.Fatalf("AddGlobalUser: %q", err)
+	}
+	globalKey := "globalKey"
+	err = SetGlobalUserPassword(user, Password{Type: "plain", Key: &globalKey})
+	if err != nil {
+		t.Fatalf("SetGlobalUserPassword: %q", err)
+	}
+
+	group := "group"
+	err = UpdateDescription(group, "", &Description{})
+	if err != nil {
+		t.Fatalf("UpdateDescription: %q", err)
+	}
+	etag, _ := GetUserTag(group, user, false)
+	err = UpdateUser(group, user, false, etag, &UserDescription{
+		Permissions: Permissions{name: "present"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateUser: %q", err)
+	}
+
+	password, location, err := GetUserPassword(group, user)
+	if err != nil {
+		t.Fatalf("GetUserPassword: %q", err)
+	}
+	if globalKey != *password.Key {
+		t.Errorf("GetUserPassword: expected key %q, got %q",
+			globalKey, *password.Key)
+	}
+	if "" != location {
+		t.Errorf("GetUserPassword: expected location %q, got %q", "", location)
+	}
+
+	groupKey := "groupKey"
+	err = SetUserPassword(
+		group, user, false, Password{Type: "plain", Key: &groupKey})
+	if err != nil {
+		t.Fatalf("SetUserPassword: %q", err)
+	}
+
+	password, location, err = GetUserPassword(group, user)
+	if err != nil {
+		t.Fatalf("GetUserPassword: %q", err)
+	}
+	if groupKey != *password.Key {
+		t.Errorf("GetUserPassword: expected key %q, got %q",
+			groupKey, *password.Key)
+	}
+	if group != location {
+		t.Errorf("GetUserPassword: expected location %q, got %q",
+			group, location)
+	}
+
+	password, location, err = GetUserPassword(group+"/subgroup", user)
+	if err != nil {
+		t.Fatalf("GetUserPassword: %q", err)
+	}
+	if groupKey != *password.Key {
+		t.Errorf("GetUserPassword: expected key %q, got %q",
+			groupKey, *password.Key)
+	}
+	if group != location {
+		t.Errorf("GetUserPassword: expected location %q, got %q",
+			group, location)
+	}
+}
