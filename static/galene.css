@@ -445,8 +445,8 @@ textarea.form-reply {
     text-align: right;
 }
 
-.message-time {
-    margin-left: 1em;
+.message-user {
+    margin-right: 1em;
 }
 
 .message-me-asterisk, .message-me-user {

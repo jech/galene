@@ -2952,18 +2952,19 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
 
         if(doHeader) {
             let header = document.createElement('p');
-            let user = document.createElement('span');
             let u = dest && serverConnection.users[dest];
             let name = (u && u.username);
             // messages with null id are sent by the server
-            if(dest && (id || nick)) {
-                user.textContent =
-                    `${nick || '(anon)'} \u2192 ${name || '(anon)'}`;
-            } else if(id || nick) {
-                user.textContent = (nick || '(anon)');
+            if(id || nick) {
+                let user = document.createElement('span');
+                if(dest)
+                    user.textContent =
+                        `${nick || '(anon)'} \u2192 ${name || '(anon)'}`;
+                else
+                    user.textContent = (nick || '(anon)');
+                user.classList.add('message-user');
+                header.appendChild(user);
             }
-            user.classList.add('message-user');
-            header.appendChild(user);
             header.classList.add('message-header');
             container.appendChild(header);
             if(time) {
