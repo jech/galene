@@ -267,7 +267,6 @@
     position: relative;
 }
 
-/* Clear floats after the columns */
 .row {
     display: flex;
 }
@@ -772,7 +771,6 @@ h1 {
 
 .clear {
     clear: both;
-    content: "";
 }
 
 #optionsdiv {
@@ -838,7 +836,6 @@ h1 {
     margin: 0;
     background-color: #f8f8f8;
     background-size: cover;
-    overflow-y: scroll;
     border: none;
     border-right: 4px solid #e6e6e6;
     /* force to fill height */
