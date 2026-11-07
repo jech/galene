@@ -33,7 +33,7 @@
     z-index: var(--z-topnav);
 }
 
-.navbar .form-control, .topnav {
+.topnav {
     font-size: 1rem;
 }
 
@@ -138,7 +138,7 @@
     color: #ab0659;
 }
 
-.navbar, .navbar .container, .navbar .container-fluid, .navbar .container-lg, .navbar .container-md, .navbar .container-sm, .navbar .container-xl {
+.navbar {
     display: -webkit-box;
     display: flex;
     flex-wrap: wrap;
@@ -151,15 +151,6 @@
 .navbar {
     position: relative;
     padding: .1rem;
-}
-
-.topnav .navbar-brand {
-    width: 15rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
 }
 
 .btn {
@@ -578,11 +569,6 @@ textarea.form-reply {
 
 .video-controls .video-stop {
     color: #d03e3e;
-}
-
-.video-controls span.disabled, .video-controls span.disabled:hover, .top-video-controls span.disabled:hover{
-    opacity: .2;
-    color: #c8c8c8
 }
 
 .volume-mute {
