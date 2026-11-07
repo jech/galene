@@ -1,12 +1,10 @@
 :root {
     /* Stacking order, from bottom to top. */
     --z-video-label: 10;
-    --z-chat-input: 20;
     --z-peers: 20;
     --z-resizer: 20;
     --z-chat-button: 30;
     --z-sidebar-mobile: 30;
-    --z-fixed-top: 40;
     --z-topnav: 50;
     --z-captions: 60;
     --z-context-menu: 70;
@@ -17,14 +15,6 @@
 
 .nav-fixed .topnav {
     z-index: var(--z-topnav);
-}
-
-.fixed-top{
-    position: fixed;
-    top: 0;
-    right: 0;
-    left: 0;
-    z-index: var(--z-fixed-top);
 }
 
 .topnav {
@@ -311,7 +301,6 @@
     background-color: #eae7e5;
     padding: 10px 5px 10px 5px;
     margin: 0;
-    z-index: var(--z-chat-input);
 }
 
 .reply textarea {
@@ -967,7 +956,6 @@ h1 {
     -webkit-transition: all .2s ease-out;
     transition: all .2s ease-out;
     width: 0px;
-    /* on top of everything */
     z-index: var(--z-sidenav);
     top: 0;
     right: 0;
