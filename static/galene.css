@@ -129,12 +129,9 @@
 }
 
 .navbar {
-    display: -webkit-box;
     display: flex;
     flex-wrap: wrap;
-    -webkit-box-align: center;
     align-items: center;
-    -webkit-box-pack: justify;
     justify-content: space-between;
     background: #610a86;
 }
@@ -151,8 +148,6 @@
     white-space: nowrap;
     vertical-align: middle;
     -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
     user-select: none;
     border: 1px solid transparent;
     padding: 0.255rem .75rem;
@@ -953,7 +948,6 @@ h1 {
     box-shadow: 0 0 24px 0 rgba(71,77,86,.1), 0 1px 0 0 rgba(71,77,86,.08);
     display: block;
     position: fixed;
-    -webkit-transition: all .2s ease-out;
     transition: all .2s ease-out;
     width: 0px;
     z-index: var(--z-sidenav);
@@ -1067,20 +1061,12 @@ legend {
 }
 
 .blink {
-    -ms-animation: blink 1.0s linear infinite;
-    -o-animation: blink 1.0s linear infinite;
     animation: blink 1.0s linear infinite;
 }
 
 @keyframes blink {
     0% { box-shadow: 0 0 15px #600aa0; }
     50% { box-shadow: none; }
-    100% { box-shadow: 0 0 15px #600aa0; }
-}
-
-@-webkit-keyframes blink {
-    0% { box-shadow: 0 0 15px #600aa0; }
-    50% { box-shadow: 0 0 0; }
     100% { box-shadow: 0 0 15px #600aa0; }
 }
 
