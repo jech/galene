@@ -461,7 +461,7 @@ textarea.form-reply {
 .video-container {
     height: calc(var(--vh, 1vh) * 100 - var(--topnav-height));
     position: relative;
-    background: rgba(0, 0, 0, 0.91);
+    background: #161616;
     /* Display only when showing video */
     display: block;
 }
