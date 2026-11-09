@@ -260,6 +260,7 @@ function isFirefox() {
  */
 function setConnected(connected) {
     let userbox = document.getElementById('profile');
+    let logoutbutton = document.getElementById('disconnectbutton');
     let connectionbox = document.getElementById('login-container');
     if(connected) {
         clearChat();
@@ -268,6 +269,7 @@ function setConnected(connected) {
         // this causes the camera test to stop running
         testCamera.open = false;
         userbox.classList.remove('invisible');
+        logoutbutton.classList.remove('invisible');
         connectionbox.classList.add('invisible');
         displayUsername();
         window.onresize = function(e) {
@@ -275,6 +277,7 @@ function setConnected(connected) {
         }
     } else {
         userbox.classList.add('invisible');
+        logoutbutton.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         hideVideo();
         window.onresize = null;

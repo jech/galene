@@ -80,20 +80,6 @@
     width: 120px;
 }
 
-.user-logout {
-    float: right;
-    text-align: center;
-}
-
-.logout-icon {
-    display: block;
-    font-size: 1.5em;
-}
-
-.logout-text {
-    font-size: .7em;
-}
-
 .profile-info span {
     display: block;
     line-height: 1.2;
@@ -114,18 +100,6 @@
 
 #chpwspan.invisible {
     display: none;
-}
-
-.sidenav .user-logout a {
-    font-size: 1em;
-    padding: 7px 0 0;
-    color: #e4157e;
-    cursor: pointer;
-    line-height: .7;
-}
-
-.sidenav .user-logout a:hover {
-    color: #ab0659;
 }
 
 .navbar {
@@ -662,19 +636,16 @@ textarea.form-reply {
     font-size: 55%;
 }
 
-.nav-link:hover {
-    color: #c2a4e0;
-}
-.nav-link label:hover {
+.nav-link:hover, .nav-link:hover label {
     color: #c2a4e0;
 }
 
-.nav-cancel, .muted, .nav-cancel label, .muted label {
-    color: #d03e3e
-}
-
-.nav-cancel:hover, .muted:hover, .nav-cancel label:hover, .muted label:hover {
-    color: #d03e3e
+.nav-cancel, .nav-cancel label,
+.nav-cancel:hover, .nav-cancel:hover label,
+.muted, .muted label,
+.muted:hover, .muted:hover label,
+#disconnectbutton:hover, #disconnectbutton:hover label {
+    color: #d03e3e;
 }
 
 .nav-button {
