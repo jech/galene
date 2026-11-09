@@ -157,7 +157,7 @@ fields are as follows:
 
  - `users` defines the users allowed to administer the server, and has the
    same syntax as user definitions in groups (see below), except that the
-   only meaningful permission is `"admin"`;
+   only meaningful permissions are `"admin"` and `"metrics"` (see below);
 
  - `writableGroups`: if true, then the API used by `galenectl` can be used
    to modify group definitions; if unset or false, then only read-only
@@ -175,6 +175,80 @@ fields are as follows:
  - `canonicalHost`: the canonical name of the host running the server;
    clients that attempt to access the server using a different host name
    will be redirected to the canonical one.
+
+ - `metrics`: if true or `"public"`, then server statistics are made
+   available to Prometheus under `/metrics` (see below).
+
+
+## Prometheus metrics
+
+If the field `metrics` is set in the global configuration file, Galene
+exports statistics in the Prometheus text format under `/metrics`, on the
+same port as the rest of the server.  If `metrics` is true, then the
+endpoint requires HTTP basic authentication as a user from the global
+configuration file with either the `"metrics"` or the `"admin"`
+permission; if it is `"public"`, then no authentication is required.  If
+it is unset or false, then the endpoint is disabled.
+
+A user that may only read the metrics is defined as follows:
+
+```json
+{
+    "users": {
+        "prometheus": {
+            "password": {"type":"pbkdf2","hash":"sha-256","key":"...","salt":"...","iterations":4096},
+            "permissions": "metrics"
+        }
+    },
+    "metrics": true
+}
+```
+
+Since the password is checked on every scrape, a `pbkdf2` password is
+preferable to a `bcrypt` one, which is much more expensive to check; it may
+be generated with `galenectl hash-password -type pbkdf2`.  The
+corresponding Prometheus configuration is:
+
+```yaml
+scrape_configs:
+  - job_name: galene
+    scheme: https
+    basic_auth:
+      username: prometheus
+      password_file: /etc/prometheus/galene-password
+    static_configs:
+      - targets: ['galene.example.org:8443']
+```
+
+Public groups are reported individually, with the label `group` set to the
+group name; all other groups are merged into a single aggregate with no
+`group` label.  No information about individual clients or about
+non-public groups is ever exported.  All metrics carry the label
+`visibility`, which is either `public` or `private`.  The following
+metrics are exported:
+
+ - `galene_groups_active`: the number of groups with at least one client;
+ - `galene_clients`: the number of clients;
+ - `galene_connections`, `galene_tracks`: the number of WebRTC connections
+   and tracks;
+ - `galene_bitrate_bits_per_second`: the total bitrate of all tracks;
+ - `galene_track_bitrate_bits_per_second_*`,
+   `galene_track_loss_ratio_*`, `galene_track_jitter_seconds_*`,
+   `galene_track_rtt_seconds_*`: the minimum (`_min`), average (`_avg`),
+   standard deviation (`_stddev`) and maximum (`_max`) of the per-track
+   bitrate, packet loss, jitter and round-trip time.  These are omitted
+   when there are no tracks.
+
+The metrics about connections and tracks carry a label `direction`, which
+is `up` for media sent by clients to the server, and `down` for media sent
+by the server to clients.  The round-trip time is only known for down
+tracks.  Packet loss is computed over the lifetime of the connection for
+up tracks, and from recent receiver reports for down tracks.
+
+The metrics are computed from data that the server maintains anyway, and
+only when the endpoint is accessed, so there is no cost when the server is
+not being monitored.  In order to limit the load on the server, the
+metrics are recomputed at most once every two seconds.
 
 
 ## Group definitions
