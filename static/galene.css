@@ -1105,6 +1105,11 @@ header .collapse:hover {
     line-height: 34px;
 }
 
+.galene-header a {
+    text-decoration: none;
+    color: #ebebeb;
+}
+
 .header-sep {
     height: 20px;
 }
