@@ -1946,8 +1946,8 @@ function updateLabelElement(label) {
     let defaultText = label.dataset.defaultText;
     let fallbackText = label.dataset.fallbackText;
     let showFallback = (label.dataset.showFallback === 'true');
-    if(fallbackText && (!defaultText || showFallback)) {
-        label.textContent = fallbackText;
+    if(showFallback) {
+        label.textContent = fallbackText || '(unknown)';
         label.classList.add('label-fallback');
     } else {
         label.textContent = defaultText;
