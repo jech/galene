@@ -254,9 +254,19 @@ function isFirefox() {
 }
 
 /**
+ * Show a confirmation dialog for certain BeforeUnloadEvent events.
+ *
+ * @param {BeforeUnloadEvent} event
+ */
+function confirmDisconnect(event) {
+    event.preventDefault();
+    event.returnValue = true;
+}
+
+/**
  * setConnected is called whenever we connect or disconnect to the server.
  *
- * @param{boolean} connected
+ * @param {boolean} connected
  */
 function setConnected(connected) {
     let userbox = document.getElementById('profile');
@@ -273,11 +283,13 @@ function setConnected(connected) {
         window.onresize = function(e) {
             scheduleReconsiderDownRate();
         }
+        window.addEventListener('beforeunload', confirmDisconnect);
     } else {
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         hideVideo();
         window.onresize = null;
+        window.removeEventListener('beforeunload', confirmDisconnect);
     }
 }
 
