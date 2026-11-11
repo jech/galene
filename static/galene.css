@@ -592,7 +592,6 @@ textarea.form-reply {
     width: 20em;
     padding: 1em;
     margin: 2.5em auto;
-    height: 23em;
     background: #fcfcfc;
 }
 
@@ -737,7 +736,36 @@ h1 {
 }
 
 .switch-radio {
-    margin: 0;
+    margin: 5px 0;
+}
+
+input[name="presentradio"] {
+    display: none;
+}
+
+input[name="presentradio"] + label {
+    width: 100%;
+    padding: 0.255rem .75rem;
+    line-height: 1.5;
+    border-radius: .25rem;
+    border: 1px solid;
+    border-color: #28a745;
+}
+
+input[name="presentradio"] + label:hover {
+    cursor: pointer;
+}
+
+input[name="presentradio"]:checked + label {
+    color: #fff;
+    background-color: #218838;
+    border-color: #218838;
+}
+
+.presenticon {
+    width: 1em;
+    margin-right: .25em;
+    text-align: center;
 }
 
 .invisible {
