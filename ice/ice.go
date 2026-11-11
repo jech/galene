@@ -72,7 +72,7 @@ type configuration struct {
 	timestamp time.Time
 }
 
-var conf atomic.Value
+var conf atomic.Pointer[configuration]
 
 func Update() *configuration {
 	now := time.Now()
@@ -127,8 +127,8 @@ func Update() *configuration {
 }
 
 func ICEConfiguration() *webrtc.Configuration {
-	conf, ok := conf.Load().(*configuration)
-	if !ok || time.Since(conf.timestamp) > 5*time.Minute {
+	conf := conf.Load()
+	if conf == nil || time.Since(conf.timestamp) > 5*time.Minute {
 		conf = Update()
 	} else if time.Since(conf.timestamp) > 2*time.Minute {
 		go Update()
