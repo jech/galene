@@ -250,9 +250,9 @@ func rtpWriterLoop(writer *rtpWriter, track *rtpUpTrack) {
 				if ntp != 0 {
 					action.track.SetTimeOffset(ntp, rtp)
 				}
-				cname, ok := track.cname.Load().(string)
-				if ok && cname != "" {
-					action.track.SetCname(cname)
+				cname := track.cname.Load()
+				if cname != nil {
+					action.track.SetCname(*cname)
 				}
 
 				last, foundLast := track.cache.Last()

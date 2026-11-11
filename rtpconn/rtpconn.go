@@ -92,7 +92,7 @@ type rtpDownTrack struct {
 	rate           *estimator.Estimator
 	stats          *receiverStats
 	atomics        *downTrackAtomics
-	cname          atomic.Value
+	cname          atomic.Pointer[string]
 }
 
 func (down *rtpDownTrack) SetTimeOffset(ntp uint64, rtp uint32) {
@@ -126,7 +126,7 @@ func (down *rtpDownTrack) setSRTime(tm uint64, ntp uint64) {
 }
 
 func (down *rtpDownTrack) SetCname(cname string) {
-	down.cname.Store(cname)
+	down.cname.Store(&cname)
 }
 
 type layerInfo struct {
@@ -402,7 +402,7 @@ type rtpUpTrack struct {
 	rate     *estimator.Estimator
 	cache    *packetcache.Cache
 	jitter   *jitter.Estimator
-	cname    atomic.Value
+	cname    atomic.Pointer[string]
 
 	actions    *unbounded.Channel[trackAction]
 	readerDone chan struct{}
@@ -443,9 +443,9 @@ func (up *rtpUpTrack) AddLocal(local conn.DownTrack) error {
 	if up.srNTPTime != 0 {
 		local.SetTimeOffset(up.srNTPTime, up.srRTPTime)
 	}
-	cname, ok := up.cname.Load().(string)
-	if ok && cname != "" {
-		local.SetCname(cname)
+	cname := up.cname.Load()
+	if cname != nil {
+		local.SetCname(*cname)
 	}
 	up.local = append(up.local, local)
 	up.mu.Unlock()
@@ -853,7 +853,8 @@ func rtcpUpListener(track *rtpUpTrack) {
 						if i.Type != rtcp.SDESCNAME {
 							continue
 						}
-						track.cname.Store(i.Text)
+						cname := i.Text
+						track.cname.Store(&cname)
 						for _, l := range local {
 							l.SetCname(i.Text)
 						}
@@ -1067,11 +1068,11 @@ func sendSR(conn *rtpDownConnection) error {
 			t.setSRTime(jiffies, nowNTP)
 		}
 
-		cname, ok := t.cname.Load().(string)
-		if ok && cname != "" {
+		cname := t.cname.Load()
+		if cname != nil  {
 			item := rtcp.SourceDescriptionItem{
 				Type: rtcp.SDESCNAME,
-				Text: cname,
+				Text: *cname,
 			}
 			packets = append(packets,
 				&rtcp.SourceDescription{
