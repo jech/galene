@@ -608,7 +608,6 @@ textarea.form-reply {
     width: 20em;
     padding: 1em;
     margin: 2.5em auto;
-    height: 23em;
     background: #fcfcfc;
 }
 
@@ -751,8 +750,37 @@ h1 {
     width: 100%;
 }
 
-.switch-radio {
-    margin: 0;
+.loginform .switch-radio {
+    margin: 5px 0;
+}
+
+.loginform .present-switch input {
+    display: none;
+}
+
+.loginform .present-switch input + label {
+    width: 100%;
+    padding: 0.255rem .75rem;
+    line-height: 1.5;
+    border-radius: .25rem;
+    border: 1px solid;
+    border-color: #28a745;
+}
+
+.loginform .present-switch input + label:hover {
+    cursor: pointer;
+}
+
+.loginform .present-switch input:checked + label {
+    color: #fff;
+    background-color: #218838;
+    border-color: #218838;
+}
+
+.loginform .presenticon {
+    width: 1em;
+    margin-right: .25em;
+    text-align: center;
 }
 
 .invisible {
