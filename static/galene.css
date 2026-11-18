@@ -1339,10 +1339,19 @@ header .collapse:hover {
     z-index: var(--z-captions);
 }
 
+@media only screen and (max-width: 1024px) {
+    #captions-container {
+        position: fixed;
+        left: 0;
+        bottom: 60px;
+    }
+}
+
 #captions {
     margin: auto;
     padding: 0 0.4rem 0 0.4rem;
     width: max-content;
+    max-width: 100%;
     font-size: 1.2rem;
     text-align: center;
     pointer-events: none;
