@@ -58,6 +58,14 @@ type Track struct {
 	Jitter     Duration `json:"jitter,omitempty"`
 }
 
+func getClient(c group.Client) *Client {
+	s, ok := c.(Statable)
+	if ok {
+		return s.GetStats()
+	}
+	return &Client{Id: c.Id()}
+}
+
 func GetGroups() []GroupStats {
 	names := group.GetNames()
 
@@ -73,15 +81,7 @@ func GetGroups() []GroupStats {
 			Clients: make([]*Client, 0, len(clients)),
 		}
 		for _, c := range clients {
-			s, ok := c.(Statable)
-			if ok {
-				cs := s.GetStats()
-				stats.Clients = append(stats.Clients, cs)
-			} else {
-				stats.Clients = append(stats.Clients,
-					&Client{Id: c.Id()},
-				)
-			}
+			stats.Clients = append(stats.Clients, getClient(c))
 		}
 		sort.Slice(stats.Clients, func(i, j int) bool {
 			return stats.Clients[i].Id < stats.Clients[j].Id
