@@ -221,6 +221,8 @@ function hideVideo(force) {
     if(mediadiv.childElementCount > 0 && !force)
         return;
     setVisibility('video-container', false);
+    if(getVisibility('left'))
+        setChatUnread(false);
     scheduleReconsiderDownRate();
 }
 
@@ -3005,7 +3007,22 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         box.scrollTop = box.scrollHeight - box.clientHeight;
     }
 
+    if(!history && !(serverConnection && peerId === serverConnection.id) &&
+       chatHidden())
+        setChatUnread(true);
+
     return;
+}
+
+function chatHidden() {
+    return !getVisibility('left') ||
+        (isMobileLayout() && getVisibility('video-container'));
+}
+
+/** @param {boolean} unread */
+function setChatUnread(unread) {
+    for(let id of ['show-chat', 'collapse-video'])
+        document.getElementById(id).classList.toggle('chat-unread', unread);
 }
 
 /**
@@ -4131,6 +4148,7 @@ document.getElementById('show-chat').onclick = function(e) {
     e.preventDefault();
     setVisibility('left', true);
     setVisibility('show-chat', false);
+    setChatUnread(false);
     resizePeers();
 };
 
