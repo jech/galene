@@ -2642,6 +2642,24 @@ function groupsBase() {
 }
 
 /**
+ * @param {HTMLElement} elt
+ * @param {string} title
+ * @param {string} appearance
+ */
+function addButton(elt, title, appearance) {
+    let button = document.createElement('button');
+    button.type = 'button';
+    button.title = title;
+    button.classList.add('message-button');
+    let icon = document.createElement('i');
+    icon.classList.add('fas', appearance);
+    icon.setAttribute('aria-hidden', 'true');
+    button.appendChild(icon);
+    elt.appendChild(button);
+    return button;
+}
+
+/**
  * @param {string} id
  * @param {string} dest
  * @param {string} username
@@ -2699,18 +2717,38 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             return;
         }
         let f = formatToken(message, false);
-        localMessage(f[0] + ': ' + f[1]);
-        if('share' in navigator) {
-            try {
-                navigator.share({
-                    title: `Invitation to Galene group ${message.group}`,
-                    text: f[0],
-                    url: f[1],
-                });
-            } catch(e) {
-                console.warn("Share failed", e);
-            }
+        let body = formatText(f[0] + ': ' + f[1]);
+        if(navigator.clipboard &&
+           typeof navigator.clipboard.writeText === 'function') {
+            let button = addButton(body, 'Copy invitation', 'fa-copy');
+            button.onclick = async() => {
+                try {
+                    await navigator.clipboard.writeText(f[0] + ': ' + f[1]);
+                    displayMessage('Invitation copied to clipboard');
+                } catch(e) {
+                    console.warn('Copy failed:', e);
+                    displayError("Couldn't copy invitation");
+                }
+            };
         }
+        if(typeof navigator.share === 'function') {
+            let button = addButton(body, 'Share invitation', 'fa-share-square');
+            button.onclick = async () => {
+                try {
+                    await navigator.share({
+                        title: `Invitation to Galene group ${message.group}`,
+                        text: f[0],
+                        url: f[1],
+                    });
+                } catch(e) {
+                    if(e.name === 'AbortError')
+                        return;
+                    console.warn('Share failed:', e);
+                    displayError("Couldn't share invitation");
+                }
+            };
+        }
+        localMessage(body);
         break;
     }
     case 'tokenlist': {

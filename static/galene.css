@@ -411,6 +411,16 @@ textarea.form-reply {
     text-shadow: none;
 }
 
+.message-button {
+    background: none;
+    border: 0;
+    cursor: pointer;
+    margin-left: .4em;
+    opacity: 0.7;
+    color: inherit;
+    font: inherit;
+}
+
 .message-footer {
     margin: 0;
     padding: 0;
