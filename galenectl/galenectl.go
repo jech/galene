@@ -622,24 +622,7 @@ func setPasswordCmd(cmdname string, args []string) {
 	cmd.IntVar(&length, "key", 32, "key `length` (pbkdf2)")
 	cmd.IntVar(&saltlen, "salt", 8, "salt `length` (pbkdf2)")
 	cmd.Parse(args)
-
-	if cmd.NArg() != 0 {
-		cmd.Usage()
-		os.Exit(1)
-	}
-
-	if groupname == "" {
-		fmt.Fprintf(cmd.Output(),
-			"Option \"-group\" is required\n")
-		os.Exit(1)
-	}
-
-	if wildcard != (username == "") {
-		fmt.Fprintf(cmd.Output(),
-			"Exactly one of \"-user\" and \"-wildcard\" "+
-				"is required\n")
-		os.Exit(1)
-	}
+	checkUserArguments(cmd, wildcard, groupname, username)
 
 	if algorithm != "wildcard" && password == "" {
 		fmt.Fprint(os.Stdin, "New password: ")
@@ -658,18 +641,7 @@ func setPasswordCmd(cmdname string, args []string) {
 		log.Fatalf("Make password: %v", err)
 	}
 
-	var u string
-	if wildcard {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".wildcard-user/.password",
-		)
-	} else {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".users", username, ".password",
-		)
-	}
+	u, err := passwordURL(wildcard, groupname, username)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
@@ -693,38 +665,9 @@ func deletePasswordCmd(cmdname string, args []string) {
 	cmd.StringVar(&username, "user", "", "user `name`")
 	cmd.BoolVar(&wildcard, "wildcard", false, "set wildcard user's password")
 	cmd.Parse(args)
+	checkUserArguments(cmd, wildcard, groupname, username)
 
-	if cmd.NArg() != 0 {
-		cmd.Usage()
-		os.Exit(1)
-	}
-
-	if groupname == "" {
-		fmt.Fprintf(cmd.Output(),
-			"Option \"-group\" is required\n")
-		os.Exit(1)
-	}
-
-	if wildcard != (username == "") {
-		fmt.Fprintf(cmd.Output(),
-			"Exactly one of \"-user\" and \"-wildcard\" "+
-				"is required\n")
-		os.Exit(1)
-	}
-
-	var u string
-	var err error
-	if wildcard {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".wildcard-user/.password",
-		)
-	} else {
-		u, err = url.JoinPath(
-			serverURL, "/galene-api/v0/.groups", groupname,
-			".users", username, ".password",
-		)
-	}
+	u, err := passwordURL(wildcard, groupname, username)
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
@@ -733,6 +676,23 @@ func deletePasswordCmd(cmdname string, args []string) {
 	if err != nil {
 		log.Fatalf("Delete password: %v", err)
 	}
+}
+
+func passwordURL(wildcard bool, groupname, username string) (string, error) {
+	if wildcard {
+		return url.JoinPath(
+			serverURL, "/galene-api/v0/.groups", groupname,
+			".wildcard-user/.password",
+		)
+	}
+	if groupname != "" {
+		return url.JoinPath(
+			serverURL, "/galene-api/v0/.groups", groupname,
+			".users", username, ".password",
+		)
+	}
+	return url.JoinPath(
+		serverURL, "/galene-api/v0/.users", username, ".password")
 }
 
 // stdinJSON reads a JSON dictionary on standard input if doit is true.
@@ -979,17 +939,18 @@ func listUsersCmd(cmdname string, args []string) {
 	cmd.Parse(args)
 	patterns := cmd.Args()
 
-	if groupname == "" {
-		fmt.Fprintf(cmd.Output(),
-			"Option \"-group\" is required\n")
-		os.Exit(1)
-	}
-
-	u, err := url.JoinPath(serverURL, "/galene-api/v0/.groups/", groupname,
+	var u string
+	var err error
+	if groupname != "" {
+		u, err = url.JoinPath(serverURL, "/galene-api/v0/.groups/", groupname,
 		".users/")
+	} else {
+		u, err = url.JoinPath(serverURL, "/galene-api/v0/.users/")
+	}
 	if err != nil {
 		log.Fatalf("Build URL: %v", err)
 	}
+
 	var users []string
 	_, err = getJSON(u, &users)
 	if err != nil {
@@ -1036,10 +997,13 @@ func userURL(wildcard bool, groupname, username string) (string, error) {
 			".wildcard-user",
 		)
 	}
-	return url.JoinPath(
-		serverURL, "/galene-api/v0/.groups", groupname,
-		".users", username,
-	)
+	if groupname != "" {
+		return url.JoinPath(
+			serverURL, "/galene-api/v0/.groups", groupname,
+			".users", username,
+		)
+	}
+	return url.JoinPath(serverURL, "/galene-api/v0/.users", username)
 }
 
 func createUserCmd(cmdname string, args []string) {
@@ -1061,22 +1025,11 @@ func createUserCmd(cmdname string, args []string) {
 		"read JSON template from standard input",
 	)
 	cmd.Parse(args)
+	checkUserArguments(cmd, wildcard, groupname, username)
 
-	if cmd.NArg() != 0 {
-		cmd.Usage()
-		os.Exit(1)
-	}
-
-	if groupname == "" {
+	if groupname == "" && permissions.set {
 		fmt.Fprintf(cmd.Output(),
-			"Option \"-group\" is required\n")
-		os.Exit(1)
-	}
-
-	if wildcard != (username == "") {
-		fmt.Fprintf(cmd.Output(),
-			"Exactly one of \"-user\" and \"-wildcard\" "+
-				"is required\n")
+			"Option \"-group\" is required for permissions\n")
 		os.Exit(1)
 	}
 
@@ -1130,9 +1083,11 @@ func updateUserCmd(cmdname string, args []string) {
 	cmd.BoolVar(&wildcard, "wildcard", false, "update the wildcard user")
 	cmd.Var(&permissions, "permissions", "permissions")
 	cmd.Parse(args)
+	checkUserArguments(cmd, wildcard, groupname, username)
 
-	if cmd.NArg() != 0 {
-		cmd.Usage()
+	if groupname == "" && permissions.set {
+		fmt.Fprintf(cmd.Output(),
+			"Option \"-group\" is required for permissions\n")
 		os.Exit(1)
 	}
 
@@ -1189,24 +1144,7 @@ func deleteUserCmd(cmdname string, args []string) {
 	cmd.StringVar(&username, "user", "", "user `name`")
 	cmd.BoolVar(&wildcard, "wildcard", false, "delete the wildcard user")
 	cmd.Parse(args)
-
-	if cmd.NArg() != 0 {
-		cmd.Usage()
-		os.Exit(1)
-	}
-
-	if groupname == "" {
-		fmt.Fprintf(cmd.Output(),
-			"Option \"-group\" is required\n")
-		os.Exit(1)
-	}
-
-	if wildcard != (username == "") {
-		fmt.Fprintf(cmd.Output(),
-			"Exactly one of \"-user\" and \"-wildcard\" "+
-				"is required\n")
-		os.Exit(1)
-	}
+	checkUserArguments(cmd, wildcard, groupname, username)
 
 	u, err := userURL(wildcard, groupname, username)
 	if err != nil {
@@ -1216,6 +1154,24 @@ func deleteUserCmd(cmdname string, args []string) {
 	err = deleteValue(u)
 	if err != nil {
 		log.Fatalf("Delete user: %v", err)
+	}
+}
+
+// Check for unparsed flags and invalid combinations of user arguments.
+func checkUserArguments(cmd *flag.FlagSet, wildcard bool, groupname, username string) {
+	if cmd.NArg() != 0 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+	if wildcard != (username == "") {
+		fmt.Fprintf(cmd.Output(),
+			"Exactly one of \"-user\" and \"-wildcard\" is required\n")
+		os.Exit(1)
+	}
+	if wildcard && groupname == "" {
+		fmt.Fprintf(cmd.Output(),
+			"Option \"-group\" is required for the wildcard user\n")
+		os.Exit(1)
 	}
 }
 
