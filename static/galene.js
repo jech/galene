@@ -65,6 +65,11 @@ let token = null;
 let probingState = null;
 
 /**
+ * @type {WakeLockSentinel}
+ */
+let wakelock = null;
+
+/**
  * getElementById, then assert that the result is an HTMLSelectElement.
  *
  * @param {string} id
@@ -258,7 +263,7 @@ function isFirefox() {
  *
  * @param{boolean} connected
  */
-function setConnected(connected) {
+async function setConnected(connected) {
     let userbox = document.getElementById('profile');
     let connectionbox = document.getElementById('login-container');
     if(connected) {
@@ -273,11 +278,27 @@ function setConnected(connected) {
         window.onresize = function(e) {
             scheduleReconsiderDownRate();
         }
+        if((`wakeLock` in navigator) && !wakelock) {
+            try {
+                wakelock = await navigator.wakeLock.request("screen");
+            } catch(e) {
+                console.warn(e);
+            }
+        }
     } else {
         userbox.classList.add('invisible');
         connectionbox.classList.remove('invisible');
         hideVideo();
         window.onresize = null;
+        if((`wakeLock` in navigator) && wakelock) {
+            try {
+                await wakelock.release();
+            } catch(e) {
+                console.log(e);
+            } finally {
+                wakelock = null
+            }
+        }
     }
 }
 
@@ -287,7 +308,7 @@ function setConnected(connected) {
  * @this {ServerConnection}
  */
 async function gotConnected() {
-    setConnected(true);
+    await setConnected(true);
     await join();
 }
 
@@ -392,10 +413,10 @@ function onPeerConnection() {
  * @param {number} code
  * @param {string} reason
  */
-function gotClose(code, reason) {
+async function gotClose(code, reason) {
     closeUpMedia();
     closeSafariStream();
-    setConnected(false);
+    await setConnected(false);
     if(code !== 1000) {
         console.warn('Socket close', code, reason);
     }
