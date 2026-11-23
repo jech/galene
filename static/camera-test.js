@@ -127,9 +127,9 @@ CameraTest.prototype.setStream = async function(force) {
 
     let settings = getSettings();
     /** @type{boolean|MediaTrackConstraints} */
-    let a = settings.audio ? {deviceId: settings.audio} : false;
+    let a = settings.audio ? exactDeviceConstraint(settings.audio) : false;
     /** @type{boolean|MediaTrackConstraints} */
-    let v = settings.video ? {deviceId: settings.video} : false;
+    let v = settings.video ? exactDeviceConstraint(settings.video) : false;
     if(v) {
         let resolution = settings.resolution;
         if(resolution) {

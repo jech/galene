@@ -83,6 +83,16 @@ function getSettings() {
 }
 
 /**
+ * Return a constraint that requires a specific media input device.
+ *
+ * @param {string} deviceId
+ * @returns {MediaTrackConstraints}
+ */
+function exactDeviceConstraint(deviceId) {
+    return {deviceId: {exact: deviceId}};
+}
+
+/**
  * Update stored settings with the key/value pairs stored in the parameter.
  *
  * @param {settings} settings
