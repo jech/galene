@@ -468,6 +468,10 @@ textarea.form-reply {
     text-shadow: 0px 0px 1px #b3adad;
 }
 
+.chat-btn.chat-unread .icon-chat {
+    color: #d9b45a;
+}
+
 .collapse-video {
     left: inherit;
     right: 30px;
