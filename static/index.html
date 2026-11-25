@@ -16,15 +16,15 @@
       <h1 id="title" class="navbar-brand">Galène</h1>
 
       <form id="groupform">
-        <label for="group">Group:</label>
+        <label for="group" data-i18n="Group:">Group:</label>
         <input id="group" type="text" name="group" class="form-control form-control-inline" autofocus/>
-        <input id='submitbutton' type="submit" value="Join" class="btn btn-default btn-large"/><br/>
+        <input id='submitbutton' type="submit" value="Join" data-i18n-value="Join" class="btn btn-default btn-large"/><br/>
       </form>
 
       <p id="errormessage"></p>
   
       <div id="public-groups" class="groups">
-        <h2>Public groups</h2>
+        <h2 data-i18n="Public groups">Public groups</h2>
   
         <table id="public-groups-table"></table>
       </div>
@@ -33,6 +33,7 @@
       <p><a href="https://galene.org/">Galène</a> by <a href="https://www.irif.fr/~jch/" rel="author">Juliusz Chroboczek</a></p>
     </footer>
     
+    <script src="/i18n.js" defer></script>
     <script src="/mainpage.js" defer></script>
     
   </body>

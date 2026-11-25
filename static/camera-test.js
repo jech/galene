@@ -254,7 +254,7 @@ CameraTest.prototype.drawFFT = function() {
 CameraTest.prototype.setMediaChoices = async function() {
     let ds = await getPermissionsConstraints();
     if(!('video' in ds || 'audio' in ds))
-        throw new Error('No device detected');
+        throw new Error(t('No device detected'));
     let stream = await navigator.mediaDevices.getUserMedia(ds);
 
     try {
@@ -267,12 +267,12 @@ CameraTest.prototype.setMediaChoices = async function() {
             let label = d.label;
             if(d.kind === 'videoinput') {
                 if(!label)
-                    label = `Camera ${cn}`;
+                    label = t('Camera {{n}}', {n: cn});
                 addSelectOption(this.videoselect, label, d.deviceId);
                 cn++;
             } else if(d.kind === 'audioinput') {
                 if(!label)
-                    label = `Microphone ${mn}`;
+                    label = t('Microphone {{n}}', {n: mn});
                 addSelectOption(this.audioselect, label, d.deviceId);
                 mn++;
             }

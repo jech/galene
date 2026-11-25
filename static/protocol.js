@@ -302,7 +302,7 @@ ServerConnection.prototype.error = function(e) {
 ServerConnection.prototype.send = function(m) {
     if(!this.socket || this.socket.readyState !== this.socket.OPEN) {
         // send on a closed socket doesn't throw
-        throw(new Error('Connection is not open'));
+        throw(new Error(t('Connection is not open')));
     }
     return this.socket.send(JSON.stringify(m));
 };
@@ -316,18 +316,18 @@ ServerConnection.prototype.send = function(m) {
 ServerConnection.prototype.connect = function(url) {
     let sc = this;
     if(sc.socket)
-        throw new Error("Attempting to connect stale connection");
+        throw new Error(t("Attempting to connect stale connection"));
 
     sc.socket = new WebSocket(url);
 
     this.pingHandler = setInterval(() => {
         if(!sc.lastServerMessage) {
-            sc.error(new Error('Timeout'));
+            sc.error(new Error(t('Timeout')));
             return;
         }
         let d = new Date().valueOf() - sc.lastServerMessage;
         if(d > 65000) {
-            sc.error(new Error('Timeout'));
+            sc.error(new Error(t('Timeout')));
             return;
         }
         if(sc.version && d >= 15000)
@@ -336,7 +336,8 @@ ServerConnection.prototype.connect = function(url) {
 
     this.socket.onerror = function(e) {
         if(sc.onerror)
-            sc.onerror.call(sc, new Error('Socket error: ' + e));
+            sc.onerror.call(sc, new Error(t('Socket error: {{error}}',
+                                            {error: e})));
     };
     this.socket.onopen = function(e) {
         try {
@@ -385,7 +386,7 @@ ServerConnection.prototype.connect = function(url) {
             return;
         }
         if(m.type !== 'handshake' && !sc.version) {
-            sc.error(new Error("Server didn't send handshake"));
+            sc.error(new Error(t("Server didn't send handshake")));
             return;
         }
         sc.lastServerMessage = new Date().valueOf();
@@ -395,7 +396,8 @@ ServerConnection.prototype.connect = function(url) {
                 sc.version = '2';
             } else {
                 sc.version = null;
-                sc.error(new Error(`Unknown protocol version ${m.version}`));
+                sc.error(new Error(t('Unknown protocol version {{version}}',
+                                     {version: m.version})));
                 return;
             }
             if(sc.onconnected)
@@ -587,7 +589,8 @@ ServerConnection.prototype.join = async function(group, username, credentials, d
             });
             if(!r.ok)
                 throw new Error(
-                    `The authorisation server said ${r.status} ${r.statusText}`,
+                    t('The authorisation server said {{status}} {{statusText}}',
+                      {status: r.status, statusText: r.statusText}),
                 );
             if(r.status === 204) {
                 // no data, fallback to password auth
@@ -597,7 +600,7 @@ ServerConnection.prototype.join = async function(group, username, credentials, d
             let ctype = r.headers.get("Content-Type");
             if(!ctype)
                 throw new Error(
-                    "The authorisation server didn't return a content type",
+                    t("The authorisation server didn't return a content type"),
                 );
             let semi = ctype.indexOf(";");
             if(semi >= 0)
@@ -608,17 +611,19 @@ ServerConnection.prototype.join = async function(group, username, credentials, d
                 let body = await r.text();
                 if(!body)
                     throw new Error(
-                        "The authorisation server returned an empty token",
+                        t("The authorisation server returned an empty token"),
                     );
                 m.token = body;
                 break;
             default:
-                throw new Error(`The authorisation server returned ${ctype}`);
+                throw new Error(t('The authorisation server returned {{type}}',
+                                   {type: ctype}));
                 break;
             }
             break;
         default:
-            throw new Error(`Unknown credentials type ${credentials.type}`);
+            throw new Error(t('Unknown credentials type {{type}}',
+                               {type: credentials.type}));
         }
     }
 
@@ -708,12 +713,12 @@ ServerConnection.prototype.newUpStream = function(localId) {
         throw new Error('Eek!');
 
     if(typeof RTCPeerConnection === 'undefined')
-        throw new Error("This browser doesn't support WebRTC");
+        throw new Error(t("This browser doesn't support WebRTC"));
 
 
     let pc = new RTCPeerConnection(sc.getRTCConfiguration());
     if(!pc)
-        throw new Error("Couldn't create peer connection");
+        throw new Error(t("Couldn't create peer connection"));
 
     let oldId = null;
     if(localId) {
@@ -929,7 +934,7 @@ ServerConnection.prototype.gotOffer = async function(id, label, source, username
 
         let answer = await c.pc.createAnswer();
         if(!answer)
-            throw new Error("Didn't create answer");
+            throw new Error(t("Didn't create answer"));
         await c.pc.setLocalDescription(answer);
         this.send({
             type: 'answer',
@@ -1411,7 +1416,7 @@ Stream.prototype.negotiate = async function (restartIce) {
         options = {iceRestart: true};
     let offer = await c.pc.createOffer(options);
     if(!offer)
-        throw(new Error("Didn't create offer"));
+        throw(new Error(t("Didn't create offer")));
     await c.pc.setLocalDescription(offer);
 
     c.sc.send({
@@ -1888,7 +1893,7 @@ ServerConnection.prototype.sendFile = function(id, file) {
     let fileid = newRandomId();
     let user = sc.users[id];
     if(!user)
-        throw new Error('offering upload to unknown user');
+        throw new Error(t('offering upload to unknown user'));
     let f = new TransferredFile(
         sc, id, fileid, true, user.username, file.name, file.type, file.size,
     );
@@ -1936,7 +1941,7 @@ TransferredFile.prototype.receive = async function() {
         throw new Error('Download already in progress');
     let pc = new RTCPeerConnection(f.sc.getRTCConfiguration());
     if(!pc) {
-        let err = new Error("Couldn't create peer connection");
+        let err = new Error(t("Couldn't create peer connection"));
         f.fail(err);
         return;
     }
@@ -1961,7 +1966,7 @@ TransferredFile.prototype.receive = async function() {
     f.data = [];
     f.datalen = 0;
     f.dc.onclose = function(e) {
-        f.cancel('remote peer closed connection');
+        f.cancel(t('remote peer closed connection'));
     };
     try {
         f.dc.binaryType = 'blob';
@@ -1978,7 +1983,7 @@ TransferredFile.prototype.receive = async function() {
     };
     let offer = await pc.createOffer();
     if(!offer) {
-        f.cancel(new Error("Couldn't create offer"));
+        f.cancel(new Error(t("Couldn't create offer")));
         return;
     }
     await pc.setLocalDescription(offer);
@@ -2004,7 +2009,7 @@ TransferredFile.prototype.answer = async function(sdp) {
         throw new Error('Transfer already in progress');
     let pc = new RTCPeerConnection(f.sc.getRTCConfiguration());
     if(!pc) {
-        let err = new Error("Couldn't create peer connection");
+        let err = new Error(t("Couldn't create peer connection"));
         f.fail(err);
         return;
     }
@@ -2027,12 +2032,12 @@ TransferredFile.prototype.answer = async function(sdp) {
     };
     pc.ondatachannel = function(e) {
         if(f.dc) {
-            f.cancel(new Error('Duplicate datachannel'));
+            f.cancel(new Error(t('Duplicate datachannel')));
             return;
         }
         f.dc = /** @type{RTCDataChannel} */(e.channel);
         f.dc.onclose = function(e) {
-            f.cancel('remote peer closed connection');
+            f.cancel(t('remote peer closed connection'));
         };
         f.dc.onerror = function(e) {
             /** @ts-ignore */
@@ -2046,7 +2051,7 @@ TransferredFile.prototype.answer = async function(sdp) {
                 f.dc.onerror = null;
                 f.close();
             } else {
-                f.cancel(new Error('unexpected data from receiver'));
+                f.cancel(new Error(t('unexpected data from receiver')));
             }
         }
         f.send().catch(e => f.cancel(e));
@@ -2059,7 +2064,7 @@ TransferredFile.prototype.answer = async function(sdp) {
 
     let answer = await pc.createAnswer();
     if(!answer)
-        throw new Error("Couldn't create answer");
+        throw new Error(t("Couldn't create answer"));
     await pc.setLocalDescription(answer);
     f.sc.userMessage('filetransfer', f.userid, {
         type: 'answer',

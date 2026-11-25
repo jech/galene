@@ -15,6 +15,7 @@
         "noUnusedLocals": true
     },
     "files": [
+        "i18n.js",
         "protocol.js",
         "settings.js",
         "filter.js",
