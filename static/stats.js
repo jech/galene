@@ -31,12 +31,12 @@ async function listStats() {
         l = await r.json();
     } catch(e) {
         console.error(e);
-        table.textContent = `Couldn't fetch stats: ${e}`;
+        table.textContent = t("Couldn't fetch stats: {{error}}", {error: e});
         return;
     }
 
     if(l.length === 0) {
-        table.textContent = '(No group found.)';
+        table.textContent = t('(No group found.)');
         return;
     }
 
@@ -130,4 +130,4 @@ function formatTrack(table, track) {
     table.appendChild(tr);
 }
 
-listStats();
+i18nReady.then(() => { translateDOM(document); listStats(); });

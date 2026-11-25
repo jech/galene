@@ -605,7 +605,7 @@ document.getElementById('mutebutton').onclick = function(e) {
     e.preventDefault();
     let localMute = getSettings().localMute;
     if (localMute && !findUpMedia('camera')) {
-        displayMessage('Please use Enable to enable your camera or microphone.');
+        displayMessage(t('Please use Enable to enable your camera or microphone.'));
     } else {
         localMute = !localMute;
         setLocalMute(localMute, true);
@@ -933,13 +933,13 @@ async function setMediaChoices(done) {
         let label = d.label;
         if(d.kind === 'videoinput') {
             if(!label)
-                label = `Camera ${cn}`;
+                label = t('Camera {{n}}', {n: cn});
             addSelectOption(getSelectElement('videoselect'),
                             label, d.deviceId);
             cn++;
         } else if(d.kind === 'audioinput') {
             if(!label)
-                label = `Microphone ${mn}`;
+                label = t('Microphone {{n}}', {n: mn});
             addSelectOption(getSelectElement('audioselect'),
                             label, d.deviceId);
             mn++;
@@ -1324,7 +1324,7 @@ async function addLocalMedia(localId) {
         if(filter)
             c.userdata.filterDefinition = filter;
         else
-            displayWarning(`Unknown filter ${settings.filter}`);
+            displayWarning(t('Unknown filter {{filter}}', {filter: settings.filter}));
     }
 
     try {
@@ -1344,10 +1344,7 @@ async function addShareMedia() {
     if(!safariScreenshareDone) {
         if(isSafari()) {
             let ok = confirm(
-                'Screen sharing in Safari is broken.  ' +
-                    'It will work at first, ' +
-                    'but then your video will randomly freeze.  ' +
-                    'Are you sure that you wish to enable screensharing?'
+                t('Screen sharing in Safari is broken.  It will work at first, but then your video will randomly freeze.  Are you sure that you wish to enable screensharing?')
             );
             if(!ok)
                 return
@@ -1359,7 +1356,7 @@ async function addShareMedia() {
     let stream = null;
     try {
         if(!('getDisplayMedia' in navigator.mediaDevices))
-            throw new Error('Your browser does not support screen sharing');
+            throw new Error(t('Your browser does not support screen sharing'));
         stream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
             audio: true,
@@ -1395,7 +1392,7 @@ async function addFileMedia(file) {
         /** @ts-ignore */
         stream = video.mozCaptureStream();
     else {
-        displayError("This browser doesn't support file playback");
+        displayError(t("This browser doesn't support file playback"));
         return;
     }
 
@@ -1415,7 +1412,7 @@ async function addFileMedia(file) {
     let muted = getSettings().localMute;
     if(presenting && !muted) {
         setLocalMute(true, true);
-        displayWarning('You have been muted');
+        displayWarning(t('You have been muted'));
     }
 
     await setMedia(c, false, video);
@@ -1840,7 +1837,7 @@ function registerControlHandlers(localId, media, container) {
                 if(media.requestPictureInPicture) {
                     media.requestPictureInPicture();
                 } else {
-                    displayWarning('Picture in Picture not supported.');
+                    displayWarning(t('Picture in Picture not supported.'));
                 }
             };
         } else {
@@ -1862,7 +1859,7 @@ function registerControlHandlers(localId, media, container) {
                     /** @ts-ignore */
                     media.webkitRequestFullscreen();
                 } else {
-                    displayWarning('Full screen not supported!');
+                    displayWarning(t('Full screen not supported!'));
                 }
             };
         } else {
@@ -1919,9 +1916,10 @@ function setMediaStatus(c) {
 
     if(!c.up && state === 'failed') {
         let from = c.username ?
-            `from user ${c.username}` :
-            'from anonymous user';
-        displayWarning(`Cannot receive media ${from}, still trying...`);
+            t('from user {{username}}', {username: c.username}) :
+            t('from anonymous user');
+        displayWarning(t('Cannot receive media {{from}}, still trying...',
+                         {from: from}));
     }
 }
 
@@ -1947,7 +1945,7 @@ function updateLabelElement(label) {
     let fallbackText = label.dataset.fallbackText;
     let showFallback = (label.dataset.showFallback === 'true');
     if(showFallback) {
-        label.textContent = fallbackText || '(unknown)';
+        label.textContent = fallbackText || t('(unknown)');
         label.classList.add('label-fallback');
     } else {
         label.textContent = defaultText;
@@ -2035,7 +2033,7 @@ function inviteMenu() {
     let d = /** @type {HTMLDialogElement} */
         (document.getElementById('invite-dialog'));
     if(!('HTMLDialogElement' in window) || !d.showModal) {
-        displayError("This browser doesn't support modal dialogs");
+        displayError(t("This browser doesn't support modal dialogs"));
         return;
     }
     d.returnValue = '';
@@ -2070,7 +2068,8 @@ document.getElementById('invite-dialog').onclose = function(e) {
         try {
             notBefore = dateFromInput(nb.value);
         } catch(e) {
-            displayError(`Couldn't parse ${nb.value}: ${e.message}`);
+            displayError(t("Couldn't parse {{value}}: {{message}}",
+                           {value: nb.value, message: e.message}));
             return;
         }
     }
@@ -2080,7 +2079,8 @@ document.getElementById('invite-dialog').onclose = function(e) {
         try {
             expires = dateFromInput(ex.value);
         } catch(e) {
-            displayError(`Couldn't parse ${ex.value}: ${e.message}`);
+            displayError(t("Couldn't parse {{value}}: {{message}}",
+                           {value: ex.value, message: e.message}));
             return;
         }
     }
@@ -2108,47 +2108,47 @@ function userMenu(elt) {
     if(id === serverConnection.id) {
         let mydata = serverConnection.users[serverConnection.id].data;
         if(mydata['raisehand'])
-            items.push({label: 'Unraise hand', onClick: () => {
+            items.push({label: t('Unraise hand'), onClick: () => {
                 serverConnection.userAction(
                     'setdata', serverConnection.id, {'raisehand': null},
                 );
             }});
         else
-            items.push({label: 'Raise hand', onClick: () => {
+            items.push({label: t('Raise hand'), onClick: () => {
                 serverConnection.userAction(
                     'setdata', serverConnection.id, {'raisehand': true},
                 );
             }});
         if(serverConnection.version !== "1" &&
            serverConnection.permissions.indexOf('token') >= 0) {
-            items.push({label: 'Invite user', onClick: () => {
+            items.push({label: t('Invite user'), onClick: () => {
                 inviteMenu();
             }});
         }
         if(serverConnection.permissions.indexOf('present') >= 0 && canFile())
-            items.push({label: 'Broadcast file', onClick: presentFile});
-        items.push({label: 'Restart media', onClick: renegotiateStreams});
+            items.push({label: t('Broadcast file'), onClick: presentFile});
+        items.push({label: t('Restart media'), onClick: renegotiateStreams});
     } else {
-        items.push({label: 'Send file', onClick: () => {
+        items.push({label: t('Send file'), onClick: () => {
             sendFile(id);
         }});
         if(serverConnection.permissions.indexOf('op') >= 0) {
             items.push({type: 'seperator'}); // sic
             if(user.permissions.indexOf('present') >= 0)
-                items.push({label: 'Forbid presenting', onClick: () => {
+                items.push({label: t('Forbid presenting'), onClick: () => {
                     serverConnection.userAction('unpresent', id);
                 }});
             else
-                items.push({label: 'Allow presenting', onClick: () => {
+                items.push({label: t('Allow presenting'), onClick: () => {
                     serverConnection.userAction('present', id);
                 }});
-            items.push({label: 'Mute', onClick: () => {
+            items.push({label: t('Mute'), onClick: () => {
                 serverConnection.userMessage('mute', id);
             }});
-            items.push({label: 'Kick out', onClick: () => {
+            items.push({label: t('Kick out'), onClick: () => {
                 serverConnection.userAction('kick', id);
             }});
-            items.push({label: 'Identify', onClick: () => {
+            items.push({label: t('Identify'), onClick: () => {
                 serverConnection.userAction('identify', id);
             }});
         }
@@ -2223,7 +2223,7 @@ function changeUser(id, userinfo) {
  * @param {user} userinfo
  */
 function setUserStatus(id, elt, userinfo) {
-    elt.textContent = userinfo.username ? userinfo.username : '(anon)';
+    elt.textContent = userinfo.username ? userinfo.username : t('(anon)');
     if(userinfo.data.raisehand)
         elt.classList.add('user-status-raisehand');
     else
@@ -2290,11 +2290,11 @@ function displayUsername() {
     let present = serverConnection.permissions.indexOf('present') >= 0;
     let text = '';
     if(op && present)
-        text = '(op, presenter)';
+        text = t('(op, presenter)');
     else if(op)
-        text = 'operator';
+        text = t('operator');
     else if(present)
-        text = 'presenter';
+        text = t('presenter');
     document.getElementById('permspan').textContent = text;
 }
 
@@ -2367,7 +2367,7 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
             setVisibility('passwordform', false);
         } else {
             token = null;
-            displayError('The server said: ' + message);
+            displayError(t('The server said: {{message}}', {message: message}));
         }
         closeSafariStream();
         this.close();
@@ -2413,7 +2413,7 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
         break;
     default:
         token = null;
-        displayError('Unknown join message');
+        displayError(t('Unknown join message'));
         closeSafariStream();
         this.close();
         return;
@@ -2421,14 +2421,14 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
 
     let input = /** @type{HTMLTextAreaElement} */
         (document.getElementById('input'));
-    input.placeholder = 'Type /help for help';
+    input.placeholder = t('Type /help for help');
     setTimeout(() => {input.placeholder = '';}, 8000);
 
     if(status.locked)
-        displayWarning('This group is locked');
+        displayWarning(t('This group is locked'));
 
     if(typeof RTCPeerConnection === 'undefined')
-        displayWarning("This browser doesn't support WebRTC");
+        displayWarning(t("This browser doesn't support WebRTC"));
     else
         this.request(mapRequest(getSettings().request));
 
@@ -2452,7 +2452,7 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
             }
         } else {
             displayMessage(
-                "Press Enable to enable your camera or microphone"
+                t("Press Enable to enable your camera or microphone")
             );
         }
     }
@@ -2466,23 +2466,23 @@ function gotFileTransfer(f) {
     let p = document.createElement('p');
     if(f.up)
         p.textContent =
-        `We have offered to send a file called "${f.name}" ` +
-        `to user ${f.username}.`;
+        t('We have offered to send a file called "{{name}}" to user {{username}}.',
+          {name: f.name, username: f.username});
     else
         p.textContent =
-        `User ${f.username} offered to send us a file ` +
-        `called "${f.name}" of size ${f.size}.`
+        t('User {{username}} offered to send us a file called "{{name}}" of size {{size}}.',
+          {username: f.username, name: f.name, size: f.size});
     let bno = null, byes = null;
     if(!f.up) {
         byes = document.createElement('button');
-        byes.textContent = 'Accept';
+        byes.textContent = t('Accept');
         byes.onclick = function(e) {
             f.receive();
         };
         byes.id = "byes-" + f.fullid();
     }
     bno = document.createElement('button');
-    bno.textContent = f.up ? 'Cancel' : 'Reject';
+    bno.textContent = f.up ? t('Cancel') : t('Reject');
     bno.onclick = function(e) {
         f.cancel();
     };
@@ -2491,7 +2491,7 @@ function gotFileTransfer(f) {
     status.id = 'status-' + f.fullid();
     if(!f.up) {
         status.textContent =
-            '(Choosing "Accept" will disclose your IP address.)';
+            t('(Choosing "Accept" will disclose your IP address.)');
     }
     let statusp = document.createElement('p');
     statusp.id = 'statusp-' + f.fullid();
@@ -2598,15 +2598,15 @@ function gotFileTransferEvent(state, data) {
         break;
     case 'connecting':
         delFileStatusButtons(f, true, false);
-        setFileStatus(f, 'Connecting...');
+        setFileStatus(f, t('Connecting...'));
         createFileProgress(f, f.size);
         break;
     case 'connected':
-        setFileStatus(f, f.up ? 'Sending...' : 'Receiving...', f.datalen);
+        setFileStatus(f, f.up ? t('Sending...') : t('Receiving...'), f.datalen);
         break;
     case 'done':
         delFileStatusButtons(f, true, true, true);
-        setFileStatus(f, 'Done.');
+        setFileStatus(f, t('Done.'));
         if(!f.up) {
             let url = URL.createObjectURL(data);
             let a = document.createElement('a');
@@ -2621,9 +2621,9 @@ function gotFileTransferEvent(state, data) {
     case 'cancelled':
         delFileStatusButtons(f, true, true, true);
         if(data)
-            setFileStatus(f, `Cancelled: ${data.toString()}.`);
+            setFileStatus(f, t('Cancelled: {{reason}}.', {reason: data.toString()}));
         else
-            setFileStatus(f, 'Cancelled.');
+            setFileStatus(f, t('Cancelled.'));
         break;
     case 'closed':
         break;
@@ -2679,8 +2679,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             console.error(`Got unprivileged message of kind ${kind}`);
             return;
         }
-        let from = id ? (username || 'Anonymous') : 'The Server';
-        displayError(`${from} said: ${message}`, kind);
+        let from = id ? (username || t('Anonymous')) : t('The Server');
+        displayError(t('{{from}} said: {{message}}', {from: from, message: message}), kind);
         break;
     }
     case 'mute': {
@@ -2689,8 +2689,11 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             return;
         }
         setLocalMute(true, true);
-        let by = username ? ' by ' + username : '';
-        displayWarning(`You have been muted${by}`);
+        if(username)
+            displayWarning(t('You have been muted by {{username}}',
+                             {username: username}));
+        else
+            displayWarning(t('You have been muted'));
         break;
     }
     case 'clearchat': {
@@ -2709,34 +2712,35 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             return;
         }
         if(error) {
-            displayError(`Token operation failed: ${message}`)
+            displayError(t('Token operation failed: {{message}}', {message: message}))
             return
         }
         if(typeof message !== 'object') {
-            displayError('Unexpected type for token');
+            displayError(t('Unexpected type for token'));
             return;
         }
         let f = formatToken(message, false);
         let body = formatText(f[0] + ': ' + f[1]);
         if(navigator.clipboard &&
            typeof navigator.clipboard.writeText === 'function') {
-            let button = addButton(body, 'Copy invitation', 'fa-copy');
+            let button = addButton(body, t('Copy invitation'), 'fa-copy');
             button.onclick = async() => {
                 try {
                     await navigator.clipboard.writeText(f[0] + ': ' + f[1]);
-                    displayMessage('Invitation copied to clipboard');
+                    displayMessage(t('Invitation copied to clipboard'));
                 } catch(e) {
                     console.warn('Copy failed:', e);
-                    displayError("Couldn't copy invitation");
+                    displayError(t("Couldn't copy invitation"));
                 }
             };
         }
         if(typeof navigator.share === 'function') {
-            let button = addButton(body, 'Share invitation', 'fa-share-square');
+            let button = addButton(body, t('Share invitation'), 'fa-share-square');
             button.onclick = async () => {
                 try {
                     await navigator.share({
-                        title: `Invitation to Galene group ${message.group}`,
+                        title: t('Invitation to Galene group {{group}}',
+                                 {group: message.group}),
                         text: f[0],
                         url: f[1],
                     });
@@ -2744,7 +2748,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
                     if(e.name === 'AbortError')
                         return;
                     console.warn('Share failed:', e);
-                    displayError("Couldn't share invitation");
+                    displayError(t("Couldn't share invitation"));
                 }
             };
         }
@@ -2757,7 +2761,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             return;
         }
         if(error) {
-            displayError(`Token operation failed: ${message}`)
+            displayError(t('Token operation failed: {{message}}', {message: message}))
             return
         }
         let s = '';
@@ -2774,12 +2778,13 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
             return;
         }
         let u = message.username ?
-            'username ' + message.username :
-            'unknown username';
+            t('username {{username}}', {username: message.username}) :
+            t('unknown username');
         let a = message.address ?
-            'address ' + message.address :
-            'unknown address';
-        localMessage(`User ${message.id} has ${u} and ${a}.`);
+            t('address {{address}}', {address: message.address}) :
+            t('unknown address');
+        localMessage(t('User {{id}} has {{username}} and {{address}}.',
+                       {id: message.id, username: u, address: a}));
         break;
     }
     case 'subgrouplist': {
@@ -2789,7 +2794,7 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
         }
         let div = document.createElement('div');
         if(message.length == 0) {
-            div.textContent = 'No subgroups.';
+            div.textContent = t('No subgroups.');
         } else {
             let base = groupsBase();
             for(let i = 0; i < message.length; i++) {
@@ -2807,9 +2812,8 @@ function gotUserMessage(id, dest, username, time, privileged, kind, error, messa
                 }
                 div.appendChild(g);
                 let count =
-                    !(sg.clientCount) ? ': empty' :
-                    sg.clientCount == 1 ? ': 1 client' :
-                    `: ${sg.clientCount} clients`
+                    !(sg.clientCount) ? t(': empty') :
+                    t('subgroup_client_count', {count: sg.clientCount})
                 div.appendChild(document.createTextNode(count));
             }
         }
@@ -2833,34 +2837,39 @@ function formatToken(token, details) {
     url.search = params.toString();
     let foruser = '', by = '', togroup = '';
     if(token.username)
-        foruser = ` for user ${token.username}`;
+        foruser = t(' for user {{username}}', {username: token.username});
     if(details) {
         if(token.issuedBy)
-            by = ' issued by ' + token.issuedBy;
+            by = t(' issued by {{issuedBy}}', {issuedBy: token.issuedBy});
         if(token.issuedAt) {
+            let at = (new Date(token.issuedAt)).toLocaleString();
             if(by === '')
-                by = ' issued at ' + (new Date(token.issuedAt)).toLocaleString();
+                by = t(' issued at {{at}}', {at: at});
             else
-                by = by + ' at ' + (new Date(token.issuedAt)).toLocaleString();
+                by = t('{{by}} at {{at}}', {by: by, at: at});
         }
     } else {
         if(token.group)
-            togroup = ' to group ' + token.group;
+            togroup = t(' to group {{group}}', {group: token.group});
     }
     let since = '';
     if(token["not-before"])
-        since = ` since ${(new Date(token['not-before'])).toLocaleString()}`
+        since = t(' since {{since}}',
+                  {since: (new Date(token['not-before'])).toLocaleString()})
     /** @type{Date} */
     let expires = null;
     let until = '';
     if(token.expires) {
         expires = new Date(token.expires)
-        until = ` until ${expires.toLocaleString()}`;
+        until = t(' until {{until}}', {until: expires.toLocaleString()});
     }
     return [
         (expires && (expires >= new Date())) ?
-            `Invitation${foruser}${togroup}${by} valid${since}${until}` :
-            `Expired invitation${foruser}${togroup}${by}`,
+            t('Invitation{{foruser}}{{togroup}}{{by}} valid{{since}}{{until}}',
+              {foruser: foruser, togroup: togroup, by: by,
+               since: since, until: until}) :
+            t('Expired invitation{{foruser}}{{togroup}}{{by}}',
+              {foruser: foruser, togroup: togroup, by: by}),
         url.toString(),
     ];
 }
@@ -2997,9 +3006,9 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
                 let user = document.createElement('span');
                 if(dest)
                     user.textContent =
-                        `${nick || '(anon)'} \u2192 ${name || '(anon)'}`;
+                        `${nick || t('(anon)')} \u2192 ${name || t('(anon)')}`;
                 else
-                    user.textContent = (nick || '(anon)');
+                    user.textContent = (nick || t('(anon)'));
                 user.classList.add('message-user');
                 header.appendChild(user);
             }
@@ -3026,7 +3035,7 @@ function addToChatbox(id, peerId, dest, nick, time, privileged, history, kind, m
         asterisk.textContent = '*';
         asterisk.classList.add('message-me-asterisk');
         let user = document.createElement('span');
-        user.textContent = nick || '(anon)';
+        user.textContent = nick || t('(anon)');
         user.classList.add('message-me-user');
         body.classList.add('message-me-content');
         container.appendChild(asterisk);
@@ -3059,26 +3068,26 @@ function chatMessageMenu(elt) {
     if(!peerId)
         return;
     let username = elt.dataset.username;
-    let u = username || 'user';
+    let u = username || t('user');
 
     let items = [];
     if(messageId)
-        items.push({label: 'Delete message', onClick: () => {
+        items.push({label: t('Delete message'), onClick: () => {
             serverConnection.groupAction('clearchat', {
                 id: messageId,
                 userId: peerId,
             });
         }});
-    items.push({label: `Delete all from ${u}`,
+    items.push({label: t('Delete all from {{user}}', {user: u}),
                 onClick: () => {
                     serverConnection.groupAction('clearchat', {
                         userId: peerId,
                     });
                 }});
-    items.push({label: `Identify ${u}`, onClick: () => {
+    items.push({label: t('Identify {{user}}', {user: u}), onClick: () => {
         serverConnection.userAction('identify', peerId);
     }});
-    items.push({label: `Kick out ${u}`, onClick: () => {
+    items.push({label: t('Kick out {{user}}', {user: u}), onClick: () => {
         serverConnection.userAction('kick', peerId);
     }});
 
@@ -3181,18 +3190,18 @@ function operatorPredicate() {
     if(serverConnection && serverConnection.permissions &&
        serverConnection.permissions.indexOf('op') >= 0)
         return null;
-    return 'You are not an operator';
+    return t('You are not an operator');
 }
 
 function recordingPredicate() {
     if(serverConnection && serverConnection.permissions &&
        serverConnection.permissions.indexOf('record') >= 0)
         return null;
-    return 'You are not allowed to record';
+    return t('You are not allowed to record');
 }
 
 commands.help = {
-    description: 'display this help',
+    description: msg('display this help'),
     f: (c, r) => {
         /** @type {string[]} */
         let cs = [];
@@ -3202,7 +3211,8 @@ commands.help = {
                 continue;
             if(c.predicate && c.predicate())
                 continue;
-            cs.push(`/${cmd}${c.parameters?' ' + c.parameters:''}: ${c.description}`);
+            let parameters = c.parameters ? ' ' + t(c.parameters) : '';
+            cs.push(`/${cmd}${parameters}: ${t(c.description)}`);
         }
         localMessage(cs.sort().join('\n'));
     }
@@ -3245,7 +3255,7 @@ commands.unset = {
 };
 
 commands.leave = {
-    description: "leave group",
+    description: msg("leave group"),
     f: (c, r) => {
         if(!serverConnection)
             throw new Error('Not connected');
@@ -3255,7 +3265,7 @@ commands.leave = {
 
 commands.clear = {
     predicate: operatorPredicate,
-    description: 'clear the chat history',
+    description: msg('clear the chat history'),
     f: (c, r) => {
         serverConnection.groupAction('clearchat');
     }
@@ -3263,8 +3273,8 @@ commands.clear = {
 
 commands.lock = {
     predicate: operatorPredicate,
-    description: 'lock this group',
-    parameters: '[message]',
+    description: msg('lock this group'),
+    parameters: msg('[message]'),
     f: (c, r) => {
         serverConnection.groupAction('lock', r);
     }
@@ -3272,7 +3282,7 @@ commands.lock = {
 
 commands.unlock = {
     predicate: operatorPredicate,
-    description: 'unlock this group, revert the effect of /lock',
+    description: msg('unlock this group, revert the effect of /lock'),
     f: (c, r) => {
         serverConnection.groupAction('unlock');
     }
@@ -3280,7 +3290,7 @@ commands.unlock = {
 
 commands.record = {
     predicate: recordingPredicate,
-    description: 'start recording',
+    description: msg('start recording'),
     f: (c, r) => {
         serverConnection.groupAction('record');
     }
@@ -3288,7 +3298,7 @@ commands.record = {
 
 commands.unrecord = {
     predicate: recordingPredicate,
-    description: 'stop recording',
+    description: msg('stop recording'),
     f: (c, r) => {
         serverConnection.groupAction('unrecord');
     }
@@ -3296,7 +3306,7 @@ commands.unrecord = {
 
 commands.subgroups = {
     predicate: operatorPredicate,
-    description: 'list subgroups',
+    description: msg('list subgroups'),
     f: (c, r) => {
         serverConnection.groupAction('subgroups');
     }
@@ -3306,12 +3316,14 @@ commands.touchsubgroup = {
     f: (c, r) => {
         let p = parseCommand(r);
         if(!p[0])
-            throw new Error(`/${c} requires parameters`);
+            throw new Error(t('/{{command}} requires parameters', {command: c}));
         let url = document.location.href + p[0];
         fetch(url, {"method": "HEAD"})
             .then(r => {
                 if(r.status >= 300) {
-                    displayError(`Group ${p[0]}: ${r.status} ${r.statusText}`);
+                    displayError(t('Group {{group}}: {{status}} {{statusText}}',
+                                   {group: p[0], status: r.status,
+                                    statusText: r.statusText}));
                 }
             })
             .catch(e => displayError(e));
@@ -3322,12 +3334,12 @@ commands.msgsubgroup = {
     f: (c, r) => {
         let p = parseCommand(r);
         if(!p[0] || !p[1])
-            throw new Error(`/${c} requires parameters`);
+            throw new Error(t('/{{command}} requires parameters', {command: c}));
         let id = findUserId(p[0]);
         if(!id)
-            throw new Error(`Unknown user ${p[0]}`);
+            throw new Error(t('Unknown user {{user}}', {user: p[0]}));
         let url = document.location.href + p[1];
-        let m = `Please join the group at <${encodeURI(url)}/>.`;
+        let m = t('Please join the group at <{{url}}/>.', {url: encodeURI(url)});
         serverConnection.chat('', id, m);
         addToChatbox(serverConnection.id, null, id, serverConnection.username,
                      new Date(), false, false, '', m);
@@ -3358,24 +3370,24 @@ function parseExpiration(s) {
     if(e) {
         let unit = units[e[2]];
         if(!unit)
-            throw new Error(`Couldn't find unit ${e[2]}`);
+            throw new Error(t("Couldn't find unit {{unit}}", {unit: e[2]}));
         return parseInt(e[1]) * unit;
     }
     let d = new Date(s);
     if(d.toString() === 'Invalid Date')
-        throw new Error("Couldn't parse expiration date");
+        throw new Error(t("Couldn't parse expiration date"));
     return d;
 }
 
 function makeTokenPredicate() {
     return (serverConnection.permissions.indexOf('token') < 0 ?
-            "You don't have permission to create tokens" : null);
+            t("You don't have permission to create tokens") : null);
 }
 
 function editTokenPredicate() {
     return (serverConnection.permissions.indexOf('token') < 0 ||
             serverConnection.permissions.indexOf('op') < 0 ?
-            "You don't have permission to edit or list tokens" : null);
+            t("You don't have permission to edit or list tokens") : null);
 }
 
 /**
@@ -3409,8 +3421,8 @@ function makeToken(template) {
 
 commands.invite = {
     predicate: makeTokenPredicate,
-    description: "create an invitation link",
-    parameters: "[username] [expiration]",
+    description: msg("create an invitation link"),
+    parameters: msg("[username] [expiration]"),
     f: (c, r) => {
         let p = parseCommand(r);
         let template = {};
@@ -3424,23 +3436,23 @@ commands.invite = {
 }
 
 /**
- * @param {string} t
+ * @param {string} s
  */
-function parseToken(t) {
-    let m = /^https?:\/\/.*?token=([^?]+)/.exec(t);
+function parseToken(s) {
+    let m = /^https?:\/\/.*?token=([^?]+)/.exec(s);
     if(m) {
         return m[1];
-    } else if(!/^https?:\/\//.exec(t)) {
-        return t
+    } else if(!/^https?:\/\//.exec(s)) {
+        return s
     } else {
-        throw new Error("Couldn't parse link");
+        throw new Error(t("Couldn't parse link"));
     }
 }
 
 commands.reinvite = {
     predicate: editTokenPredicate,
-    description: "extend an invitation link",
-    parameters: "link [expiration]",
+    description: msg("extend an invitation link"),
+    parameters: msg("link [expiration]"),
     f: (c, r) => {
         let p = parseCommand(r);
         let v = {}
@@ -3455,8 +3467,8 @@ commands.reinvite = {
 
 commands.revoke = {
     predicate: editTokenPredicate,
-    description: "revoke an invitation link",
-    parameters: "link",
+    description: msg("revoke an invitation link"),
+    parameters: msg("link"),
     f: (c, r) => {
         let token = parseToken(r);
         serverConnection.groupAction('edittoken', {
@@ -3468,7 +3480,7 @@ commands.revoke = {
 
 commands.listtokens = {
     predicate: editTokenPredicate,
-    description: "list invitation links",
+    description: msg("list invitation links"),
     f: (c, r) => {
         serverConnection.groupAction('listtokens');
     }
@@ -3482,7 +3494,7 @@ function renegotiateStreams() {
 }
 
 commands.renegotiate = {
-    description: 'renegotiate media streams',
+    description: msg('renegotiate media streams'),
     f: (c, r) => {
         renegotiateStreams();
     }
@@ -3495,14 +3507,14 @@ commands.replace = {
 };
 
 commands.sharescreen = {
-    description: 'start a screen share',
+    description: msg('start a screen share'),
     f: (c, r) => {
         addShareMedia();
     }
 }
 
 commands.unsharescreen = {
-    description: 'stop screen share',
+    description: msg('stop screen share'),
     f: (c, r) => {
         closeUpMedia('screenshare');
     }
@@ -3558,15 +3570,15 @@ function findUserId(user) {
 }
 
 commands.msg = {
-    parameters: 'user message',
-    description: 'send a private message',
+    parameters: msg('user message'),
+    description: msg('send a private message'),
     f: (c, r) => {
         let p = parseCommand(r);
         if(!p[0])
-            throw new Error('/msg requires parameters');
+            throw new Error(t('/{{command}} requires parameters', {command: c}));
         let id = findUserId(p[0]);
         if(!id)
-            throw new Error(`Unknown user ${p[0]}`);
+            throw new Error(t('Unknown user {{user}}', {user: p[0]}));
         serverConnection.chat('', id, p[1]);
         addToChatbox(serverConnection.id, null, id, serverConnection.username,
                      new Date(), false, false, '', p[1]);
@@ -3580,88 +3592,88 @@ commands.msg = {
 function userCommand(c, r) {
     let p = parseCommand(r);
     if(!p[0])
-        throw new Error(`/${c} requires parameters`);
+        throw new Error(t('/{{command}} requires parameters', {command: c}));
     let id = findUserId(p[0]);
     if(!id)
-        throw new Error(`Unknown user ${p[0]}`);
+        throw new Error(t('Unknown user {{user}}', {user: p[0]}));
     serverConnection.userAction(c, id, p[1]);
 }
 
 function userMessage(c, r) {
     let p = parseCommand(r);
     if(!p[0])
-        throw new Error(`/${c} requires parameters`);
+        throw new Error(t('/{{command}} requires parameters', {command: c}));
     let id = findUserId(p[0]);
     if(!id)
-        throw new Error(`Unknown user ${p[0]}`);
+        throw new Error(t('Unknown user {{user}}', {user: p[0]}));
     serverConnection.userMessage(c, id, p[1]);
 }
 
 commands.kick = {
-    parameters: 'user [message]',
-    description: 'kick out a user',
+    parameters: msg('user [message]'),
+    description: msg('kick out a user'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.identify = {
-    parameters: 'user [message]',
-    description: 'identify a user',
+    parameters: msg('user [message]'),
+    description: msg('identify a user'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.op = {
-    parameters: 'user',
-    description: 'give operator status',
+    parameters: msg('user'),
+    description: msg('give operator status'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.unop = {
-    parameters: 'user',
-    description: 'revoke operator status',
+    parameters: msg('user'),
+    description: msg('revoke operator status'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.present = {
-    parameters: 'user',
-    description: 'give user the right to present',
+    parameters: msg('user'),
+    description: msg('give user the right to present'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.unpresent = {
-    parameters: 'user',
-    description: 'revoke the right to present',
+    parameters: msg('user'),
+    description: msg('revoke the right to present'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.shutup = {
-    parameters: 'user',
-    description: 'revoke the right to send chat messages',
+    parameters: msg('user'),
+    description: msg('revoke the right to send chat messages'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.unshutup = {
-    parameters: 'user',
-    description: 'give the right to send chat messages',
+    parameters: msg('user'),
+    description: msg('give the right to send chat messages'),
     predicate: operatorPredicate,
     f: userCommand,
 };
 
 commands.mute = {
-    parameters: 'user',
-    description: 'mute a remote user',
+    parameters: msg('user'),
+    description: msg('mute a remote user'),
     predicate: operatorPredicate,
     f: userMessage,
 };
 
 commands.muteall = {
-    description: 'mute all remote users',
+    description: msg('mute all remote users'),
     predicate: operatorPredicate,
     f: (c, r) => {
         serverConnection.userMessage('mute', null, null, true);
@@ -3669,8 +3681,8 @@ commands.muteall = {
 }
 
 commands.warn = {
-    parameters: 'user message',
-    description: 'send a warning to a user',
+    parameters: msg('user message'),
+    description: msg('send a warning to a user'),
     predicate: operatorPredicate,
     f: (c, r) => {
         userMessage('warning', r);
@@ -3678,18 +3690,18 @@ commands.warn = {
 };
 
 commands.wall = {
-    parameters: 'message',
-    description: 'send a warning to all users',
+    parameters: msg('message'),
+    description: msg('send a warning to all users'),
     predicate: operatorPredicate,
     f: (c, r) => {
         if(!r)
-            throw new Error('empty message');
+            throw new Error(t('empty message'));
         serverConnection.userMessage('warning', '', r);
     },
 };
 
 commands.raise = {
-    description: 'raise hand',
+    description: msg('raise hand'),
     f: (c, r) => {
         serverConnection.userAction(
             "setdata", serverConnection.id, {"raisehand": true},
@@ -3698,7 +3710,7 @@ commands.raise = {
 }
 
 commands.unraise = {
-    description: 'unraise hand',
+    description: msg('unraise hand'),
     f: (c, r) => {
         serverConnection.userAction(
             "setdata", serverConnection.id, {"raisehand": null},
@@ -3735,16 +3747,16 @@ function presentFile() {
 }
 
 commands.presentfile = {
-    description: 'broadcast a video or audio file',
+    description: msg('broadcast a video or audio file'),
     f: (c, r) => {
         presentFile();
     },
     predicate: () => {
         if(!canFile())
-            return 'Your browser does not support presenting arbitrary files';
+            return t('Your browser does not support presenting arbitrary files');
         if(!serverConnection || !serverConnection.permissions ||
            serverConnection.permissions.indexOf('present') < 0)
-            return 'You are not authorised to present.';
+            return t('You are not authorised to present.');
         return null;
     }
 };
@@ -3773,15 +3785,15 @@ function sendFile(id) {
 }
 
 commands.sendfile = {
-    parameters: 'user',
-    description: 'send a file (this will disclose your IP address)',
+    parameters: msg('user'),
+    description: msg('send a file (this will disclose your IP address)'),
     f: (c, r) => {
         let p = parseCommand(r);
         if(!p[0])
-            throw new Error(`/${c} requires parameters`);
+            throw new Error(t('/{{command}} requires parameters', {command: c}));
         let id = findUserId(p[0]);
         if(!id)
-            throw new Error(`Unknown user ${p[0]}`);
+            throw new Error(t('Unknown user {{user}}', {user: p[0]}));
         sendFile(id);
     },
 };
@@ -3835,14 +3847,15 @@ async function relayTest() {
 
 commands['relay-test'] = {
     f: async (c, r) => {
-        localMessage('Relay test in progress...');
+        localMessage(t('Relay test in progress...'));
         try {
             let s = Date.now();
             let rtt = await relayTest();
             let e = Date.now();
-            localMessage(`Relay test successful in ${e-s}ms, RTT ${rtt}ms`);
+            localMessage(t('Relay test successful in {{elapsed}}ms, RTT {{rtt}}ms',
+                           {elapsed: e - s, rtt: rtt}));
         } catch(e) {
-            localMessage(`Relay test failed: ${e}`);
+            localMessage(t('Relay test failed: {{error}}', {error: e}));
         }
     }
 }
@@ -3880,7 +3893,8 @@ function handleInput() {
                 let c = commands[cmd];
                 if(!c) {
                     displayError(
-                        `Unknown command /${cmd}, type /help for help`
+                        t('Unknown command /{{command}}, type /help for help',
+                          {command: cmd})
                     );
                     return;
                 }
@@ -3906,7 +3920,7 @@ function handleInput() {
     }
 
     if(!serverConnection || !serverConnection.socket) {
-        displayError("Not connected.");
+        displayError(t("Not connected."));
         return;
     }
 
@@ -4200,11 +4214,15 @@ async function serverConnect() {
         await serverConnection.connect(url);
     } catch(e) {
         console.error(e);
-        displayError(`Couldn't connect to ${url}: ${e.message}`);
+        displayError(t("Couldn't connect to {{url}}: {{message}}",
+                       {url: url, message: e.message}));
     }
 }
 
 async function start() {
+    await i18nReady;
+    translateDOM(document);
+
     try {
         let r = await fetch(".status")
         if(!r.ok)
@@ -4212,7 +4230,7 @@ async function start() {
         groupStatus = await r.json()
     } catch(e) {
         console.error(e);
-        displayWarning("Couldn't fetch status: " + e);
+        displayWarning(t("Couldn't fetch status: {{error}}", {error: e}));
         groupStatus = {};
     }
 

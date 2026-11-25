@@ -30,13 +30,14 @@ function httpError(r) {
     let s = r.statusText;
     if(s === '') {
         switch(r.status) {
-            case 401: s = 'Unauthorised'; break;
-            case 403: s = 'Forbidden'; break;
-            case 404: s = 'Not Found'; break;
+            case 401: s = t('Unauthorised'); break;
+            case 403: s = t('Forbidden'); break;
+            case 404: s = t('Not Found'); break;
         }
     }
 
-    return new Error(`The server said: ${r.status} ${s}`);
+    return new Error(t('The server said: {{status}} {{statusText}}',
+                       {status: r.status, statusText: s}));
 }
 
 /**
@@ -51,7 +52,7 @@ async function listObjects(url) {
         throw httpError(r);
     let data = await r.json();
     if(!(data instanceof Array))
-        throw new Error("Server didn't return array");
+        throw new Error(t("Server didn't return array"));
     return data;
  }
 
@@ -97,9 +98,9 @@ async function getObject(url, etag) {
         throw httpError(r);
     let newetag = r.headers.get("ETag");
     if(!newetag)
-        throw new Error("The server didn't return an ETag");
+        throw new Error(t("The server didn't return an ETag"));
     if(etag && newetag !== etag)
-        throw new Error("The server returned a mismatched ETag");
+        throw new Error(t("The server returned a mismatched ETag"));
     let data = await r.json();
     return {etag: newetag, data: data}
 }
@@ -357,10 +358,10 @@ async function createToken(group, template) {
         options);
     if(!r.ok)
         throw httpError(r);
-    let t = r.headers.get('Location');
-    if(!t)
-        throw new Error("Server didn't return location header");
-    return t;
+    let location = r.headers.get('Location');
+    if(!location)
+        throw new Error(t("Server didn't return location header"));
+    return location;
 }
 
 /**
@@ -371,7 +372,7 @@ async function createToken(group, template) {
  */
 async function updateToken(group, token, etag) {
     if(!token.token)
-        throw new Error("Unnamed token");
+        throw new Error(t("Unnamed token"));
     return await updateObject(
         `/galene-api/v0/.groups/${group}/.tokens/${token.token}`,
         token, etag);

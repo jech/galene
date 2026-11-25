@@ -37,7 +37,7 @@
 function Filter(stream, definition) {
     /** @ts-ignore */
     if(!HTMLCanvasElement.prototype.captureStream) {
-        throw new Error('Filters are not supported on this platform');
+        throw new Error(t('Filters are not supported on this platform'));
     }
 
     /** @type {MediaStream} */
@@ -220,7 +220,7 @@ async function workerSendReceive(worker, message, transfer) {
  */
 let filters = {
     'mirror-h': {
-        description: "Horizontal mirror",
+        description: msg("Horizontal mirror"),
         draw: async function(src, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
@@ -236,7 +236,7 @@ let filters = {
         },
     },
     'mirror-v': {
-        description: "Vertical mirror",
+        description: msg("Vertical mirror"),
         draw: async function(src, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
@@ -252,7 +252,7 @@ let filters = {
         },
     },
     'rotate': {
-        description: 'Rotate',
+        description: msg('Rotate'),
         draw: async function(src, ctx) {
             if(!(ctx instanceof CanvasRenderingContext2D))
                 throw new Error('bad context type');
@@ -268,7 +268,7 @@ let filters = {
         },
     },
     'background-blur': {
-        description: 'Background blur',
+        description: msg('Background blur'),
         predicate: async function() {
             let r = await fetch('/third-party/tasks-vision/vision_bundle.mjs', {
                 method: 'HEAD',
@@ -387,7 +387,7 @@ async function addFilters() {
             if(!(await f.predicate.call(f)))
                 continue;
         }
-        let d = f.description || name;
+        let d = f.description ? t(f.description) : name;
         addSelectOption(getSelectElement('filterselect'), d, name);
     }
 }

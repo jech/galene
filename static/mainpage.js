@@ -41,13 +41,16 @@ document.getElementById('groupform').onsubmit = async function(e) {
             });
             if(!resp.ok) {
                 if(resp.status === 404)
-                    displayError('No such group');
+                    displayError(t('No such group'));
                 else
-                    displayError(`The server said: ${resp.status} ${resp.statusText}`);
+                    displayError(t('The server said: {{status}} {{statusText}}',
+                                     {status: resp.status,
+                                      statusText: resp.statusText}));
                 return;
             }
         } catch(e) {
-            displayError(`Couldn't connect: ${e.toString()}`);
+            displayError(t("Couldn't connect: {{error}}",
+                           {error: e.toString()}));
             return;
         }
     } finally {
@@ -89,14 +92,14 @@ async function listPublicGroups() {
             throw new Error(`${r.status} ${r.statusText}`);
         l = await r.json();
     } catch(e) {
-        table.textContent = `Couldn't fetch groups: ${e}`;
+        table.textContent = t("Couldn't fetch groups: {{error}}", {error: e});
         div.classList.remove('nogroups');
         div.classList.add('groups');
         return;
     }
 
     if (l.length === 0) {
-        table.textContent = '(No groups found.)';
+        table.textContent = t('(No groups found.)');
         div.classList.remove('groups');
         div.classList.add('nogroups');
         return;
@@ -120,10 +123,11 @@ async function listPublicGroups() {
         tr.appendChild(td2);
         let td3 = document.createElement('td');
         if(!group.redirect) {
-            let locked = group.locked ? ', locked' : '';
-            td3.textContent = `(${group.clientCount} clients${locked})`;
+            let locked = group.locked ? t(', locked') : '';
+            td3.textContent =
+                '(' + t('clients', {count: group.clientCount}) + locked + ')';
         } else {
-            td3.textContent = '(remote)';
+            td3.textContent = t('(remote)');
         }
         tr.appendChild(td3);
         table.appendChild(tr);
@@ -131,4 +135,4 @@ async function listPublicGroups() {
 }
 
 
-listPublicGroups();
+i18nReady.then(() => { translateDOM(document); listPublicGroups(); });
