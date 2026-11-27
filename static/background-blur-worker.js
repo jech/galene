@@ -22,6 +22,9 @@
 
 let imageSegmenter;
 
+/** @type{Float32Array} */
+let previousMask = null;
+
 async function loadImageSegmenter(model) {
     let module = await import('/third-party/tasks-vision/vision_bundle.mjs');
     let vision = await module.FilesetResolver.forVisionTasks(
@@ -32,8 +35,8 @@ async function loadImageSegmenter(model) {
             baseOptions: {
                 modelAssetPath: model,
             },
-            outputCategoryMask: true,
-            outputConfidenceMasks: false,
+            outputCategoryMask: false,
+            outputConfidenceMasks: true,
             runningMode: 'VIDEO',
         });
 }
@@ -51,11 +54,15 @@ async function foregroundMask(bitmap, timestamp) {
                 result => resolve(result),
             ));
         let result = await p;
-        /** @type{Uint8Array} */
-        let mask = result.categoryMask.getAsUint8Array();
+        let mask = result.confidenceMasks[0].getAsFloat32Array();
+        if(!previousMask || previousMask.length !== mask.length)
+            previousMask = new Float32Array(mask);
         let id = new ImageData(width, height);
-        for(let i = 0; i < mask.length; i++)
-            id.data[4 * i + 3] = mask[i];
+        for(let i = 0; i < mask.length; i++) {
+            let m = (previousMask[i] + mask[i]) / 2;
+            previousMask[i] = m;
+            id.data[4 * i + 3] = 255 - m * 255;
+        }
         result.close();
 
         let ib = await createImageBitmap(id);

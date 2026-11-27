@@ -321,7 +321,11 @@ let filters = {
 
                 // set the alpha mask, background is opaque
                 ctx.globalCompositeOperation = 'copy';
+                if('filter' in ctx)
+                    ctx.filter = `blur(${src.videoWidth / 320}px)`;
                 ctx.drawImage(mask, 0, 0);
+                if('filter' in ctx)
+                    ctx.filter = 'none';
 
                 // rather than blurring the original image, we first mask
                 // the background then blur, this avoids a halo effect
