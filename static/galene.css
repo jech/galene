@@ -659,7 +659,7 @@ textarea.form-reply {
 .nav-link {
     padding: 0;
     color: #dbd9d9;
-    min-width: 30px;
+    min-width: 32px;
     display: block;
     text-align: center;
     margin: 0 10px;
@@ -678,10 +678,7 @@ textarea.form-reply {
     font-size: 55%;
 }
 
-.nav-link:hover {
-    color: #c2a4e0;
-}
-.nav-link:hover label {
+.nav-link:hover, .nav-link:hover label {
     color: #c2a4e0;
 }
 
@@ -689,7 +686,7 @@ textarea.form-reply {
     color: #d03e3e
 }
 
-.nav-cancel:hover, .muted:hover, .nav-cancel label:hover, .muted label:hover {
+.nav-cancel:hover, .muted:hover, .nav-cancel:hover label, .muted:hover label {
     color: #d03e3e
 }
 
